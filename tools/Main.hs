@@ -26,9 +26,9 @@ matrix_example n m =
       FunDef
         (PFunType [Fin n, Fin m] [pbool])
         [i, j] $
-        SLet [e] (EOracle [i, j]) $
-        SLet [e'] (EUnOp PNot e) $
-        SReturn e'
+        SLet [e] (E $ EOracle [i, j]) $
+        SLet [e'] (E $ EUnOp PNot e) $
+        SReturn [e']
       where
         i = "i"
         j = "j"
@@ -41,8 +41,8 @@ matrix_example n m =
         (PFunType [Fin n] [pbool])
         [i] $
         SLet [c, ok] (ESearch "check_entry" [i]) $
-        SLet [ok'] (EUnOp PNot ok) $
-        SReturn ok'
+        SLet [ok'] (E $ EUnOp PNot ok) $
+        SReturn [ok']
       where
         i = "i"
         c = "c"
@@ -55,7 +55,7 @@ matrix_example n m =
         (PFunType [] [])
         [] $
         SLet [r, ok] (ESearch "check_row" []) $
-        SReturn ok
+        SReturn [ok]
         where
           r = "r"
           ok = "ok"
@@ -73,7 +73,10 @@ oracle q = do
 
 main :: IO ()
 main = do
-  pPrint $ matrix_example 2 3
+  let ex = matrix_example 2 3
+  pPrint $ ex
+  let (FunDef _ _ body) = (ex M.! "check_matrix")
+  pPrint $ flatten_seq $ compile_classical (M.empty) body
   -- print_generic PDF (amplify 2 unif oracle) qs
   -- where
   --   qs = qureg_shape 3
