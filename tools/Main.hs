@@ -6,6 +6,7 @@ module Main where
 import Quipper (QData, print_generic, Circ, Qubit, Format(PDF), named_gate, gate_Z, qubit, qinit)
 import Quipper.Internal.Monad (qinit_list)
 import Quipper.Libraries.Qureg (Qureg, qureg_shape)
+import Quipper.Libraries.Arith (qdint_shape)
 import QCompose.Basic
 import QCompose.Amplify
 import QCompose.ProtoLang
@@ -71,14 +72,23 @@ oracle q = do
   named_gate "Oracle" (q, w, res)
   return (q, w, res)
 
-main :: IO ()
-main = do
+show_prog :: IO ()
+show_prog = do
   let ex = matrix_example 2 3
   pPrint $ ex
   let (FunDef _ _ body) = (ex M.! "check_matrix")
   pPrint $ flatten_seq $ compile_classical (M.empty) body
-  -- print_generic PDF (amplify 2 unif oracle) qs
-  -- where
-  --   qs = qureg_shape 3
+
+show_circ :: IO ()
+show_circ = do
+  print_generic PDF (amplify 2 unif oracle) qs
+  where
+    -- qs = qureg_shape 3
+    qs = qdint_shape 3
+
+main :: IO ()
+main = do
+  -- show_prog
+  show_circ
 
 
