@@ -27,8 +27,8 @@ matrix_example n m =
       FunDef
         (PFunType [Fin n, Fin m] [pbool])
         [i, j] $
-        SLet [e] (E $ EOracle [i, j]) $
-        SLet [e'] (E $ EUnOp PNot e) $
+        SLet (SOracle [e] [i, j]) $
+        SLet (SUnOp e' PNot e) $
         SReturn [e']
       where
         i = "i"
@@ -41,8 +41,8 @@ matrix_example n m =
       FunDef
         (PFunType [Fin n] [pbool])
         [i] $
-        SLet [c, ok] (ESearch "check_entry" [i]) $
-        SLet [ok'] (E $ EUnOp PNot ok) $
+        SLet (SSearch c ok "check_entry" [i]) $
+        SLet (SUnOp ok' PNot ok) $
         SReturn [ok']
       where
         i = "i"
@@ -55,7 +55,7 @@ matrix_example n m =
       FunDef
         (PFunType [] [])
         [] $
-        SLet [r, ok] (ESearch "check_row" []) $
+        SLet (SSearch r ok "check_row" []) $
         SReturn [ok]
         where
           r = "r"
@@ -76,8 +76,8 @@ show_prog :: IO ()
 show_prog = do
   let ex = matrix_example 2 3
   pPrint $ ex
-  let (FunDef _ _ body) = (ex M.! "check_matrix")
-  pPrint $ flatten_seq $ compile_classical (M.empty) body
+  -- let (FunDef _ _ body) = (ex M.! "check_matrix")
+  -- pPrint $ flatten_seq $ compile_classical (M.empty) body
 
 show_circ :: IO ()
 show_circ = do
@@ -88,7 +88,7 @@ show_circ = do
 
 main :: IO ()
 main = do
-  -- show_prog
-  show_circ
+  show_prog
+  -- show_circ
 
 

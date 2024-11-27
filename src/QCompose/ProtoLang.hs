@@ -22,27 +22,22 @@ data UnOp = PNot
 data BinOp = PAdd | PLeq | PAnd
   deriving (Eq, Show, Read)
 
-data SimpleExpr =
-  EConst Int VarType -- const v :: T
-  | EVar Ident -- x
-  | EUnOp UnOp Ident -- op x
-  | EBinOp BinOp Ident Ident -- x `binop` y
-  | EOracle [Ident]
-  | ECall Ident [Ident]
-  deriving (Eq, Show, Read)
-
-data Expr =
-  E SimpleExpr
-  | EIfTE Ident Expr Expr -- if x then E_1 else E_0
-  | ESearch Ident [Ident] -- f, [x_1, ... x_{k-1}]
-  deriving (Eq, Show, Read)
-
 data Stmt =
-  SReturn [Ident] 
-  | SLet [Ident] Expr Stmt
+  SAssign [Ident] [Ident] -- x... <- y...
+  | SConst Ident [Int] VarType -- x <- v :: T
+  | SUnOp Ident UnOp Ident -- x <- op y
+  | SBinOp Ident BinOp Ident Ident -- x <- y `binop` z
+  | SOracle [Ident] [Ident] -- x... <- Oracle(y...)
+  | SIfTE Ident Stmt Stmt -- if x then E_1 else E_0
+  | SSearch Ident Ident Ident [Ident] -- x, ok <- search(f, [x_1, ... x_{k-1}])
   deriving (Eq, Show, Read)
 
-data FunDef = FunDef PFunType [Ident] Stmt -- fun-type, param-names, body
+data FunBody =
+  SReturn [Ident] 
+  | SLet Stmt FunBody
+  deriving (Eq, Show, Read)
+
+data FunDef = FunDef PFunType [Ident] FunBody -- fun-type, param-names, body
   deriving (Eq, Show, Read)
 
 type FunCtx = M.Map Ident FunDef
@@ -108,28 +103,28 @@ type Compiler = TypeCtx -> Stmt -> CQWhile
 
 -- 1. Classical Deterministic
 compile_classical :: Compiler
-compile_classical ctx (SReturn xs) = Return xs
-compile_classical ctx (SLet xs expr body) =
-  Seq [ Seq [CNew x | x <- xs]
-      , compute_stmts
-      , compiled_body
-      ]
-  where
-    compiled_body = compile_classical ctx body
+-- compile_classical ctx (SReturn xs) = Return xs
+-- compile_classical ctx (SLet xs expr body) =
+--   Seq [ Seq [CNew x | x <- xs]
+--       , compute_stmts
+--       , compiled_body
+--       ]
+--   where
+--     compiled_body = compile_classical ctx body
 
-    compute_stmts = 
-      case expr of 
-        E simple_expr -> CAssign xs simple_expr
-        ESearch pred args -> 
-          let [ans, ok] = xs in 
-            Seq [
-              CNew "loop",
-              CAssign ["loop"] (EConst 1 (Fin 1)),
-              CWhile "loop" $ Seq [
-                CQHole "search_loop_body_here"
-              ]
-            ]
-        _ -> error $ "cannot compile: " <> show expr
+--     compute_stmts = 
+--       case expr of 
+--         E simple_expr -> CAssign xs simple_expr
+--         ESearch pred args -> 
+--           let [ans, ok] = xs in 
+--             Seq [
+--               CNew "loop",
+--               CAssign ["loop"] (EConst 1 (Fin 1)),
+--               CWhile "loop" $ Seq [
+--                 CQHole "search_loop_body_here"
+--               ]
+--             ]
+--         _ -> error $ "cannot compile: " <> show expr
 
 compile_classical _ _ = error "not implemented"
 
