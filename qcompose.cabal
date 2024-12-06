@@ -61,9 +61,9 @@ library
     -- Modules exported by the library.
     exposed-modules:
         QCompose
-        QCompose.Basic
-        QCompose.Amplify
-        QCompose.Majority
+        QCompose.Algorithms.Basic
+        QCompose.Algorithms.Amplify
+        QCompose.Algorithms.Majority
         QCompose.ProtoLang
         QCompose.TypeCheck
         QCompose.Examples.MatrixSearch

@@ -1,6 +1,6 @@
 {-# LANGUAGE Rank2Types #-}
 {-# LANGUAGE FlexibleContexts #-}
-module QCompose.Basic (Unitary, LiftedPredicate, reverse_predicate) where
+module QCompose.Algorithms.Basic (Unitary, LiftedPredicate, reverse_predicate) where
 
 import Quipper (Circ, Qubit, QData, reverse_generic)
 

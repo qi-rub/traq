@@ -3,8 +3,6 @@
 
 module Main where
 
-import QCompose.Basic
-import QCompose.Amplify
 import QCompose.ProtoLang
 import QCompose.TypeCheck
 import Text.Pretty.Simple

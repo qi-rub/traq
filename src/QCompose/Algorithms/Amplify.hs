@@ -7,10 +7,10 @@
 {-# LANGUAGE ConstraintKinds #-}
 {-# LANGUAGE Rank2Types #-}
 
-module QCompose.Amplify (amplify, amp1, amplifyRecursive) where
+module QCompose.Algorithms.Amplify (amplify, amp1, amplifyRecursive) where
 
 import Control.Monad ((>=>))
-import QCompose.Basic (Unitary, LiftedPredicate, reverse_predicate)
+import QCompose.Algorithms.Basic (Unitary, LiftedPredicate, reverse_predicate)
 import Quipper (QData, reverse_generic_endo, named_gate, gate_Z)
 
 reflect0 :: (QData qa) => Unitary qa
