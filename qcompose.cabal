@@ -65,6 +65,7 @@ library
         QCompose.Amplify
         QCompose.Majority
         QCompose.ProtoLang
+        QCompose.TypeCheck
         QCompose.Examples.MatrixSearch
 
     -- Modules included in this library but not exported.

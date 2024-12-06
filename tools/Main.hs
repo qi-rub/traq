@@ -6,6 +6,7 @@ module Main where
 import QCompose.Basic
 import QCompose.Amplify
 import QCompose.ProtoLang
+import QCompose.TypeCheck
 import Text.Pretty.Simple
 import qualified Data.Map as M
 import QCompose.Examples.MatrixSearch
@@ -13,6 +14,8 @@ import QCompose.Examples.MatrixSearch
 show_prog :: IO ()
 show_prog = do
   let ex = matrixExample 10 10
+  print $ typeCheckProg ex (OracleDecl [Fin 10, Fin 10] [Fin 2])
+
   -- pPrint $ ex
   let oracle = \[i, j] -> [if i == j then 1 else 0]
   let res = evalFun ex oracle [] "check_matrix"

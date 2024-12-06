@@ -1,6 +1,5 @@
 module QCompose.ProtoLang where
 
-import Control.Monad.Extra (unit)
 import qualified Data.Map as M
 import Extra (intToFloat)
 
