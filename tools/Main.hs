@@ -1,12 +1,7 @@
-{-# LANGUAGE FlexibleContexts #-}
-{-# LANGUAGE TupleSections #-}
-
 module Main where
 
 import QCompose.ProtoLang
 import QCompose.TypeCheck
-import Text.Pretty.Simple
-import qualified Data.Map as M
 import QCompose.Examples.MatrixSearch
 
 show_prog :: IO ()
