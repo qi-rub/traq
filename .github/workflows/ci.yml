@@ -14,20 +14,34 @@ concurrency:
 
 jobs:
   build:
-    name: Cabal test (GHC 9.4.8)
+    name: Cabal test
     runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        ghc-version: ["8.10.7"] # "9.4.8"
 
     steps:
       - uses: actions/checkout@v4
 
-      - name: Set up GHC 9.4.8
+      - name: Set up GHC ${{ matrix.ghc-version }}
         uses: haskell-actions/setup@v2
         id: setup
         with:
-          ghc-version: 9.4.8
+          ghc-version: ${{ matrix.ghc-version }}
           # Defaults, added for clarity:
           cabal-version: 'latest'
           cabal-update: true
+
+      - name: Verify cabal file
+        run: |
+          cabal install hpack-0.36.0
+          hpack
+          if output=$(git status --porcelain) && [ -z "$output" ]; then
+            exit 0
+          else
+            echo $output
+            exit 1
+          fi
 
       - name: Configure the build
         run: |
