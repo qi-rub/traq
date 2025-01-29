@@ -1,7 +1,7 @@
 module QCompose.ProtoLang where
 
 import qualified Data.Map as M
-import Extra (intToFloat)
+import Numeric.Extra (intToFloat)
 
 -- proto-search language
 newtype VarType = Fin Int -- Fin<N>
