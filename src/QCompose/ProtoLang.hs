@@ -100,8 +100,9 @@ evalFun fns oracle in_values f = ret_vals
 
 -- cost
 type CostMetric = FunCtx -> Oracle -> Stmt -> Float -> State -> Float
+-- Functions, Oracle interpretation, S (program), eps (fail prob), sigma (input state)
 
-data Flag = Quantum | Unitary deriving (Eq, Show, Read)
+data CostType = Quantum | Unitary deriving (Eq, Show, Read)
 
 -- computed cost functions of a given set of algorithms (quantum, unitary)
 data QSearchFormulas = QSearchFormulas
@@ -114,18 +115,20 @@ data QSearchFormulas = QSearchFormulas
 cadeEtAlFormulas :: QSearchFormulas
 cadeEtAlFormulas = QSearchFormulas eqsearch eqsearch_worst zalka
   where
+    eqsearch_worst :: Int -> Float -> Float
+    eqsearch_worst n eps = 9.2 * log (1 / eps) * sqrt (fromIntegral n)
+
     f :: Int -> Int -> Float
     f n t
       | 4 * t < n = 2.0344
       | otherwise = 3.1 * sqrt (fromIntegral n / fromIntegral t)
 
     eqsearch :: Int -> Int -> Float -> Float
-    eqsearch n t eps = f n t * (1 + 1 / (1 - term))
-      where
-        term = f n t / (9.2 * sqrt (fromIntegral n))
-
-    eqsearch_worst :: Int -> Float -> Float
-    eqsearch_worst n eps = 9.2 * log (1 / eps) * sqrt (fromIntegral n)
+    eqsearch n t eps 
+      | t == 0 = eqsearch_worst n eps
+      | otherwise = f n t * (1 + 1 / (1 - term))
+        where
+          term = f n t / (9.2 * sqrt (fromIntegral n))
 
     zalka :: Int -> Float -> Float
     zalka n eps = 5 * err + pi * sqrt (fromIntegral n * err)
@@ -133,7 +136,7 @@ cadeEtAlFormulas = QSearchFormulas eqsearch eqsearch_worst zalka
         err :: Float
         err = intToFloat $ ceiling (log (1 / eps) / (2 * log (4 / 3)))
 
-quantumQueryCost :: Flag -> QSearchFormulas -> CostMetric
+quantumQueryCost :: CostType -> QSearchFormulas -> CostMetric
 quantumQueryCost flag algs fns oracle = cost
   where
     get :: State -> Ident -> Int
@@ -195,7 +198,7 @@ quantumQueryCost flag algs fns oracle = cost
         max_pred_unitary_cost = maximum $ pred_unitary_cost <$> range typ_x
     cost (SSearch {}) _ _ = error "cost for search not supported, use contains for now."
 
-quantumQueryCostOfFun :: Flag -> QSearchFormulas -> FunCtx -> Oracle -> [Int] -> Float -> Ident -> Float
+quantumQueryCostOfFun :: CostType -> QSearchFormulas -> FunCtx -> Oracle -> [Int] -> Float -> Ident -> Float
 quantumQueryCostOfFun flag algs fns oracle in_values eps f = cost
   where
     FunDef fn_args _ body = fns M.! f
