@@ -18,6 +18,7 @@ category: Math
 
 extra-doc-files:
   - CHANGELOG.md
+  - Readme.md
 
 ghc-options: -Wall
 
