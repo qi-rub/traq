@@ -1,0 +1,48 @@
+spec-version: 0.36.0
+
+name: qcompose
+
+# The package version.
+# See the Haskell package versioning policy (PVP) for standards
+# guiding when and how versions should be incremented.
+# https://pvp.haskell.org
+# PVP summary:     
+#        +-+------- breaking API changes
+#        | | +----- non-breaking API additions
+#        | | | +--- code changes with no API change
+version: 0.1.0.0
+
+author: Anurudh Peduri <anurudhp97@gmail.com>
+maintainer: Anurudh Peduri <anurudhp97@gmail.com>
+category: Math
+
+extra-doc-files:
+  - CHANGELOG.md
+
+ghc-options: -Wall
+
+dependencies:
+  - base ^>=4.17.2.1
+  - extra >= 1.8 
+  - containers >= 0.6.7
+  - pretty-simple >= 4.0
+
+library:
+  source-dirs: src
+
+executable:
+  main: Main.hs
+  source-dirs: tools
+  dependencies: qcompose
+
+tests:
+  spec:
+      main: Spec.hs
+      source-dirs:
+        - test
+      dependencies:
+        - qcompose
+        - hspec >= 2.9.0
+        - QuickCheck
+      cpp-options: -DTEST
+      build-tools: hspec-discover
