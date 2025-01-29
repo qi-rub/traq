@@ -6,6 +6,7 @@ cabal-version: 1.18
 
 name:               qcompose
 version:            0.1.0.0
+description:        protoqubrabench implementation
 license:            MIT
 license-file:       LICENSE
 author:             Anurudh Peduri <anurudhp97@gmail.com>
