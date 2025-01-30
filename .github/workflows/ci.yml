@@ -13,8 +13,21 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
+  hpack:
+    name: Check hpack generated config
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Install hpack
+        run: curl -sSL https://raw.githubusercontent.com/sol/hpack/main/get-hpack.sh | bash
+
+      - name: Run hpack
+        run: hpack && git diff --exit-code
+
   build:
     name: Cabal test
+    needs: hpack
     runs-on: ubuntu-latest
     strategy:
       matrix:
@@ -31,17 +44,6 @@ jobs:
           # Defaults, added for clarity:
           cabal-version: 'latest'
           cabal-update: true
-
-      - name: Verify cabal file
-        run: |
-          cabal install hpack-0.36.0
-          hpack
-          if output=$(git status --porcelain) && [ -z "$output" ]; then
-            exit 0
-          else
-            echo $output
-            exit 1
-          fi
 
       - name: Configure the build
         run: |
