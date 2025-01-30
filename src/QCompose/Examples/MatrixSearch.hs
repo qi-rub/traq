@@ -1,7 +1,7 @@
 module QCompose.Examples.MatrixSearch where
 
-import qualified Data.Map as M
-import QCompose.ProtoLang
+import qualified Data.Map                  as M
+import           QCompose.ProtoLang.Syntax
 
 sbool :: VarType
 sbool = Fin 2

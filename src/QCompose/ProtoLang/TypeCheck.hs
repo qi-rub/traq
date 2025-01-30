@@ -1,8 +1,8 @@
-module QCompose.TypeCheck where
+module QCompose.ProtoLang.TypeCheck where
 
-import Control.Monad (forM_, unless, when)
-import qualified Data.Map as M
-import QCompose.ProtoLang
+import           Control.Monad             (forM_, unless, when)
+import qualified Data.Map                  as M
+import           QCompose.ProtoLang.Syntax
 
 type TypingCtx = M.Map Ident VarType
 

@@ -1,8 +1,9 @@
 module Main where
 
-import QCompose.ProtoLang
-import QCompose.TypeCheck
-import QCompose.Examples.MatrixSearch
+import           QCompose.Examples.MatrixSearch
+import           QCompose.ProtoLang
+import           QCompose.TypeCheck
+import           Quipper
 
 show_prog :: IO ()
 show_prog = do
@@ -14,7 +15,7 @@ show_prog = do
   let res = evalFun ex oracle [] "check_matrix"
   print res
   let eps = 0.0001
-  print $ quantumQueryCostOfFun Quantum cadeEtAlFormulas ex oracle [] eps "check_matrix" 
+  print $ quantumQueryCostOfFun Quantum cadeEtAlFormulas ex oracle [] eps "check_matrix"
 
 main :: IO ()
 main = do

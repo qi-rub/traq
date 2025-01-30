@@ -22,7 +22,10 @@ library
           QCompose
           QCompose.Examples.MatrixSearch
           QCompose.ProtoLang
-          QCompose.TypeCheck
+          QCompose.ProtoLang.Cost
+          QCompose.ProtoLang.Eval
+          QCompose.ProtoLang.Syntax
+          QCompose.ProtoLang.TypeCheck
     build-depends:
           base >=4.10.0 && <5
         , containers >=0.6 && <1
