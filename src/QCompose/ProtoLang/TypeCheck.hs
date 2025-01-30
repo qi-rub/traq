@@ -1,6 +1,7 @@
 module QCompose.ProtoLang.TypeCheck where
 
 import           Control.Monad             (forM_, unless, when)
+import           Data.Either               (isRight)
 import qualified Data.Map                  as M
 import           QCompose.ProtoLang.Syntax
 
@@ -146,3 +147,6 @@ typeCheckProg fns (OracleDecl o_arg_tys o_ret_tys) = mapM_ checkFun (M.keys fns)
 
     -- s_1 ; s_2
     checkStmt' (SSeq s_1 s_2) gamma = checkStmt s_1 gamma >>= checkStmt' s_2
+
+isWellTyped :: FunCtx -> OracleDecl -> Bool
+isWellTyped fns oracle = isRight $ typeCheckProg fns oracle
