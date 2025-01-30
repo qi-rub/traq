@@ -1,22 +1,24 @@
 module QCompose.ProtoLang.Cost where
 
-import qualified Data.Map                  as M
-import           Numeric.Extra             (intToFloat)
-import           QCompose.ProtoLang.Eval
-import           QCompose.ProtoLang.Syntax
+import qualified Data.Map as M
+import Numeric.Extra (intToFloat)
+import QCompose.Basic
+import QCompose.ProtoLang.Eval
+import QCompose.ProtoLang.Syntax
 
 -- cost
 type CostMetric = FunCtx -> Oracle -> Stmt -> Float -> State -> Float
+
 -- Functions, Oracle interpretation, S (program), eps (fail prob), sigma (input state)
 
 data CostType = Quantum | Unitary deriving (Eq, Show, Read)
 
 -- computed cost functions of a given set of algorithms (quantum, unitary)
 data QSearchFormulas = QSearchFormulas
-  { qSearchExpectedCost  :: Int -> Int -> Float -> Float, -- n t eps
-    qSearchWorstCaseCost :: Int -> Float -> Float, -- n eps
-    qSearchUnitaryCost   :: Int -> Float -> Float -- n eps
-  }
+    { qSearchExpectedCost :: Int -> Int -> Float -> Float -- n t eps
+    , qSearchWorstCaseCost :: Int -> Float -> Float -- n eps
+    , qSearchUnitaryCost :: Int -> Float -> Float -- n eps
+    }
 
 -- example
 cadeEtAlFormulas :: QSearchFormulas
@@ -27,15 +29,15 @@ cadeEtAlFormulas = QSearchFormulas eqsearch eqsearch_worst zalka
 
     f :: Int -> Int -> Float
     f n t
-      | 4 * t < n = 2.0344
-      | otherwise = 3.1 * sqrt (fromIntegral n / fromIntegral t)
+        | 4 * t < n = 2.0344
+        | otherwise = 3.1 * sqrt (fromIntegral n / fromIntegral t)
 
     eqsearch :: Int -> Int -> Float -> Float
     eqsearch n t eps
-      | t == 0 = eqsearch_worst n eps
-      | otherwise = f n t * (1 + 1 / (1 - term))
-        where
-          term = f n t / (9.2 * sqrt (fromIntegral n))
+        | t == 0 = eqsearch_worst n eps
+        | otherwise = f n t * (1 + 1 / (1 - term))
+      where
+        term = f n t / (9.2 * sqrt (fromIntegral n))
 
     zalka :: Int -> Float -> Float
     zalka n eps = 5 * err + pi * sqrt (fromIntegral n * err)
@@ -50,11 +52,11 @@ quantumQueryCost flag algs fns oracle = cost
     get st x = st M.! x
 
     cost :: Stmt -> Float -> State -> Float
-    cost (SAssign {}) _ _ = 0
-    cost (SConst {}) _ _ = 0
-    cost (SUnOp {}) _ _ = 0
-    cost (SBinOp {}) _ _ = 0
-    cost (SOracle {}) _ _ = 1
+    cost (SAssign{}) _ _ = 0
+    cost (SConst{}) _ _ = 0
+    cost (SUnOp{}) _ _ = 0
+    cost (SBinOp{}) _ _ = 0
+    cost (SOracle{}) _ _ = 1
     cost (SIfTE x s_t s_f) eps sigma = max (cost s_t eps sigma) (cost s_f eps sigma)
     cost (SSeq s_1 s_2) eps sigma = cost s_1 (eps / 2) sigma + cost s_2 (eps / 2) sigma'
       where
@@ -81,29 +83,29 @@ quantumQueryCost flag algs fns oracle = cost
         t = length $ filter check (range typ_x)
 
         n_pred_calls = case flag of
-          Quantum -> qSearchExpectedCost algs n t (eps / 2)
-          Unitary -> qSearchUnitaryCost algs n (eps / 2)
+            Quantum -> qSearchExpectedCost algs n t (eps / 2)
+            Unitary -> qSearchUnitaryCost algs n (eps / 2)
 
         q_worst = case flag of
-          Quantum -> qSearchWorstCaseCost algs n (eps / 2)
-          Unitary -> qSearchUnitaryCost algs n (eps / 2)
+            Quantum -> qSearchWorstCaseCost algs n (eps / 2)
+            Unitary -> qSearchUnitaryCost algs n (eps / 2)
         eps_per_pred_call = (eps / 2) / q_worst
 
         pred_unitary_cost :: Int -> Float
         pred_unitary_cost v =
-          quantumQueryCost
-            Unitary
-            algs
-            fns
-            oracle
-            body
-            eps_per_pred_call
-            omega
+            quantumQueryCost
+                Unitary
+                algs
+                fns
+                oracle
+                body
+                eps_per_pred_call
+                omega
           where
             omega = M.fromList $ zip (map fst fn_args) (vs ++ [v])
 
         max_pred_unitary_cost = maximum $ pred_unitary_cost <$> range typ_x
-    cost (SSearch {}) _ _ = error "cost for search not supported, use contains for now."
+    cost (SSearch{}) _ _ = error "cost for search not supported, use contains for now."
 
 quantumQueryCostOfFun :: CostType -> QSearchFormulas -> FunCtx -> Oracle -> [Int] -> Float -> Ident -> Float
 quantumQueryCostOfFun flag algs fns oracle in_values eps f = cost
@@ -113,4 +115,3 @@ quantumQueryCostOfFun flag algs fns oracle in_values eps f = cost
     sigma = M.fromList $ zip param_names in_values
 
     cost = quantumQueryCost flag algs fns oracle body eps sigma
-
