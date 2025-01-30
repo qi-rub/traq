@@ -15,10 +15,10 @@ data CostType = Quantum | Unitary deriving (Eq, Show, Read)
 
 -- computed cost functions of a given set of algorithms (quantum, unitary)
 data QSearchFormulas = QSearchFormulas
-    { qSearchExpectedCost :: Int -> Int -> Float -> Float -- n t eps
-    , qSearchWorstCaseCost :: Int -> Float -> Float -- n eps
-    , qSearchUnitaryCost :: Int -> Float -> Float -- n eps
-    }
+  { qSearchExpectedCost :: Int -> Int -> Float -> Float -- n t eps
+  , qSearchWorstCaseCost :: Int -> Float -> Float -- n eps
+  , qSearchUnitaryCost :: Int -> Float -> Float -- n eps
+  }
 
 -- example
 cadeEtAlFormulas :: QSearchFormulas
@@ -29,13 +29,13 @@ cadeEtAlFormulas = QSearchFormulas eqsearch eqsearch_worst zalka
 
     f :: Int -> Int -> Float
     f n t
-        | 4 * t < n = 2.0344
-        | otherwise = 3.1 * sqrt (fromIntegral n / fromIntegral t)
+      | 4 * t < n = 2.0344
+      | otherwise = 3.1 * sqrt (fromIntegral n / fromIntegral t)
 
     eqsearch :: Int -> Int -> Float -> Float
     eqsearch n t eps
-        | t == 0 = eqsearch_worst n eps
-        | otherwise = f n t * (1 + 1 / (1 - term))
+      | t == 0 = eqsearch_worst n eps
+      | otherwise = f n t * (1 + 1 / (1 - term))
       where
         term = f n t / (9.2 * sqrt (fromIntegral n))
 
@@ -83,24 +83,24 @@ quantumQueryCost flag algs fns oracle = cost
         t = length $ filter check (range typ_x)
 
         n_pred_calls = case flag of
-            Quantum -> qSearchExpectedCost algs n t (eps / 2)
-            Unitary -> qSearchUnitaryCost algs n (eps / 2)
+          Quantum -> qSearchExpectedCost algs n t (eps / 2)
+          Unitary -> qSearchUnitaryCost algs n (eps / 2)
 
         q_worst = case flag of
-            Quantum -> qSearchWorstCaseCost algs n (eps / 2)
-            Unitary -> qSearchUnitaryCost algs n (eps / 2)
+          Quantum -> qSearchWorstCaseCost algs n (eps / 2)
+          Unitary -> qSearchUnitaryCost algs n (eps / 2)
         eps_per_pred_call = (eps / 2) / q_worst
 
         pred_unitary_cost :: Int -> Float
         pred_unitary_cost v =
-            quantumQueryCost
-                Unitary
-                algs
-                fns
-                oracle
-                body
-                eps_per_pred_call
-                omega
+          quantumQueryCost
+            Unitary
+            algs
+            fns
+            oracle
+            body
+            eps_per_pred_call
+            omega
           where
             omega = M.fromList $ zip (map fst fn_args) (vs ++ [v])
 

@@ -13,6 +13,18 @@ on:
 #   cancel-in-progress: true
 
 jobs:
+  format:
+    name: Check Formatting (fourmolu)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: haskell-actions/run-fourmolu@v11
+        with:
+          version: "0.18.0.0"
+          pattern: |
+            src/**/*.hs
+            test/**/*.hs
+
   hpack:
     name: Check hpack generated config
     runs-on: ubuntu-latest
@@ -26,7 +38,7 @@ jobs:
         run: hpack && git diff --exit-code
 
   build:
-    name: Cabal test
+    name: Build and test (cabal)
     needs: hpack
     runs-on: ubuntu-latest
     strategy:
