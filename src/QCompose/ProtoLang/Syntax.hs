@@ -31,4 +31,3 @@ data FunDef = FunDef [(Ident, VarType)] [(Ident, VarType)] Stmt -- args@(x_i : T
   deriving (Eq, Show, Read)
 
 type FunCtx = M.Map Ident FunDef
-
