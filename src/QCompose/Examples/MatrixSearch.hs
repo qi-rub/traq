@@ -8,20 +8,25 @@ sbool = Fin 2
 
 matrixExample :: Int -> Int -> FunCtx
 matrixExample n m =
-  M.fromList
-    [ ("check_entry", check_entry)
-    , ("check_row", check_row)
-    , ("check_matrix", check_matrix)
-    ]
+  FunCtx
+    { oracle = OracleDef [Fin n, Fin m] [sbool]
+    , funs =
+        M.fromList
+          [ ("check_entry", check_entry)
+          , ("check_row", check_row)
+          , ("check_matrix", check_matrix)
+          ]
+    }
   where
     check_entry :: FunDef
     check_entry =
       FunDef
         [(i, Fin n), (j, Fin m)]
         [(e', sbool)]
-        $ SSeq
-          (SOracle [e] [i, j])
-          (SUnOp e' PNot e)
+        ( SSeq
+            (SOracle [e] [i, j])
+            (SUnOp e' PNot e)
+        )
       where
         i = "i"
         j = "j"
@@ -33,9 +38,10 @@ matrixExample n m =
       FunDef
         [(i, Fin n)]
         [(ok', sbool)]
-        $ SSeq
-          (SContains ok "check_entry" [i])
-          (SUnOp ok' PNot ok)
+        ( SSeq
+            (SContains ok "check_entry" [i])
+            (SUnOp ok' PNot ok)
+        )
       where
         i = "i"
         ok = "ok"

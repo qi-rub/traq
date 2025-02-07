@@ -3,9 +3,19 @@ module QCompose.UnitaryQPL.Syntax where
 import QCompose.Basic
 import QCompose.ProtoLang.Syntax (VarType)
 
+data Unitary
+  = XorInto
+  | XorConst Int
+  | AddInto
+  | LEqInto
+  | Toffoli
+  | CNOT
+  | C0_X
+  deriving (Eq, Show, Read)
+
 data UQPLStmt
   = USkip
-  | UUnitary [Ident] String -- q... *= U
+  | UUnitary [Ident] Unitary -- q... *= U
   | UOracle [Ident] -- Oracle(q...)
   | UCall Ident [Ident] -- call F(q...)
   | UCallDagger Ident [Ident] -- call F(q...)

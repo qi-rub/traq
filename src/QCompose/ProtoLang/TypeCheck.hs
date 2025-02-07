@@ -2,86 +2,79 @@ module QCompose.ProtoLang.TypeCheck where
 
 import Control.Monad (forM_, unless, when)
 import Data.Either (isRight)
+import Data.Map ((!))
 import qualified Data.Map as M
 import QCompose.Basic
 import QCompose.ProtoLang.Syntax
 
+sbool :: VarType
+sbool = Fin 2
+
 type TypingCtx = M.Map Ident VarType
 
-data OracleDecl = OracleDecl [VarType] [VarType] -- arg_types ret_types
-
-typeCheckProg :: FunCtx -> OracleDecl -> Either String ()
-typeCheckProg fns (OracleDecl o_arg_tys o_ret_tys) = mapM_ checkFun (M.keys fns)
+-- | Checks that the given inputs are present in the context, and the outputs are not.
+checkInOuts :: TypingCtx -> [Ident] -> [Ident] -> Either String ()
+checkInOuts gamma ins outs = checkPresent ins >> checkNotPresent outs
   where
-    sbool = Fin 2
-
-    checkFun :: Ident -> Either String ()
-    checkFun f = do
-      let FunDef fn_args fn_rets body = fns M.! f
-      let gamma = M.fromList fn_args
-      gamma' <- checkStmt body gamma
-      forM_ fn_rets $ \(x, t) -> do
-        let t' = gamma' M.! x
-        when (t /= t') $ Left $ "return term " <> x <> ": expected type " <> show t <> ", got type " <> show t'
-
-    checkNotPresent :: [Ident] -> TypingCtx -> Either String ()
-    checkNotPresent xs gamma = forM_ xs $ \x -> do
+    checkNotPresent :: [Ident] -> Either String ()
+    checkNotPresent xs = forM_ xs $ \x -> do
       when (M.member x gamma) $ Left ("variable " <> x <> " already defined: " <> show gamma)
 
-    checkPresent :: [Ident] -> TypingCtx -> Either String ()
-    checkPresent xs gamma = forM_ xs $ \x -> do
+    checkPresent :: [Ident] -> Either String ()
+    checkPresent xs = forM_ xs $ \x -> do
       unless (M.member x gamma) $ Left ("variable " <> x <> " not found: " <> show gamma)
 
-    checkInOuts :: TypingCtx -> [Ident] -> [Ident] -> Either String ()
-    checkInOuts gamma ins outs = checkPresent ins gamma >> checkNotPresent outs gamma
-
-    checkStmt :: Stmt -> TypingCtx -> Either String TypingCtx
-    checkStmt s gamma = do
-      outs <- checkStmt' s gamma
-      return $ M.union (M.fromList outs) gamma
-
-    checkStmt' :: Stmt -> TypingCtx -> Either String [(Ident, VarType)]
+{- | Typecheck a statement, given the current context and function definitions.
+| If successful, return the updated typing context.
+-}
+checkStmt :: FunCtx -> Stmt -> TypingCtx -> Either String TypingCtx
+checkStmt funCtx (SSeq s_1 s_2) gamma = checkStmt funCtx s_1 gamma >>= checkStmt funCtx s_2
+checkStmt FunCtx{..} s gamma = M.union gamma . M.fromList <$> checkStmt' s
+  where
+    -- type check and return the new variable bindings.
+    checkStmt' :: Stmt -> Either String [(Ident, VarType)]
     -- x <- x'
-    checkStmt' (SAssign x x') gamma = do
-      checkInOuts gamma [x'] [x]
-      return [(x, gamma M.! x')]
+    checkStmt' SAssign{..} = do
+      checkInOuts gamma [arg] [ret]
+      return [(ret, gamma ! arg)]
 
     -- x <- v : t
-    checkStmt' (SConst x _ t) gamma = do
-      checkInOuts gamma [] [x]
-      checkNotPresent [x] gamma
-      return [(x, t)]
+    checkStmt' SConst{..} = do
+      checkInOuts gamma [] [ret]
+      return [(ret, ty)]
 
     -- x <- op a
-    checkStmt' (SUnOp x op a) gamma = do
-      checkInOuts gamma [a] [x]
-      let t = gamma M.! a
-      case op of
-        PNot -> when (t /= sbool) $ Left ("`not` requires bool, got " <> show t)
-      return [(x, sbool)]
+    checkStmt' SUnOp{..} = do
+      checkInOuts gamma [arg] [ret]
+      let ty = gamma ! arg
+      case un_op of
+        PNot -> when (ty /= sbool) $ Left ("`not` requires bool, got " <> show ty)
+      return [(ret, sbool)]
 
     -- x <- a op b
-    checkStmt' (SBinOp x op a b) gamma = do
-      checkInOuts gamma [a, b] [x]
-      let ta = gamma M.! a
-      let tb = gamma M.! b
-      case op of
-        PAnd -> unless (ta == sbool && tb == sbool) $ Left ("`and` requires bools, got " <> show [ta, tb])
+    checkStmt' SBinOp{..} = do
+      checkInOuts gamma [lhs, rhs] [ret]
+      let ty_lhs = gamma ! lhs
+      let ty_rhs = gamma ! rhs
+      case bin_op of
+        PAnd -> unless (ty_lhs == sbool && ty_rhs == sbool) $ Left ("`and` requires bools, got " <> show [ty_lhs, ty_rhs])
         _ -> return ()
 
-      let Fin na = ta
-      let Fin nb = tb
-      let t = case op of
+      let Fin na = ty_lhs
+      let Fin nb = ty_rhs
+      let t = case bin_op of
             PAnd -> sbool
             PLeq -> sbool
             PAdd -> Fin $ max na nb
-      return [(x, t)]
+      return [(ret, t)]
 
     -- ret <- Oracle(args)
-    checkStmt' (SOracle ret args) gamma = do
+    checkStmt' (SOracle ret args) = do
       checkInOuts gamma args ret
 
-      let arg_tys = map (gamma M.!) args
+      let OracleDef{paramTypes = o_arg_tys, retTypes = o_ret_tys} = oracle
+
+      let arg_tys = map (gamma !) args
       when (arg_tys /= o_arg_tys) $
         Left ("oracle expects " <> show o_arg_tys <> ", got " <> show args)
 
@@ -91,47 +84,47 @@ typeCheckProg fns (OracleDecl o_arg_tys o_ret_tys) = mapM_ checkFun (M.keys fns)
       return $ zip ret o_ret_tys
 
     -- ret <- f(args)
-    checkStmt' (SFunCall ret f args) gamma = do
-      checkInOuts gamma args ret
+    checkStmt' SFunCall{..} = do
+      checkInOuts gamma args rets
 
-      let FunDef fn_params fn_rets _ = fns M.! f
+      let FunDef fn_params fn_rets _ = funs ! fun
 
-      let arg_tys = map (gamma M.!) args
+      let arg_tys = map (gamma !) args
       let param_tys = map snd fn_params
       when (arg_tys /= param_tys) $
-        Left (f <> " expects " <> show param_tys <> ", got " <> show (zip args arg_tys))
+        Left (fun <> " expects " <> show param_tys <> ", got " <> show (zip args arg_tys))
 
-      when (length ret /= length fn_rets) $
-        Left ("oracle returns " <> show (length fn_rets) <> " values, but RHS has " <> show ret)
+      when (length rets /= length fn_rets) $
+        Left ("oracle returns " <> show (length fn_rets) <> " values, but RHS has " <> show rets)
 
-      return $ zip ret (map snd fn_rets)
+      return $ zip rets (map snd fn_rets)
 
     -- x, ok <- search[f](args)
-    checkStmt' (SSearch x ok f args) gamma = do
-      checkInOuts gamma args [x, ok]
+    checkStmt' SSearch{..} = do
+      checkInOuts gamma args [sol, ok]
 
-      let FunDef fn_params fn_rets _ = fns M.! f
+      let FunDef fn_params fn_rets _ = funs ! predicate
 
       when (map snd fn_rets /= [sbool]) $
-        Left ("predicate " <> f <> " should return bool, got " <> show fn_rets)
+        Left ("predicate " <> predicate <> " should return bool, got " <> show fn_rets)
 
-      let arg_tys = map (gamma M.!) args
+      let arg_tys = map (gamma !) args
       let param_tys = map snd fn_params
       when (arg_tys /= init param_tys) $
-        Left ("predicate " <> f <> " expects " <> show (init param_tys) <> ", got " <> show (zip args arg_tys))
+        Left ("predicate " <> predicate <> " expects " <> show (init param_tys) <> ", got " <> show (zip args arg_tys))
 
-      return [(ok, sbool), (x, last param_tys)]
+      return [(ok, sbool), (sol, last param_tys)]
 
     -- ok <- contains[f](args)
-    checkStmt' (SContains ok f args) gamma = do
+    checkStmt' (SContains ok f args) = do
       checkInOuts gamma args [ok]
 
-      let FunDef fn_params fn_rets _ = fns M.! f
+      let FunDef fn_params fn_rets _ = funs ! f
 
       when (map snd fn_rets /= [sbool]) $
         Left ("predicate " <> f <> " should return bool, got " <> show fn_rets)
 
-      let arg_tys = map (gamma M.!) args
+      let arg_tys = map (gamma !) args
       let param_tys = map snd fn_params
       when (arg_tys /= init param_tys) $
         Left ("predicate " <> f <> " expects " <> show (init param_tys) <> ", got " <> show (zip args arg_tys))
@@ -139,15 +132,38 @@ typeCheckProg fns (OracleDecl o_arg_tys o_ret_tys) = mapM_ checkFun (M.keys fns)
       return [(ok, sbool)]
 
     -- if b then s_t else s_f
-    checkStmt' (SIfTE b s_t s_f) gamma = do
+    checkStmt' (SIfTE b s_t s_f) = do
       checkInOuts gamma [b] []
-      outs_t <- checkStmt' s_t gamma
-      outs_f <- checkStmt' s_f gamma
+      outs_t <- checkStmt' s_t
+      outs_f <- checkStmt' s_f
       when (outs_t /= outs_f) $ Left ("if: branches must declare same variables, got " <> show [outs_t, outs_f])
       return outs_t
 
     -- s_1 ; s_2
-    checkStmt' (SSeq s_1 s_2) gamma = checkStmt s_1 gamma >>= checkStmt' s_2
+    checkStmt' _ = error "unreachable"
 
-isWellTyped :: FunCtx -> OracleDecl -> Bool
-isWellTyped fns oracle = isRight $ typeCheckProg fns oracle
+-- | Type check a single function.
+typeCheckFun :: FunCtx -> FunDef -> Either String ()
+typeCheckFun funCtx FunDef{..} = do
+  let gamma = M.fromList params
+  gamma' <- checkStmt funCtx body gamma
+  forM_ rets $ \(x, t) ->
+    do
+      let t' = gamma' ! x
+      when (t /= t') $
+        Left
+          ( "return term "
+              <> x
+              <> ": expected type "
+              <> show t
+              <> ", got type "
+              <> show t'
+          )
+
+-- | Type check a full program (i.e. list of functions).
+typeCheckProg :: FunCtx -> Either String ()
+typeCheckProg funCtx@FunCtx{..} = mapM_ (typeCheckFun funCtx) (M.elems funs)
+
+-- | Helper boolean predicate to check if a program is well-typed
+isWellTyped :: FunCtx -> Bool
+isWellTyped = isRight . typeCheckProg

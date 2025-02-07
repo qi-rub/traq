@@ -1,5 +1,6 @@
 module QCompose.ProtoLang.Eval where
 
+import Data.Map ((!))
 import qualified Data.Map as M
 import QCompose.Basic
 import QCompose.ProtoLang.Syntax
@@ -10,13 +11,13 @@ range (Fin n) = [0 .. n - 1]
 
 type State = M.Map Ident Int
 
-type Oracle = [Int] -> [Int]
+type OracleInterp = [Int] -> [Int]
 
-evalStmt :: FunCtx -> Oracle -> State -> Stmt -> State
-evalStmt fns oracle = \st s -> foldr (uncurry M.insert) st (eval_ st s)
+evalStmt :: FunCtx -> OracleInterp -> State -> Stmt -> State
+evalStmt funCtx@FunCtx{..} oracleF = \st s -> foldr (uncurry M.insert) st (eval_ st s)
   where
     get :: State -> Ident -> Int
-    get st x = st M.! x
+    get st x = st ! x
 
     eval_ :: State -> Stmt -> [(Ident, Int)]
 
@@ -35,36 +36,38 @@ evalStmt fns oracle = \st s -> foldr (uncurry M.insert) st (eval_ st s)
                   PLeq -> if vx <= vy then 1 else 0
                   PAnd -> if vx /= 0 && vy /= 0 then 1 else 0
            in return (res, vres)
-    eval_ st (SOracle outs args) = zip outs (oracle $ map (get st) args)
+    eval_ st (SOracle outs args) = zip outs (oracleF $ map (get st) args)
     eval_ st (SFunCall outs f args) = zip outs ret_vals
       where
         arg_vals = map (get st) args
-        ret_vals = evalFun fns oracle arg_vals f
+        ret_vals = evalFun funCtx oracleF arg_vals f
     eval_ st (SIfTE x s_t s_f) = eval_ st s
       where
         b = get st x /= 0
         s = if b then s_t else s_f
     eval_ st (SSeq s_1 s_2) =
-      let st' = evalStmt fns oracle st s_1 in eval_ st' s_2
+      let st' = evalStmt funCtx oracleF st s_1 in eval_ st' s_2
     eval_ st (SContains ok f xs) = return (ok, if any check (range typ_x) then 1 else 0)
       where
         vs = map (get st) xs
-        FunDef fn_args _ _ = fns M.! f
+        FunDef fn_args _ _ = funs ! f
         typ_x = snd $ last fn_args
 
         check :: Int -> Bool
         check v = b /= 0
           where
-            [b] = evalFun fns oracle (vs ++ [v]) f
+            [b] = evalFun funCtx oracleF (vs ++ [v]) f
     eval_ _ (SSearch{}) = error "non-deterministic"
 
-evalFun :: FunCtx -> Oracle -> [Int] -> Ident -> [Int]
-evalFun fns oracle in_values f = ret_vals
+evalFun :: FunCtx -> OracleInterp -> [Int] -> Ident -> [Int]
+evalFun funCtx@FunCtx{..} oracleF in_values f = ret_vals
   where
-    FunDef fn_args fn_rets body = fns M.! f
-    param_names = map fst fn_args
-    sigma = M.fromList $ zip param_names in_values
-    sigma' = evalStmt fns oracle sigma body
+    FunDef fn_args fn_rets body = funs ! f
 
+    param_names = map fst fn_args
     out_names = map fst fn_rets
-    ret_vals = map (sigma' M.!) out_names
+
+    sigma = M.fromList $ zip param_names in_values
+    sigma' = evalStmt funCtx oracleF sigma body
+
+    ret_vals = map (sigma' !) out_names

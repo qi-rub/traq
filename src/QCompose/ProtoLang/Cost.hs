@@ -7,7 +7,7 @@ import QCompose.ProtoLang.Eval
 import QCompose.ProtoLang.Syntax
 
 -- cost
-type CostMetric = FunCtx -> Oracle -> Stmt -> Float -> State -> Float
+type CostMetric = FunCtx -> OracleInterp -> Stmt -> Float -> State -> Float
 
 -- Functions, Oracle interpretation, S (program), eps (fail prob), sigma (input state)
 
@@ -46,7 +46,7 @@ cadeEtAlFormulas = QSearchFormulas eqsearch eqsearch_worst zalka
         err = intToFloat $ ceiling (log (1 / eps) / (2 * log (4 / 3)))
 
 quantumQueryCost :: CostType -> QSearchFormulas -> CostMetric
-quantumQueryCost flag algs fns oracle = cost
+quantumQueryCost flag algs funCtx@FunCtx{funs} oracleF = cost
   where
     get :: State -> Ident -> Int
     get st x = st M.! x
@@ -60,24 +60,25 @@ quantumQueryCost flag algs fns oracle = cost
     cost (SIfTE x s_t s_f) eps sigma = max (cost s_t eps sigma) (cost s_f eps sigma)
     cost (SSeq s_1 s_2) eps sigma = cost s_1 (eps / 2) sigma + cost s_2 (eps / 2) sigma'
       where
-        sigma' = evalStmt fns oracle sigma s_1
+        sigma' = evalStmt funCtx oracleF sigma s_1
     cost (SFunCall _ f args) eps sigma = cost body eps omega
       where
         vs = map (get sigma) args
-        FunDef fn_args _ body = fns M.! f
+        FunDef fn_args _ body = funs M.! f
         omega = M.fromList $ zip (fst <$> fn_args) vs
 
     -- known cost formulas
     cost (SContains _ f xs) eps sigma = n_pred_calls * max_pred_unitary_cost
       where
         vs = map (get sigma) xs
-        FunDef fn_args _ body = fns M.! f
+        FunDef fn_args _ body = funs M.! f
         typ_x = snd $ last fn_args
 
         check :: Int -> Bool
         check v = b /= 0
           where
-            [b] = evalFun fns oracle (vs ++ [v]) f
+            result = evalFun funCtx oracleF (vs ++ [v]) f
+            [b] = result
 
         n = length $ range typ_x
         t = length $ filter check (range typ_x)
@@ -96,8 +97,8 @@ quantumQueryCost flag algs fns oracle = cost
           quantumQueryCost
             Unitary
             algs
-            fns
-            oracle
+            funCtx
+            oracleF
             body
             eps_per_pred_call
             omega
@@ -107,11 +108,11 @@ quantumQueryCost flag algs fns oracle = cost
         max_pred_unitary_cost = maximum $ pred_unitary_cost <$> range typ_x
     cost (SSearch{}) _ _ = error "cost for search not supported, use contains for now."
 
-quantumQueryCostOfFun :: CostType -> QSearchFormulas -> FunCtx -> Oracle -> [Int] -> Float -> Ident -> Float
-quantumQueryCostOfFun flag algs fns oracle in_values eps f = cost
+quantumQueryCostOfFun :: CostType -> QSearchFormulas -> FunCtx -> OracleInterp -> [Int] -> Float -> Ident -> Float
+quantumQueryCostOfFun flag algs funCtx@FunCtx{funs} oracle in_values eps f = cost
   where
-    FunDef fn_args _ body = fns M.! f
+    FunDef fn_args _ body = funs M.! f
     param_names = map fst fn_args
     sigma = M.fromList $ zip param_names in_values
 
-    cost = quantumQueryCost flag algs fns oracle body eps sigma
+    cost = quantumQueryCost flag algs funCtx oracle body eps sigma

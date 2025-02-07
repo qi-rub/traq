@@ -31,6 +31,7 @@ dependencies:
 
 default-extensions:
   - RecordWildCards
+  - NamedFieldPuns
 
 library:
   source-dirs: src
