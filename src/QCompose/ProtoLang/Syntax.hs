@@ -1,6 +1,3 @@
-{-# LANGUAGE DuplicateRecordFields #-}
-{-# LANGUAGE NoFieldSelectors #-}
-
 module QCompose.ProtoLang.Syntax where
 
 import qualified Data.Map as M
