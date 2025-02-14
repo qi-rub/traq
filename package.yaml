@@ -27,12 +27,14 @@ dependencies:
   - base >= 4.10.0 && < 5
   - containers >= 0.6 && < 1
   - extra >= 1.8 && < 2
+  - parsec ^>= 3.1.17
   - quipper == 0.9.0.0
 
 default-extensions:
   - RecordWildCards
   - NamedFieldPuns
   - DuplicateRecordFields
+  - LambdaCase
 
 library:
   source-dirs: src
