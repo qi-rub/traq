@@ -6,21 +6,29 @@ import QCompose.ProtoLang.Syntax
 
 type VarSet = S.Set Ident
 
--- syntactic properties
-stmtVars :: Stmt -> S.Set Ident
-stmtVars (SAssign x x') = S.fromList [x, x']
-stmtVars (SConst x _ _) = S.fromList [x]
-stmtVars (SUnOp x _ y) = S.fromList [x, y]
-stmtVars (SBinOp x _ lhs rhs) = S.fromList [x, lhs, rhs]
-stmtVars (SOracle xs ys) = S.fromList $ xs <> ys
-stmtVars (SFunCall xs _ ys) = S.fromList $ xs <> ys
-stmtVars (SIfTE b s_t s_f) =
-  let vars = S.union (stmtVars s_t) (stmtVars s_f)
-   in S.insert b vars
-stmtVars (SSeq s_1 s_2) = S.union (stmtVars s_1) (stmtVars s_2)
-stmtVars (SSearch x ok _ args) = S.fromList (x : ok : args)
-stmtVars (SContains ok _ args) = S.fromList (ok : args)
+inputVars :: Stmt -> VarSet
+inputVars SAssign{..} = S.singleton arg
+inputVars SConst{..} = S.empty
+inputVars SUnOp{..} = S.singleton arg
+inputVars SBinOp{..} = S.fromList [lhs, rhs]
+inputVars SOracle{..} = S.fromList args
+inputVars SFunCall{..} = error "TODO"
+inputVars SContains{..} = S.fromList args
+inputVars SSearch{..} = S.fromList args
+inputVars SIfTE{..} = error "TODO"
+inputVars (SSeq s1 s2) = inputVars s1 `S.union` (inputVars s2 S.\\ outputVars s1)
 
-funVars :: FunDef -> S.Set Ident
-funVars FunDef{..} =
-  S.union (S.fromList (map fst params <> map fst rets)) (stmtVars body)
+outputVars :: Stmt -> VarSet
+outputVars SAssign{..} = S.singleton ret
+outputVars SConst{..} = S.singleton ret
+outputVars SUnOp{..} = S.singleton ret
+outputVars SBinOp{..} = S.singleton ret
+outputVars SOracle{..} = S.fromList rets
+outputVars SFunCall{..} = error "TODO"
+outputVars SContains{..} = S.singleton ok
+outputVars SSearch{..} = S.fromList [sol, ok]
+outputVars SIfTE{..} = error "TODO"
+outputVars (SSeq s1 s2) = (outputVars s1 S.\\ inputVars s2) `S.union` outputVars s2
+
+allVars :: Stmt -> VarSet
+allVars s = S.union (inputVars s) (outputVars s)

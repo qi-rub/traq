@@ -63,6 +63,7 @@ test-suite spec
     main-is: Spec.hs
     other-modules:
           QCompose.ProtoLang.TypeCheckSpec
+          QCompose.ProtoLang.VarsSpec
     hs-source-dirs:
           test
     default-extensions:
