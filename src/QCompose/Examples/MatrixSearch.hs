@@ -1,12 +1,13 @@
 module QCompose.Examples.MatrixSearch where
 
 import qualified Data.Map as M
+import QCompose.Basic
 import QCompose.ProtoLang.Syntax
 
 sbool :: VarType
 sbool = Fin 2
 
-matrixExample :: Int -> Int -> FunCtx
+matrixExample :: SizeT -> SizeT -> FunCtx
 matrixExample n m =
   FunCtx
     { oracle = OracleDef [Fin n, Fin m] [sbool]

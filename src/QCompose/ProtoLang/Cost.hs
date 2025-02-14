@@ -6,8 +6,11 @@ import QCompose.Basic
 import QCompose.ProtoLang.Eval
 import QCompose.ProtoLang.Syntax
 
+-- value type for representing the query complexity
+type Complexity = Float
+
 -- cost
-type CostMetric = FunCtx -> OracleInterp -> Stmt -> Float -> State -> Float
+type CostMetric = FunCtx -> OracleInterp -> Stmt -> FailProb -> State -> Complexity
 
 -- Functions, Oracle interpretation, S (program), eps (fail prob), sigma (input state)
 
@@ -15,49 +18,49 @@ data CostType = Quantum | Unitary deriving (Eq, Show, Read)
 
 -- computed cost functions of a given set of algorithms (quantum, unitary)
 data QSearchFormulas = QSearchFormulas
-  { qSearchExpectedCost :: Int -> Int -> Float -> Float -- n t eps
-  , qSearchWorstCaseCost :: Int -> Float -> Float -- n eps
-  , qSearchUnitaryCost :: Int -> Float -> Float -- n eps
+  { qSearchExpectedCost :: SizeT -> SizeT -> FailProb -> Complexity -- n t eps
+  , qSearchWorstCaseCost :: SizeT -> FailProb -> Complexity -- n eps
+  , qSearchUnitaryCost :: SizeT -> FailProb -> Complexity -- n eps
   }
 
 -- example
 cadeEtAlFormulas :: QSearchFormulas
 cadeEtAlFormulas = QSearchFormulas eqsearch eqsearch_worst zalka
   where
-    eqsearch_worst :: Int -> Float -> Float
+    eqsearch_worst :: SizeT -> FailProb -> Complexity
     eqsearch_worst n eps = 9.2 * log (1 / eps) * sqrt (fromIntegral n)
 
-    f :: Int -> Int -> Float
+    f :: SizeT -> SizeT -> Complexity
     f n t
       | 4 * t < n = 2.0344
       | otherwise = 3.1 * sqrt (fromIntegral n / fromIntegral t)
 
-    eqsearch :: Int -> Int -> Float -> Float
+    eqsearch :: SizeT -> SizeT -> FailProb -> Complexity
     eqsearch n t eps
       | t == 0 = eqsearch_worst n eps
       | otherwise = f n t * (1 + 1 / (1 - term))
       where
         term = f n t / (9.2 * sqrt (fromIntegral n))
 
-    zalka :: Int -> Float -> Float
+    zalka :: SizeT -> FailProb -> Complexity
     zalka n eps = 5 * err + pi * sqrt (fromIntegral n * err)
       where
-        err :: Float
+        err :: FailProb
         err = intToFloat $ ceiling (log (1 / eps) / (2 * log (4 / 3)))
 
 quantumQueryCost :: CostType -> QSearchFormulas -> CostMetric
 quantumQueryCost flag algs funCtx@FunCtx{funs} oracleF = cost
   where
-    get :: State -> Ident -> Int
+    get :: State -> Ident -> Value
     get st x = st M.! x
 
-    cost :: Stmt -> Float -> State -> Float
+    cost :: Stmt -> FailProb -> State -> Complexity
     cost (SAssign{}) _ _ = 0
     cost (SConst{}) _ _ = 0
     cost (SUnOp{}) _ _ = 0
     cost (SBinOp{}) _ _ = 0
     cost (SOracle{}) _ _ = 1
-    cost (SIfTE x s_t s_f) eps sigma = max (cost s_t eps sigma) (cost s_f eps sigma)
+    cost (SIfTE _ s_t s_f) eps sigma = max (cost s_t eps sigma) (cost s_f eps sigma)
     cost (SSeq s_1 s_2) eps sigma = cost s_1 (eps / 2) sigma + cost s_2 (eps / 2) sigma'
       where
         sigma' = evalStmt funCtx oracleF sigma s_1
@@ -74,7 +77,7 @@ quantumQueryCost flag algs funCtx@FunCtx{funs} oracleF = cost
         FunDef fn_args _ body = funs M.! f
         typ_x = snd $ last fn_args
 
-        check :: Int -> Bool
+        check :: Value -> Bool
         check v = b /= 0
           where
             result = evalFun funCtx oracleF (vs ++ [v]) f
@@ -92,7 +95,7 @@ quantumQueryCost flag algs funCtx@FunCtx{funs} oracleF = cost
           Unitary -> qSearchUnitaryCost algs n (eps / 2)
         eps_per_pred_call = (eps / 2) / q_worst
 
-        pred_unitary_cost :: Int -> Float
+        pred_unitary_cost :: Value -> Complexity
         pred_unitary_cost v =
           quantumQueryCost
             Unitary
@@ -108,7 +111,7 @@ quantumQueryCost flag algs funCtx@FunCtx{funs} oracleF = cost
         max_pred_unitary_cost = maximum $ pred_unitary_cost <$> range typ_x
     cost (SSearch{}) _ _ = error "cost for search not supported, use contains for now."
 
-quantumQueryCostOfFun :: CostType -> QSearchFormulas -> FunCtx -> OracleInterp -> [Int] -> Float -> Ident -> Float
+quantumQueryCostOfFun :: CostType -> QSearchFormulas -> FunCtx -> OracleInterp -> [Value] -> FailProb -> Ident -> Complexity
 quantumQueryCostOfFun flag algs funCtx@FunCtx{funs} oracle in_values eps f = cost
   where
     FunDef fn_args _ body = funs M.! f

@@ -5,7 +5,7 @@ import QCompose.ProtoLang.Syntax (VarType)
 
 data Unitary
   = XorInto
-  | XorConst Int
+  | XorConst Value
   | AddInto
   | LEqInto
   | Toffoli

@@ -4,7 +4,7 @@ import qualified Data.Map as M
 import QCompose.Basic
 
 -- proto-search language
-newtype VarType = Fin Int -- Fin<N>
+newtype VarType = Fin SizeT -- Fin<N>
   deriving (Eq, Show, Read)
 
 data UnOp = PNot
@@ -15,7 +15,7 @@ data BinOp = PAdd | PLeq | PAnd
 
 data Stmt
   = SAssign {ret :: Ident, arg :: Ident}
-  | SConst {ret :: Ident, val :: Int, ty :: VarType}
+  | SConst {ret :: Ident, val :: Value, ty :: VarType}
   | SUnOp {ret :: Ident, un_op :: UnOp, arg :: Ident}
   | SBinOp {ret :: Ident, bin_op :: BinOp, lhs :: Ident, rhs :: Ident}
   | SOracle {rets :: [Ident], args :: [Ident]}
