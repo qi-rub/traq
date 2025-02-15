@@ -35,6 +35,7 @@ library
           base >=4.10.0 && <5
         , containers >=0.6 && <1
         , extra >=1.8 && <2
+        , quipper ==0.9.0.0
     hs-source-dirs:
           src
     default-extensions:
@@ -51,6 +52,7 @@ executable qcompose
         , containers >=0.6 && <1
         , extra >=1.8 && <2
         , qcompose
+        , quipper ==0.9.0.0
     hs-source-dirs:
           tools
     default-extensions:
@@ -81,6 +83,7 @@ test-suite spec
         , extra >=1.8 && <2
         , hspec >=2.11.0
         , qcompose
+        , quipper ==0.9.0.0
     default-language: Haskell2010
     build-tool-depends:
           hspec-discover:hspec-discover
