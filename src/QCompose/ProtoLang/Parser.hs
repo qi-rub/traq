@@ -9,6 +9,7 @@ import Text.Parsec.String (Parser)
 import Text.Parsec.Token (
   GenTokenParser (
     TokenParser,
+    angles,
     commaSep1,
     identifier,
     integer,
@@ -65,7 +66,7 @@ parseStmt = parseSeq
         parseBool = reserved "Bool" >> return (Fin 2)
         parseFin = do
           reserved "Fin"
-          n <- symbol "[" *> integer <* symbol "]"
+          n <- angles integer
           return $ Fin (fromIntegral n)
 
     parseTypedExpr :: Parser a -> Parser (a, VarType)
