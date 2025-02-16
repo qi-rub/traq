@@ -1,17 +1,20 @@
 module QCompose.Examples.MatrixSearch where
 
-import qualified Data.Map as M
 import QCompose.Basic
 import QCompose.ProtoLang.Syntax
 
 sbool :: VarType
 sbool = Fin (Right 2)
 
-matrixExample :: SizeT -> SizeT -> FunCtx
+matrixExample :: SizeT -> SizeT -> Program
 matrixExample n m =
-  FunCtx
-    { oracle = OracleDef [tyI, tyJ] [sbool]
-    , funs = [check_entry, check_row, check_matrix]
+  Program
+    { funCtx =
+        FunCtx
+          { oracle = OracleDef [tyI, tyJ] [sbool]
+          , funs = [check_entry, check_row, check_matrix]
+          }
+    , body = SFunCall{rets = ["result"], fun = "check_matrix", args = []}
     }
   where
     tyI, tyJ :: VarType

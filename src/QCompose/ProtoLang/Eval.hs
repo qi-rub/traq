@@ -16,8 +16,8 @@ type State = M.Map Ident Value
 
 type OracleInterp = [Value] -> [Value]
 
-evalStmt :: FunCtx -> OracleInterp -> State -> Stmt -> State
-evalStmt funCtx@FunCtx{..} oracleF = \st s -> foldr (uncurry M.insert) st (eval_ st s)
+evalProgram :: Program -> OracleInterp -> State -> State
+evalProgram prog@Program{funCtx = funCtx@FunCtx{..}, body} oracleF = \st -> foldr (uncurry M.insert) st (eval_ st body)
   where
     get :: State -> Ident -> Value
     get st x = st ! x
@@ -51,7 +51,7 @@ evalStmt funCtx@FunCtx{..} oracleF = \st s -> foldr (uncurry M.insert) st (eval_
     eval_ _ (SSeq []) = []
     eval_ st (SSeq [s]) = eval_ st s
     eval_ st (SSeq (s : ss)) =
-      let st' = evalStmt funCtx oracleF st s in eval_ st' (SSeq ss)
+      let st' = evalProgram prog{body = s} oracleF st in eval_ st' (SSeq ss)
     eval_ st (SContains ok f xs) = return (ok, if any check (range typ_x) then 1 else 0)
       where
         vs = map (get st) xs
@@ -73,6 +73,6 @@ evalFun funCtx@FunCtx{..} oracleF in_values f = ret_vals
     out_names = map fst fn_rets
 
     sigma = M.fromList $ zip param_names in_values
-    sigma' = evalStmt funCtx oracleF sigma body
+    sigma' = evalProgram Program{funCtx, body} oracleF sigma
 
     ret_vals = map (sigma' !) out_names

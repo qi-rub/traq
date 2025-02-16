@@ -65,7 +65,7 @@ quantumQueryCost flag algs funCtx@FunCtx{funs} oracleF = cost
     cost (SSeq [s]) eps sigma = cost s eps sigma
     cost (SSeq (s : ss)) eps sigma = cost s (eps / 2) sigma + cost (SSeq ss) (eps / 2) sigma'
       where
-        sigma' = evalStmt funCtx oracleF sigma s
+        sigma' = evalProgram Program{funCtx, body = s} oracleF sigma
     cost (SFunCall _ f args) eps sigma = cost body eps omega
       where
         vs = map (get sigma) args

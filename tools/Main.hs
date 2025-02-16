@@ -1,5 +1,6 @@
 module Main where
 
+import qualified Data.Map as M
 import QCompose.Examples.MatrixSearch
 import QCompose.ProtoLang.Cost
 import QCompose.ProtoLang.Eval
@@ -16,23 +17,17 @@ showProg = do
   print $ isWellTyped ex
 
   let oracleF = \[i, j] -> [if i == j then 1 else 0]
-  let res = evalFun ex oracleF [] "check_matrix"
+  let res = evalProgram ex oracleF M.empty
 
   putStr "Output: "
   print res
   let eps = 0.0001
 
   putStr "Query Cost: "
-  print $ quantumQueryCostOfFun Quantum cadeEtAlFormulas ex oracleF [] eps "check_matrix"
+  print $ quantumQueryCostOfFun Quantum cadeEtAlFormulas (funCtx ex) oracleF [] eps "check_matrix"
 
   putStrLn "program:"
-  putStrLn $
-    toCodeString
-      ( Program
-          { funCtx = ex
-          , body = SFunCall{fun = "check_matrix", rets = ["ok"], args = []}
-          }
-      )
+  putStrLn $ toCodeString ex
 
 main :: IO ()
 main = do
