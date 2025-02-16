@@ -1,0 +1,20 @@
+declare Oracle(i: Fin<N>, j: Fin<M>) -> Bool
+
+def check_entry(i: Fin<N>, j: Fin<M>) do
+	e <- Oracle(i, j);
+	e' <- !e;
+	return e' : Bool
+end
+
+def check_row(i: Fin<N>) do
+	ok <- any(check_entry, i);
+	ok' <- !ok;
+	return ok' : Bool
+end
+
+def check_matrix() do
+	ok <- any(check_row);
+	return ok : Bool
+end
+
+ok <- check_matrix()
