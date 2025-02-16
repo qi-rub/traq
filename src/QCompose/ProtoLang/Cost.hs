@@ -1,7 +1,7 @@
 module QCompose.ProtoLang.Cost where
 
+import Data.Either (fromRight)
 import qualified Data.Map as M
-import Numeric.Extra (intToFloat)
 import QCompose.Basic
 import QCompose.ProtoLang.Eval
 import QCompose.ProtoLang.Syntax
@@ -46,7 +46,7 @@ cadeEtAlFormulas = QSearchFormulas eqsearch eqsearch_worst zalka
     zalka n eps = 5 * err + pi * sqrt (fromIntegral n * err)
       where
         err :: FailProb
-        err = intToFloat $ ceiling (log (1 / eps) / (2 * log (4 / 3)))
+        err = fromIntegral $ ceiling (log (1 / eps) / (2 * log (4 / 3)))
 
 quantumQueryCost :: CostType -> QSearchFormulas -> CostMetric
 quantumQueryCost flag algs funCtx@FunCtx{funs} oracleF = cost
@@ -69,14 +69,14 @@ quantumQueryCost flag algs funCtx@FunCtx{funs} oracleF = cost
     cost (SFunCall _ f args) eps sigma = cost body eps omega
       where
         vs = map (get sigma) args
-        FunDef _ fn_args _ body = funs M.! f
+        FunDef _ fn_args _ body = fromRight undefined $ lookupFun funs f
         omega = M.fromList $ zip (fst <$> fn_args) vs
 
     -- known cost formulas
     cost (SContains _ f xs) eps sigma = n_pred_calls * max_pred_unitary_cost
       where
         vs = map (get sigma) xs
-        FunDef _ fn_args _ body = funs M.! f
+        FunDef _ fn_args _ body = fromRight undefined $ lookupFun funs f
         typ_x = snd $ last fn_args
 
         check :: Value -> Bool
@@ -116,7 +116,7 @@ quantumQueryCost flag algs funCtx@FunCtx{funs} oracleF = cost
 quantumQueryCostOfFun :: CostType -> QSearchFormulas -> FunCtx -> OracleInterp -> [Value] -> FailProb -> Ident -> Complexity
 quantumQueryCostOfFun flag algs funCtx@FunCtx{funs} oracle in_values eps f = cost
   where
-    FunDef _ fn_args _ body = funs M.! f
+    FunDef _ fn_args _ body = fromRight undefined $ lookupFun funs f
     param_names = map fst fn_args
     sigma = M.fromList $ zip param_names in_values
 

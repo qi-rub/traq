@@ -11,12 +11,7 @@ matrixExample :: SizeT -> SizeT -> FunCtx
 matrixExample n m =
   FunCtx
     { oracle = OracleDef [tyI, tyJ] [sbool]
-    , funs =
-        M.fromList
-          [ ("check_entry", check_entry)
-          , ("check_row", check_row)
-          , ("check_matrix", check_matrix)
-          ]
+    , funs = [check_entry, check_row, check_matrix]
     }
   where
     tyI, tyJ :: VarType

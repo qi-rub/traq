@@ -1,7 +1,6 @@
 module QCompose.ProtoLang.Parser where
 
 import Control.Monad
-import qualified Data.Map as M
 import QCompose.Basic
 import QCompose.ProtoLang.Syntax
 import Text.Parsec (ParseError, choice, eof, many, parse, (<|>))
@@ -122,8 +121,7 @@ parseOracleDef = undefined
 parseProgram :: Parser Program
 parseProgram = do
   oracle <- parseOracleDef
-  fs <- many parseFunDef
-  let funs = M.fromList [(name f, f) | f <- fs]
+  funs <- many parseFunDef
   body <- parseStmt
   return Program{funCtx = FunCtx{oracle, funs}, body}
 

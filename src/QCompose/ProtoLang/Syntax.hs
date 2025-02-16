@@ -1,6 +1,6 @@
 module QCompose.ProtoLang.Syntax where
 
-import qualified Data.Map as M
+import Data.Foldable (find)
 import QCompose.Basic
 
 -- proto-search language
@@ -41,7 +41,7 @@ data OracleDef = OracleDef
   deriving (Eq, Show, Read)
 
 data FunCtx = FunCtx
-  { funs :: M.Map Ident FunDef
+  { funs :: [FunDef]
   , oracle :: OracleDef
   }
   deriving (Show)
@@ -50,3 +50,9 @@ data Program = Program
   { funCtx :: FunCtx
   , body :: Stmt
   }
+
+lookupFun :: [FunDef] -> Ident -> Either String FunDef
+lookupFun fs fname =
+  case find (\f -> name f == fname) fs of
+    Nothing -> Left $ "cannot find function " <> fname
+    Just f -> Right f

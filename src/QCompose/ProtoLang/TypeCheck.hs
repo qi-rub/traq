@@ -87,7 +87,7 @@ checkStmt FunCtx{..} s gamma = M.union gamma . M.fromList <$> checkStmt' s
     checkStmt' SFunCall{..} = do
       checkInOuts gamma args rets
 
-      let FunDef _ fn_params fn_rets _ = funs ! fun
+      FunDef _ fn_params fn_rets _ <- lookupFun funs fun
 
       let arg_tys = map (gamma !) args
       let param_tys = map snd fn_params
@@ -103,7 +103,7 @@ checkStmt FunCtx{..} s gamma = M.union gamma . M.fromList <$> checkStmt' s
     checkStmt' SSearch{..} = do
       checkInOuts gamma args [sol, ok]
 
-      let FunDef _ fn_params fn_rets _ = funs ! predicate
+      FunDef _ fn_params fn_rets _ <- lookupFun funs predicate
 
       when (map snd fn_rets /= [sbool]) $
         Left ("predicate " <> predicate <> " should return bool, got " <> show fn_rets)
@@ -119,7 +119,7 @@ checkStmt FunCtx{..} s gamma = M.union gamma . M.fromList <$> checkStmt' s
     checkStmt' (SContains ok f args) = do
       checkInOuts gamma args [ok]
 
-      let FunDef _ fn_params fn_rets _ = funs ! f
+      FunDef _ fn_params fn_rets _ <- lookupFun funs f
 
       when (map snd fn_rets /= [sbool]) $
         Left ("predicate " <> f <> " should return bool, got " <> show fn_rets)
@@ -162,7 +162,7 @@ typeCheckFun funCtx FunDef{..} = do
 
 -- | Type check a full program (i.e. list of functions).
 typeCheckProg :: FunCtx -> Either String ()
-typeCheckProg funCtx@FunCtx{..} = mapM_ (typeCheckFun funCtx) (M.elems funs)
+typeCheckProg funCtx@FunCtx{..} = mapM_ (typeCheckFun funCtx) funs
 
 -- | Helper boolean predicate to check if a program is well-typed
 isWellTyped :: FunCtx -> Bool

@@ -1,7 +1,6 @@
 module QCompose.ProtoLang.Printer where
 
 import Data.List (intercalate)
-import qualified Data.Map as M
 import QCompose.Basic
 import QCompose.ProtoLang.Syntax
 
@@ -101,4 +100,4 @@ instance ToCodeString Program where
       <> fs
       <> toCodeLines body
     where
-      fs = toCodeString <$> M.elems funs
+      fs = toCodeString <$> funs

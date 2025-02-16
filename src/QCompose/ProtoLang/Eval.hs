@@ -1,7 +1,9 @@
 module QCompose.ProtoLang.Eval where
 
+import Data.Foldable (find)
 import Data.Map ((!))
 import qualified Data.Map as M
+import Data.Maybe (fromJust)
 import QCompose.Basic
 import QCompose.ProtoLang.Syntax
 
@@ -46,14 +48,14 @@ evalStmt funCtx@FunCtx{..} oracleF = \st s -> foldr (uncurry M.insert) st (eval_
       where
         b = get st x /= 0
         s = if b then s_t else s_f
-    eval_ st (SSeq []) = []
+    eval_ _ (SSeq []) = []
     eval_ st (SSeq [s]) = eval_ st s
     eval_ st (SSeq (s : ss)) =
       let st' = evalStmt funCtx oracleF st s in eval_ st' (SSeq ss)
     eval_ st (SContains ok f xs) = return (ok, if any check (range typ_x) then 1 else 0)
       where
         vs = map (get st) xs
-        FunDef _ fn_args _ _ = funs ! f
+        FunDef _ fn_args _ _ = fromJust $ find (\fn -> name fn == f) funs
         typ_x = snd $ last fn_args
 
         check :: Value -> Bool
@@ -65,7 +67,7 @@ evalStmt funCtx@FunCtx{..} oracleF = \st s -> foldr (uncurry M.insert) st (eval_
 evalFun :: FunCtx -> OracleInterp -> [Value] -> Ident -> [Value]
 evalFun funCtx@FunCtx{..} oracleF in_values f = ret_vals
   where
-    FunDef _ fn_args fn_rets body = funs ! f
+    FunDef _ fn_args fn_rets body = fromJust $ find (\fn -> name fn == f) funs
 
     param_names = map fst fn_args
     out_names = map fst fn_rets
