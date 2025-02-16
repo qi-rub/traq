@@ -46,8 +46,10 @@ evalStmt funCtx@FunCtx{..} oracleF = \st s -> foldr (uncurry M.insert) st (eval_
       where
         b = get st x /= 0
         s = if b then s_t else s_f
-    eval_ st (SSeq s_1 s_2) =
-      let st' = evalStmt funCtx oracleF st s_1 in eval_ st' s_2
+    eval_ st (SSeq []) = []
+    eval_ st (SSeq [s]) = eval_ st s
+    eval_ st (SSeq (s : ss)) =
+      let st' = evalStmt funCtx oracleF st s in eval_ st' (SSeq ss)
     eval_ st (SContains ok f xs) = return (ok, if any check (range typ_x) then 1 else 0)
       where
         vs = map (get st) xs

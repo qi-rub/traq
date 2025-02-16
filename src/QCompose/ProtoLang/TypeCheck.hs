@@ -1,6 +1,6 @@
 module QCompose.ProtoLang.TypeCheck where
 
-import Control.Monad (forM_, unless, when)
+import Control.Monad (foldM, forM_, unless, when)
 import Data.Either (isRight)
 import Data.Map ((!))
 import qualified Data.Map as M
@@ -28,7 +28,7 @@ checkInOuts gamma ins outs = checkPresent ins >> checkNotPresent outs
 | If successful, return the updated typing context.
 -}
 checkStmt :: FunCtx -> Stmt -> TypingCtx -> Either String TypingCtx
-checkStmt funCtx (SSeq s_1 s_2) gamma = checkStmt funCtx s_1 gamma >>= checkStmt funCtx s_2
+checkStmt funCtx (SSeq ss) gamma = foldM (flip $ checkStmt funCtx) gamma ss
 checkStmt FunCtx{..} s gamma = M.union gamma . M.fromList <$> checkStmt' s
   where
     -- type check and return the new variable bindings.

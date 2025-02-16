@@ -61,9 +61,11 @@ quantumQueryCost flag algs funCtx@FunCtx{funs} oracleF = cost
     cost SBinOp{} _ _ = 0
     cost SOracle{} _ _ = 1
     cost (SIfTE _ s_t s_f) eps sigma = max (cost s_t eps sigma) (cost s_f eps sigma)
-    cost (SSeq s_1 s_2) eps sigma = cost s_1 (eps / 2) sigma + cost s_2 (eps / 2) sigma'
+    cost (SSeq []) _ _ = 0
+    cost (SSeq [s]) eps sigma = cost s eps sigma
+    cost (SSeq (s : ss)) eps sigma = cost s (eps / 2) sigma + cost (SSeq ss) (eps / 2) sigma'
       where
-        sigma' = evalStmt funCtx oracleF sigma s_1
+        sigma' = evalStmt funCtx oracleF sigma s
     cost (SFunCall _ f args) eps sigma = cost body eps omega
       where
         vs = map (get sigma) args

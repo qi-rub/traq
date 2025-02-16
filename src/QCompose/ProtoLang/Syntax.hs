@@ -21,7 +21,7 @@ data Stmt
   | SOracle {rets :: [Ident], args :: [Ident]}
   | SFunCall {rets :: [Ident], fun :: Ident, args :: [Ident]}
   | SIfTE {cond :: Ident, s_true :: Stmt, s_false :: Stmt}
-  | SSeq Stmt Stmt -- S_1; S_2
+  | SSeq [Stmt]
   | SSearch {sol :: Ident, ok :: Ident, predicate :: Ident, args :: [Ident]}
   | SContains {ok :: Ident, predicate :: Ident, args :: [Ident]}
   deriving (Eq, Show, Read)

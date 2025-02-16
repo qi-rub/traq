@@ -4,7 +4,7 @@ import Control.Monad
 import qualified Data.Map as M
 import QCompose.Basic
 import QCompose.ProtoLang.Syntax
-import Text.Parsec (ParseError, choice, many, parse, (<|>))
+import Text.Parsec (ParseError, choice, eof, many, parse, (<|>))
 import Text.Parsec.Language (LanguageDef, emptyDef)
 import Text.Parsec.String (Parser)
 import Text.Parsec.Token (
@@ -59,7 +59,7 @@ parseStmt = parseSeq
   where
     TokenParser{..} = protoLangTokenParser
 
-    parseSeq = foldr1 SSeq <$> semiSep parseSingleStmt
+    parseSeq = SSeq <$> semiSep parseSingleStmt
 
     parseType :: Parser VarType
     parseType = parseBool <|> parseFin
@@ -128,4 +128,4 @@ parseProgram = do
   return Program{funCtx = FunCtx{oracle, funs}, body}
 
 parseCode :: String -> Either ParseError Stmt
-parseCode = parse parseStmt ""
+parseCode = parse (parseStmt <* eof) ""

@@ -16,7 +16,9 @@ inputVars SFunCall{..} = error "TODO"
 inputVars SContains{..} = S.fromList args
 inputVars SSearch{..} = S.fromList args
 inputVars SIfTE{..} = error "TODO"
-inputVars (SSeq s1 s2) = inputVars s1 `S.union` (inputVars s2 S.\\ outputVars s1)
+inputVars (SSeq []) = S.empty
+inputVars (SSeq [s]) = inputVars s
+inputVars (SSeq (s : ss)) = inputVars s `S.union` (inputVars (SSeq ss) S.\\ outputVars s)
 
 outputVars :: Stmt -> VarSet
 outputVars SAssign{..} = S.singleton ret
@@ -28,7 +30,9 @@ outputVars SFunCall{..} = error "TODO"
 outputVars SContains{..} = S.singleton ok
 outputVars SSearch{..} = S.fromList [sol, ok]
 outputVars SIfTE{..} = error "TODO"
-outputVars (SSeq s1 s2) = (outputVars s1 S.\\ inputVars s2) `S.union` outputVars s2
+outputVars (SSeq []) = S.empty
+outputVars (SSeq [s]) = outputVars s
+outputVars (SSeq (s : ss)) = (outputVars s S.\\ inputVars (SSeq ss)) `S.union` outputVars (SSeq ss)
 
 allVars :: Stmt -> VarSet
 allVars s = S.union (inputVars s) (outputVars s)

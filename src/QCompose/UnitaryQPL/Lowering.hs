@@ -15,7 +15,9 @@ lowerU _ SBinOp{..} = UUnitary [lhs, rhs, ret] opUnitary
       PLeq -> LEqInto
       PAnd -> Toffoli
 lowerU _ SOracle{..} = UOracle (args <> rets)
-lowerU delta (SSeq s1 s2) = USeq (lowerU (delta / 2) s1) (lowerU (delta / 2) s2)
+lowerU _ (SSeq []) = USkip
+lowerU delta (SSeq [s]) = lowerU delta s
+lowerU delta (SSeq (s : ss)) = USeq (lowerU (delta / 2) s) (lowerU (delta / 2) (SSeq ss))
 lowerU _ _ = error "unsupported syntax"
 
 lowerUDef :: Precision -> FunDef -> UProcDef

@@ -58,7 +58,7 @@ instance ToCodeString Stmt where
       <> ["else"]
       <> indent (toCodeLines s_false)
       <> ["end"]
-  toCodeLines (SSeq s1 s2) = toCodeLines s1 <> toCodeLines s2
+  toCodeLines (SSeq ss) = concatMap toCodeLines ss
   toCodeLines SSearch{..} =
     [ unwords
         [ commaList [sol, ok]

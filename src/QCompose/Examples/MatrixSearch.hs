@@ -30,8 +30,9 @@ matrixExample n m =
         [(i, tyI), (j, tyJ)]
         [(e', sbool)]
         ( SSeq
-            (SOracle [e] [i, j])
-            (SUnOp e' PNot e)
+            [ SOracle [e] [i, j]
+            , SUnOp e' PNot e
+            ]
         )
       where
         i = "i"
@@ -46,8 +47,9 @@ matrixExample n m =
         [(i, tyI)]
         [(ok', sbool)]
         ( SSeq
-            (SContains ok "check_entry" [i])
-            (SUnOp ok' PNot ok)
+            [ SContains ok "check_entry" [i]
+            , SUnOp ok' PNot ok
+            ]
         )
       where
         i = "i"
