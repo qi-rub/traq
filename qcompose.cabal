@@ -25,6 +25,8 @@ library
           QCompose.ProtoLang
           QCompose.ProtoLang.Cost
           QCompose.ProtoLang.Eval
+          QCompose.ProtoLang.Parser
+          QCompose.ProtoLang.Printer
           QCompose.ProtoLang.Syntax
           QCompose.ProtoLang.TypeCheck
           QCompose.ProtoLang.Vars
@@ -35,6 +37,7 @@ library
           base >=4.10.0 && <5
         , containers >=0.6 && <1
         , extra >=1.8 && <2
+        , parsec >=3.1.17 && <3.2
         , quipper ==0.9.0.0
     hs-source-dirs:
           src
@@ -42,6 +45,7 @@ library
           RecordWildCards
           NamedFieldPuns
           DuplicateRecordFields
+          LambdaCase
     ghc-options: -Wall
     default-language: Haskell2010
 
@@ -51,6 +55,7 @@ executable qcompose
           base >=4.10.0 && <5
         , containers >=0.6 && <1
         , extra >=1.8 && <2
+        , parsec >=3.1.17 && <3.2
         , qcompose
         , quipper ==0.9.0.0
     hs-source-dirs:
@@ -59,6 +64,7 @@ executable qcompose
           RecordWildCards
           NamedFieldPuns
           DuplicateRecordFields
+          LambdaCase
     ghc-options: -Wall
     default-language: Haskell2010
 
@@ -66,6 +72,7 @@ test-suite spec
     type: exitcode-stdio-1.0
     main-is: Spec.hs
     other-modules:
+          QCompose.ProtoLang.ParserSpec
           QCompose.ProtoLang.TypeCheckSpec
           QCompose.ProtoLang.VarsSpec
     hs-source-dirs:
@@ -74,6 +81,7 @@ test-suite spec
           RecordWildCards
           NamedFieldPuns
           DuplicateRecordFields
+          LambdaCase
     ghc-options: -Wall
     cpp-options: -DTEST
     build-depends:
@@ -82,6 +90,7 @@ test-suite spec
         , containers >=0.6 && <1
         , extra >=1.8 && <2
         , hspec >=2.11.0
+        , parsec >=3.1.17 && <3.2
         , qcompose
         , quipper ==0.9.0.0
     default-language: Haskell2010

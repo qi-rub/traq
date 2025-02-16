@@ -26,16 +26,14 @@ data Stmt
   | SContains {ok :: Ident, predicate :: Ident, args :: [Ident]}
   deriving (Eq, Show, Read)
 
-data FunDef
-  = FunDef
+data FunDef = FunDef
   { params :: [(Ident, VarType)]
   , rets :: [(Ident, VarType)]
   , body :: Stmt
   }
   deriving (Eq, Show, Read)
 
-data OracleDef
-  = OracleDef
+data OracleDef = OracleDef
   { paramTypes :: [VarType]
   , retTypes :: [VarType]
   }
@@ -46,3 +44,8 @@ data FunCtx = FunCtx
   , oracle :: OracleDef
   }
   deriving (Show)
+
+data Program = Program
+  { funCtx :: FunCtx
+  , body :: Stmt
+  }
