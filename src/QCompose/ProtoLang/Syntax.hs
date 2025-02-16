@@ -4,7 +4,7 @@ import qualified Data.Map as M
 import QCompose.Basic
 
 -- proto-search language
-newtype VarType = Fin SizeT -- Fin<N>
+newtype VarType = Fin (Symbolic SizeT) -- Fin<N>
   deriving (Eq, Show, Read)
 
 data UnOp = PNot
@@ -27,7 +27,8 @@ data Stmt
   deriving (Eq, Show, Read)
 
 data FunDef = FunDef
-  { params :: [(Ident, VarType)]
+  { name :: Ident
+  , params :: [(Ident, VarType)]
   , rets :: [(Ident, VarType)]
   , body :: Stmt
   }

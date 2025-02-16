@@ -8,7 +8,7 @@ import QCompose.Basic
 import QCompose.ProtoLang.Syntax
 
 sbool :: VarType
-sbool = Fin 2
+sbool = Fin (Right 2)
 
 type TypingCtx = M.Map Ident VarType
 
@@ -87,7 +87,7 @@ checkStmt FunCtx{..} s gamma = M.union gamma . M.fromList <$> checkStmt' s
     checkStmt' SFunCall{..} = do
       checkInOuts gamma args rets
 
-      let FunDef fn_params fn_rets _ = funs ! fun
+      let FunDef _ fn_params fn_rets _ = funs ! fun
 
       let arg_tys = map (gamma !) args
       let param_tys = map snd fn_params
@@ -103,7 +103,7 @@ checkStmt FunCtx{..} s gamma = M.union gamma . M.fromList <$> checkStmt' s
     checkStmt' SSearch{..} = do
       checkInOuts gamma args [sol, ok]
 
-      let FunDef fn_params fn_rets _ = funs ! predicate
+      let FunDef _ fn_params fn_rets _ = funs ! predicate
 
       when (map snd fn_rets /= [sbool]) $
         Left ("predicate " <> predicate <> " should return bool, got " <> show fn_rets)
@@ -119,7 +119,7 @@ checkStmt FunCtx{..} s gamma = M.union gamma . M.fromList <$> checkStmt' s
     checkStmt' (SContains ok f args) = do
       checkInOuts gamma args [ok]
 
-      let FunDef fn_params fn_rets _ = funs ! f
+      let FunDef _ fn_params fn_rets _ = funs ! f
 
       when (map snd fn_rets /= [sbool]) $
         Left ("predicate " <> f <> " should return bool, got " <> show fn_rets)

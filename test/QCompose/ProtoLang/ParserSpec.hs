@@ -14,5 +14,5 @@ spec = do
         `shouldBe` Right
           ( SSeq
               SAssign{ret = "x'", arg = "x"}
-              SConst{ret = "y'", val = 3, ty = Fin 4}
+              SConst{ret = "y'", val = 3, ty = Fin (Right 4)}
           )

@@ -7,7 +7,8 @@ import QCompose.ProtoLang.Syntax
 
 -- evaluation
 range :: VarType -> [Value]
-range (Fin n) = [0 .. fromIntegral n - 1]
+range (Fin (Right n)) = [0 .. fromIntegral n - 1]
+range _ = error "cannot compute range for symbolic type"
 
 type State = M.Map Ident Value
 
@@ -50,19 +51,19 @@ evalStmt funCtx@FunCtx{..} oracleF = \st s -> foldr (uncurry M.insert) st (eval_
     eval_ st (SContains ok f xs) = return (ok, if any check (range typ_x) then 1 else 0)
       where
         vs = map (get st) xs
-        FunDef fn_args _ _ = funs ! f
+        FunDef _ fn_args _ _ = funs ! f
         typ_x = snd $ last fn_args
 
         check :: Value -> Bool
         check v = b /= 0
           where
             [b] = evalFun funCtx oracleF (vs ++ [v]) f
-    eval_ _ (SSearch{}) = error "non-deterministic"
+    eval_ _ SSearch{} = error "non-deterministic"
 
 evalFun :: FunCtx -> OracleInterp -> [Value] -> Ident -> [Value]
 evalFun funCtx@FunCtx{..} oracleF in_values f = ret_vals
   where
-    FunDef fn_args fn_rets body = funs ! f
+    FunDef _ fn_args fn_rets body = funs ! f
 
     param_names = map fst fn_args
     out_names = map fst fn_rets

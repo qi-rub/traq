@@ -5,12 +5,12 @@ import QCompose.Basic
 import QCompose.ProtoLang.Syntax
 
 sbool :: VarType
-sbool = Fin 2
+sbool = Fin (Right 2)
 
 matrixExample :: SizeT -> SizeT -> FunCtx
 matrixExample n m =
   FunCtx
-    { oracle = OracleDef [Fin n, Fin m] [sbool]
+    { oracle = OracleDef [tyI, tyJ] [sbool]
     , funs =
         M.fromList
           [ ("check_entry", check_entry)
@@ -19,10 +19,15 @@ matrixExample n m =
           ]
     }
   where
+    tyI, tyJ :: VarType
+    tyI = Fin (Right n)
+    tyJ = Fin (Right m)
+
     check_entry :: FunDef
     check_entry =
       FunDef
-        [(i, Fin n), (j, Fin m)]
+        "check_entry"
+        [(i, tyI), (j, tyJ)]
         [(e', sbool)]
         ( SSeq
             (SOracle [e] [i, j])
@@ -37,7 +42,8 @@ matrixExample n m =
     check_row :: FunDef
     check_row =
       FunDef
-        [(i, Fin n)]
+        "check_row"
+        [(i, tyI)]
         [(ok', sbool)]
         ( SSeq
             (SContains ok "check_entry" [i])
@@ -51,6 +57,7 @@ matrixExample n m =
     check_matrix :: FunDef
     check_matrix =
       FunDef
+        "check_matrix"
         []
         [(ok, sbool)]
         (SContains ok "check_row" [])

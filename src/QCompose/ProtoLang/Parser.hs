@@ -1,9 +1,10 @@
 module QCompose.ProtoLang.Parser where
 
 import Control.Monad
+import qualified Data.Map as M
 import QCompose.Basic
 import QCompose.ProtoLang.Syntax
-import Text.Parsec (ParseError, choice, parse, (<|>))
+import Text.Parsec (ParseError, choice, many, parse, (<|>))
 import Text.Parsec.Language (LanguageDef, emptyDef)
 import Text.Parsec.String (Parser)
 import Text.Parsec.Token (
@@ -63,11 +64,11 @@ parseStmt = parseSeq
     parseType :: Parser VarType
     parseType = parseBool <|> parseFin
       where
-        parseBool = reserved "Bool" >> return (Fin 2)
+        parseBool = reserved "Bool" >> return (Fin (Right 2))
         parseFin = do
           reserved "Fin"
           n <- angles integer
-          return $ Fin (fromIntegral n)
+          return $ Fin (Right $ fromIntegral n)
 
     parseTypedExpr :: Parser a -> Parser (a, VarType)
     parseTypedExpr pa = (,) <$> pa <*> (reservedOp ":" >> parseType)
@@ -111,6 +112,20 @@ parseStmt = parseSeq
       un_op <- parseUnOp
       arg <- identifier
       return SUnOp{..}
+
+parseFunDef :: Parser FunDef
+parseFunDef = undefined
+
+parseOracleDef :: Parser OracleDef
+parseOracleDef = undefined
+
+parseProgram :: Parser Program
+parseProgram = do
+  oracle <- parseOracleDef
+  fs <- many parseFunDef
+  let funs = M.fromList [(name f, f) | f <- fs]
+  body <- parseStmt
+  return Program{funCtx = FunCtx{oracle, funs}, body}
 
 parseCode :: String -> Either ParseError Stmt
 parseCode = parse parseStmt ""

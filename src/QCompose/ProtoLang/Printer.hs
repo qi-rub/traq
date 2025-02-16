@@ -13,7 +13,11 @@ class ToCodeString a where
   toCodeLines = pure . toCodeString
 
 instance ToCodeString VarType where
-  toCodeString (Fin n) = "Fin<" <> show n <> ">"
+  toCodeString (Fin len) = "Fin<" <> len' <> ">"
+    where
+      len' = case len of
+        (Left s) -> s
+        Right n -> show n
 
 instance ToCodeString UnOp where
   toCodeString PNot = "!"
@@ -72,7 +76,7 @@ instance ToCodeString Stmt where
 
 instance ToCodeString FunDef where
   toCodeLines FunDef{..} =
-    [unwords ["def", "TODO_NAME", "(" <> commaList (showTypedVar <$> params) <> ")", "do"]]
+    [unwords ["def", name, "(" <> commaList (showTypedVar <$> params) <> ")", "do"]]
       <> indent
         ( toCodeLines body
             <> [unwords ["return", commaList (showTypedVar <$> rets)]]

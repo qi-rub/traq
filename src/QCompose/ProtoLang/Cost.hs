@@ -55,11 +55,11 @@ quantumQueryCost flag algs funCtx@FunCtx{funs} oracleF = cost
     get st x = st M.! x
 
     cost :: Stmt -> FailProb -> State -> Complexity
-    cost (SAssign{}) _ _ = 0
-    cost (SConst{}) _ _ = 0
-    cost (SUnOp{}) _ _ = 0
-    cost (SBinOp{}) _ _ = 0
-    cost (SOracle{}) _ _ = 1
+    cost SAssign{} _ _ = 0
+    cost SConst{} _ _ = 0
+    cost SUnOp{} _ _ = 0
+    cost SBinOp{} _ _ = 0
+    cost SOracle{} _ _ = 1
     cost (SIfTE _ s_t s_f) eps sigma = max (cost s_t eps sigma) (cost s_f eps sigma)
     cost (SSeq s_1 s_2) eps sigma = cost s_1 (eps / 2) sigma + cost s_2 (eps / 2) sigma'
       where
@@ -67,14 +67,14 @@ quantumQueryCost flag algs funCtx@FunCtx{funs} oracleF = cost
     cost (SFunCall _ f args) eps sigma = cost body eps omega
       where
         vs = map (get sigma) args
-        FunDef fn_args _ body = funs M.! f
+        FunDef _ fn_args _ body = funs M.! f
         omega = M.fromList $ zip (fst <$> fn_args) vs
 
     -- known cost formulas
     cost (SContains _ f xs) eps sigma = n_pred_calls * max_pred_unitary_cost
       where
         vs = map (get sigma) xs
-        FunDef fn_args _ body = funs M.! f
+        FunDef _ fn_args _ body = funs M.! f
         typ_x = snd $ last fn_args
 
         check :: Value -> Bool
@@ -109,12 +109,12 @@ quantumQueryCost flag algs funCtx@FunCtx{funs} oracleF = cost
             omega = M.fromList $ zip (map fst fn_args) (vs ++ [v])
 
         max_pred_unitary_cost = maximum $ pred_unitary_cost <$> range typ_x
-    cost (SSearch{}) _ _ = error "cost for search not supported, use contains for now."
+    cost SSearch{} _ _ = error "cost for search not supported, use contains for now."
 
 quantumQueryCostOfFun :: CostType -> QSearchFormulas -> FunCtx -> OracleInterp -> [Value] -> FailProb -> Ident -> Complexity
 quantumQueryCostOfFun flag algs funCtx@FunCtx{funs} oracle in_values eps f = cost
   where
-    FunDef fn_args _ body = funs M.! f
+    FunDef _ fn_args _ body = funs M.! f
     param_names = map fst fn_args
     sigma = M.fromList $ zip param_names in_values
 
