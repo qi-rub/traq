@@ -10,7 +10,7 @@ spec = do
     it "parses assign" $ do
       parseCode "x' <- x" `shouldBe` Right SAssign{ret = "x'", arg = "x"}
     it "parses seq assign" $ do
-      parseCode "x' <- x; y' <- const 3 : Fin[4]"
+      parseCode "x' <- x; y' <- const 3 : Fin<4>"
         `shouldBe` Right
           ( SSeq
               SAssign{ret = "x'", arg = "x"}
