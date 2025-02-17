@@ -1,5 +1,8 @@
+{-# LANGUAGE FlexibleContexts #-}
+
 module QCompose.ProtoLang.Syntax where
 
+import Control.Monad.Except (MonadError, throwError)
 import Data.Foldable (find)
 import QCompose.Basic
 import QCompose.Rewriting
@@ -52,11 +55,11 @@ data Program = Program
   , stmt :: Stmt
   }
 
-lookupFun :: [FunDef] -> Ident -> Either String FunDef
-lookupFun fs fname =
+lookupFun :: MonadError String m => FunCtx -> Ident -> m FunDef
+lookupFun FunCtx{funs = fs} fname =
   case find (\f -> name f == fname) fs of
-    Nothing -> Left $ "cannot find function " <> fname
-    Just f -> Right f
+    Nothing -> throwError $ "cannot find function " <> fname
+    Just f -> return f
 
 instance LocalRewritable Stmt where
   rewrite rw (SSeq ss) = mapM rw ss >>= rw . SSeq

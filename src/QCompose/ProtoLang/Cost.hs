@@ -49,7 +49,7 @@ cadeEtAlFormulas = QSearchFormulas eqsearch eqsearch_worst zalka
         log_fac = ceiling (log (1 / eps) / (2 * log (4 / 3)))
 
 quantumQueryCost :: CostType -> QSearchFormulas -> CostMetric
-quantumQueryCost flag algs funCtx@FunCtx{funs} oracleF = cost
+quantumQueryCost flag algs funCtx oracleF = cost
   where
     get :: State -> Ident -> Value
     get st x = st M.! x
@@ -69,14 +69,14 @@ quantumQueryCost flag algs funCtx@FunCtx{funs} oracleF = cost
     cost (SFunCall _ f args) eps sigma = cost body eps omega
       where
         vs = map (get sigma) args
-        FunDef _ fn_args _ body = fromRight undefined $ lookupFun funs f
+        FunDef _ fn_args _ body = fromRight undefined $ lookupFun funCtx f
         omega = M.fromList $ zip (fst <$> fn_args) vs
 
     -- known cost formulas
     cost (SContains _ f xs) eps sigma = n_pred_calls * max_pred_unitary_cost
       where
         vs = map (get sigma) xs
-        FunDef _ fn_args _ body = fromRight undefined $ lookupFun funs f
+        FunDef _ fn_args _ body = fromRight undefined $ lookupFun funCtx f
         typ_x = snd $ last fn_args
 
         check :: Value -> Bool
@@ -114,9 +114,9 @@ quantumQueryCost flag algs funCtx@FunCtx{funs} oracleF = cost
     cost SSearch{} _ _ = error "cost for search not supported, use contains for now."
 
 quantumQueryCostOfFun :: CostType -> QSearchFormulas -> FunCtx -> OracleInterp -> [Value] -> FailProb -> Ident -> Complexity
-quantumQueryCostOfFun flag algs funCtx@FunCtx{funs} oracle in_values eps f = cost
+quantumQueryCostOfFun flag algs funCtx oracle in_values eps f = cost
   where
-    FunDef _ fn_args _ body = fromRight undefined $ lookupFun funs f
+    FunDef _ fn_args _ body = fromRight undefined $ lookupFun funCtx f
     param_names = map fst fn_args
     sigma = M.fromList $ zip param_names in_values
 

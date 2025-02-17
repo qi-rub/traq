@@ -29,7 +29,7 @@ checkInOuts gamma ins outs = checkPresent ins >> checkNotPresent outs
 -}
 checkStmt :: FunCtx -> Stmt -> TypingCtx -> Either String TypingCtx
 checkStmt funCtx (SSeq ss) gamma = foldM (flip $ checkStmt funCtx) gamma ss
-checkStmt FunCtx{..} s gamma = M.union gamma . M.fromList <$> checkStmt' s
+checkStmt funCtx@FunCtx{..} s gamma = M.union gamma . M.fromList <$> checkStmt' s
   where
     -- type check and return the new variable bindings.
     checkStmt' :: Stmt -> Either String [(Ident, VarType)]
@@ -87,7 +87,7 @@ checkStmt FunCtx{..} s gamma = M.union gamma . M.fromList <$> checkStmt' s
     checkStmt' SFunCall{..} = do
       checkInOuts gamma args rets
 
-      FunDef _ fn_params fn_rets _ <- lookupFun funs fun
+      FunDef _ fn_params fn_rets _ <- lookupFun funCtx fun
 
       let arg_tys = map (gamma !) args
       let param_tys = map snd fn_params
@@ -103,7 +103,7 @@ checkStmt FunCtx{..} s gamma = M.union gamma . M.fromList <$> checkStmt' s
     checkStmt' SSearch{..} = do
       checkInOuts gamma args [sol, ok]
 
-      FunDef _ fn_params fn_rets _ <- lookupFun funs predicate
+      FunDef _ fn_params fn_rets _ <- lookupFun funCtx predicate
 
       when (map snd fn_rets /= [sbool]) $
         Left ("predicate " <> predicate <> " should return bool, got " <> show fn_rets)
@@ -119,7 +119,7 @@ checkStmt FunCtx{..} s gamma = M.union gamma . M.fromList <$> checkStmt' s
     checkStmt' (SContains ok f args) = do
       checkInOuts gamma args [ok]
 
-      FunDef _ fn_params fn_rets _ <- lookupFun funs f
+      FunDef _ fn_params fn_rets _ <- lookupFun funCtx f
 
       when (map snd fn_rets /= [sbool]) $
         Left ("predicate " <> f <> " should return bool, got " <> show fn_rets)
