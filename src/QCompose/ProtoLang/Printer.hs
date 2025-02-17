@@ -100,4 +100,4 @@ instance ToCodeString Program where
       <> fs
       <> toCodeLines stmt
     where
-      fs = toCodeString <$> funs
+      fs = map toCodeString funDefs

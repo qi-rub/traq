@@ -45,7 +45,7 @@ data OracleDef = OracleDef
   deriving (Eq, Show, Read)
 
 data FunCtx = FunCtx
-  { funs :: [FunDef]
+  { funDefs :: [FunDef]
   , oracle :: OracleDef
   }
   deriving (Show)
@@ -56,8 +56,8 @@ data Program = Program
   }
 
 lookupFun :: MonadError String m => FunCtx -> Ident -> m FunDef
-lookupFun FunCtx{funs = fs} fname =
-  case find (\f -> name f == fname) fs of
+lookupFun FunCtx{..} fname =
+  case find (\f -> name f == fname) funDefs of
     Nothing -> throwError $ "cannot find function " <> fname
     Just f -> return f
 
@@ -76,7 +76,7 @@ rewriteFunDef rw FunDef{..} = do
 
 rewriteFunCtx :: Monad m => (Stmt -> m Stmt) -> FunCtx -> m FunCtx
 rewriteFunCtx rw FunCtx{..} = do
-  funs <- mapM (rewriteFunDef rw) funs
+  funs <- mapM (rewriteFunDef rw) funDefs
   return FunCtx{..}
 
 rewriteProgram :: Monad m => (Stmt -> m Stmt) -> Program -> m Program

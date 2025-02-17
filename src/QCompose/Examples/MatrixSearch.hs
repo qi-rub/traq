@@ -12,7 +12,7 @@ matrixExample n m =
     { funCtx =
         FunCtx
           { oracle = OracleDef [tyI, tyJ] [sbool]
-          , funs = [check_entry, check_row, check_matrix]
+          , funDefs = [check_entry, check_row, check_matrix]
           }
     , stmt = SFunCall{rets = ["result"], fun = "check_matrix", args = []}
     }

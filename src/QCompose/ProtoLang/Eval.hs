@@ -1,9 +1,8 @@
 module QCompose.ProtoLang.Eval where
 
-import Data.Foldable (find)
+import Data.Either (fromRight)
 import Data.Map ((!))
 import qualified Data.Map as M
-import Data.Maybe (fromJust)
 import QCompose.Basic
 import QCompose.ProtoLang.Syntax
 
@@ -55,7 +54,7 @@ evalProgram prog@Program{funCtx = funCtx@FunCtx{..}, stmt} oracleF = \st -> fold
     eval_ st (SContains ok f xs) = return (ok, if any check (range typ_x) then 1 else 0)
       where
         vs = map (get st) xs
-        FunDef _ fn_args _ _ = fromJust $ find (\fn -> name fn == f) funs
+        FunDef _ fn_args _ _ = fromRight undefined $ lookupFun funCtx f
         typ_x = snd $ last fn_args
 
         check :: Value -> Bool
@@ -67,7 +66,7 @@ evalProgram prog@Program{funCtx = funCtx@FunCtx{..}, stmt} oracleF = \st -> fold
 evalFun :: FunCtx -> OracleInterp -> [Value] -> Ident -> [Value]
 evalFun funCtx@FunCtx{..} oracleF in_values f = ret_vals
   where
-    FunDef _ fn_args fn_rets body = fromJust $ find (\fn -> name fn == f) funs
+    FunDef _ fn_args fn_rets body = fromRight undefined $ lookupFun funCtx f
 
     param_names = map fst fn_args
     out_names = map fst fn_rets

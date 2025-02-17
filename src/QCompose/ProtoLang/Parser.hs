@@ -161,7 +161,7 @@ program :: TokenParser () -> Parser Program
 program tp@TokenParser{..} = do
   whiteSpace
   oracle <- oracleDef tp
-  funs <- many (funDef tp)
+  funDefs <- many (funDef tp)
   stmt <- stmtP tp
   eof
   return Program{funCtx = FunCtx{..}, ..}

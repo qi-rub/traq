@@ -163,7 +163,7 @@ typeCheckFun funCtx FunDef{..} = do
 -- | Type check a full program (i.e. list of functions).
 typeCheckProg :: Program -> Either String ()
 typeCheckProg Program{funCtx = funCtx@FunCtx{..}, stmt} = do
-  mapM_ (typeCheckFun funCtx) funs
+  mapM_ (typeCheckFun funCtx) funDefs
   _ <- checkStmt funCtx stmt M.empty
   return ()
 
