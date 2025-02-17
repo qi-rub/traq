@@ -8,5 +8,9 @@ type SizeT = Int
 type FailProb = Float
 type Precision = Float
 
-type SymExpr = String
-type Symbolic a = Either SymExpr a
+data Symbolic a = SymExpr String | Value a deriving (Eq)
+type SymbSize = Symbolic SizeT
+
+instance (Show a) => Show (Symbolic a) where
+  show (SymExpr e) = e
+  show (Value a) = show a

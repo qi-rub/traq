@@ -1,3 +1,5 @@
+{-# LANGUAGE ScopedTypeVariables #-}
+
 module QCompose.ProtoLang.Printer where
 
 import Data.List (intercalate)
@@ -11,12 +13,8 @@ class ToCodeString a where
   toCodeLines :: a -> [String]
   toCodeLines = pure . toCodeString
 
-instance ToCodeString VarType where
-  toCodeString (Fin len) = "Fin<" <> len' <> ">"
-    where
-      len' = case len of
-        (Left s) -> s
-        Right n -> show n
+instance Show a => ToCodeString (VarType a) where
+  toCodeString (Fin len) = "Fin<" <> show len <> ">"
 
 instance ToCodeString UnOp where
   toCodeString PNot = "!"
@@ -32,7 +30,7 @@ commaList = intercalate ", "
 indent :: [String] -> [String]
 indent = map ("  " <>)
 
-instance ToCodeString Stmt where
+instance Show a => ToCodeString (Stmt a) where
   toCodeLines SAssign{..} = [unwords [ret, "<-", arg]]
   toCodeLines SConst{..} = [unwords [ret, "<-", show val, ":", toCodeString ty]]
   toCodeLines SUnOp{..} = [unwords [ret, "<-", toCodeString un_op <> arg]]
@@ -73,7 +71,7 @@ instance ToCodeString Stmt where
         ]
     ]
 
-instance ToCodeString FunDef where
+instance Show a => ToCodeString (FunDef a) where
   toCodeLines FunDef{..} =
     [unwords ["def", name, "(" <> commaList (showTypedVar <$> params) <> ")", "do"]]
       <> indent
@@ -82,10 +80,10 @@ instance ToCodeString FunDef where
         )
       <> ["end"]
     where
-      showTypedVar :: (Ident, VarType) -> String
+      showTypedVar :: (Ident, VarType a) -> String
       showTypedVar (x, ty) = unwords [x, ":", toCodeString ty]
 
-instance ToCodeString OracleDef where
+instance Show a => ToCodeString (OracleDef a) where
   toCodeString OracleDef{..} =
     unwords
       [ "declare"
@@ -94,7 +92,7 @@ instance ToCodeString OracleDef where
       , commaList (toCodeString <$> retTypes)
       ]
 
-instance ToCodeString Program where
+instance Show a => ToCodeString (Program a) where
   toCodeLines Program{funCtx = FunCtx{..}, ..} =
     [toCodeString oracle, ""]
       <> fs

@@ -6,7 +6,7 @@ import QCompose.ProtoLang.Syntax
 
 type VarSet = S.Set Ident
 
-inputVars :: Stmt -> VarSet
+inputVars :: Stmt a -> VarSet
 inputVars SAssign{..} = S.singleton arg
 inputVars SConst{..} = S.empty
 inputVars SUnOp{..} = S.singleton arg
@@ -20,7 +20,7 @@ inputVars (SSeq []) = S.empty
 inputVars (SSeq [s]) = inputVars s
 inputVars (SSeq (s : ss)) = inputVars s `S.union` (inputVars (SSeq ss) S.\\ outputVars s)
 
-outputVars :: Stmt -> VarSet
+outputVars :: Stmt a -> VarSet
 outputVars SAssign{..} = S.singleton ret
 outputVars SConst{..} = S.singleton ret
 outputVars SUnOp{..} = S.singleton ret
@@ -34,5 +34,5 @@ outputVars (SSeq []) = S.empty
 outputVars (SSeq [s]) = outputVars s
 outputVars (SSeq (s : ss)) = (outputVars s S.\\ inputVars (SSeq ss)) `S.union` outputVars (SSeq ss)
 
-allVars :: Stmt -> VarSet
+allVars :: Stmt a -> VarSet
 allVars s = S.union (inputVars s) (outputVars s)

@@ -1,6 +1,7 @@
 module QCompose.ProtoLang.ParserSpec (spec) where
 
 import Control.Monad (void)
+import QCompose.Basic
 import QCompose.ProtoLang.Parser
 import QCompose.ProtoLang.Syntax
 import Test.Hspec
@@ -17,7 +18,7 @@ spec = do
         `shouldBe` Right
           ( SSeq
               [ SAssign{ret = "x'", arg = "x"}
-              , SConst{ret = "y'", val = 3, ty = Fin (Right 4)}
+              , SConst{ret = "y'", val = 3, ty = Fin (Value 4)}
               ]
           )
     it "parses function call" $ do

@@ -17,4 +17,4 @@ def check_matrix() do
 	return ok : Bool
 end
 
-ok <- check_matrix()
+result <- check_matrix()

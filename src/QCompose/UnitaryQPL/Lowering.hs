@@ -4,7 +4,7 @@ import QCompose.Basic
 import QCompose.ProtoLang.Syntax
 import QCompose.UnitaryQPL.Syntax
 
-lowerU :: Precision -> Stmt -> UQPLStmt
+lowerU :: Precision -> Stmt SizeT -> UQPLStmt
 lowerU _ SAssign{..} = UUnitary [arg, ret] XorInto
 lowerU _ SConst{..} = UUnitary [ret] (XorConst val)
 lowerU _ SUnOp{..} = UUnitary [arg, ret] C0_X
@@ -20,5 +20,5 @@ lowerU delta (SSeq [s]) = lowerU delta s
 lowerU delta (SSeq (s : ss)) = USeq (lowerU (delta / 2) s) (lowerU (delta / 2) (SSeq ss))
 lowerU _ _ = error "unsupported syntax"
 
-lowerUDef :: Precision -> FunDef -> UProcDef
+lowerUDef :: Precision -> FunDef SizeT -> UProcDef
 lowerUDef _ _ = error "not implemented"

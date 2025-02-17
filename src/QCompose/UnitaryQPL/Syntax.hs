@@ -22,4 +22,4 @@ data UQPLStmt
   | USeq UQPLStmt UQPLStmt -- P_1 ; P_2
   deriving (Eq, Show, Read)
 
-data UProcDef = UProcDef [(Ident, VarType)] UQPLStmt
+data UProcDef = UProcDef [(Ident, VarType SizeT)] UQPLStmt

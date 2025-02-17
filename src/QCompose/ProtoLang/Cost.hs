@@ -10,7 +10,7 @@ import QCompose.ProtoLang.Syntax
 type Complexity = Float
 
 -- cost
-type CostMetric = FunCtx -> OracleInterp -> Stmt -> FailProb -> State -> Complexity
+type CostMetric = FunCtx SizeT -> OracleInterp -> Stmt SizeT -> FailProb -> State -> Complexity
 
 -- Functions, Oracle interpretation, S (program), eps (fail prob), sigma (input state)
 
@@ -54,7 +54,7 @@ quantumQueryCost flag algs funCtx oracleF = cost
     get :: State -> Ident -> Value
     get st x = st M.! x
 
-    cost :: Stmt -> FailProb -> State -> Complexity
+    cost :: Stmt SizeT -> FailProb -> State -> Complexity
     cost SAssign{} _ _ = 0
     cost SConst{} _ _ = 0
     cost SUnOp{} _ _ = 0
@@ -113,7 +113,7 @@ quantumQueryCost flag algs funCtx oracleF = cost
         max_pred_unitary_cost = maximum $ pred_unitary_cost <$> range typ_x
     cost SSearch{} _ _ = error "cost for search not supported, use contains for now."
 
-quantumQueryCostOfFun :: CostType -> QSearchFormulas -> FunCtx -> OracleInterp -> [Value] -> FailProb -> Ident -> Complexity
+quantumQueryCostOfFun :: CostType -> QSearchFormulas -> FunCtx SizeT -> OracleInterp -> [Value] -> FailProb -> Ident -> Complexity
 quantumQueryCostOfFun flag algs funCtx oracle in_values eps f = cost
   where
     FunDef _ fn_args _ body = fromRight undefined $ lookupFun funCtx f

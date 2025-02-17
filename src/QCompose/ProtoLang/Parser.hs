@@ -58,24 +58,24 @@ protoLangDef =
 protoLangTokenParser :: TokenParser st
 protoLangTokenParser = makeTokenParser protoLangDef
 
-varType :: TokenParser () -> Parser VarType
+varType :: TokenParser () -> Parser (VarType SymbSize)
 varType TokenParser{..} = parseBool <|> parseFin
   where
-    parseBool = reserved "Bool" $> Fin (Right 2)
+    parseBool = reserved "Bool" $> Fin (Value 2)
     parseFin = do
       reserved "Fin"
-      n <- angles ((Right <$> integer) <|> (Left <$> identifier))
-      return $ Fin (fromIntegral <$> n)
+      n <- angles ((Value . fromIntegral <$> integer) <|> (SymExpr <$> identifier))
+      return $ Fin n
 
-typedExpr :: TokenParser () -> Parser a -> Parser (a, VarType)
+typedExpr :: TokenParser () -> Parser a -> Parser (a, VarType SymbSize)
 typedExpr tp@TokenParser{..} pa = (,) <$> pa <*> (reservedOp ":" *> varType tp)
 
-stmtP :: TokenParser () -> Parser Stmt
+stmtP :: TokenParser () -> Parser (Stmt SymbSize)
 stmtP tp@TokenParser{..} = seqS
   where
     seqS = SSeq <$> many (try (singleStmt <* optional semi))
 
-    singleStmt :: Parser Stmt
+    singleStmt :: Parser (Stmt SymbSize)
     singleStmt = do
       rets <- commaSep1 identifier
       reservedOp "<-"
@@ -95,12 +95,12 @@ stmtP tp@TokenParser{..} = seqS
     guardSingleRet [ret] = return ret
     guardSingleRet _ = fail "expected exactly one return value"
 
-    assignS :: Ident -> Parser Stmt
+    assignS :: Ident -> Parser (Stmt SymbSize)
     assignS ret = do
       arg <- identifier
       return SAssign{..}
 
-    constS :: Ident -> Parser Stmt
+    constS :: Ident -> Parser (Stmt SymbSize)
     constS ret = do
       reserved "const"
       (val, ty) <- typedExpr tp integer
@@ -112,31 +112,31 @@ stmtP tp@TokenParser{..} = seqS
         "!" -> return PNot
         _ -> fail "invalid unary operator"
 
-    unOpS :: Ident -> Parser Stmt
+    unOpS :: Ident -> Parser (Stmt SymbSize)
     unOpS ret = do
       un_op <- unOp
       arg <- identifier
       return SUnOp{..}
 
-    oracleS :: [Ident] -> Parser Stmt
+    oracleS :: [Ident] -> Parser (Stmt SymbSize)
     oracleS rets = do
       reserved "Oracle"
       args <- parens $ commaSep identifier
       return SOracle{..}
 
-    anyS :: Ident -> Parser Stmt
+    anyS :: Ident -> Parser (Stmt SymbSize)
     anyS ok = do
       reserved "any"
       (predicate : args) <- parens $ commaSep1 identifier
       return SContains{..}
 
-    funCallS :: [Ident] -> Parser Stmt
+    funCallS :: [Ident] -> Parser (Stmt SymbSize)
     funCallS rets = do
       fun <- identifier
       args <- parens $ commaSep identifier
       return SFunCall{..}
 
-funDef :: TokenParser () -> Parser FunDef
+funDef :: TokenParser () -> Parser (FunDef SymbSize)
 funDef tp@TokenParser{..} = do
   reserved "def"
   name <- identifier
@@ -148,7 +148,7 @@ funDef tp@TokenParser{..} = do
   reserved "end"
   return FunDef{..}
 
-oracleDef :: TokenParser () -> Parser OracleDef
+oracleDef :: TokenParser () -> Parser (OracleDef SymbSize)
 oracleDef tp@TokenParser{..} = do
   reserved "declare"
   reserved "Oracle"
@@ -157,7 +157,7 @@ oracleDef tp@TokenParser{..} = do
   retTypes <- commaSep (varType tp)
   return OracleDef{..}
 
-program :: TokenParser () -> Parser Program
+program :: TokenParser () -> Parser (Program SymbSize)
 program tp@TokenParser{..} = do
   whiteSpace
   oracle <- oracleDef tp
@@ -166,5 +166,5 @@ program tp@TokenParser{..} = do
   eof
   return Program{funCtx = FunCtx{..}, ..}
 
-parseCode :: String -> Either ParseError Stmt
+parseCode :: String -> Either ParseError (Stmt SymbSize)
 parseCode = parse (stmtP protoLangTokenParser <* eof) ""

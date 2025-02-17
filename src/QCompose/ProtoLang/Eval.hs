@@ -7,21 +7,20 @@ import QCompose.Basic
 import QCompose.ProtoLang.Syntax
 
 -- evaluation
-range :: VarType -> [Value]
-range (Fin (Right n)) = [0 .. fromIntegral n - 1]
-range _ = error "cannot compute range for symbolic type"
+range :: VarType SizeT -> [Value]
+range (Fin n) = [0 .. fromIntegral n - 1]
 
 type State = M.Map Ident Value
 
 type OracleInterp = [Value] -> [Value]
 
-evalProgram :: Program -> OracleInterp -> State -> State
+evalProgram :: Program SizeT -> OracleInterp -> State -> State
 evalProgram prog@Program{funCtx = funCtx@FunCtx{..}, stmt} oracleF = \st -> foldr (uncurry M.insert) st (eval_ st stmt)
   where
     get :: State -> Ident -> Value
     get st x = st ! x
 
-    eval_ :: State -> Stmt -> [(Ident, Value)]
+    eval_ :: State -> Stmt SizeT -> [(Ident, Value)]
 
     eval_ st (SAssign x y) = return (y, get st x)
     eval_ _ (SConst x v _) = return (x, v)
@@ -63,7 +62,7 @@ evalProgram prog@Program{funCtx = funCtx@FunCtx{..}, stmt} oracleF = \st -> fold
             [b] = evalFun funCtx oracleF (vs ++ [v]) f
     eval_ _ SSearch{} = error "non-deterministic"
 
-evalFun :: FunCtx -> OracleInterp -> [Value] -> Ident -> [Value]
+evalFun :: FunCtx SizeT -> OracleInterp -> [Value] -> Ident -> [Value]
 evalFun funCtx@FunCtx{..} oracleF in_values f = ret_vals
   where
     FunDef _ fn_args fn_rets body = fromRight undefined $ lookupFun funCtx f
