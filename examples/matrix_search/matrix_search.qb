@@ -1,4 +1,4 @@
-declare Oracle(i: Fin<N>, j: Fin<M>) -> Bool
+declare Oracle(Fin<N>, Fin<M>) -> Bool
 
 def check_entry(i: Fin<N>, j: Fin<M>) do
 	e <- Oracle(i, j);

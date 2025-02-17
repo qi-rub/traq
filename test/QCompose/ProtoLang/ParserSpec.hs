@@ -1,8 +1,11 @@
 module QCompose.ProtoLang.ParserSpec (spec) where
 
+import Control.Monad (void)
 import QCompose.ProtoLang.Parser
 import QCompose.ProtoLang.Syntax
 import Test.Hspec
+import Text.Parsec
+import Text.Parsec.String
 
 spec :: Spec
 spec = do
@@ -17,3 +20,32 @@ spec = do
               , SConst{ret = "y'", val = 3, ty = Fin (Right 4)}
               ]
           )
+    it "parses function call" $ do
+      parseCode "a, b <- f(x, y, z)"
+        `shouldBe` Right
+          ( SSeq
+              [ SFunCall
+                  { fun = "f"
+                  , args = ["x", "y", "z"]
+                  , rets = ["a", "b"]
+                  }
+              ]
+          )
+  describe "parse function def" $ do
+    it "parses function" $ do
+      let res =
+            parse
+              (funDef protoLangTokenParser)
+              ""
+              $ unlines
+                [ "def check_entry(i: Fin<N>, j: Fin<M>) do"
+                , "e <- Oracle(i, j);"
+                , "e' <- !e;"
+                , "return e' : Bool"
+                , "end"
+                ]
+      void res `shouldBe` Right ()
+  describe "parse file" $ do
+    it "parses example" $ do
+      e <- parseFromFile (program protoLangTokenParser) "examples/matrix_search/matrix_search.qb"
+      void e `shouldBe` Right ()
