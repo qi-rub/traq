@@ -2,6 +2,7 @@ module QCompose.ProtoLang.Syntax where
 
 import Data.Foldable (find)
 import QCompose.Basic
+import QCompose.Rewriting
 
 -- proto-search language
 newtype VarType = Fin (Symbolic SizeT) -- Fin<N>
@@ -48,7 +49,7 @@ data FunCtx = FunCtx
 
 data Program = Program
   { funCtx :: FunCtx
-  , body :: Stmt
+  , stmt :: Stmt
   }
 
 lookupFun :: [FunDef] -> Ident -> Either String FunDef
@@ -56,3 +57,27 @@ lookupFun fs fname =
   case find (\f -> name f == fname) fs of
     Nothing -> Left $ "cannot find function " <> fname
     Just f -> Right f
+
+instance LocalRewritable Stmt where
+  rewrite rw (SSeq ss) = mapM rw ss >>= rw . SSeq
+  rewrite rw s@SIfTE{..} = do
+    s_true' <- rw s_true
+    s_false' <- rw s_false
+    rw $ s{s_true = s_true', s_false = s_false'}
+  rewrite rw s = rw s
+
+rewriteFunDef :: Monad m => (Stmt -> m Stmt) -> FunDef -> m FunDef
+rewriteFunDef rw FunDef{..} = do
+  body <- rw body
+  return FunDef{..}
+
+rewriteFunCtx :: Monad m => (Stmt -> m Stmt) -> FunCtx -> m FunCtx
+rewriteFunCtx rw FunCtx{..} = do
+  funs <- mapM (rewriteFunDef rw) funs
+  return FunCtx{..}
+
+rewriteProgram :: Monad m => (Stmt -> m Stmt) -> Program -> m Program
+rewriteProgram rw Program{..} = do
+  funCtx <- rewriteFunCtx rw funCtx
+  stmt <- rewrite rw stmt
+  return Program{..}

@@ -98,6 +98,6 @@ instance ToCodeString Program where
   toCodeLines Program{funCtx = FunCtx{..}, ..} =
     [toCodeString oracle, ""]
       <> fs
-      <> toCodeLines body
+      <> toCodeLines stmt
     where
       fs = toCodeString <$> funs

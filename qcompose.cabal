@@ -27,9 +27,11 @@ library
           QCompose.ProtoLang.Eval
           QCompose.ProtoLang.Parser
           QCompose.ProtoLang.Printer
+          QCompose.ProtoLang.Rewrites
           QCompose.ProtoLang.Syntax
           QCompose.ProtoLang.TypeCheck
           QCompose.ProtoLang.Vars
+          QCompose.Rewriting
           QCompose.UnitaryQPL
           QCompose.UnitaryQPL.Lowering
           QCompose.UnitaryQPL.Syntax

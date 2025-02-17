@@ -162,9 +162,9 @@ typeCheckFun funCtx FunDef{..} = do
 
 -- | Type check a full program (i.e. list of functions).
 typeCheckProg :: Program -> Either String ()
-typeCheckProg Program{funCtx = funCtx@FunCtx{..}, body} = do
+typeCheckProg Program{funCtx = funCtx@FunCtx{..}, stmt} = do
   mapM_ (typeCheckFun funCtx) funs
-  _ <- checkStmt funCtx body M.empty
+  _ <- checkStmt funCtx stmt M.empty
   return ()
 
 -- | Helper boolean predicate to check if a program is well-typed

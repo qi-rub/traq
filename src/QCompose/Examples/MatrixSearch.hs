@@ -14,7 +14,7 @@ matrixExample n m =
           { oracle = OracleDef [tyI, tyJ] [sbool]
           , funs = [check_entry, check_row, check_matrix]
           }
-    , body = SFunCall{rets = ["result"], fun = "check_matrix", args = []}
+    , stmt = SFunCall{rets = ["result"], fun = "check_matrix", args = []}
     }
   where
     tyI, tyJ :: VarType

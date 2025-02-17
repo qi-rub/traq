@@ -43,10 +43,10 @@ cadeEtAlFormulas = QSearchFormulas eqsearch eqsearch_worst zalka
         term = f n t / (9.2 * sqrt (fromIntegral n))
 
     zalka :: SizeT -> FailProb -> Complexity
-    zalka n eps = 5 * err + pi * sqrt (fromIntegral n * err)
+    zalka n eps = 5 * fromIntegral log_fac + pi * sqrt (fromIntegral (n * log_fac))
       where
-        err :: FailProb
-        err = fromIntegral $ ceiling (log (1 / eps) / (2 * log (4 / 3)))
+        log_fac :: SizeT
+        log_fac = ceiling (log (1 / eps) / (2 * log (4 / 3)))
 
 quantumQueryCost :: CostType -> QSearchFormulas -> CostMetric
 quantumQueryCost flag algs funCtx@FunCtx{funs} oracleF = cost
@@ -65,7 +65,7 @@ quantumQueryCost flag algs funCtx@FunCtx{funs} oracleF = cost
     cost (SSeq [s]) eps sigma = cost s eps sigma
     cost (SSeq (s : ss)) eps sigma = cost s (eps / 2) sigma + cost (SSeq ss) (eps / 2) sigma'
       where
-        sigma' = evalProgram Program{funCtx, body = s} oracleF sigma
+        sigma' = evalProgram Program{funCtx, stmt = s} oracleF sigma
     cost (SFunCall _ f args) eps sigma = cost body eps omega
       where
         vs = map (get sigma) args

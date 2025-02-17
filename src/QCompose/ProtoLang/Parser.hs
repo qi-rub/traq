@@ -70,8 +70,8 @@ varType TokenParser{..} = parseBool <|> parseFin
 typedExpr :: TokenParser () -> Parser a -> Parser (a, VarType)
 typedExpr tp@TokenParser{..} pa = (,) <$> pa <*> (reservedOp ":" *> varType tp)
 
-stmt :: TokenParser () -> Parser Stmt
-stmt tp@TokenParser{..} = seqS
+stmtP :: TokenParser () -> Parser Stmt
+stmtP tp@TokenParser{..} = seqS
   where
     seqS = SSeq <$> many (try (singleStmt <* optional semi))
 
@@ -142,7 +142,7 @@ funDef tp@TokenParser{..} = do
   name <- identifier
   params <- parens $ commaSep $ typedExpr tp identifier
   reserved "do"
-  body <- stmt tp
+  body <- stmtP tp
   reserved "return"
   rets <- commaSep $ typedExpr tp identifier
   reserved "end"
@@ -162,9 +162,9 @@ program tp@TokenParser{..} = do
   whiteSpace
   oracle <- oracleDef tp
   funs <- many (funDef tp)
-  body <- stmt tp
+  stmt <- stmtP tp
   eof
-  return Program{funCtx = FunCtx{oracle, funs}, body}
+  return Program{funCtx = FunCtx{..}, ..}
 
 parseCode :: String -> Either ParseError Stmt
-parseCode = parse (stmt protoLangTokenParser <* eof) ""
+parseCode = parse (stmtP protoLangTokenParser <* eof) ""
