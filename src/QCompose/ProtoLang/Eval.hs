@@ -41,7 +41,8 @@ evalProgram prog@Program{funCtx = funCtx@FunCtx{..}, stmt} oracleF = \st -> fold
     eval_ st (SFunCall outs f args) = zip outs ret_vals
       where
         arg_vals = map (get st) args
-        ret_vals = evalFun funCtx oracleF arg_vals f
+        funDef = fromRight undefined $ lookupFun funCtx f
+        ret_vals = evalFun funCtx oracleF arg_vals funDef
     eval_ st (SIfTE x s_t s_f) = eval_ st s
       where
         b = get st x /= 0
@@ -53,19 +54,19 @@ evalProgram prog@Program{funCtx = funCtx@FunCtx{..}, stmt} oracleF = \st -> fold
     eval_ st (SContains ok f xs) = return (ok, if any check (range typ_x) then 1 else 0)
       where
         vs = map (get st) xs
-        FunDef _ fn_args _ _ = fromRight undefined $ lookupFun funCtx f
+        funDef@(FunDef _ fn_args _ _) = fromRight undefined $ lookupFun funCtx f
         typ_x = snd $ last fn_args
 
         check :: Value -> Bool
         check v = b /= 0
           where
-            [b] = evalFun funCtx oracleF (vs ++ [v]) f
+            [b] = evalFun funCtx oracleF (vs ++ [v]) funDef
     eval_ _ SSearch{} = error "non-deterministic"
 
-evalFun :: FunCtx SizeT -> OracleInterp -> [Value] -> Ident -> [Value]
-evalFun funCtx@FunCtx{..} oracleF in_values f = ret_vals
+evalFun :: FunCtx SizeT -> OracleInterp -> [Value] -> FunDef SizeT -> [Value]
+evalFun funCtx oracleF in_values funDef = ret_vals
   where
-    FunDef _ fn_args fn_rets body = fromRight undefined $ lookupFun funCtx f
+    FunDef _ fn_args fn_rets body = funDef
 
     param_names = map fst fn_args
     out_names = map fst fn_rets

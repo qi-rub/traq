@@ -76,13 +76,13 @@ quantumQueryCost flag algs funCtx oracleF = cost
     cost (SContains _ f xs) eps sigma = n_pred_calls * max_pred_unitary_cost
       where
         vs = map (get sigma) xs
-        FunDef _ fn_args _ body = fromRight undefined $ lookupFun funCtx f
+        funDef@(FunDef _ fn_args _ body) = fromRight undefined $ lookupFun funCtx f
         typ_x = snd $ last fn_args
 
         check :: Value -> Bool
         check v = b /= 0
           where
-            result = evalFun funCtx oracleF (vs ++ [v]) f
+            result = evalFun funCtx oracleF (vs ++ [v]) funDef
             [b] = result
 
         n = length $ range typ_x
