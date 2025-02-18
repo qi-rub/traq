@@ -2,16 +2,9 @@
 
 module QCompose.ProtoLang.Printer where
 
-import Data.List (intercalate)
 import QCompose.Basic
 import QCompose.ProtoLang.Syntax
-
-class ToCodeString a where
-  toCodeString :: a -> String
-  toCodeString = unlines . toCodeLines
-
-  toCodeLines :: a -> [String]
-  toCodeLines = pure . toCodeString
+import QCompose.Utils.Printing
 
 instance Show a => ToCodeString (VarType a) where
   toCodeString (Fin len) = "Fin<" <> show len <> ">"
@@ -23,12 +16,6 @@ instance ToCodeString BinOp where
   toCodeString PAdd = "+"
   toCodeString PLeq = "<="
   toCodeString PAnd = "/\\"
-
-commaList :: [String] -> String
-commaList = intercalate ", "
-
-indent :: [String] -> [String]
-indent = map ("  " <>)
 
 instance Show a => ToCodeString (Stmt a) where
   toCodeLines SAssign{..} = [unwords [ret, "<-", arg]]

@@ -14,7 +14,7 @@ lowerU _ SBinOp{..} = UUnitary [lhs, rhs, ret] opUnitary
       PAdd -> AddInto
       PLeq -> LEqInto
       PAnd -> Toffoli
-lowerU _ SOracle{..} = UOracle (args <> rets)
+lowerU _ SOracle{..} = UUnitary (args <> rets) Oracle
 lowerU _ (SSeq []) = USkip
 lowerU delta (SSeq [s]) = lowerU delta s
 lowerU delta (SSeq (s : ss)) = USeq (lowerU (delta / 2) s) (lowerU (delta / 2) (SSeq ss))

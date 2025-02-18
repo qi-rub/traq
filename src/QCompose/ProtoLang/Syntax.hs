@@ -6,7 +6,7 @@ module QCompose.ProtoLang.Syntax where
 import Control.Monad.Except (MonadError, throwError)
 import Data.Foldable (find)
 import QCompose.Basic
-import QCompose.Rewriting
+import QCompose.Utils.Rewriting
 
 -- proto-search language
 newtype VarType a = Fin a -- Fin<N>

@@ -31,10 +31,12 @@ library
           QCompose.ProtoLang.Syntax
           QCompose.ProtoLang.TypeCheck
           QCompose.ProtoLang.Vars
-          QCompose.Rewriting
           QCompose.UnitaryQPL
           QCompose.UnitaryQPL.Lowering
           QCompose.UnitaryQPL.Syntax
+          QCompose.Utils
+          QCompose.Utils.Printing
+          QCompose.Utils.Rewriting
     build-depends:
           base >=4.10 && <5
         , containers >=0.6 && <1
