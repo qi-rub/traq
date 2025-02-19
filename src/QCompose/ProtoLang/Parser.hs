@@ -73,7 +73,7 @@ typedExpr tp@TokenParser{..} pa = (,) <$> pa <*> (reservedOp ":" *> varType tp)
 stmtP :: TokenParser () -> Parser (Stmt SymbSize)
 stmtP tp@TokenParser{..} = seqS
   where
-    seqS = SSeq <$> many (try (singleStmt <* optional semi))
+    seqS = SeqS <$> many (try (singleStmt <* optional semi))
 
     singleStmt :: Parser (Stmt SymbSize)
     singleStmt = do
@@ -98,43 +98,43 @@ stmtP tp@TokenParser{..} = seqS
     assignS :: Ident -> Parser (Stmt SymbSize)
     assignS ret = do
       arg <- identifier
-      return SAssign{..}
+      return AssignS{..}
 
     constS :: Ident -> Parser (Stmt SymbSize)
     constS ret = do
       reserved "const"
       (val, ty) <- typedExpr tp integer
-      return SConst{..}
+      return ConstS{..}
 
     unOp :: Parser UnOp
     unOp =
       operator >>= \case
-        "!" -> return PNot
+        "!" -> return NotOp
         _ -> fail "invalid unary operator"
 
     unOpS :: Ident -> Parser (Stmt SymbSize)
     unOpS ret = do
       un_op <- unOp
       arg <- identifier
-      return SUnOp{..}
+      return UnOpS{..}
 
     oracleS :: [Ident] -> Parser (Stmt SymbSize)
     oracleS rets = do
       reserved "Oracle"
       args <- parens $ commaSep identifier
-      return SOracle{..}
+      return OracleS{..}
 
     anyS :: Ident -> Parser (Stmt SymbSize)
     anyS ok = do
       reserved "any"
       (predicate : args) <- parens $ commaSep1 identifier
-      return SContains{..}
+      return ContainsS{..}
 
     funCallS :: [Ident] -> Parser (Stmt SymbSize)
     funCallS rets = do
       fun <- identifier
       args <- parens $ commaSep identifier
-      return SFunCall{..}
+      return FunCallS{..}
 
 funDef :: TokenParser () -> Parser (FunDef SymbSize)
 funDef tp@TokenParser{..} = do

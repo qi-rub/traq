@@ -39,46 +39,46 @@ checkInOuts gamma ins outs = checkPresent ins >> checkNotPresent outs
 | If successful, return the updated typing context.
 -}
 checkStmt :: forall a. (Eq a, Show a, TypeCheckable a) => FunCtx a -> Stmt a -> TypingCtx a -> Either String (TypingCtx a)
-checkStmt funCtx (SSeq ss) gamma = foldM (flip $ checkStmt funCtx) gamma ss
+checkStmt funCtx (SeqS ss) gamma = foldM (flip $ checkStmt funCtx) gamma ss
 checkStmt funCtx@FunCtx{..} s gamma = M.union gamma . M.fromList <$> checkStmt' s
   where
     -- type check and return the new variable bindings.
     checkStmt' :: Stmt a -> Either String [(Ident, VarType a)]
     -- x <- x'
-    checkStmt' SAssign{..} = do
+    checkStmt' AssignS{..} = do
       checkInOuts gamma [arg] [ret]
       return [(ret, gamma ! arg)]
 
     -- x <- v : t
-    checkStmt' SConst{..} = do
+    checkStmt' ConstS{..} = do
       checkInOuts gamma [] [ret]
       return [(ret, ty)]
 
     -- x <- op a
-    checkStmt' SUnOp{..} = do
+    checkStmt' UnOpS{..} = do
       checkInOuts gamma [arg] [ret]
       let ty = gamma ! arg
       case un_op of
-        PNot -> unless (ty == tbool) $ Left ("`not` requires bool, got " <> show ty)
+        NotOp -> unless (ty == tbool) $ Left ("`not` requires bool, got " <> show ty)
       return [(ret, tbool)]
 
     -- x <- a op b
-    checkStmt' SBinOp{..} = do
+    checkStmt' BinOpS{..} = do
       checkInOuts gamma [lhs, rhs] [ret]
       let ty_lhs = gamma ! lhs
       let ty_rhs = gamma ! rhs
       case bin_op of
-        PAnd -> unless (ty_lhs == tbool && ty_rhs == tbool) $ Left ("`and` requires bools, got " <> show [ty_lhs, ty_rhs])
+        AndOp -> unless (ty_lhs == tbool && ty_rhs == tbool) $ Left ("`and` requires bools, got " <> show [ty_lhs, ty_rhs])
         _ -> return ()
 
       let t = case bin_op of
-            PAnd -> tbool
-            PLeq -> tbool
-            PAdd -> tmax ty_lhs ty_rhs
+            AndOp -> tbool
+            LEqOp -> tbool
+            AddOp -> tmax ty_lhs ty_rhs
       return [(ret, t)]
 
     -- ret <- Oracle(args)
-    checkStmt' (SOracle ret args) = do
+    checkStmt' (OracleS ret args) = do
       checkInOuts gamma args ret
 
       let OracleDef{paramTypes = o_arg_tys, retTypes = o_ret_tys} = oracle
@@ -93,7 +93,7 @@ checkStmt funCtx@FunCtx{..} s gamma = M.union gamma . M.fromList <$> checkStmt' 
       return $ zip ret o_ret_tys
 
     -- ret <- f(args)
-    checkStmt' SFunCall{..} = do
+    checkStmt' FunCallS{..} = do
       checkInOuts gamma args rets
 
       FunDef _ fn_params fn_rets _ <- lookupFun funCtx fun
@@ -109,7 +109,7 @@ checkStmt funCtx@FunCtx{..} s gamma = M.union gamma . M.fromList <$> checkStmt' 
       return $ zip rets (map snd fn_rets)
 
     -- x, ok <- search[f](args)
-    checkStmt' SSearch{..} = do
+    checkStmt' SearchS{..} = do
       checkInOuts gamma args [sol, ok]
 
       FunDef _ fn_params fn_rets _ <- lookupFun funCtx predicate
@@ -126,7 +126,7 @@ checkStmt funCtx@FunCtx{..} s gamma = M.union gamma . M.fromList <$> checkStmt' 
       return [(ok, tbool), (sol, last param_tys)]
 
     -- ok <- contains[f](args)
-    checkStmt' (SContains ok f args) = do
+    checkStmt' (ContainsS ok f args) = do
       checkInOuts gamma args [ok]
 
       FunDef _ fn_params fn_rets _ <- lookupFun funCtx f
@@ -143,7 +143,7 @@ checkStmt funCtx@FunCtx{..} s gamma = M.union gamma . M.fromList <$> checkStmt' 
       return [(ok, tbool)]
 
     -- if b then s_t else s_f
-    checkStmt' (SIfTE b s_t s_f) = do
+    checkStmt' (IfThenElseS b s_t s_f) = do
       checkInOuts gamma [b] []
       outs_t <- checkStmt' s_t
       outs_f <- checkStmt' s_f

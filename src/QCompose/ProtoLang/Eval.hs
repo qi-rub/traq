@@ -22,36 +22,36 @@ evalProgram prog@Program{funCtx = funCtx@FunCtx{..}, stmt} oracleF = \st -> fold
 
     eval_ :: State -> Stmt SizeT -> [(Ident, Value)]
 
-    eval_ st (SAssign x y) = return (y, get st x)
-    eval_ _ (SConst x v _) = return (x, v)
-    eval_ st (SUnOp res op x) =
+    eval_ st (AssignS x y) = return (y, get st x)
+    eval_ _ (ConstS x v _) = return (x, v)
+    eval_ st (UnOpS res op x) =
       let vx = get st x
-       in let vres = case op of PNot -> if vx == 0 then 1 else 0
+       in let vres = case op of NotOp -> if vx == 0 then 1 else 0
            in return (res, vres)
-    eval_ st (SBinOp res op x y) =
+    eval_ st (BinOpS res op x y) =
       let vx = get st x
           vy = get st y
        in let vres =
                 case op of
-                  PAdd -> vx + vy
-                  PLeq -> if vx <= vy then 1 else 0
-                  PAnd -> if vx /= 0 && vy /= 0 then 1 else 0
+                  AddOp -> vx + vy
+                  LEqOp -> if vx <= vy then 1 else 0
+                  AndOp -> if vx /= 0 && vy /= 0 then 1 else 0
            in return (res, vres)
-    eval_ st (SOracle outs args) = zip outs (oracleF $ map (get st) args)
-    eval_ st (SFunCall outs f args) = zip outs ret_vals
+    eval_ st (OracleS outs args) = zip outs (oracleF $ map (get st) args)
+    eval_ st (FunCallS outs f args) = zip outs ret_vals
       where
         arg_vals = map (get st) args
         funDef = fromRight undefined $ lookupFun funCtx f
         ret_vals = evalFun funCtx oracleF arg_vals funDef
-    eval_ st (SIfTE x s_t s_f) = eval_ st s
+    eval_ st (IfThenElseS x s_t s_f) = eval_ st s
       where
         b = get st x /= 0
         s = if b then s_t else s_f
-    eval_ _ (SSeq []) = []
-    eval_ st (SSeq [s]) = eval_ st s
-    eval_ st (SSeq (s : ss)) =
-      let st' = evalProgram prog{stmt = s} oracleF st in eval_ st' (SSeq ss)
-    eval_ st (SContains ok f xs) = return (ok, if any check (range typ_x) then 1 else 0)
+    eval_ _ (SeqS []) = []
+    eval_ st (SeqS [s]) = eval_ st s
+    eval_ st (SeqS (s : ss)) =
+      let st' = evalProgram prog{stmt = s} oracleF st in eval_ st' (SeqS ss)
+    eval_ st (ContainsS ok f xs) = return (ok, if any check (range typ_x) then 1 else 0)
       where
         vs = map (get st) xs
         funDef@(FunDef _ fn_args _ _) = fromRight undefined $ lookupFun funCtx f
@@ -61,7 +61,7 @@ evalProgram prog@Program{funCtx = funCtx@FunCtx{..}, stmt} oracleF = \st -> fold
         check v = b /= 0
           where
             [b] = evalFun funCtx oracleF (vs ++ [v]) funDef
-    eval_ _ SSearch{} = error "non-deterministic"
+    eval_ _ SearchS{} = error "non-deterministic"
 
 evalFun :: FunCtx SizeT -> OracleInterp -> [Value] -> FunDef SizeT -> [Value]
 evalFun funCtx oracleF in_values funDef = ret_vals

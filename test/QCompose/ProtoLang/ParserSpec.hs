@@ -12,20 +12,20 @@ spec :: Spec
 spec = do
   describe "parse statement" $ do
     it "parses assign" $ do
-      parseCode "x' <- x" `shouldBe` Right (SSeq [SAssign{ret = "x'", arg = "x"}])
+      parseCode "x' <- x" `shouldBe` Right (SeqS [AssignS{ret = "x'", arg = "x"}])
     it "parses seq assign" $ do
       parseCode "x' <- x; y' <- const 3 : Fin<4>"
         `shouldBe` Right
-          ( SSeq
-              [ SAssign{ret = "x'", arg = "x"}
-              , SConst{ret = "y'", val = 3, ty = Fin (Value 4)}
+          ( SeqS
+              [ AssignS{ret = "x'", arg = "x"}
+              , ConstS{ret = "y'", val = 3, ty = Fin (Value 4)}
               ]
           )
     it "parses function call" $ do
       parseCode "a, b <- f(x, y, z)"
         `shouldBe` Right
-          ( SSeq
-              [ SFunCall
+          ( SeqS
+              [ FunCallS
                   { fun = "f"
                   , args = ["x", "y", "z"]
                   , rets = ["a", "b"]

@@ -7,32 +7,32 @@ import QCompose.ProtoLang.Syntax
 type VarSet = S.Set Ident
 
 inputVars :: Stmt a -> VarSet
-inputVars SAssign{..} = S.singleton arg
-inputVars SConst{..} = S.empty
-inputVars SUnOp{..} = S.singleton arg
-inputVars SBinOp{..} = S.fromList [lhs, rhs]
-inputVars SOracle{..} = S.fromList args
-inputVars SFunCall{..} = error "TODO"
-inputVars SContains{..} = S.fromList args
-inputVars SSearch{..} = S.fromList args
-inputVars SIfTE{..} = error "TODO"
-inputVars (SSeq []) = S.empty
-inputVars (SSeq [s]) = inputVars s
-inputVars (SSeq (s : ss)) = inputVars s `S.union` (inputVars (SSeq ss) S.\\ outputVars s)
+inputVars AssignS{..} = S.singleton arg
+inputVars ConstS{..} = S.empty
+inputVars UnOpS{..} = S.singleton arg
+inputVars BinOpS{..} = S.fromList [lhs, rhs]
+inputVars OracleS{..} = S.fromList args
+inputVars FunCallS{..} = error "TODO"
+inputVars ContainsS{..} = S.fromList args
+inputVars SearchS{..} = S.fromList args
+inputVars IfThenElseS{..} = error "TODO"
+inputVars (SeqS []) = S.empty
+inputVars (SeqS [s]) = inputVars s
+inputVars (SeqS (s : ss)) = inputVars s `S.union` (inputVars (SeqS ss) S.\\ outputVars s)
 
 outputVars :: Stmt a -> VarSet
-outputVars SAssign{..} = S.singleton ret
-outputVars SConst{..} = S.singleton ret
-outputVars SUnOp{..} = S.singleton ret
-outputVars SBinOp{..} = S.singleton ret
-outputVars SOracle{..} = S.fromList rets
-outputVars SFunCall{..} = error "TODO"
-outputVars SContains{..} = S.singleton ok
-outputVars SSearch{..} = S.fromList [sol, ok]
-outputVars SIfTE{..} = error "TODO"
-outputVars (SSeq []) = S.empty
-outputVars (SSeq [s]) = outputVars s
-outputVars (SSeq (s : ss)) = (outputVars s S.\\ inputVars (SSeq ss)) `S.union` outputVars (SSeq ss)
+outputVars AssignS{..} = S.singleton ret
+outputVars ConstS{..} = S.singleton ret
+outputVars UnOpS{..} = S.singleton ret
+outputVars BinOpS{..} = S.singleton ret
+outputVars OracleS{..} = S.fromList rets
+outputVars FunCallS{..} = error "TODO"
+outputVars ContainsS{..} = S.singleton ok
+outputVars SearchS{..} = S.fromList [sol, ok]
+outputVars IfThenElseS{..} = error "TODO"
+outputVars (SeqS []) = S.empty
+outputVars (SeqS [s]) = outputVars s
+outputVars (SeqS (s : ss)) = (outputVars s S.\\ inputVars (SeqS ss)) `S.union` outputVars (SeqS ss)
 
 allVars :: Stmt a -> VarSet
 allVars s = S.union (inputVars s) (outputVars s)

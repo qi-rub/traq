@@ -10,47 +10,47 @@ instance (Show a) => ToCodeString (VarType a) where
   toCodeString (Fin len) = "Fin<" <> show len <> ">"
 
 instance ToCodeString UnOp where
-  toCodeString PNot = "!"
+  toCodeString NotOp = "!"
 
 instance ToCodeString BinOp where
-  toCodeString PAdd = "+"
-  toCodeString PLeq = "<="
-  toCodeString PAnd = "/\\"
+  toCodeString AddOp = "+"
+  toCodeString LEqOp = "<="
+  toCodeString AndOp = "/\\"
 
 instance (Show a) => ToCodeString (Stmt a) where
-  toCodeLines SAssign{..} = [unwords [ret, "<-", arg]]
-  toCodeLines SConst{..} = [unwords [ret, "<-", show val, ":", toCodeString ty]]
-  toCodeLines SUnOp{..} = [unwords [ret, "<-", toCodeString un_op <> arg]]
-  toCodeLines SBinOp{..} = [unwords [ret, "<-", lhs, toCodeString bin_op, rhs]]
-  toCodeLines SOracle{..} =
+  toCodeLines AssignS{..} = [unwords [ret, "<-", arg]]
+  toCodeLines ConstS{..} = [unwords [ret, "<-", show val, ":", toCodeString ty]]
+  toCodeLines UnOpS{..} = [unwords [ret, "<-", toCodeString un_op <> arg]]
+  toCodeLines BinOpS{..} = [unwords [ret, "<-", lhs, toCodeString bin_op, rhs]]
+  toCodeLines OracleS{..} =
     [ unwords
         [ commaList rets
         , "<-"
         , "Oracle(" <> commaList args <> ")"
         ]
     ]
-  toCodeLines SFunCall{..} =
+  toCodeLines FunCallS{..} =
     [ unwords
         [ commaList rets
         , "<-"
         , fun <> "(" <> commaList args <> ")"
         ]
     ]
-  toCodeLines SIfTE{..} =
+  toCodeLines IfThenElseS{..} =
     [unwords ["if", cond, "then"]]
       <> indent (toCodeLines s_true)
       <> ["else"]
       <> indent (toCodeLines s_false)
       <> ["end"]
-  toCodeLines (SSeq ss) = concatMap toCodeLines ss
-  toCodeLines SSearch{..} =
+  toCodeLines (SeqS ss) = concatMap toCodeLines ss
+  toCodeLines SearchS{..} =
     [ unwords
         [ commaList [sol, ok]
         , "<-"
         , "search" <> "(" <> commaList (predicate : args) <> ")"
         ]
     ]
-  toCodeLines SContains{..} =
+  toCodeLines ContainsS{..} =
     [ unwords
         [ ok
         , "<-"

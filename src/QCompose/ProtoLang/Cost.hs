@@ -55,25 +55,25 @@ quantumQueryCost flag algs funCtx oracleF = cost
     get st x = st M.! x
 
     cost :: Stmt SizeT -> FailProb -> State -> Complexity
-    cost SAssign{} _ _ = 0
-    cost SConst{} _ _ = 0
-    cost SUnOp{} _ _ = 0
-    cost SBinOp{} _ _ = 0
-    cost SOracle{} _ _ = 1
-    cost (SIfTE _ s_t s_f) eps sigma = max (cost s_t eps sigma) (cost s_f eps sigma)
-    cost (SSeq []) _ _ = 0
-    cost (SSeq [s]) eps sigma = cost s eps sigma
-    cost (SSeq (s : ss)) eps sigma = cost s (eps / 2) sigma + cost (SSeq ss) (eps / 2) sigma'
+    cost AssignS{} _ _ = 0
+    cost ConstS{} _ _ = 0
+    cost UnOpS{} _ _ = 0
+    cost BinOpS{} _ _ = 0
+    cost OracleS{} _ _ = 1
+    cost (IfThenElseS _ s_t s_f) eps sigma = max (cost s_t eps sigma) (cost s_f eps sigma)
+    cost (SeqS []) _ _ = 0
+    cost (SeqS [s]) eps sigma = cost s eps sigma
+    cost (SeqS (s : ss)) eps sigma = cost s (eps / 2) sigma + cost (SeqS ss) (eps / 2) sigma'
       where
         sigma' = evalProgram Program{funCtx, stmt = s} oracleF sigma
-    cost (SFunCall _ f args) eps sigma = cost body eps omega
+    cost (FunCallS _ f args) eps sigma = cost body eps omega
       where
         vs = map (get sigma) args
         FunDef _ fn_args _ body = fromRight undefined $ lookupFun funCtx f
         omega = M.fromList $ zip (fst <$> fn_args) vs
 
     -- known cost formulas
-    cost (SContains _ f xs) eps sigma = n_pred_calls * max_pred_unitary_cost
+    cost (ContainsS _ f xs) eps sigma = n_pred_calls * max_pred_unitary_cost
       where
         vs = map (get sigma) xs
         funDef@(FunDef _ fn_args _ body) = fromRight undefined $ lookupFun funCtx f
@@ -111,7 +111,7 @@ quantumQueryCost flag algs funCtx oracleF = cost
             omega = M.fromList $ zip (map fst fn_args) (vs ++ [v])
 
         max_pred_unitary_cost = maximum $ pred_unitary_cost <$> range typ_x
-    cost SSearch{} _ _ = error "cost for search not supported, use contains for now."
+    cost SearchS{} _ _ = error "cost for search not supported, use contains for now."
 
 quantumQueryCostOfFun :: CostType -> QSearchFormulas -> FunCtx SizeT -> OracleInterp -> [Value] -> FailProb -> Ident -> Complexity
 quantumQueryCostOfFun flag algs funCtx oracle in_values eps f = cost

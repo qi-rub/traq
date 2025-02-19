@@ -12,23 +12,23 @@ import QCompose.Utils.Rewriting
 newtype VarType a = Fin a -- Fin<N>
   deriving (Eq, Show, Read, Functor)
 
-data UnOp = PNot
+data UnOp = NotOp
   deriving (Eq, Show, Read)
 
-data BinOp = PAdd | PLeq | PAnd
+data BinOp = AddOp | LEqOp | AndOp
   deriving (Eq, Show, Read)
 
 data Stmt a
-  = SAssign {ret :: Ident, arg :: Ident}
-  | SConst {ret :: Ident, val :: Value, ty :: VarType a}
-  | SUnOp {ret :: Ident, un_op :: UnOp, arg :: Ident}
-  | SBinOp {ret :: Ident, bin_op :: BinOp, lhs :: Ident, rhs :: Ident}
-  | SOracle {rets :: [Ident], args :: [Ident]}
-  | SFunCall {rets :: [Ident], fun :: Ident, args :: [Ident]}
-  | SIfTE {cond :: Ident, s_true :: Stmt a, s_false :: Stmt a}
-  | SSeq [Stmt a]
-  | SSearch {sol :: Ident, ok :: Ident, predicate :: Ident, args :: [Ident]}
-  | SContains {ok :: Ident, predicate :: Ident, args :: [Ident]}
+  = AssignS {ret :: Ident, arg :: Ident}
+  | ConstS {ret :: Ident, val :: Value, ty :: VarType a}
+  | UnOpS {ret :: Ident, un_op :: UnOp, arg :: Ident}
+  | BinOpS {ret :: Ident, bin_op :: BinOp, lhs :: Ident, rhs :: Ident}
+  | OracleS {rets :: [Ident], args :: [Ident]}
+  | FunCallS {rets :: [Ident], fun :: Ident, args :: [Ident]}
+  | IfThenElseS {cond :: Ident, s_true :: Stmt a, s_false :: Stmt a}
+  | SeqS [Stmt a]
+  | SearchS {sol :: Ident, ok :: Ident, predicate :: Ident, args :: [Ident]}
+  | ContainsS {ok :: Ident, predicate :: Ident, args :: [Ident]}
   deriving (Eq, Show, Read, Functor)
 
 data FunDef a = FunDef
@@ -64,17 +64,17 @@ lookupFun FunCtx{..} fname =
     Just f -> return f
 
 instance LocalRewritable (Stmt s) where
-  rewrite rw (SSeq ss) = mapM rw ss >>= rw . SSeq
-  rewrite rw s@SIfTE{..} = do
+  rewrite rw (SeqS ss) = mapM rw ss >>= rw . SeqS
+  rewrite rw s@IfThenElseS{..} = do
     s_true' <- rw s_true
     s_false' <- rw s_false
     rw $ s{s_true = s_true', s_false = s_false'}
   rewrite rw s = rw s
 
-rewriteFunDef :: (Monad m) => (Stmt a -> m (Stmt a)) -> FunDef a -> m (FunDef a)
-rewriteFunDef rw funDef@FunDef{body} = do
-  body' <- rw body
-  return funDef{body = body'}
+rewriteFunDef :: (Functor f) => (Stmt a -> f (Stmt a)) -> FunDef a -> f (FunDef a)
+rewriteFunDef rw FunDef{..} =
+  let fbody' = rw body
+   in fmap (\body' -> FunDef{body = body', ..}) fbody'
 
 rewriteFunCtx :: (Monad m) => (Stmt a -> m (Stmt a)) -> FunCtx a -> m (FunCtx a)
 rewriteFunCtx rw funCtx@FunCtx{funDefs} = do

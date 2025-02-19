@@ -11,7 +11,7 @@ matrixExample n m =
           { oracle = OracleDef [tyI, tyJ] [tyBool]
           , funDefs = [check_entry, check_row, check_matrix]
           }
-    , stmt = SFunCall{rets = ["result"], fun = "check_matrix", args = []}
+    , stmt = FunCallS{rets = ["result"], fun = "check_matrix", args = []}
     }
   where
     tyBool, tyI, tyJ :: VarType SizeT
@@ -25,9 +25,9 @@ matrixExample n m =
         "check_entry"
         [(i, tyI), (j, tyJ)]
         [(e', tyBool)]
-        ( SSeq
-            [ SOracle [e] [i, j]
-            , SUnOp e' PNot e
+        ( SeqS
+            [ OracleS [e] [i, j]
+            , UnOpS e' NotOp e
             ]
         )
       where
@@ -42,9 +42,9 @@ matrixExample n m =
         "check_row"
         [(i, tyI)]
         [(ok', tyBool)]
-        ( SSeq
-            [ SContains ok "check_entry" [i]
-            , SUnOp ok' PNot ok
+        ( SeqS
+            [ ContainsS ok "check_entry" [i]
+            , UnOpS ok' NotOp ok
             ]
         )
       where
@@ -58,6 +58,6 @@ matrixExample n m =
         "check_matrix"
         []
         [(ok, tyBool)]
-        (SContains ok "check_row" [])
+        (ContainsS ok "check_row" [])
       where
         ok = "ok"
