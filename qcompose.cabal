@@ -6,7 +6,8 @@ cabal-version: 1.18
 
 name:               qcompose
 version:            0.1.0.0
-synopsis:           protoqubrabench implementation
+synopsis:           Proto-Qubrabench
+description:        A prototype implementation of the `qubrabench` benchmarking library, with a concrete cost semantics and lowerings to various target programs.
 license:            MIT
 license-file:       LICENSE
 author:             Anurudh Peduri <anurudhp97@gmail.com>

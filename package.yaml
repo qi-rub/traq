@@ -14,7 +14,10 @@ version: 0.1.0.0
 
 author: Anurudh Peduri <anurudhp97@gmail.com>
 maintainer: Anurudh Peduri <anurudhp97@gmail.com>
-synopsis: protoqubrabench implementation
+synopsis: Proto-Qubrabench
+description:
+  A prototype implementation of the `qubrabench` benchmarking library,
+  with a concrete cost semantics and lowerings to various target programs.
 category: Math
 
 extra-doc-files:
