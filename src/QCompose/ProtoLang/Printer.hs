@@ -6,7 +6,7 @@ import QCompose.Basic
 import QCompose.ProtoLang.Syntax
 import QCompose.Utils.Printing
 
-instance Show a => ToCodeString (VarType a) where
+instance (Show a) => ToCodeString (VarType a) where
   toCodeString (Fin len) = "Fin<" <> show len <> ">"
 
 instance ToCodeString UnOp where
@@ -17,7 +17,7 @@ instance ToCodeString BinOp where
   toCodeString PLeq = "<="
   toCodeString PAnd = "/\\"
 
-instance Show a => ToCodeString (Stmt a) where
+instance (Show a) => ToCodeString (Stmt a) where
   toCodeLines SAssign{..} = [unwords [ret, "<-", arg]]
   toCodeLines SConst{..} = [unwords [ret, "<-", show val, ":", toCodeString ty]]
   toCodeLines SUnOp{..} = [unwords [ret, "<-", toCodeString un_op <> arg]]
@@ -58,7 +58,7 @@ instance Show a => ToCodeString (Stmt a) where
         ]
     ]
 
-instance Show a => ToCodeString (FunDef a) where
+instance (Show a) => ToCodeString (FunDef a) where
   toCodeLines FunDef{..} =
     [unwords ["def", name, "(" <> commaList (showTypedVar <$> params) <> ")", "do"]]
       <> indent
@@ -70,7 +70,7 @@ instance Show a => ToCodeString (FunDef a) where
       showTypedVar :: (Ident, VarType a) -> String
       showTypedVar (x, ty) = unwords [x, ":", toCodeString ty]
 
-instance Show a => ToCodeString (OracleDef a) where
+instance (Show a) => ToCodeString (OracleDef a) where
   toCodeString OracleDef{..} =
     unwords
       [ "declare"
@@ -79,7 +79,7 @@ instance Show a => ToCodeString (OracleDef a) where
       , commaList (toCodeString <$> retTypes)
       ]
 
-instance Show a => ToCodeString (Program a) where
+instance (Show a) => ToCodeString (Program a) where
   toCodeLines Program{funCtx = FunCtx{..}, ..} =
     [toCodeString oracle, ""]
       <> fs

@@ -24,7 +24,7 @@ instance TypeCheckable Int where
 type TypingCtx a = M.Map Ident (VarType a)
 
 -- | Checks that the given inputs are present in the context, and the outputs are not.
-checkInOuts :: Show a => TypingCtx a -> [Ident] -> [Ident] -> Either String ()
+checkInOuts :: (Show a) => TypingCtx a -> [Ident] -> [Ident] -> Either String ()
 checkInOuts gamma ins outs = checkPresent ins >> checkNotPresent outs
   where
     checkNotPresent :: [Ident] -> Either String ()

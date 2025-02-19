@@ -57,7 +57,7 @@ data Program a = Program
   }
   deriving (Eq, Show, Read, Functor)
 
-lookupFun :: MonadError String m => FunCtx a -> Ident -> m (FunDef a)
+lookupFun :: (MonadError String m) => FunCtx a -> Ident -> m (FunDef a)
 lookupFun FunCtx{..} fname =
   case find (\f -> name f == fname) funDefs of
     Nothing -> throwError $ "cannot find function " <> fname
@@ -71,17 +71,17 @@ instance LocalRewritable (Stmt s) where
     rw $ s{s_true = s_true', s_false = s_false'}
   rewrite rw s = rw s
 
-rewriteFunDef :: Monad m => (Stmt a -> m (Stmt a)) -> FunDef a -> m (FunDef a)
+rewriteFunDef :: (Monad m) => (Stmt a -> m (Stmt a)) -> FunDef a -> m (FunDef a)
 rewriteFunDef rw funDef@FunDef{body} = do
   body' <- rw body
   return funDef{body = body'}
 
-rewriteFunCtx :: Monad m => (Stmt a -> m (Stmt a)) -> FunCtx a -> m (FunCtx a)
+rewriteFunCtx :: (Monad m) => (Stmt a -> m (Stmt a)) -> FunCtx a -> m (FunCtx a)
 rewriteFunCtx rw funCtx@FunCtx{funDefs} = do
   funDefs' <- mapM (rewriteFunDef rw) funDefs
   return funCtx{funDefs = funDefs'}
 
-rewriteProgram :: Monad m => (Stmt a -> m (Stmt a)) -> Program a -> m (Program a)
+rewriteProgram :: (Monad m) => (Stmt a -> m (Stmt a)) -> Program a -> m (Program a)
 rewriteProgram rw p@Program{funCtx, stmt} = do
   funCtx' <- rewriteFunCtx rw funCtx
   stmt' <- rewrite rw stmt
