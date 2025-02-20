@@ -7,6 +7,7 @@ import QCompose.ProtoLang.Eval
 import QCompose.ProtoLang.Printer ()
 import QCompose.ProtoLang.Syntax
 import QCompose.ProtoLang.TypeCheck
+import QCompose.UnitaryQPL.Lowering
 import QCompose.Utils.Printing
 
 showProg :: IO ()
@@ -29,6 +30,9 @@ showProg = do
 
   putStrLn "program:"
   putStrLn $ toCodeString ex
+
+  putStrLn "lowering to UQPL:"
+  putStrLn $ toCodeString $ lowerProgramU 0.001 ex
 
 main :: IO ()
 main = do

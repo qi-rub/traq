@@ -5,20 +5,23 @@ import QCompose.ProtoLang.Syntax
 import QCompose.UnitaryQPL.Syntax
 
 lowerU :: Precision -> Stmt SizeT -> UQPLStmt
-lowerU _ AssignS{..} = UUnitary [arg, ret] XorInto
-lowerU _ ConstS{..} = UUnitary [ret] (XorConst val)
-lowerU _ UnOpS{..} = UUnitary [arg, ret] C0_X
-lowerU _ BinOpS{..} = UUnitary [lhs, rhs, ret] opUnitary
+lowerU _ AssignS{..} = UnitaryU [arg, ret] XorInto
+lowerU _ ConstS{..} = UnitaryU [ret] (XorConst val)
+lowerU _ UnOpS{..} = UnitaryU [arg, ret] C0_X
+lowerU _ BinOpS{..} = UnitaryU [lhs, rhs, ret] opUnitary
   where
     opUnitary = case bin_op of
       AddOp -> AddInto
       LEqOp -> LEqInto
       AndOp -> Toffoli
-lowerU _ OracleS{..} = UUnitary (args <> rets) Oracle
-lowerU _ (SeqS []) = USkip
+lowerU _ OracleS{..} = UnitaryU (args <> rets) Oracle
+lowerU _ (SeqS []) = SkipU
 lowerU delta (SeqS [s]) = lowerU delta s
-lowerU delta (SeqS (s : ss)) = USeq (lowerU (delta / 2) s) (lowerU (delta / 2) (SeqS ss))
+lowerU delta (SeqS (s : ss)) = SeqU (lowerU (delta / 2) s) (lowerU (delta / 2) (SeqS ss))
 lowerU _ _ = error "unsupported syntax"
 
-lowerUDef :: Precision -> FunDef SizeT -> UProcDef
-lowerUDef _ _ = error "not implemented"
+lowerDefU :: Precision -> FunDef SizeT -> UQPLProcDef
+lowerDefU _ _ = error "not implemented"
+
+lowerProgramU :: Precision -> Program SizeT -> UQPLProgram
+lowerProgramU eps Program{..} = undefined
