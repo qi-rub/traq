@@ -148,19 +148,19 @@ funDef tp@TokenParser{..} = do
   reserved "end"
   return FunDef{..}
 
-oracleDef :: TokenParser () -> Parser (OracleDef SymbSize)
-oracleDef tp@TokenParser{..} = do
+oracleDecl :: TokenParser () -> Parser (OracleDecl SymbSize)
+oracleDecl tp@TokenParser{..} = do
   reserved "declare"
   reserved "Oracle"
   paramTypes <- parens (commaSep (varType tp))
   reservedOp "->"
   retTypes <- commaSep (varType tp)
-  return OracleDef{..}
+  return OracleDecl{..}
 
 program :: TokenParser () -> Parser (Program SymbSize)
 program tp@TokenParser{..} = do
   whiteSpace
-  oracle <- oracleDef tp
+  oracle <- oracleDecl tp
   funDefs <- many (funDef tp)
   stmt <- stmtP tp
   eof

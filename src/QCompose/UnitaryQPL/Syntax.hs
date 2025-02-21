@@ -1,8 +1,7 @@
 module QCompose.UnitaryQPL.Syntax where
 
 import QCompose.Basic
-import QCompose.ProtoLang.Printer ()
-import QCompose.ProtoLang.Syntax (OracleDef, VarType)
+import QCompose.ProtoLang.Syntax (OracleDecl, VarType)
 import QCompose.Utils.Printing
 
 data Unitary
@@ -32,7 +31,7 @@ data UQPLProcDef = UQPLProcDef
   deriving (Eq, Show, Read)
 
 data UQPLProgram = UQPLProgram
-  { oracleU :: OracleDef SizeT
+  { oracleU :: OracleDecl SizeT
   , procs :: [UQPLProcDef]
   , stmtU :: UQPLStmt
   }

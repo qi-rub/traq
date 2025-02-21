@@ -8,7 +8,7 @@ matrixExample n m =
   Program
     { funCtx =
         FunCtx
-          { oracle = OracleDef [tyI, tyJ] [tyBool]
+          { oracle = OracleDecl [tyI, tyJ] [tyBool]
           , funDefs = [check_entry, check_row, check_matrix]
           }
     , stmt = FunCallS{rets = ["result"], fun = "check_matrix", args = []}

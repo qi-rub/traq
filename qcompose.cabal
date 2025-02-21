@@ -27,7 +27,6 @@ library
           QCompose.ProtoLang.Cost
           QCompose.ProtoLang.Eval
           QCompose.ProtoLang.Parser
-          QCompose.ProtoLang.Printer
           QCompose.ProtoLang.Rewrites
           QCompose.ProtoLang.Syntax
           QCompose.ProtoLang.TypeCheck

@@ -81,7 +81,7 @@ checkStmt funCtx@FunCtx{..} s gamma = M.union gamma . M.fromList <$> checkStmt' 
     checkStmt' (OracleS ret args) = do
       checkInOuts gamma args ret
 
-      let OracleDef{paramTypes = o_arg_tys, retTypes = o_ret_tys} = oracle
+      let OracleDecl{paramTypes = o_arg_tys, retTypes = o_ret_tys} = oracle
 
       let arg_tys = map (gamma !) args
       unless (arg_tys == o_arg_tys) $
