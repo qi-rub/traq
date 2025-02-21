@@ -12,7 +12,7 @@ import QCompose.Utils.Printing
 showProg :: IO ()
 showProg = do
   putStrLn "Matrix Example"
-  let ex = matrixExample 10 10
+  let ex = matrixExampleS 10 10
 
   putStr "Is well typed? "
   print $ isWellTyped ex

@@ -3,8 +3,8 @@ module QCompose.Examples.MatrixSearch where
 import QCompose.Basic
 import QCompose.ProtoLang.Syntax
 
-matrixExample :: SizeT -> SizeT -> Program SizeT
-matrixExample n m =
+matrixExample :: a -> a -> VarType a -> Program a
+matrixExample n m tyBool =
   Program
     { funCtx =
         FunCtx
@@ -14,12 +14,11 @@ matrixExample n m =
     , stmt = FunCallS{rets = ["result"], fun = "check_matrix", args = []}
     }
   where
-    tyBool, tyI, tyJ :: VarType SizeT
-    tyBool = Fin 2
+    -- tyI, tyJ :: VarType a
     tyI = Fin n
     tyJ = Fin m
 
-    check_entry :: FunDef SizeT
+    -- check_entry :: FunDef a
     check_entry =
       FunDef
         "check_entry"
@@ -36,7 +35,7 @@ matrixExample n m =
         e = "e"
         e' = "e'"
 
-    check_row :: FunDef SizeT
+    -- check_row :: FunDef a
     check_row =
       FunDef
         "check_row"
@@ -52,7 +51,7 @@ matrixExample n m =
         ok = "ok"
         ok' = "ok'"
 
-    check_matrix :: FunDef SizeT
+    -- check_matrix :: FunDef a
     check_matrix =
       FunDef
         "check_matrix"
@@ -61,3 +60,6 @@ matrixExample n m =
         (ContainsS ok "check_row" [])
       where
         ok = "ok"
+
+matrixExampleS :: SizeT -> SizeT -> Program SizeT
+matrixExampleS n m = matrixExample n m (Fin 2)
