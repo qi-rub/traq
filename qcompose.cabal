@@ -34,7 +34,6 @@ library
           QCompose.UnitaryQPL
           QCompose.UnitaryQPL.Lowering
           QCompose.UnitaryQPL.Syntax
-          QCompose.Utils
           QCompose.Utils.Printing
           QCompose.Utils.Rewriting
     build-depends:

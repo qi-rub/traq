@@ -10,7 +10,7 @@ import QCompose.ProtoLang.Syntax
 type Complexity = Float
 
 -- cost
-type CostMetric = FunCtx SizeT -> OracleInterp -> Stmt SizeT -> FailProb -> State -> Complexity
+type CostMetric = FunCtx SizeT -> OracleInterp -> Stmt SizeT -> FailProb -> ProgramState -> Complexity
 
 -- Functions, Oracle interpretation, S (program), eps (fail prob), sigma (input state)
 
@@ -51,10 +51,10 @@ cadeEtAlFormulas = QSearchFormulas eqsearch eqsearch_worst zalka
 quantumQueryCost :: CostType -> QSearchFormulas -> CostMetric
 quantumQueryCost flag algs funCtx oracleF = cost
   where
-    get :: State -> Ident -> Value
+    get :: ProgramState -> Ident -> Value
     get st x = st M.! x
 
-    cost :: Stmt SizeT -> FailProb -> State -> Complexity
+    cost :: Stmt SizeT -> FailProb -> ProgramState -> Complexity
     cost AssignS{} _ _ = 0
     cost ConstS{} _ _ = 0
     cost UnOpS{} _ _ = 0

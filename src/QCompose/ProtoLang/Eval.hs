@@ -10,17 +10,17 @@ import QCompose.ProtoLang.Syntax
 range :: VarType SizeT -> [Value]
 range (Fin n) = [0 .. fromIntegral n - 1]
 
-type State = M.Map Ident Value
+type ProgramState = M.Map Ident Value
 
 type OracleInterp = [Value] -> [Value]
 
-evalProgram :: Program SizeT -> OracleInterp -> State -> State
+evalProgram :: Program SizeT -> OracleInterp -> ProgramState -> ProgramState
 evalProgram prog@Program{funCtx = funCtx@FunCtx{..}, stmt} oracleF = \st -> foldr (uncurry M.insert) st (eval_ st stmt)
   where
-    get :: State -> Ident -> Value
+    get :: ProgramState -> Ident -> Value
     get st x = st ! x
 
-    eval_ :: State -> Stmt SizeT -> [(Ident, Value)]
+    eval_ :: ProgramState -> Stmt SizeT -> [(Ident, Value)]
 
     eval_ st (AssignS x y) = return (y, get st x)
     eval_ _ (ConstS x v _) = return (x, v)
