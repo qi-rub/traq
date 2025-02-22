@@ -1,29 +1,30 @@
 module QCompose.ProtoLang.Cost where
 
+import Control.Monad.State (execStateT)
 import Data.Either (fromRight)
 import qualified Data.Map as M
 import QCompose.Basic
 import QCompose.ProtoLang.Eval
 import QCompose.ProtoLang.Syntax
 
--- value type for representing the query complexity
+-- | Value type for representing the query complexity.
 type Complexity = Float
 
--- cost
-type CostMetric = FunCtx SizeT -> OracleInterp -> Stmt SizeT -> FailProb -> ProgramState -> Complexity
-
--- Functions, Oracle interpretation, S (program), eps (fail prob), sigma (input state)
+-- | CostMetric takes: Oracle interpretation, Program, eps (fail prob), sigma (input state)
+type CostMetric = OracleInterp -> Program SizeT -> FailProb -> ProgramState -> Complexity
 
 data CostType = Quantum | Unitary deriving (Eq, Show, Read)
 
--- computed cost functions of a given set of algorithms (quantum, unitary)
+-- | Computed cost functions (quantum, unitary) of a given set of algorithms implementing quantum search
 data QSearchFormulas = QSearchFormulas
   { qSearchExpectedCost :: SizeT -> SizeT -> FailProb -> Complexity -- n t eps
   , qSearchWorstCaseCost :: SizeT -> FailProb -> Complexity -- n eps
   , qSearchUnitaryCost :: SizeT -> FailProb -> Complexity -- n eps
   }
 
--- example
+{- | Cost formulas for quantum search from the paper
+ [Quantifying Grover speed-ups beyond asymptotic analysis](https://arxiv.org/abs/2203.04975)
+-}
 cadeEtAlFormulas :: QSearchFormulas
 cadeEtAlFormulas = QSearchFormulas eqsearch eqsearch_worst zalka
   where
@@ -49,23 +50,24 @@ cadeEtAlFormulas = QSearchFormulas eqsearch eqsearch_worst zalka
         log_fac = ceiling (log (1 / eps) / (2 * log (4 / 3)))
 
 quantumQueryCost :: CostType -> QSearchFormulas -> CostMetric
-quantumQueryCost flag algs funCtx oracleF = cost
+quantumQueryCost flag algs oracleF Program{funCtx, stmt} = cost stmt
   where
     get :: ProgramState -> Ident -> Value
     get st x = st M.! x
 
     cost :: Stmt SizeT -> FailProb -> ProgramState -> Complexity
-    cost AssignS{} _ _ = 0
-    cost ConstS{} _ _ = 0
-    cost UnOpS{} _ _ = 0
-    cost BinOpS{} _ _ = 0
     cost OracleS{} _ _ = 1
-    cost (IfThenElseS _ s_t s_f) eps sigma = max (cost s_t eps sigma) (cost s_f eps sigma)
-    cost (SeqS []) _ _ = 0
+    cost IfThenElseS{..} eps sigma =
+      case flag of
+        Unitary -> max (cost s_true eps sigma) (cost s_false eps sigma)
+        Quantum ->
+          let s = if get sigma cond /= 0 then s_true else s_false
+           in cost s eps sigma
     cost (SeqS [s]) eps sigma = cost s eps sigma
     cost (SeqS (s : ss)) eps sigma = cost s (eps / 2) sigma + cost (SeqS ss) (eps / 2) sigma'
       where
-        sigma' = evalProgram Program{funCtx, stmt = s} oracleF sigma
+        runner = evalProgram Program{funCtx, stmt = s} oracleF
+        sigma' = fromRight undefined $ execStateT runner sigma
     cost (FunCallS _ f args) eps sigma = cost body eps omega
       where
         vs = map (get sigma) args
@@ -82,7 +84,7 @@ quantumQueryCost flag algs funCtx oracleF = cost
         check :: Value -> Bool
         check v = b /= 0
           where
-            result = evalFun funCtx oracleF (vs ++ [v]) funDef
+            result = fromRight undefined $ evalFun funCtx oracleF (vs ++ [v]) funDef
             [b] = result
 
         n = length $ range typ_x
@@ -102,9 +104,8 @@ quantumQueryCost flag algs funCtx oracleF = cost
           quantumQueryCost
             Unitary
             algs
-            funCtx
             oracleF
-            body
+            Program{funCtx, stmt = body}
             eps_per_pred_call
             omega
           where
@@ -112,12 +113,4 @@ quantumQueryCost flag algs funCtx oracleF = cost
 
         max_pred_unitary_cost = maximum $ pred_unitary_cost <$> range typ_x
     cost SearchS{} _ _ = error "cost for search not supported, use contains for now."
-
-quantumQueryCostOfFun :: CostType -> QSearchFormulas -> FunCtx SizeT -> OracleInterp -> [Value] -> FailProb -> Ident -> Complexity
-quantumQueryCostOfFun flag algs funCtx oracle in_values eps f = cost
-  where
-    FunDef _ fn_args _ body = fromRight undefined $ lookupFun funCtx f
-    param_names = map fst fn_args
-    sigma = M.fromList $ zip param_names in_values
-
-    cost = quantumQueryCost flag algs funCtx oracle body eps sigma
+    cost _ _ _ = 0

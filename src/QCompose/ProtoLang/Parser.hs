@@ -58,23 +58,21 @@ protoLangDef =
 protoLangTokenParser :: TokenParser st
 protoLangTokenParser = makeTokenParser protoLangDef
 
+symbSize :: TokenParser () -> Parser SymbSize
+symbSize TokenParser{..} = (Value . fromIntegral <$> integer) <|> (SymExpr <$> identifier)
+
 varType :: TokenParser () -> Parser (VarType SymbSize)
-varType TokenParser{..} = parseBool <|> parseFin
+varType tp@TokenParser{..} = boolType <|> finType
   where
-    parseBool = reserved "Bool" $> Fin (Value 2)
-    parseFin = do
-      reserved "Fin"
-      n <- angles ((Value . fromIntegral <$> integer) <|> (SymExpr <$> identifier))
-      return $ Fin n
+    boolType = reserved "Bool" $> Fin (Value 2)
+    finType = reserved "Fin" >> Fin <$> angles (symbSize tp)
 
 typedExpr :: TokenParser () -> Parser a -> Parser (a, VarType SymbSize)
 typedExpr tp@TokenParser{..} pa = (,) <$> pa <*> (reservedOp ":" *> varType tp)
 
 stmtP :: TokenParser () -> Parser (Stmt SymbSize)
-stmtP tp@TokenParser{..} = seqS
+stmtP tp@TokenParser{..} = SeqS <$> many (try (singleStmt <* optional semi))
   where
-    seqS = SeqS <$> many (try (singleStmt <* optional semi))
-
     singleStmt :: Parser (Stmt SymbSize)
     singleStmt = do
       rets <- commaSep1 identifier
@@ -88,6 +86,7 @@ stmtP tp@TokenParser{..} = seqS
             , guardSingleRet >=> assignS
             , guardSingleRet >=> constS
             , guardSingleRet >=> unOpS
+            , guardSingleRet >=> binOpS
             ]
         ]
 
@@ -117,6 +116,21 @@ stmtP tp@TokenParser{..} = seqS
       un_op <- unOp
       arg <- identifier
       return UnOpS{..}
+
+    binOp :: Parser BinOp
+    binOp =
+      operator >>= \case
+        "+" -> return AddOp
+        "<=" -> return LEqOp
+        "&&" -> return AndOp
+        _ -> fail "invalid binary operator"
+
+    binOpS :: Ident -> Parser (Stmt SymbSize)
+    binOpS ret = do
+      lhs <- identifier
+      bin_op <- binOp
+      rhs <- identifier
+      return BinOpS{..}
 
     oracleS :: [Ident] -> Parser (Stmt SymbSize)
     oracleS rets = do

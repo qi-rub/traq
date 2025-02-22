@@ -1,10 +1,10 @@
 module Main where
 
+import Control.Monad.State (execStateT)
 import qualified Data.Map as M
 import QCompose.Examples.MatrixSearch
 import QCompose.ProtoLang.Cost
 import QCompose.ProtoLang.Eval
-import QCompose.ProtoLang.Syntax
 import QCompose.ProtoLang.TypeCheck
 import QCompose.UnitaryQPL.Lowering
 import QCompose.Utils.Printing
@@ -18,14 +18,16 @@ showProg = do
   print $ isWellTyped ex
 
   let oracleF = \[i, j] -> [if i == j then 1 else 0]
-  let res = evalProgram ex oracleF M.empty
+  let res = execStateT (evalProgram ex oracleF) M.empty
 
   putStr "Output: "
   print res
   let eps = 0.0001
 
-  putStr "Query Cost: "
-  print $ quantumQueryCostOfFun Quantum cadeEtAlFormulas (funCtx ex) oracleF [] eps "check_matrix"
+  putStr "Query Cost (quantum): "
+  print $ quantumQueryCost Quantum cadeEtAlFormulas oracleF ex eps M.empty
+  putStr "Query Cost (unitary): "
+  print $ quantumQueryCost Unitary cadeEtAlFormulas oracleF ex eps M.empty
 
   putStrLn "program:"
   putStrLn $ toCodeString ex

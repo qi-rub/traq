@@ -11,3 +11,7 @@ flattenSeq (SeqS ss) = case concatMap toSeq ss of
     toSeq (SeqS xs) = xs
     toSeq x = [x]
 flattenSeq s = s
+
+pairSeq :: Stmt a -> Stmt a
+pairSeq (SeqS ss) | not (null ss) = foldr1 (\a b -> SeqS [a, b]) ss
+pairSeq s = s
