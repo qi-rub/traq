@@ -43,6 +43,8 @@ default-extensions:
 
 library:
   source-dirs: src
+  default-extensions:
+    - Safe
 
 executable:
   main: Main.hs

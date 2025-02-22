@@ -52,6 +52,7 @@ library
           NamedFieldPuns
           DuplicateRecordFields
           LambdaCase
+          Safe
     ghc-options: -Wall
     default-language: Haskell2010
 
