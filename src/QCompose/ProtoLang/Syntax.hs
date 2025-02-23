@@ -5,9 +5,9 @@ module QCompose.ProtoLang.Syntax where
 
 import Control.Monad.Except (MonadError, throwError)
 import Data.Foldable (find)
+import Lens.Micro (Traversal')
 import QCompose.Basic
 import QCompose.Utils.Printing
-import QCompose.Utils.Rewriting
 
 -- proto-search language
 newtype VarType a = Fin a -- Fin<N>
@@ -19,6 +19,7 @@ data UnOp = NotOp
 data BinOp = AddOp | LEqOp | AndOp
   deriving (Eq, Show, Read)
 
+-- | A statement in the prototype language.
 data Stmt a
   = AssignS {ret :: Ident, arg :: Ident}
   | ConstS {ret :: Ident, val :: Value, ty :: VarType a}
@@ -32,6 +33,7 @@ data Stmt a
   | ContainsS {ok :: Ident, predicate :: Ident, args :: [Ident]}
   deriving (Eq, Show, Read, Functor)
 
+-- | A function definition in the prototype language.
 data FunDef a = FunDef
   { name :: Ident
   , params :: [(Ident, VarType a)]
@@ -40,18 +42,21 @@ data FunDef a = FunDef
   }
   deriving (Eq, Show, Read, Functor)
 
+-- | A declaration of the oracle's type
 data OracleDecl a = OracleDecl
   { paramTypes :: [VarType a]
   , retTypes :: [VarType a]
   }
   deriving (Eq, Show, Read, Functor)
 
+-- | A function context contains the oracle declaration, and a list of functions
 data FunCtx a = FunCtx
   { funDefs :: [FunDef a]
   , oracle :: OracleDecl a
   }
   deriving (Eq, Show, Read, Functor)
 
+-- | A program is a function context with a statement (which acts like the `main`)
 data Program a = Program
   { funCtx :: FunCtx a
   , stmt :: Stmt a
@@ -64,29 +69,28 @@ lookupFun FunCtx{..} fname =
     Nothing -> throwError $ "cannot find function " <> fname
     Just f -> return f
 
-instance LocalRewritable (Stmt s) where
-  rewrite rw (SeqS ss) = mapM rw ss >>= rw . SeqS
-  rewrite rw s@IfThenElseS{..} = do
-    s_true' <- rw s_true
-    s_false' <- rw s_false
-    rw $ s{s_true = s_true', s_false = s_false'}
-  rewrite rw s = rw s
+class StmtTraversal' p where
+  _stmt :: Traversal' (p a) (Stmt a)
 
-rewriteFunDef :: (Functor f) => (Stmt a -> f (Stmt a)) -> FunDef a -> f (FunDef a)
-rewriteFunDef rw FunDef{..} =
-  let fbody' = rw body
-   in fmap (\body' -> FunDef{body = body', ..}) fbody'
+instance StmtTraversal' Stmt where
+  _stmt f (SeqS ss) = SeqS <$> traverse f ss
+  _stmt f (IfThenElseS cond s_true s_false) = IfThenElseS cond <$> f s_true <*> f s_false
+  _stmt f s = f s
 
-rewriteFunCtx :: (Monad m) => (Stmt a -> m (Stmt a)) -> FunCtx a -> m (FunCtx a)
-rewriteFunCtx rw funCtx@FunCtx{funDefs} = do
-  funDefs' <- mapM (rewriteFunDef rw) funDefs
-  return funCtx{funDefs = funDefs'}
+instance StmtTraversal' FunDef where
+  _stmt f FunDef{..} =
+    (\body' -> FunDef{body = body', ..}) <$> f body
 
-rewriteProgram :: (Monad m) => (Stmt a -> m (Stmt a)) -> Program a -> m (Program a)
-rewriteProgram rw p@Program{funCtx, stmt} = do
-  funCtx' <- rewriteFunCtx rw funCtx
-  stmt' <- rewrite rw stmt
-  return p{funCtx = funCtx', stmt = stmt'}
+instance StmtTraversal' FunCtx where
+  _stmt f FunCtx{..} =
+    (\funDefs' -> FunCtx{funDefs = funDefs', ..})
+      <$> traverse (_stmt f) funDefs
+
+instance StmtTraversal' Program where
+  _stmt f Program{..} =
+    (\funCtx' stmt' -> Program{funCtx = funCtx', stmt = stmt', ..})
+      <$> _stmt f funCtx
+      <*> _stmt f stmt
 
 instance (Show a) => ToCodeString (VarType a) where
   toCodeString (Fin len) = "Fin<" <> show len <> ">"
