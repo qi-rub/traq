@@ -20,10 +20,15 @@ showProg = do
   let oracleF = \[i, j] -> [if i == j then 1 else 0]
   let res = execStateT (evalProgram ex oracleF) M.empty
 
-  putStr "Output: "
-  print res
-  let eps = 0.0001
+  case res of
+    Left e -> do
+      putStrLn "Error executing program:"
+      putStrLn e
+    Right v -> do
+      putStr "Output: "
+      print v
 
+  let eps = 0.0001
   putStr "Query Cost (quantum): "
   print $ quantumQueryCost Quantum cadeEtAlFormulas oracleF ex eps M.empty
   putStr "Query Cost (unitary): "

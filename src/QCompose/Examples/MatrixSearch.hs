@@ -25,8 +25,8 @@ matrixExample n m tyBool =
         [(i, tyI), (j, tyJ)]
         [(e', tyBool)]
         ( SeqS
-            [ OracleS [e] [i, j]
-            , UnOpS e' NotOp e
+            [ OracleS{rets = [e], args = [i, j]}
+            , UnOpS{ret = e', un_op = NotOp, arg = e}
             ]
         )
       where
@@ -42,8 +42,8 @@ matrixExample n m tyBool =
         [(i, tyI)]
         [(ok', tyBool)]
         ( SeqS
-            [ ContainsS ok "check_entry" [i]
-            , UnOpS ok' NotOp ok
+            [ ContainsS{ok, predicate = "check_entry", args = [i]}
+            , UnOpS{ret = ok', un_op = NotOp, arg = ok}
             ]
         )
       where
@@ -57,7 +57,7 @@ matrixExample n m tyBool =
         "check_matrix"
         []
         [(ok, tyBool)]
-        (ContainsS ok "check_row" [])
+        (ContainsS{ok, predicate = "check_row", args = []})
       where
         ok = "ok"
 

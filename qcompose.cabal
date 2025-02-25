@@ -24,10 +24,12 @@ library
           QCompose.Basic
           QCompose.Examples.MatrixSearch
           QCompose.ProtoLang
+          QCompose.ProtoLang.Context
           QCompose.ProtoLang.Cost
           QCompose.ProtoLang.Eval
           QCompose.ProtoLang.Parser
           QCompose.ProtoLang.Rewrites
+          QCompose.ProtoLang.Subroutine
           QCompose.ProtoLang.Syntax
           QCompose.ProtoLang.TypeCheck
           QCompose.ProtoLang.Vars
