@@ -14,7 +14,6 @@ lowerU _ BinOpS{..} = UnitaryU [lhs, rhs, ret] opUnitary
       AddOp -> AddInto
       LEqOp -> LEqInto
       AndOp -> Toffoli
-lowerU _ OracleS{..} = UnitaryU (args <> rets) Oracle
 lowerU _ (SeqS []) = SkipU
 lowerU delta (SeqS [s]) = lowerU delta s
 lowerU delta (SeqS (s : ss)) = SeqU (lowerU (delta / 2) s) (lowerU (delta / 2) (SeqS ss))

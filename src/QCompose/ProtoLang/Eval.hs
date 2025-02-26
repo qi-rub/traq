@@ -30,6 +30,7 @@ evalBinOp AndOp _ 0 = 0
 evalBinOp AndOp _ _ = 1
 
 evalStmt :: FunCtx SizeT -> OracleInterp -> Stmt SizeT -> StateT ProgramState (Either String) [(Ident, Value)]
+-- basic statements
 evalStmt _ _ AssignS{..} = do
   arg_val <- lookupVar arg
   return [(ret, arg_val)]
@@ -44,26 +45,40 @@ evalStmt _ _ BinOpS{..} = do
   rhs_val <- lookupVar rhs
   let ret_val = evalBinOp bin_op lhs_val rhs_val
   return [(ret, ret_val)]
-evalStmt _ oracleF OracleS{..} = do
-  arg_vals <- mapM lookupVar args
-  let ret_vals = oracleF arg_vals
-  return $ zip rets ret_vals
+
+-- compound statements
 evalStmt funCtx oracleF IfThenElseS{..} = do
   cond_val <- lookupVar cond
   let s = if cond_val == 0 then s_false else s_true
   evalStmt funCtx oracleF s
-evalStmt funCtx oracleF FunCallS{..} = do
+evalStmt funCtx oracleF (SeqS ss) = do
+  mapM_ (\s -> evalProgram Program{funCtx, stmt = s} oracleF) ss
+  return []
+
+-- function calls
+evalStmt _ oracleF FunCallS{fun_kind = OracleCall, ..} = do
+  arg_vals <- mapM lookupVar args
+  let ret_vals = oracleF arg_vals
+  return $ zip rets ret_vals
+evalStmt funCtx oracleF FunCallS{fun_kind = FunctionCall fun, ..} = do
   arg_vals <- mapM lookupVar args
   fun_def <- lookupFun funCtx fun
   ret_vals <- lift $ evalFun funCtx oracleF arg_vals fun_def
   return $ zip rets ret_vals
-evalStmt funCtx oracleF ContainsS{..} = do
+
+-- subroutines
+-- `any`
+evalStmt funCtx oracleF FunCallS{fun_kind = SubroutineCall Contains, rets, args = all_args} = do
   pred_fun_def <- lookupFun funCtx predicate
   let (_, s_arg_ty) = last $ params pred_fun_def
   sigma <- get
   has_sol <- lift $ anyM (evalPredicate sigma) (range s_arg_ty)
   return [(ok, if has_sol then 1 else 0)]
   where
+    predicate = head all_args
+    args = tail all_args
+    [ok] = rets
+
     evalPredicate :: ProgramState -> Value -> (Either String) Bool
     evalPredicate sigma val = evalStateT (runPredicate "_search_arg" val) sigma
 
@@ -72,14 +87,13 @@ evalStmt funCtx oracleF ContainsS{..} = do
       putValue s_arg val
       _ <-
         evalProgram
-          Program{funCtx, stmt = FunCallS{rets = [ok], fun = predicate, args = args ++ [s_arg]}}
+          Program{funCtx, stmt = FunCallS{fun_kind = FunctionCall predicate, rets = [ok], args = args ++ [s_arg]}}
           oracleF
       val_ok <- lookupVar ok
       return $ val_ok /= 0
-evalStmt _ _ SearchS{} = error "non-deterministic"
-evalStmt funCtx oracleF (SeqS ss) = do
-  mapM_ (\s -> evalProgram Program{funCtx, stmt = s} oracleF) ss
-  return []
+-- `search`
+evalStmt _ _ FunCallS{fun_kind = SubroutineCall Search} = do
+  error "non-deterministic"
 
 evalProgram :: Program SizeT -> OracleInterp -> StateT ProgramState (Either String) [(Ident, Value)]
 evalProgram Program{funCtx, stmt} oracleF = do

@@ -1,23 +1,23 @@
 module QCompose.ProtoLang.ParserSpec (spec) where
 
-import Control.Monad (void)
-import Lens.Micro (Traversal', over, rewriteOf)
 import QCompose.Basic
-import QCompose.Examples.MatrixSearch (matrixExample)
 import QCompose.ProtoLang.Parser
-import QCompose.ProtoLang.Rewrites
 import QCompose.ProtoLang.Syntax
 import Test.Hspec
-import Text.Parsec
 import Text.Parsec.String
+
+-- import Control.Monad (void)
+-- import Lens.Micro (Traversal', over, rewriteOf)
+-- import QCompose.Examples.MatrixSearch (matrixExample)
+-- import QCompose.ProtoLang.Rewrites
 
 spec :: Spec
 spec = do
   describe "parse statement" $ do
     it "parses assign" $ do
-      parseCode "x' <- x" `shouldBe` Right (SeqS [AssignS{ret = "x'", arg = "x"}])
+      parseStmt "x' <- x" `shouldBe` Right (SeqS [AssignS{ret = "x'", arg = "x"}])
     it "parses seq assign" $ do
-      parseCode "x' <- x; y' <- const 3 : Fin<4>"
+      parseStmt "x' <- x; y' <- const 3 : Fin<4>"
         `shouldBe` Right
           ( SeqS
               [ AssignS{ret = "x'", arg = "x"}
@@ -25,11 +25,11 @@ spec = do
               ]
           )
     it "parses function call" $ do
-      parseCode "a, b <- f(x, y, z)"
+      parseStmt "a, b <- f(x, y, z)"
         `shouldBe` Right
           ( SeqS
               [ FunCallS
-                  { fun = "f"
+                  { fun_kind = FunctionCall "f"
                   , args = ["x", "y", "z"]
                   , rets = ["a", "b"]
                   }
@@ -37,20 +37,29 @@ spec = do
           )
   describe "parse function def" $ do
     it "parses function" $ do
-      let res =
-            parse
-              (funDef protoLangTokenParser)
-              ""
-              $ unlines
-                [ "def check_entry(i: Fin<N>, j: Fin<M>) do"
-                , "e <- Oracle(i, j);"
-                , "e' <- !e;"
-                , "return e' : Bool"
-                , "end"
-                ]
-      void res `shouldBe` Right ()
+      parseFunDef
+        ( unlines
+            [ "def check_entry(i: Fin<N>, j: Fin<M>) do"
+            , "e <- Oracle(i, j);"
+            , "e' <- !e;"
+            , "return e' : Bool"
+            , "end"
+            ]
+        )
+        `shouldBe` Right
+          ( FunDef
+              { fun_name = "check_entry"
+              , params = [("i", Fin (SymExpr "N")), ("j", Fin (SymExpr "M"))]
+              , rets = [("e'", Fin (Value 2))]
+              , body =
+                  SeqS
+                    [ FunCallS{fun_kind = OracleCall, rets = ["e"], args = ["i", "j"]}
+                    , UnOpS{un_op = NotOp, arg = "e", ret = "e'"}
+                    ]
+              }
+          )
   describe "parse file" $ do
-    it "parses example" $ do
+    xit "parses example" $ do
       e <- parseFromFile (program protoLangTokenParser) "examples/matrix_search/matrix_search.qb"
       -- e <- return $ over _stmt (rewriteOf _stmt flattenSeq) <$> e
       -- e

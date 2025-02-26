@@ -56,7 +56,6 @@ quantumQueryCost flag algs oracleF Program{funCtx, stmt} = cost stmt
     get st x = st M.! x
 
     cost :: Stmt SizeT -> FailProb -> ProgramState -> Complexity
-    cost OracleS{} _ _ = 1
     cost IfThenElseS{..} eps sigma =
       case flag of
         Unitary -> max (cost s_true eps sigma) (cost s_false eps sigma)
@@ -68,17 +67,18 @@ quantumQueryCost flag algs oracleF Program{funCtx, stmt} = cost stmt
       where
         runner = evalProgram Program{funCtx, stmt = s} oracleF
         sigma' = fromRight undefined $ execStateT runner sigma
-    cost (FunCallS _ f args) eps sigma = cost body eps omega
+    cost FunCallS{fun_kind = OracleCall} _ _ = 1
+    cost FunCallS{fun_kind = FunctionCall f, ..} eps sigma = cost body eps omega
       where
         vs = map (get sigma) args
         FunDef _ fn_args _ body = fromRight undefined $ lookupFun funCtx f
         omega = M.fromList $ zip (fst <$> fn_args) vs
 
     -- known cost formulas
-    cost (ContainsS _ f xs) eps sigma = n_pred_calls * max_pred_unitary_cost
+    cost FunCallS{fun_kind = SubroutineCall Contains, ..} eps sigma = n_pred_calls * max_pred_unitary_cost
       where
-        vs = map (get sigma) xs
-        funDef@(FunDef _ fn_args _ body) = fromRight undefined $ lookupFun funCtx f
+        vs = map (get sigma) (tail args)
+        funDef@(FunDef _ fn_args _ body) = fromRight undefined $ lookupFun funCtx (head args)
         typ_x = snd $ last fn_args
 
         check :: Value -> Bool
@@ -112,5 +112,4 @@ quantumQueryCost flag algs oracleF Program{funCtx, stmt} = cost stmt
             omega = M.fromList $ zip (map fst fn_args) (vs ++ [v])
 
         max_pred_unitary_cost = maximum $ pred_unitary_cost <$> range typ_x
-    cost SearchS{} _ _ = error "cost for search not supported, use contains for now."
     cost _ _ _ = 0

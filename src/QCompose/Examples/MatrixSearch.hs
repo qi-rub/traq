@@ -11,7 +11,7 @@ matrixExample n m tyBool =
           { oracle = OracleDecl [tyI, tyJ] [tyBool]
           , funDefs = [check_entry, check_row, check_matrix]
           }
-    , stmt = FunCallS{rets = ["result"], fun = "check_matrix", args = []}
+    , stmt = FunCallS{fun_kind = FunctionCall "check_matrix", rets = ["result"], args = []}
     }
   where
     -- tyI, tyJ :: VarType a
@@ -25,7 +25,7 @@ matrixExample n m tyBool =
         [(i, tyI), (j, tyJ)]
         [(e', tyBool)]
         ( SeqS
-            [ OracleS{rets = [e], args = [i, j]}
+            [ FunCallS{fun_kind = OracleCall, rets = [e], args = [i, j]}
             , UnOpS{ret = e', un_op = NotOp, arg = e}
             ]
         )
@@ -42,7 +42,7 @@ matrixExample n m tyBool =
         [(i, tyI)]
         [(ok', tyBool)]
         ( SeqS
-            [ ContainsS{ok, predicate = "check_entry", args = [i]}
+            [ FunCallS{fun_kind = SubroutineCall Contains, rets = ["ok"], args = ["check_entry", i]}
             , UnOpS{ret = ok', un_op = NotOp, arg = ok}
             ]
         )
@@ -57,7 +57,7 @@ matrixExample n m tyBool =
         "check_matrix"
         []
         [(ok, tyBool)]
-        (ContainsS{ok, predicate = "check_row", args = []})
+        (FunCallS{fun_kind = SubroutineCall Contains, rets = [ok], args = ["check_row"]})
       where
         ok = "ok"
 

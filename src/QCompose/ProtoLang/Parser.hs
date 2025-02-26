@@ -4,6 +4,7 @@ import Control.Monad
 import Data.Functor (($>))
 import QCompose.Basic
 import QCompose.ProtoLang.Syntax
+import QCompose.Utils.Printing
 import Text.Parsec (ParseError, choice, eof, many, optional, parse, try, (<|>))
 import Text.Parsec.Language (LanguageDef, emptyDef)
 import Text.Parsec.String (Parser)
@@ -31,6 +32,10 @@ import Text.Parsec.Token (
   reservedOpNames,
  )
 
+-- TODO unify
+subroutines :: [(Subroutine, Ident)]
+subroutines = [(sub, toCodeString sub) | sub <- [minBound ..]]
+
 protoLangDef :: LanguageDef st
 protoLangDef =
   emptyDef
@@ -48,10 +53,8 @@ protoLangDef =
         , -- types
           "Fin"
         , "Bool"
-        , -- primitives
-          "search"
-        , "any"
         ]
+          ++ map snd subroutines
     , reservedOpNames = [":", "<-", "->"]
     }
 
@@ -80,15 +83,30 @@ stmtP tp@TokenParser{..} = SeqS <$> many (try (singleStmt <* optional semi))
       choice
         [ try $ p rets
         | p <-
-            [ oracleS
-            , guardSingleRet >=> anyS
-            , funCallS
+            [ funCallS
             , guardSingleRet >=> assignS
             , guardSingleRet >=> constS
             , guardSingleRet >=> unOpS
             , guardSingleRet >=> binOpS
             ]
         ]
+
+    funCallKind :: Parser FunctionCallKind
+    funCallKind = oracleCall <|> subroutineCall <|> functionCall
+      where
+        oracleCall = reserved "Oracle" $> OracleCall
+        subroutineCall =
+          choice
+            [ reserved sname $> SubroutineCall sub
+            | (sub, sname) <- subroutines
+            ]
+        functionCall = FunctionCall <$> identifier
+
+    funCallS :: [Ident] -> Parser (Stmt SymbSize)
+    funCallS rets = do
+      fun_kind <- funCallKind
+      args <- parens $ commaSep identifier
+      return FunCallS{..}
 
     guardSingleRet :: [Ident] -> Parser Ident
     guardSingleRet [ret] = return ret
@@ -132,28 +150,10 @@ stmtP tp@TokenParser{..} = SeqS <$> many (try (singleStmt <* optional semi))
       rhs <- identifier
       return BinOpS{..}
 
-    oracleS :: [Ident] -> Parser (Stmt SymbSize)
-    oracleS rets = do
-      reserved "Oracle"
-      args <- parens $ commaSep identifier
-      return OracleS{..}
-
-    anyS :: Ident -> Parser (Stmt SymbSize)
-    anyS ok = do
-      reserved "any"
-      (predicate : args) <- parens $ commaSep1 identifier
-      return ContainsS{..}
-
-    funCallS :: [Ident] -> Parser (Stmt SymbSize)
-    funCallS rets = do
-      fun <- identifier
-      args <- parens $ commaSep identifier
-      return FunCallS{..}
-
 funDef :: TokenParser () -> Parser (FunDef SymbSize)
 funDef tp@TokenParser{..} = do
   reserved "def"
-  name <- identifier
+  fun_name <- identifier
   params <- parens $ commaSep $ typedExpr tp identifier
   reserved "do"
   body <- stmtP tp
@@ -173,12 +173,19 @@ oracleDecl tp@TokenParser{..} = do
 
 program :: TokenParser () -> Parser (Program SymbSize)
 program tp@TokenParser{..} = do
-  whiteSpace
   oracle <- oracleDecl tp
   funDefs <- many (funDef tp)
   stmt <- stmtP tp
-  eof
   return Program{funCtx = FunCtx{..}, ..}
 
-parseCode :: String -> Either ParseError (Stmt SymbSize)
-parseCode = parse (stmtP protoLangTokenParser <* eof) ""
+parseCode :: (TokenParser () -> Parser a) -> String -> Either ParseError a
+parseCode parser = parse (whiteSpace protoLangTokenParser *> parser protoLangTokenParser <* eof) ""
+
+parseProgram :: String -> Either ParseError (Program SymbSize)
+parseProgram = parseCode program
+
+parseFunDef :: String -> Either ParseError (FunDef SymbSize)
+parseFunDef = parseCode funDef
+
+parseStmt :: String -> Either ParseError (Stmt SymbSize)
+parseStmt = parseCode stmtP
