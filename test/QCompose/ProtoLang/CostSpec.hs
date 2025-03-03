@@ -2,8 +2,8 @@ module QCompose.ProtoLang.CostSpec (spec) where
 
 import QCompose.Basic
 import QCompose.ProtoLang.Cost
-import QCompose.ProtoLang.Cost (QSearchFormulas (qSearchUnitaryCost))
 import QCompose.ProtoLang.Parser
+import QCompose.ProtoLang.Subroutines.QSearch
 import QCompose.ProtoLang.Syntax
 import Test.Hspec
 

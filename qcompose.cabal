@@ -30,6 +30,7 @@ library
           QCompose.ProtoLang.Eval
           QCompose.ProtoLang.Parser
           QCompose.ProtoLang.Rewrites
+          QCompose.ProtoLang.Subroutines.QSearch
           QCompose.ProtoLang.Syntax
           QCompose.ProtoLang.TypeCheck
           QCompose.ProtoLang.Vars

@@ -5,6 +5,7 @@ import qualified Data.Map as M
 import QCompose.Examples.MatrixSearch
 import QCompose.ProtoLang.Cost
 import QCompose.ProtoLang.Eval
+import QCompose.ProtoLang.Subroutines.QSearch
 import QCompose.ProtoLang.Syntax ()
 import QCompose.ProtoLang.TypeCheck
 import QCompose.UnitaryQPL.Lowering
