@@ -84,22 +84,16 @@ class StmtTraversal' p where
 instance StmtTraversal' Stmt where
   _stmt f (SeqS ss) = SeqS <$> traverse f ss
   _stmt f (IfThenElseS cond s_true s_false) = IfThenElseS cond <$> f s_true <*> f s_false
-  _stmt f s = f s
+  _stmt _ s = pure s
 
 instance StmtTraversal' FunDef where
-  _stmt f FunDef{..} =
-    (\body' -> FunDef{body = body', ..}) <$> f body
+  _stmt f FunDef{..} = (\body' -> FunDef{body = body', ..}) <$> f body
 
 instance StmtTraversal' FunCtx where
-  _stmt f FunCtx{..} =
-    (\funDefs' -> FunCtx{funDefs = funDefs', ..})
-      <$> traverse (_stmt f) funDefs
+  _stmt f (FunCtx funDefs oracle) = FunCtx <$> traverse (_stmt f) funDefs <*> pure oracle
 
 instance StmtTraversal' Program where
-  _stmt f Program{..} =
-    (\funCtx' stmt' -> Program{funCtx = funCtx', stmt = stmt', ..})
-      <$> _stmt f funCtx
-      <*> _stmt f stmt
+  _stmt f (Program funCtx stmt) = Program <$> _stmt f funCtx <*> _stmt f stmt
 
 instance (Show a) => ToCodeString (VarType a) where
   toCodeString (Fin len) = "Fin<" <> show len <> ">"

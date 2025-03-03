@@ -23,6 +23,7 @@ library
           QCompose
           QCompose.Basic
           QCompose.Examples.MatrixSearch
+          QCompose.Examples.Search
           QCompose.ProtoLang
           QCompose.ProtoLang.Context
           QCompose.ProtoLang.Cost
@@ -83,6 +84,8 @@ test-suite spec
     main-is: Spec.hs
     other-modules:
           QCompose.Examples.MatrixSearchSpec
+          QCompose.Examples.SearchSpec
+          QCompose.ProtoLang.CostSpec
           QCompose.ProtoLang.ParserSpec
           QCompose.ProtoLang.RewritesSpec
           QCompose.ProtoLang.TypeCheckSpec

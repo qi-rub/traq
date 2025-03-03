@@ -1,7 +1,7 @@
 module QCompose.ProtoLang.Cost where
 
+import Control.Monad (filterM)
 import Control.Monad.State (execStateT)
-import Data.Either (fromRight)
 import qualified Data.Map as M
 import QCompose.Basic
 import QCompose.ProtoLang.Eval
@@ -10,16 +10,11 @@ import QCompose.ProtoLang.Syntax
 -- | Value type for representing the query complexity.
 type Complexity = Float
 
--- | CostMetric takes: Oracle interpretation, Program, eps (fail prob), sigma (input state)
-type CostMetric = OracleInterp -> Program SizeT -> FailProb -> ProgramState -> Complexity
-
-data CostType = Quantum | Unitary deriving (Eq, Show, Read)
-
 -- | Computed cost functions (quantum, unitary) of a given set of algorithms implementing quantum search
 data QSearchFormulas = QSearchFormulas
   { qSearchExpectedCost :: SizeT -> SizeT -> FailProb -> Complexity -- n t eps
   , qSearchWorstCaseCost :: SizeT -> FailProb -> Complexity -- n eps
-  , qSearchUnitaryCost :: SizeT -> FailProb -> Complexity -- n eps
+  , qSearchUnitaryCost :: SizeT -> Precision -> Complexity -- n delta
   }
 
 {- | Cost formulas for quantum search from the paper
@@ -43,73 +38,116 @@ cadeEtAlFormulas = QSearchFormulas eqsearch eqsearch_worst zalka
       where
         term = f n t / (9.2 * sqrt (fromIntegral n))
 
+    -- TODO verify for precision instead of fail prob
     zalka :: SizeT -> FailProb -> Complexity
     zalka n eps = 5 * fromIntegral log_fac + pi * sqrt (fromIntegral (n * log_fac))
       where
         log_fac :: SizeT
         log_fac = ceiling (log (1 / eps) / (2 * log (4 / 3)))
 
-quantumQueryCost :: CostType -> QSearchFormulas -> CostMetric
-quantumQueryCost flag algs oracleF Program{funCtx, stmt} = cost stmt
+unitaryQueryCost ::
+  -- | Qry formulas
+  QSearchFormulas ->
+  -- | precision (l2-norm)
+  Precision ->
+  -- | program `P`
+  Program SizeT ->
+  Complexity
+unitaryQueryCost algs d Program{funCtx, stmt} = cost d stmt
+  where
+    unsafeLookupFun :: Ident -> FunDef SizeT
+    unsafeLookupFun = either error id . lookupFun funCtx
+
+    cost :: Precision -> Stmt SizeT -> Complexity
+    cost _ FunCallS{fun_kind = OracleCall} = 1
+    -- TODO properly handle the funCtx
+    cost delta FunCallS{fun_kind = FunctionCall fname} =
+      let FunDef{body} = unsafeLookupFun fname
+       in cost delta body
+    cost delta (SeqS [s]) = cost delta s
+    cost delta (SeqS (s : ss)) = cost (delta / 2) s + cost (delta / 2) (SeqS ss)
+    cost delta FunCallS{fun_kind = SubroutineCall c, args = (predicate : args), rets = [b]}
+      | c == Contains || c == Search =
+          2 * qry * cost_pred
+      where
+        -- arg_ty :: VarType SizeT
+        FunDef{params} = unsafeLookupFun predicate
+        Fin n = snd (last params)
+
+        delta_search = delta / 2
+        qry = qSearchUnitaryCost algs n delta_search
+        cost_pred =
+          cost ((delta - delta_search) / (2 * qry)) $
+            FunCallS
+              { fun_kind = FunctionCall predicate
+              , args = args
+              , rets = [b]
+              }
+
+    -- unknown subroutine
+    cost _ FunCallS{fun_kind = SubroutineCall _} = error "unknown subroutine"
+    -- all other statements
+    cost _ _ = 0
+
+quantumQueryCost ::
+  -- | Qry formulas
+  QSearchFormulas ->
+  -- | failure probability `eps`
+  FailProb ->
+  -- | program `P`
+  Program SizeT ->
+  -- | oracle `O`
+  OracleInterp ->
+  -- | state `sigma`
+  ProgramState ->
+  Complexity
+quantumQueryCost algs a_eps Program{funCtx, stmt} oracleF = cost stmt a_eps
   where
     get :: ProgramState -> Ident -> Value
     get st x = st M.! x
 
     cost :: Stmt SizeT -> FailProb -> ProgramState -> Complexity
     cost IfThenElseS{..} eps sigma =
-      case flag of
-        Unitary -> max (cost s_true eps sigma) (cost s_false eps sigma)
-        Quantum ->
-          let s = if get sigma cond /= 0 then s_true else s_false
-           in cost s eps sigma
+      let s = if get sigma cond /= 0 then s_true else s_false
+       in cost s eps sigma
     cost (SeqS [s]) eps sigma = cost s eps sigma
     cost (SeqS (s : ss)) eps sigma = cost s (eps / 2) sigma + cost (SeqS ss) (eps / 2) sigma'
       where
         runner = evalProgram Program{funCtx, stmt = s} oracleF
-        sigma' = fromRight undefined $ execStateT runner sigma
+        sigma' = either error id $ execStateT runner sigma
     cost FunCallS{fun_kind = OracleCall} _ _ = 1
     cost FunCallS{fun_kind = FunctionCall f, ..} eps sigma = cost body eps omega
       where
         vs = map (get sigma) args
-        FunDef _ fn_args _ body = fromRight undefined $ lookupFun funCtx f
+        FunDef _ fn_args _ body = either error id $ lookupFun funCtx f
         omega = M.fromList $ zip (fst <$> fn_args) vs
 
     -- known cost formulas
-    cost FunCallS{fun_kind = SubroutineCall Contains, ..} eps sigma = n_pred_calls * max_pred_unitary_cost
-      where
-        vs = map (get sigma) (tail args)
-        funDef@(FunDef _ fn_args _ body) = fromRight undefined $ lookupFun funCtx (head args)
-        typ_x = snd $ last fn_args
+    cost FunCallS{fun_kind = SubroutineCall c, args = (predicate : args)} eps sigma
+      | c == Contains || c == Search = either error id $ do
+          let vs = map (get sigma) args
+          funDef@(FunDef _ fn_args _ body) <- lookupFun funCtx predicate
+          let typ_x = snd $ last fn_args
 
-        check :: Value -> Bool
-        check v = b /= 0
-          where
-            result = fromRight undefined $ evalFun funCtx oracleF (vs ++ [v]) funDef
-            [b] = result
+          let space = range typ_x
+          sols <- (`filterM` space) $ \v -> do
+            result <- evalFun funCtx oracleF (vs ++ [v]) funDef
+            let [b] = result
+            return $ b /= 0
 
-        n = length $ range typ_x
-        t = length $ filter check (range typ_x)
+          let n = length space
+          let t = length sols
 
-        n_pred_calls = case flag of
-          Quantum -> qSearchExpectedCost algs n t (eps / 2)
-          Unitary -> qSearchUnitaryCost algs n (eps / 2)
+          let n_pred_calls = qSearchExpectedCost algs n t (eps / 2)
 
-        q_worst = case flag of
-          Quantum -> qSearchWorstCaseCost algs n (eps / 2)
-          Unitary -> qSearchUnitaryCost algs n (eps / 2)
-        eps_per_pred_call = (eps / 2) / q_worst
+          let q_worst = qSearchWorstCaseCost algs n (eps / 2)
+          let eps_per_pred_call = (eps / 2) / q_worst
 
-        pred_unitary_cost :: Value -> Complexity
-        pred_unitary_cost v =
-          quantumQueryCost
-            Unitary
-            algs
-            oracleF
-            Program{funCtx, stmt = body}
-            eps_per_pred_call
-            omega
-          where
-            omega = M.fromList $ zip (map fst fn_args) (vs ++ [v])
+          let pred_unitary_cost = unitaryQueryCost algs eps_per_pred_call Program{funCtx, stmt = body}
 
-        max_pred_unitary_cost = maximum $ pred_unitary_cost <$> range typ_x
+          return $ n_pred_calls * pred_unitary_cost
+
+    -- unknown subroutines
+    cost FunCallS{fun_kind = SubroutineCall _} _ _ = error "unknown subroutine"
+    -- all other statements
     cost _ _ _ = 0

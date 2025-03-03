@@ -9,22 +9,7 @@ import Text.Parsec (ParseError, choice, eof, many, optional, parse, try, (<|>))
 import Text.Parsec.Language (LanguageDef, emptyDef)
 import Text.Parsec.String (Parser)
 import Text.Parsec.Token (
-  GenTokenParser (
-    TokenParser,
-    angles,
-    commaSep,
-    commaSep1,
-    identifier,
-    integer,
-    operator,
-    parens,
-    reserved,
-    reservedOp,
-    semi,
-    semiSep,
-    symbol,
-    whiteSpace
-  ),
+  GenTokenParser (..),
   TokenParser,
   commentLine,
   makeTokenParser,

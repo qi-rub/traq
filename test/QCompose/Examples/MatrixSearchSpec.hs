@@ -25,20 +25,22 @@ spec = do
       let res = execStateT (evalProgram ex oracleF) M.empty
       res `shouldBe` Right (M.singleton "result" 0)
 
+    -- expected, worst, unitary
     let QSearchFormulas _ wcF ucF = cadeEtAlFormulas
-    let eps = 0.0001
+
+    it "unitary cost for delta=0.0001" $ do
+      let delta = 0.0001
+      let cu = unitaryQueryCost cadeEtAlFormulas delta ex
+      let nu_outer = 2 * ucF n (delta / 2)
+      let nu_inner = 2 * ucF m (delta / 2 / nu_outer / 2 / 2)
+      cu `shouldBe` nu_outer * nu_inner
 
     it "quantum cost for eps=0.0001" $ do
-      let cq = quantumQueryCost Quantum cadeEtAlFormulas oracleF ex eps M.empty
+      let eps = 0.0001
+      let cq = quantumQueryCost cadeEtAlFormulas eps ex oracleF M.empty
       let nq_outer = wcF n (eps / 2)
-      let nq_inner = ucF m (eps / 2 / nq_outer / 2)
-      cq `shouldBe` nq_outer * nq_inner
-
-    it "unitary cost for eps=0.0001" $ do
-      let cu = quantumQueryCost Unitary cadeEtAlFormulas oracleF ex eps M.empty
-      let nu_outer = ucF n (eps / 2)
-      let nu_inner = ucF m (eps / 2 / nu_outer / 2)
-      cu `shouldBe` nu_outer * nu_inner
+      let nq_inner = ucF m (eps / 2 / nq_outer / 2 / 2)
+      cq `shouldBe` nq_outer * 2 * nq_inner
 
     it "generate code" $ do
       toCodeString ex `shouldSatisfy` (not . null)

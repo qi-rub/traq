@@ -1,0 +1,57 @@
+module QCompose.ProtoLang.CostSpec (spec) where
+
+import QCompose.Basic
+import QCompose.ProtoLang.Cost
+import QCompose.ProtoLang.Cost (QSearchFormulas (qSearchUnitaryCost))
+import QCompose.ProtoLang.Parser
+import QCompose.ProtoLang.Syntax
+import Test.Hspec
+
+unsafeParseProgram :: String -> Program SizeT
+unsafeParseProgram = fmap subs . either (error . show) id . parseProgram
+  where
+    subs (Value v) = v
+    subs (SymExpr _) = error "should not be symbolic"
+
+spec :: Spec
+spec = do
+  describe "unitary cost of statements" $ do
+    it "fun call of oracle" $ do
+      let prog =
+            unsafeParseProgram . unlines $
+              [ "declare Oracle(Fin<100>) -> Bool"
+              , "def f(i : Fin<100>) do"
+              , "  b <- Oracle(i);"
+              , "  return b : Fin<2>"
+              , "end"
+              , "i <- const 10 : Fin<100>;"
+              , "res <- f(i)"
+              ]
+      let c = unitaryQueryCost cadeEtAlFormulas 0.001 prog
+      c `shouldBe` 1
+
+    it "search with no oracle" $ do
+      let prog =
+            unsafeParseProgram . unlines $
+              [ "declare Oracle(Fin<100>) -> Bool"
+              , "def f(i : Fin<100>) do"
+              , "  b <- const 0 : Fin<2>;"
+              , "  return b : Fin<2>"
+              , "end"
+              , "res <- any(f)"
+              ]
+      let c = unitaryQueryCost cadeEtAlFormulas 0.001 prog
+      c `shouldBe` 0
+
+    it "search with 1x oracle" $ do
+      let prog =
+            unsafeParseProgram . unlines $
+              [ "declare Oracle(Fin<100>) -> Bool"
+              , "def f(i : Fin<100>) do"
+              , "  b <- Oracle(i);"
+              , "  return b : Fin<2>"
+              , "end"
+              , "res <- any(f)"
+              ]
+      let c = unitaryQueryCost cadeEtAlFormulas 0.001 prog
+      c `shouldBe` 2 * qSearchUnitaryCost cadeEtAlFormulas 100 (0.001 / 2)
