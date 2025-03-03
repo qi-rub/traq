@@ -93,7 +93,7 @@ instance StmtTraversal' FunCtx where
   _stmt f (FunCtx funDefs oracle) = FunCtx <$> traverse (_stmt f) funDefs <*> pure oracle
 
 instance StmtTraversal' Program where
-  _stmt f (Program funCtx stmt) = Program <$> _stmt f funCtx <*> _stmt f stmt
+  _stmt f (Program funCtx stmt) = Program <$> _stmt f funCtx <*> f stmt
 
 instance (Show a) => ToCodeString (VarType a) where
   toCodeString (Fin len) = "Fin<" <> show len <> ">"

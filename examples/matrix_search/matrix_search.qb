@@ -7,13 +7,13 @@ def IsEntryZero(i: Fin<N>, j: Fin<M>) do
 end
 
 def IsRowAllOnes(i: Fin<N>) do
-	ok <- any(check_entry, i);
+	ok <- any(IsEntryZero, i);
 	ok' <- !ok;
 	return ok' : Bool
 end
 
 def HasAllOnesRow() do
-	ok <- any(check_row);
+	ok <- any(IsRowAllOnes);
 	return ok : Bool
 end
 

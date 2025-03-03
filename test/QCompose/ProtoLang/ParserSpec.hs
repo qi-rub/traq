@@ -1,15 +1,13 @@
 module QCompose.ProtoLang.ParserSpec (spec) where
 
+import Lens.Micro
 import QCompose.Basic
+import QCompose.Examples.MatrixSearch (matrixExample)
 import QCompose.ProtoLang.Parser
+import QCompose.ProtoLang.Rewrites
 import QCompose.ProtoLang.Syntax
 import Test.Hspec
 import Text.Parsec.String
-
--- import Control.Monad (void)
--- import Lens.Micro (Traversal', over, rewriteOf)
--- import QCompose.Examples.MatrixSearch (matrixExample)
--- import QCompose.ProtoLang.Rewrites
 
 spec :: Spec
 spec = do
@@ -59,11 +57,10 @@ spec = do
               }
           )
   describe "parse file" $ do
-    xit "parses example" $ do
+    it "parses example" $ do
       e <- parseFromFile (program protoLangTokenParser) "examples/matrix_search/matrix_search.qb"
-      -- e <- return $ over _stmt (rewriteOf _stmt flattenSeq) <$> e
-      -- e
-      --   `shouldBe` Right
-      --     ( matrixExample (SymExpr "N") (SymExpr "M") (Fin (Value 2))
-      --     )
-      fmap (const ()) e `shouldBe` Right ()
+      let e' = e <&> _stmt %~ rewriteOf _stmt flattenSeq
+      e'
+        `shouldBe` Right
+          ( matrixExample (SymExpr "N") (SymExpr "M") (Fin (Value 2))
+          )
