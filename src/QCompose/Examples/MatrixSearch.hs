@@ -30,8 +30,8 @@ matrixExample n m tyBool =
             ]
         )
       where
-        i = "i"
-        j = "j"
+        i = "i0"
+        j = "j0"
         e = "e"
         e' = "e'"
 
@@ -42,14 +42,14 @@ matrixExample n m tyBool =
         [(i, tyI)]
         [(ok', tyBool)]
         ( SeqS
-            [ FunCallS{fun_kind = SubroutineCall Contains, rets = ["ok"], args = ["IsEntryZero", i]}
+            [ FunCallS{fun_kind = SubroutineCall Contains, rets = [ok], args = ["IsEntryZero", i]}
             , UnOpS{ret = ok', un_op = NotOp, arg = ok}
             ]
         )
       where
         i = "i"
-        ok = "ok"
-        ok' = "ok'"
+        ok = "okr"
+        ok' = "okr'"
 
     -- check_matrix :: FunDef a
     check_matrix =

@@ -114,8 +114,9 @@ quantumQueryCost algs a_eps Program{funCtx, stmt} oracleF = cost stmt a_eps
 
           let q_worst = qSearchWorstCaseCost algs n (eps / 2)
           let eps_per_pred_call = (eps / 2) / q_worst
+          let delta_per_pred_call = eps_per_pred_call / 2
 
-          let pred_unitary_cost = unitaryQueryCost algs eps_per_pred_call Program{funCtx, stmt = body}
+          let pred_unitary_cost = unitaryQueryCost algs delta_per_pred_call Program{funCtx, stmt = body}
 
           return $ n_pred_calls * pred_unitary_cost
 

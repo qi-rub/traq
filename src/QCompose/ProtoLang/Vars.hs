@@ -25,3 +25,7 @@ outVars BinOpS{..} = S.singleton ret
 outVars FunCallS{..} = S.fromList rets
 outVars IfThenElseS{..} = S.unions [outVars s_true, outVars s_false]
 outVars (SeqS ss) = S.unions $ map outVars ss
+
+-- | All variables in a program
+allVars :: Stmt a -> VarSet
+allVars s = freeVars s `S.union` outVars s

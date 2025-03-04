@@ -5,6 +5,7 @@ import qualified Data.Map as M
 import QCompose.Examples.MatrixSearch
 import QCompose.ProtoLang.Cost
 import QCompose.ProtoLang.Eval
+import QCompose.ProtoLang.Rewrites
 import QCompose.ProtoLang.Subroutines.QSearch
 import QCompose.ProtoLang.Syntax ()
 import QCompose.ProtoLang.TypeCheck
@@ -20,6 +21,9 @@ spec = do
 
     it "type checks" $ do
       isWellTyped ex `shouldBe` True
+
+    it "has unique vars" $ do
+      checkUniqueVars ex `shouldBe` True
 
     let oracleF = \[i, j] -> [if i == j then 1 else 0]
     it "evaluates" $ do
@@ -40,8 +44,8 @@ spec = do
       let eps = 0.0001
       let cq = quantumQueryCost cadeEtAlFormulas eps ex oracleF M.empty
       let nq_outer = wcF n (eps / 2)
-      let nq_inner = ucF m (eps / 2 / nq_outer / 2 / 2)
-      cq `shouldBe` nq_outer * 2 * nq_inner
+      let nq_inner = 2 * ucF m (eps / 2 / nq_outer / 2 / 4)
+      cq `shouldBe` nq_outer * nq_inner
 
     it "generate code" $ do
       toCodeString ex `shouldSatisfy` (not . null)
