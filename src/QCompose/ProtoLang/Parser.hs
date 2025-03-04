@@ -1,6 +1,7 @@
 module QCompose.ProtoLang.Parser where
 
-import Control.Monad
+import Control.Monad ((>=>))
+import Data.Either (isRight)
 import Data.Functor (($>))
 import QCompose.Basic
 import QCompose.ProtoLang.Syntax
@@ -164,7 +165,9 @@ program tp@TokenParser{..} = do
   return Program{funCtx = FunCtx{..}, ..}
 
 parseCode :: (TokenParser () -> Parser a) -> String -> Either ParseError a
-parseCode parser = parse (whiteSpace protoLangTokenParser *> parser protoLangTokenParser <* eof) ""
+parseCode parser = parse (whiteSpace p *> parser p <* eof) ""
+  where
+    p = protoLangTokenParser
 
 parseProgram :: String -> Either ParseError (Program SymbSize)
 parseProgram = parseCode program
@@ -174,3 +177,6 @@ parseFunDef = parseCode funDef
 
 parseStmt :: String -> Either ParseError (Stmt SymbSize)
 parseStmt = parseCode stmtP
+
+isValidIdentifier :: String -> Bool
+isValidIdentifier = isRight . parse (identifier protoLangTokenParser) ""

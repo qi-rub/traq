@@ -9,4 +9,4 @@ spec :: Spec
 spec = do
   describe "vars" $ do
     it "inputs" $ do
-      inputVars (AssignS{ret = "x", arg = "y"}) `shouldBe` S.fromList ["y"]
+      freeVars (AssignS{ret = "x", arg = "y"}) `shouldBe` S.fromList ["y"]

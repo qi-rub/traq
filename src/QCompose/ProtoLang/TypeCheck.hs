@@ -6,7 +6,8 @@ import Control.Monad (forM_, unless, when)
 import Control.Monad.Except (throwError)
 import Control.Monad.State (StateT, evalStateT, execStateT, get, lift, put)
 import Data.Either (isRight)
-import Data.Map ((!))
+import Data.Function ((&))
+import Data.List (uncons)
 import qualified Data.Map as M
 import QCompose.Basic
 import QCompose.ProtoLang.Context
@@ -14,6 +15,18 @@ import QCompose.ProtoLang.Syntax
 import QCompose.Utils.Printing
 
 type TypingCtx a = VarContext (VarType a)
+
+class (Eq a, Show a) => TypeCheckable a where
+  tbool :: VarType a
+  tmax :: VarType a -> VarType a -> VarType a
+
+instance TypeCheckable Integer where
+  tbool = Fin 2
+  tmax (Fin n) (Fin m) = Fin (max n m)
+
+instance TypeCheckable Int where
+  tbool = Fin 2
+  tmax (Fin n) (Fin m) = Fin (max n m)
 
 -- | Typecheck a subroutine call
 checkSubroutine' ::
@@ -26,13 +39,13 @@ checkSubroutine' ::
   -- | returns
   [Ident] ->
   StateT (TypingCtx a) (Either String) [(Ident, VarType a)]
-checkSubroutine' funCtx Contains args rets = do
+checkSubroutine' funCtx Contains all_args rets = do
   ok <- case rets of
     [ok] -> return ok
     _ -> throwError $ toCodeString Contains <> " expects 1 argument, got " <> show rets
 
-  let predicate = head args
-  arg_tys <- mapM lookupVar $ tail args
+  (predicate, args) <- uncons all_args & maybe (throwError "`any` needs 1 argument (predicate)") pure
+  arg_tys <- mapM lookupVar args
 
   FunDef{params = pred_params, rets = pred_rets} <- lookupFun funCtx predicate
 
@@ -43,7 +56,7 @@ checkSubroutine' funCtx Contains args rets = do
     throwError "Invalid arguments to bind to predicate"
 
   return [(ok, tbool)]
-checkSubroutine' _ _ _ _ = error "TODO"
+checkSubroutine' _ sub _ _ = throwError $ "unsupported subroutine " <> show sub
 
 {- | Typecheck a statement, given the current context and function definitions.
 | If successful, the typing context is updated.
@@ -144,7 +157,7 @@ typeCheckFun funCtx FunDef{..} = do
   let gamma = M.fromList params
   gamma' <- execStateT (checkStmt funCtx body) gamma
   forM_ rets $ \(x, t) -> do
-    let t' = gamma' ! x
+    let t' = gamma' M.! x
     when (t /= t') $
       throwError
         ( "return term "

@@ -6,27 +6,22 @@ import QCompose.ProtoLang.Syntax
 
 type VarSet = S.Set Ident
 
-inputVars :: Stmt a -> VarSet
-inputVars AssignS{..} = S.singleton arg
-inputVars ConstS{..} = S.empty
-inputVars UnOpS{..} = S.singleton arg
-inputVars BinOpS{..} = S.fromList [lhs, rhs]
-inputVars FunCallS{..} = error "TODO"
-inputVars IfThenElseS{..} = error "TODO"
-inputVars (SeqS []) = S.empty
-inputVars (SeqS [s]) = inputVars s
-inputVars (SeqS (s : ss)) = inputVars s `S.union` (inputVars (SeqS ss) S.\\ outputVars s)
+-- | The set of free (unbound) variables
+freeVars :: Stmt a -> VarSet
+freeVars AssignS{..} = S.singleton arg
+freeVars ConstS{..} = S.empty
+freeVars UnOpS{..} = S.singleton arg
+freeVars BinOpS{..} = S.fromList [lhs, rhs]
+freeVars FunCallS{..} = S.fromList args
+freeVars IfThenElseS{..} = S.unions [S.singleton cond, freeVars s_true, freeVars s_false]
+freeVars (SeqS ss) = S.unions (map freeVars ss) S.\\ outVars (SeqS ss)
 
-outputVars :: Stmt a -> VarSet
-outputVars AssignS{..} = S.singleton ret
-outputVars ConstS{..} = S.singleton ret
-outputVars UnOpS{..} = S.singleton ret
-outputVars BinOpS{..} = S.singleton ret
-outputVars FunCallS{..} = error "TODO"
-outputVars IfThenElseS{..} = error "TODO"
-outputVars (SeqS []) = S.empty
-outputVars (SeqS [s]) = outputVars s
-outputVars (SeqS (s : ss)) = (outputVars s S.\\ inputVars (SeqS ss)) `S.union` outputVars (SeqS ss)
-
-allVars :: Stmt a -> VarSet
-allVars s = S.union (inputVars s) (outputVars s)
+-- | The set of generated output variables
+outVars :: Stmt a -> VarSet
+outVars AssignS{..} = S.singleton ret
+outVars ConstS{..} = S.singleton ret
+outVars UnOpS{..} = S.singleton ret
+outVars BinOpS{..} = S.singleton ret
+outVars FunCallS{..} = S.fromList rets
+outVars IfThenElseS{..} = S.unions [outVars s_true, outVars s_false]
+outVars (SeqS ss) = S.unions $ map outVars ss

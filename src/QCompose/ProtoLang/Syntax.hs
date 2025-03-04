@@ -163,15 +163,3 @@ instance (Show a) => ToCodeString (Program a) where
       <> toCodeLines stmt
     where
       fs = map toCodeString funDefs
-
-class (Eq a, Show a) => TypeCheckable a where
-  tbool :: VarType a
-  tmax :: VarType a -> VarType a -> VarType a
-
-instance TypeCheckable Integer where
-  tbool = Fin 2
-  tmax (Fin n) (Fin m) = Fin (max n m)
-
-instance TypeCheckable Int where
-  tbool = Fin 2
-  tmax (Fin n) (Fin m) = Fin (max n m)

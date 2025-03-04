@@ -2,6 +2,7 @@ module QCompose.ProtoLang.Rewrites where
 
 import QCompose.ProtoLang.Syntax
 
+-- | Flatten nested 'SeqS' instructions
 flattenSeq :: Stmt a -> Maybe (Stmt a)
 flattenSeq (SeqS [s]) = Just s
 flattenSeq (SeqS ss)
@@ -21,6 +22,13 @@ flattenSeq (SeqS ss)
     fromList xs = SeqS xs
 flattenSeq _ = Nothing
 
+{- | Convert all 'SeqS' into a list of size at most 2.
+  For example, @SeqS [a, b, c]@ becomes @SeqS [a, SeqS [b, c]]@
+-}
 pairSeq :: Stmt a -> Stmt a
 pairSeq (SeqS ss) | not (null ss) = foldr1 (\a b -> SeqS [a, b]) ss
 pairSeq s = s
+
+-- | Make all identifiers (variables) unique
+makeIdentsUnique :: Program a -> Program a
+makeIdentsUnique = undefined
