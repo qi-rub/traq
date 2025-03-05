@@ -3,8 +3,8 @@ module QCompose.ProtoLang.CostSpec (spec) where
 import QCompose.Basic
 import QCompose.ProtoLang.Cost
 import QCompose.ProtoLang.Parser
-import QCompose.ProtoLang.Subroutines.QSearch
 import QCompose.ProtoLang.Syntax
+import QCompose.Subroutines.QSearch
 import Test.Hspec
 
 unsafeParseProgram :: String -> Program SizeT

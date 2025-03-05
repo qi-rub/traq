@@ -24,17 +24,15 @@ library
           QCompose.Basic
           QCompose.Examples.MatrixSearch
           QCompose.Examples.Search
-          QCompose.ProtoLang
           QCompose.ProtoLang.Context
           QCompose.ProtoLang.Cost
           QCompose.ProtoLang.Eval
           QCompose.ProtoLang.Parser
           QCompose.ProtoLang.Rewrites
-          QCompose.ProtoLang.Subroutines.QSearch
           QCompose.ProtoLang.Syntax
           QCompose.ProtoLang.TypeCheck
           QCompose.ProtoLang.Vars
-          QCompose.UnitaryQPL
+          QCompose.Subroutines.QSearch
           QCompose.UnitaryQPL.Lowering
           QCompose.UnitaryQPL.Syntax
           QCompose.Utils.Printing

@@ -1,4 +1,4 @@
-module QCompose.ProtoLang.Subroutines.QSearch (cadeEtAlFormulas) where
+module QCompose.Subroutines.QSearch (cadeEtAlFormulas) where
 
 import QCompose.Basic
 import QCompose.ProtoLang.Cost

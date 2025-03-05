@@ -6,9 +6,9 @@ import QCompose.Examples.MatrixSearch
 import QCompose.ProtoLang.Cost
 import QCompose.ProtoLang.Eval
 import QCompose.ProtoLang.Rewrites
-import QCompose.ProtoLang.Subroutines.QSearch
 import QCompose.ProtoLang.Syntax ()
 import QCompose.ProtoLang.TypeCheck
+import QCompose.Subroutines.QSearch
 import QCompose.UnitaryQPL.Lowering
 import QCompose.Utils.Printing
 import Test.Hspec
