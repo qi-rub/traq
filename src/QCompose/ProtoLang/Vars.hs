@@ -1,5 +1,7 @@
 module QCompose.ProtoLang.Vars where
 
+import Control.Monad (foldM, guard)
+import Data.Maybe (isJust)
 import qualified Data.Set as S
 import QCompose.Basic
 import QCompose.ProtoLang.Syntax
@@ -29,3 +31,20 @@ outVars (SeqS ss) = S.unions $ map outVars ss
 -- | All variables in a program
 allVars :: Stmt a -> VarSet
 allVars s = freeVars s `S.union` outVars s
+
+-- | Check if a program has unique variable names
+checkVarsUnique :: Program a -> Bool
+checkVarsUnique Program{funCtx = FunCtx{funDefs}, stmt} =
+  isJust . foldM combine S.empty $ allVars stmt : map allFunVars funDefs
+  where
+    allFunVars :: FunDef a -> VarSet
+    allFunVars FunDef{params, body} = S.union (allVars body) (S.fromList $ map fst params)
+
+    combine :: VarSet -> VarSet -> Maybe VarSet
+    combine u v = do
+      guard $ S.disjoint u v
+      return $ S.union u v
+
+-- | Make all variable names in the program unique
+makeVarsUnique :: Program a -> Program a
+makeVarsUnique = error "TODO"

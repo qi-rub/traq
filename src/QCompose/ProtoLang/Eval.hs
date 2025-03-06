@@ -5,8 +5,8 @@ import Control.Monad.Extra (anyM)
 import Control.Monad.State
 import qualified Data.Map as M
 import QCompose.Basic
-import QCompose.ProtoLang.Context
 import QCompose.ProtoLang.Syntax
+import QCompose.Utils.Context
 
 -- evaluation
 range :: VarType SizeT -> [Value]

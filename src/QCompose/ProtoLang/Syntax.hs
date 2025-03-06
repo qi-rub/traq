@@ -78,21 +78,21 @@ lookupFun FunCtx{..} fname =
     Nothing -> throwError $ "cannot find function " <> fname
     Just f -> return f
 
-class StmtTraversal' p where
+class HasStmt p where
   _stmt :: Traversal' (p a) (Stmt a)
 
-instance StmtTraversal' Stmt where
+instance HasStmt Stmt where
   _stmt f (SeqS ss) = SeqS <$> traverse f ss
   _stmt f (IfThenElseS cond s_true s_false) = IfThenElseS cond <$> f s_true <*> f s_false
   _stmt _ s = pure s
 
-instance StmtTraversal' FunDef where
+instance HasStmt FunDef where
   _stmt f FunDef{..} = (\body' -> FunDef{body = body', ..}) <$> f body
 
-instance StmtTraversal' FunCtx where
+instance HasStmt FunCtx where
   _stmt f (FunCtx funDefs oracle) = FunCtx <$> traverse (_stmt f) funDefs <*> pure oracle
 
-instance StmtTraversal' Program where
+instance HasStmt Program where
   _stmt f (Program funCtx stmt) = Program <$> _stmt f funCtx <*> f stmt
 
 instance (Show a) => ToCodeString (VarType a) where

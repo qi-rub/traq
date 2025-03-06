@@ -24,7 +24,6 @@ library
           QCompose.Basic
           QCompose.Examples.MatrixSearch
           QCompose.Examples.Search
-          QCompose.ProtoLang.Context
           QCompose.ProtoLang.Cost
           QCompose.ProtoLang.Eval
           QCompose.ProtoLang.Parser
@@ -35,12 +34,15 @@ library
           QCompose.Subroutines.QSearch
           QCompose.UnitaryQPL.Lowering
           QCompose.UnitaryQPL.Syntax
+          QCompose.Utils.Context
           QCompose.Utils.Printing
     build-depends:
           base >=4.10 && <5
         , containers >=0.6 && <1
         , extra >=1.8 && <2
         , microlens ==0.4.*
+        , microlens-ghc ==0.4.*
+        , microlens-mtl ==0.2.*
         , mtl >=2.2.2
         , parsec >=3.1.17 && <3.2
         , quipper ==0.9.0.0
@@ -63,6 +65,8 @@ executable qcompose
         , containers >=0.6 && <1
         , extra >=1.8 && <2
         , microlens ==0.4.*
+        , microlens-ghc ==0.4.*
+        , microlens-mtl ==0.2.*
         , mtl >=2.2.2
         , parsec >=3.1.17 && <3.2
         , qcompose
@@ -105,6 +109,8 @@ test-suite spec
         , extra >=1.8 && <2
         , hspec >=2.11.0
         , microlens ==0.4.*
+        , microlens-ghc ==0.4.*
+        , microlens-mtl ==0.2.*
         , mtl >=2.2.2
         , parsec >=3.1.17 && <3.2
         , qcompose

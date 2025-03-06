@@ -4,60 +4,79 @@ import QCompose.Basic
 import QCompose.ProtoLang.Syntax (OracleDecl, VarType)
 import QCompose.Utils.Printing
 
-data Unitary
-  = XorInto
-  | XorConst Value
-  | AddInto
-  | LEqInto
-  | Toffoli
+data ReversibleFun a
+  = ConstF {ty :: VarType a, val :: Integer} -- () -> val
+  | NotF {ty :: VarType a} -- x -> ~x
+  | IdF {ty :: VarType a} -- x -> x
+  | AddF {ty :: VarType a} -- x, y -> x + y
+  | LEqF {ty :: VarType a} -- x, y -> x <= y
+  deriving (Eq, Show, Read)
+
+data Unitary a
+  = Toffoli
   | CNOT
-  | C0_X
   | Oracle
+  | RevEmbed (ReversibleFun a)
   deriving (Eq, Show, Read)
 
-data UQPLStmt
+data UQPLStmt a
   = SkipU
-  | UnitaryU [Ident] Unitary -- q... *= U
-  | CallU Ident [Ident] -- call F(q...)
-  | CallDaggerU Ident [Ident] -- call F(q...)
-  | SeqU UQPLStmt UQPLStmt -- P_1 ; P_2
+  | UnitaryU {args :: [Ident], unitary :: Unitary a} -- q... *= U
+  | CallU {proc_name :: Ident, args :: [Ident]} -- call F(q...)
+  | CallDaggerU {proc_name :: Ident, args :: [Ident]} -- call F(q...)
+  | SeqU [UQPLStmt a] -- W1; W2; ...
   deriving (Eq, Show, Read)
 
-data UQPLProcDef = UQPLProcDef
-  { procName :: Ident
-  , procArgs :: [(Ident, VarType SizeT)]
-  , procBody :: UQPLStmt
+data UQPLProcDef a = UQPLProcDef
+  { proc_name :: Ident
+  , proc_params :: [(Ident, VarType SizeT)]
+  , proc_body :: UQPLStmt a
   }
   deriving (Eq, Show, Read)
 
-data UQPLProgram = UQPLProgram
-  { oracleU :: OracleDecl SizeT
-  , procs :: [UQPLProcDef]
-  , stmtU :: UQPLStmt
+data UQPLProgram a = UQPLProgram
+  { oracleU :: OracleDecl a
+  , procs :: [UQPLProcDef a]
+  , stmtU :: UQPLStmt a
   }
   deriving (Eq, Show, Read)
 
-instance ToCodeString UQPLStmt where
+showTypedIdent :: (Show a) => (String, VarType a) -> String
+showTypedIdent (ident, ty) = ident <> " : " <> toCodeString ty
+
+showTypedValue :: (Show a, Show v) => (v, VarType a) -> String
+showTypedValue (v, ty) = show v <> " : " <> toCodeString ty
+
+instance (Show a) => ToCodeString (ReversibleFun a) where
+  toCodeString ConstF{..} = "() => " <> showTypedValue (val, ty)
+  toCodeString NotF{..} = showTypedIdent ("x", ty) <> " => ~x"
+  toCodeString IdF{..} = showTypedIdent ("x", ty) <> " => x"
+  toCodeString AddF{..} = showTypedIdent ("x", ty) <> ", " <> showTypedIdent ("y", ty) <> " => x+y"
+  toCodeString LEqF{..} = showTypedIdent ("x", ty) <> ", " <> showTypedIdent ("y", ty) <> " => x≤y"
+
+instance (Show a) => ToCodeString (Unitary a) where
+  toCodeString (RevEmbed f) = "Utry[" <> toCodeString f <> "]"
+  toCodeString u = show u
+
+instance (Show a) => ToCodeString (UQPLStmt a) where
   toCodeLines SkipU = ["skip"]
-  toCodeLines (UnitaryU q u) = [qc <> " := " <> show u <> "(" <> qc <> ")"]
+  toCodeLines UnitaryU{..} = [qc <> " := " <> toCodeString unitary <> "(" <> qc <> ")"]
     where
-      qc = commaList q
-  toCodeLines (CallU f q) = ["call " <> f <> "(" <> qc <> ")"]
+      qc = commaList args
+  toCodeLines CallU{..} = ["call " <> proc_name <> "(" <> qc <> ")"]
     where
-      qc = commaList q
-  toCodeLines (CallDaggerU f q) = ["call " <> f <> "^\\dagger" <> "(" <> qc <> ")"]
+      qc = commaList args
+  toCodeLines CallDaggerU{..} = ["call " <> proc_name <> "†" <> "(" <> qc <> ")"]
     where
-      qc = commaList q
-  toCodeLines (SeqU p1 p2) = toCodeLines p1 <> toCodeLines p2
+      qc = commaList args
+  toCodeLines (SeqU ps) = concatMap toCodeLines ps
 
-instance ToCodeString UQPLProcDef where
-  toCodeLines (UQPLProcDef name params body) =
-    ["proc " <> name <> "(" <> plist <> ") do"]
-      <> indent (toCodeLines body)
+instance (Show a) => ToCodeString (UQPLProcDef a) where
+  toCodeLines UQPLProcDef{..} =
+    ["proc " <> proc_name <> "(" <> plist <> ") do"]
+      <> indent (toCodeLines proc_body)
     where
-      plist = commaList (map showParam params)
+      plist = commaList (map showTypedIdent proc_params)
 
-      showParam (ident, ty) = ident <> " : " <> show ty
-
-instance ToCodeString UQPLProgram where
+instance (Show a) => ToCodeString (UQPLProgram a) where
   toCodeLines UQPLProgram{..} = toCodeString oracleU : map toCodeString procs <> [toCodeString stmtU]

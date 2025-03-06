@@ -8,6 +8,7 @@ class ToCodeString a where
 
   toCodeLines :: a -> [String]
   toCodeLines = pure . toCodeString
+  {-# MINIMAL toCodeString | toCodeLines #-}
 
 commaList :: [String] -> String
 commaList = intercalate ", "

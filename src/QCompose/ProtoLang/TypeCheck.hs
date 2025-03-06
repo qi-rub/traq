@@ -4,14 +4,14 @@ module QCompose.ProtoLang.TypeCheck where
 
 import Control.Monad (forM_, unless, when)
 import Control.Monad.Except (throwError)
-import Control.Monad.State (StateT, evalStateT, execStateT, get, lift, put)
+import Control.Monad.State (StateT, execStateT, get, lift, put)
 import Data.Either (isRight)
 import Data.Function ((&))
 import Data.List (uncons)
 import qualified Data.Map as M
 import QCompose.Basic
-import QCompose.ProtoLang.Context
 import QCompose.ProtoLang.Syntax
+import QCompose.Utils.Context
 import QCompose.Utils.Printing
 
 type TypingCtx a = VarContext (VarType a)
@@ -152,7 +152,7 @@ checkStmt funCtx@FunCtx{..} s = checkStmt' s >>= mapM_ (uncurry putValue)
     checkStmt' FunCallS{fun_kind = SubroutineCall sub, rets, args} = checkSubroutine' funCtx sub args rets
 
 -- | Type check a single function.
-typeCheckFun :: (TypeCheckable a) => FunCtx a -> FunDef a -> Either String ()
+typeCheckFun :: (TypeCheckable a) => FunCtx a -> FunDef a -> Either String (TypingCtx a)
 typeCheckFun funCtx FunDef{..} = do
   let gamma = M.fromList params
   gamma' <- execStateT (checkStmt funCtx body) gamma
@@ -167,13 +167,14 @@ typeCheckFun funCtx FunDef{..} = do
             <> ", got type "
             <> show t'
         )
+  return gamma'
 
 -- | Type check a full program (i.e. list of functions).
-typeCheckProg :: (TypeCheckable a) => Program a -> Either String ()
-typeCheckProg Program{funCtx = funCtx@FunCtx{..}, stmt} = do
+typeCheckProg :: (TypeCheckable a) => TypingCtx a -> Program a -> Either String (TypingCtx a)
+typeCheckProg gamma Program{funCtx = funCtx@FunCtx{..}, stmt} = do
   mapM_ (typeCheckFun funCtx) funDefs
-  evalStateT (checkStmt funCtx stmt) M.empty
+  execStateT (checkStmt funCtx stmt) gamma
 
 -- | Helper boolean predicate to check if a program is well-typed
-isWellTyped :: (TypeCheckable a) => Program a -> Bool
-isWellTyped = isRight . typeCheckProg
+isWellTyped :: (TypeCheckable a) => TypingCtx a -> Program a -> Bool
+isWellTyped gamma = isRight . typeCheckProg gamma

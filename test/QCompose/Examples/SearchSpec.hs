@@ -1,6 +1,7 @@
 module QCompose.Examples.SearchSpec (spec) where
 
 import Control.Monad.State (execStateT)
+import Data.Either (isRight)
 import qualified Data.Map as M
 import QCompose.Examples.Search
 import QCompose.ProtoLang.Cost
@@ -19,7 +20,7 @@ spec = do
     let ex = arraySearch n
 
     it "type checks" $ do
-      isWellTyped ex `shouldBe` True
+      isWellTyped M.empty ex `shouldBe` True
 
     let oracleF = const [0]
     it "evaluates" $ do
@@ -38,7 +39,6 @@ spec = do
     it "generate code" $ do
       toCodeString ex `shouldSatisfy` (not . null)
 
-    it "lowers to UQPL" $ do
-      pendingWith "lowering not yet implemented"
-      let _ = lowerProgramU 0.001 ex
-      return ()
+    xit "lowers to UQPL" $ do
+      let ex_uqpl = lowerProgramU M.empty 0.001 ex
+      ex_uqpl `shouldSatisfy` isRight
