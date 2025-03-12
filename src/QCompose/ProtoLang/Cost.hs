@@ -79,7 +79,7 @@ quantumQueryCost algs a_eps Program{funCtx, stmt} oracleF = cost stmt a_eps
     get st x = st M.! x
 
     cost :: Stmt SizeT -> FailProb -> ProgramState -> Complexity
-    cost IfThenElseS{..} eps sigma =
+    cost IfThenElseS{cond, s_true, s_false} eps sigma =
       let s = if get sigma cond /= 0 then s_true else s_false
        in cost s eps sigma
     cost (SeqS [s]) eps sigma = cost s eps sigma
@@ -88,7 +88,7 @@ quantumQueryCost algs a_eps Program{funCtx, stmt} oracleF = cost stmt a_eps
         runner = evalProgram Program{funCtx, stmt = s} oracleF
         sigma' = either error id $ execStateT runner sigma
     cost FunCallS{fun_kind = OracleCall} _ _ = 1
-    cost FunCallS{fun_kind = FunctionCall f, ..} eps sigma = cost body eps omega
+    cost FunCallS{fun_kind = FunctionCall f, args} eps sigma = cost body eps omega
       where
         vs = map (get sigma) args
         FunDef _ fn_args _ body = either error id $ lookupFun funCtx f

@@ -63,7 +63,7 @@ checkSubroutine' _ sub _ _ = throwError $ "unsupported subroutine " <> show sub
 -}
 checkStmt :: forall a. (TypeCheckable a) => FunCtx a -> Stmt a -> StateT (TypingCtx a) (Either String) ()
 checkStmt funCtx (SeqS ss) = mapM_ (checkStmt funCtx) ss
-checkStmt funCtx IfThenElseS{..} = do
+checkStmt funCtx IfThenElseS{cond, s_true, s_false} = do
   cond_ty <- lookupVar cond
   unless (cond_ty == tbool) $
     throwError $
@@ -84,7 +84,7 @@ checkStmt funCtx IfThenElseS{..} = do
   unless (outs_t == outs_f) $
     throwError ("if: branches must declare same variables, got " <> show [outs_t, outs_f])
   put sigma_t
-checkStmt funCtx@FunCtx{..} s = checkStmt' s >>= mapM_ (uncurry putValue)
+checkStmt funCtx@FunCtx{oracle} s = checkStmt' s >>= mapM_ (uncurry putValue)
   where
     -- Type check and return the new variable bindings.
     -- This does _not_ update the typing context!
@@ -92,23 +92,23 @@ checkStmt funCtx@FunCtx{..} s = checkStmt' s >>= mapM_ (uncurry putValue)
     checkStmt' (SeqS _) = error "unreachable"
     checkStmt' IfThenElseS{} = error "unreachable"
     -- x <- x'
-    checkStmt' AssignS{..} = do
+    checkStmt' AssignS{arg, ret} = do
       arg_ty <- lookupVar arg
       return [(ret, arg_ty)]
 
     -- x <- v : t
-    checkStmt' ConstS{..} = do
+    checkStmt' ConstS{ret, ty} = do
       return [(ret, ty)]
 
     -- x <- op a
-    checkStmt' UnOpS{..} = do
+    checkStmt' UnOpS{ret, un_op, arg} = do
       ty <- lookupVar arg
       case un_op of
         NotOp -> unless (ty == tbool) $ throwError ("`not` requires bool, got " <> show ty)
       return [(ret, tbool)]
 
     -- x <- a op b
-    checkStmt' BinOpS{..} = do
+    checkStmt' BinOpS{ret, bin_op, lhs, rhs} = do
       ty_lhs <- lookupVar lhs
       ty_rhs <- lookupVar rhs
       case bin_op of
@@ -153,7 +153,7 @@ checkStmt funCtx@FunCtx{..} s = checkStmt' s >>= mapM_ (uncurry putValue)
 
 -- | Type check a single function.
 typeCheckFun :: (TypeCheckable a) => FunCtx a -> FunDef a -> Either String (TypingCtx a)
-typeCheckFun funCtx FunDef{..} = do
+typeCheckFun funCtx FunDef{params, rets, body} = do
   let gamma = M.fromList params
   gamma' <- execStateT (checkStmt funCtx body) gamma
   forM_ rets $ \(x, t) -> do
@@ -171,7 +171,7 @@ typeCheckFun funCtx FunDef{..} = do
 
 -- | Type check a full program (i.e. list of functions).
 typeCheckProg :: (TypeCheckable a) => TypingCtx a -> Program a -> Either String (TypingCtx a)
-typeCheckProg gamma Program{funCtx = funCtx@FunCtx{..}, stmt} = do
+typeCheckProg gamma Program{funCtx = funCtx@FunCtx{funDefs}, stmt} = do
   mapM_ (typeCheckFun funCtx) funDefs
   execStateT (checkStmt funCtx stmt) gamma
 

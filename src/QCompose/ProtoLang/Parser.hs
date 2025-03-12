@@ -1,3 +1,5 @@
+{-# LANGUAGE RecordWildCards #-}
+
 module QCompose.ProtoLang.Parser where
 
 import Control.Monad ((>=>))
@@ -92,7 +94,7 @@ stmtP tp@TokenParser{..} = SeqS <$> many (try (singleStmt <* optional semi))
     funCallS rets = do
       fun_kind <- funCallKind
       args <- parens $ commaSep identifier
-      return FunCallS{..}
+      return FunCallS{fun_kind, rets, args}
 
     guardSingleRet :: [Ident] -> Parser Ident
     guardSingleRet [ret] = return ret
@@ -101,13 +103,13 @@ stmtP tp@TokenParser{..} = SeqS <$> many (try (singleStmt <* optional semi))
     assignS :: Ident -> Parser (Stmt SymbSize)
     assignS ret = do
       arg <- identifier
-      return AssignS{..}
+      return AssignS{ret, arg}
 
     constS :: Ident -> Parser (Stmt SymbSize)
     constS ret = do
       reserved "const"
       (val, ty) <- typedExpr tp integer
-      return ConstS{..}
+      return ConstS{ret, val, ty}
 
     unOp :: Parser UnOp
     unOp =
@@ -119,7 +121,7 @@ stmtP tp@TokenParser{..} = SeqS <$> many (try (singleStmt <* optional semi))
     unOpS ret = do
       un_op <- unOp
       arg <- identifier
-      return UnOpS{..}
+      return UnOpS{ret, un_op, arg}
 
     binOp :: Parser BinOp
     binOp =
@@ -134,7 +136,7 @@ stmtP tp@TokenParser{..} = SeqS <$> many (try (singleStmt <* optional semi))
       lhs <- identifier
       bin_op <- binOp
       rhs <- identifier
-      return BinOpS{..}
+      return BinOpS{ret, bin_op, lhs, rhs}
 
 funDef :: TokenParser () -> Parser (FunDef SymbSize)
 funDef tp@TokenParser{..} = do
@@ -146,7 +148,7 @@ funDef tp@TokenParser{..} = do
   reserved "return"
   rets <- commaSep $ typedExpr tp identifier
   reserved "end"
-  return FunDef{..}
+  return FunDef{fun_name, params, rets, body}
 
 oracleDecl :: TokenParser () -> Parser (OracleDecl SymbSize)
 oracleDecl tp@TokenParser{..} = do
@@ -155,14 +157,14 @@ oracleDecl tp@TokenParser{..} = do
   paramTypes <- parens (commaSep (varType tp))
   reservedOp "->"
   retTypes <- commaSep (varType tp)
-  return OracleDecl{..}
+  return OracleDecl{paramTypes, retTypes}
 
 program :: TokenParser () -> Parser (Program SymbSize)
 program tp@TokenParser{..} = do
   oracle <- oracleDecl tp
   funDefs <- many (funDef tp)
   stmt <- stmtP tp
-  return Program{funCtx = FunCtx{..}, ..}
+  return Program{funCtx = FunCtx{oracle, funDefs}, stmt}
 
 parseCode :: (TokenParser () -> Parser a) -> String -> Either ParseError a
 parseCode parser = parse (whiteSpace p *> parser p <* eof) ""

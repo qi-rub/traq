@@ -48,11 +48,11 @@ showTypedValue :: (Show a, Show v) => (v, VarType a) -> String
 showTypedValue (v, ty) = show v <> " : " <> toCodeString ty
 
 instance (Show a) => ToCodeString (ReversibleFun a) where
-  toCodeString ConstF{..} = "() => " <> showTypedValue (val, ty)
-  toCodeString NotF{..} = showTypedIdent ("x", ty) <> " => ~x"
-  toCodeString IdF{..} = showTypedIdent ("x", ty) <> " => x"
-  toCodeString AddF{..} = showTypedIdent ("x", ty) <> ", " <> showTypedIdent ("y", ty) <> " => x+y"
-  toCodeString LEqF{..} = showTypedIdent ("x", ty) <> ", " <> showTypedIdent ("y", ty) <> " => x≤y"
+  toCodeString ConstF{val, ty} = "() => " <> showTypedValue (val, ty)
+  toCodeString NotF{ty} = showTypedIdent ("x", ty) <> " => ~x"
+  toCodeString IdF{ty} = showTypedIdent ("x", ty) <> " => x"
+  toCodeString AddF{ty} = showTypedIdent ("x", ty) <> ", " <> showTypedIdent ("y", ty) <> " => x+y"
+  toCodeString LEqF{ty} = showTypedIdent ("x", ty) <> ", " <> showTypedIdent ("y", ty) <> " => x≤y"
 
 instance (Show a) => ToCodeString (Unitary a) where
   toCodeString (RevEmbed f) = "Utry[" <> toCodeString f <> "]"
@@ -60,23 +60,23 @@ instance (Show a) => ToCodeString (Unitary a) where
 
 instance (Show a) => ToCodeString (UQPLStmt a) where
   toCodeLines SkipU = ["skip"]
-  toCodeLines UnitaryU{..} = [qc <> " := " <> toCodeString unitary <> "(" <> qc <> ")"]
+  toCodeLines UnitaryU{args, unitary} = [qc <> " := " <> toCodeString unitary <> "(" <> qc <> ")"]
     where
       qc = commaList args
-  toCodeLines CallU{..} = ["call " <> proc_name <> "(" <> qc <> ")"]
+  toCodeLines CallU{proc_name, args} = ["call " <> proc_name <> "(" <> qc <> ")"]
     where
       qc = commaList args
-  toCodeLines CallDaggerU{..} = ["call " <> proc_name <> "†" <> "(" <> qc <> ")"]
+  toCodeLines CallDaggerU{proc_name, args} = ["call " <> proc_name <> "†" <> "(" <> qc <> ")"]
     where
       qc = commaList args
   toCodeLines (SeqU ps) = concatMap toCodeLines ps
 
 instance (Show a) => ToCodeString (UQPLProcDef a) where
-  toCodeLines UQPLProcDef{..} =
+  toCodeLines UQPLProcDef{proc_name, proc_params, proc_body} =
     ["proc " <> proc_name <> "(" <> plist <> ") do"]
       <> indent (toCodeLines proc_body)
     where
       plist = commaList (map showTypedIdent proc_params)
 
 instance (Show a) => ToCodeString (UQPLProgram a) where
-  toCodeLines UQPLProgram{..} = toCodeString oracleU : map toCodeString procs <> [toCodeString stmtU]
+  toCodeLines UQPLProgram{oracleU, procs, stmtU} = toCodeString oracleU : map toCodeString procs <> [toCodeString stmtU]

@@ -73,7 +73,7 @@ data Program a = Program
   deriving (Eq, Show, Read, Functor)
 
 lookupFun :: (MonadError String m) => FunCtx a -> Ident -> m (FunDef a)
-lookupFun FunCtx{..} fname =
+lookupFun FunCtx{funDefs} fname =
   case find ((fname ==) . fun_name) funDefs of
     Nothing -> throwError $ "cannot find function " <> fname
     Just f -> return f
@@ -87,7 +87,7 @@ instance HasStmt Stmt where
   _stmt _ s = pure s
 
 instance HasStmt FunDef where
-  _stmt f FunDef{..} = (\body' -> FunDef{body = body', ..}) <$> f body
+  _stmt f funDef@FunDef{body} = (\body' -> funDef{body = body'}) <$> f body
 
 instance HasStmt FunCtx where
   _stmt f (FunCtx funDefs oracle) = FunCtx <$> traverse (_stmt f) funDefs <*> pure oracle
@@ -116,18 +116,18 @@ instance ToCodeString FunctionCallKind where
   toCodeString (SubroutineCall f) = toCodeString f
 
 instance (Show a) => ToCodeString (Stmt a) where
-  toCodeLines AssignS{..} = [unwords [ret, "<-", arg]]
-  toCodeLines ConstS{..} = [unwords [ret, "<-", show val, ":", toCodeString ty]]
-  toCodeLines UnOpS{..} = [unwords [ret, "<-", toCodeString un_op <> arg]]
-  toCodeLines BinOpS{..} = [unwords [ret, "<-", lhs, toCodeString bin_op, rhs]]
-  toCodeLines FunCallS{..} =
+  toCodeLines AssignS{ret, arg} = [unwords [ret, "<-", arg]]
+  toCodeLines ConstS{ret, val, ty} = [unwords [ret, "<-", show val, ":", toCodeString ty]]
+  toCodeLines UnOpS{ret, un_op, arg} = [unwords [ret, "<-", toCodeString un_op <> arg]]
+  toCodeLines BinOpS{ret, bin_op, lhs, rhs} = [unwords [ret, "<-", lhs, toCodeString bin_op, rhs]]
+  toCodeLines FunCallS{fun_kind, rets, args} =
     [ unwords
         [ commaList rets
         , "<-"
         , toCodeString fun_kind <> "(" <> commaList args <> ")"
         ]
     ]
-  toCodeLines IfThenElseS{..} =
+  toCodeLines IfThenElseS{cond, s_true, s_false} =
     [unwords ["if", cond, "then"]]
       <> indent (toCodeLines s_true)
       <> ["else"]
@@ -136,7 +136,7 @@ instance (Show a) => ToCodeString (Stmt a) where
   toCodeLines (SeqS ss) = concatMap toCodeLines ss
 
 instance (Show a) => ToCodeString (FunDef a) where
-  toCodeLines FunDef{..} =
+  toCodeLines FunDef{fun_name, params, rets, body} =
     [unwords ["def", fun_name, "(" <> commaList (showTypedVar <$> params) <> ")", "do"]]
       <> indent
         ( toCodeLines body
@@ -148,7 +148,7 @@ instance (Show a) => ToCodeString (FunDef a) where
       showTypedVar (x, ty) = unwords [x, ":", toCodeString ty]
 
 instance (Show a) => ToCodeString (OracleDecl a) where
-  toCodeString OracleDecl{..} =
+  toCodeString OracleDecl{paramTypes, retTypes} =
     unwords
       [ "declare"
       , "Oracle" <> "(" <> commaList (toCodeString <$> paramTypes) <> ")"
@@ -157,7 +157,7 @@ instance (Show a) => ToCodeString (OracleDecl a) where
       ]
 
 instance (Show a) => ToCodeString (Program a) where
-  toCodeLines Program{funCtx = FunCtx{..}, ..} =
+  toCodeLines Program{funCtx = FunCtx{funDefs, oracle}, stmt} =
     [toCodeString oracle, ""]
       <> fs
       <> toCodeLines stmt

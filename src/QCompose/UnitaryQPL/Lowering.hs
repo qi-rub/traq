@@ -71,15 +71,15 @@ newProcName name = do
 
 lowerU :: (TypeCheckable a) => Precision -> Stmt a -> UQPLCompilerT a (UQPLStmt a)
 -- basic statements (do not depend on precision)
-lowerU _ AssignS{..} = do
+lowerU _ AssignS{arg, ret} = do
   ty <- zoom _typingCtx $ lookupVar arg
   return $ UnitaryU{args = [arg, ret], unitary = RevEmbed (IdF ty)}
-lowerU _ ConstS{..} = do
+lowerU _ ConstS{ret, val, ty} = do
   return $ UnitaryU{args = [ret], unitary = RevEmbed (ConstF ty val)}
-lowerU _ UnOpS{un_op = NotOp, ..} = do
+lowerU _ UnOpS{un_op = NotOp, ret, arg} = do
   ty <- zoom _typingCtx $ lookupVar arg
   return $ UnitaryU{args = [arg, ret], unitary = RevEmbed (NotF ty)}
-lowerU _ BinOpS{..} = do
+lowerU _ BinOpS{bin_op, ret, lhs, rhs} = do
   ty <- zoom _typingCtx $ lookupVar lhs
   let unitary = case bin_op of
         AddOp -> RevEmbed (AddF ty)

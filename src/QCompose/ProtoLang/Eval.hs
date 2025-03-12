@@ -31,23 +31,23 @@ evalBinOp AndOp _ _ = 1
 
 evalStmt :: FunCtx SizeT -> OracleInterp -> Stmt SizeT -> StateT ProgramState (Either String) [(Ident, Value)]
 -- basic statements
-evalStmt _ _ AssignS{..} = do
+evalStmt _ _ AssignS{ret, arg} = do
   arg_val <- lookupVar arg
   return [(ret, arg_val)]
-evalStmt _ _ ConstS{..} = do
+evalStmt _ _ ConstS{ret, val} = do
   return [(ret, val)]
-evalStmt _ _ UnOpS{..} = do
+evalStmt _ _ UnOpS{ret, un_op, arg} = do
   arg_val <- lookupVar arg
   let ret_val = evalUnOp un_op arg_val
   return [(ret, ret_val)]
-evalStmt _ _ BinOpS{..} = do
+evalStmt _ _ BinOpS{ret, bin_op, lhs, rhs} = do
   lhs_val <- lookupVar lhs
   rhs_val <- lookupVar rhs
   let ret_val = evalBinOp bin_op lhs_val rhs_val
   return [(ret, ret_val)]
 
 -- compound statements
-evalStmt funCtx oracleF IfThenElseS{..} = do
+evalStmt funCtx oracleF IfThenElseS{cond, s_true, s_false} = do
   cond_val <- lookupVar cond
   let s = if cond_val == 0 then s_false else s_true
   evalStmt funCtx oracleF s
@@ -56,11 +56,11 @@ evalStmt funCtx oracleF (SeqS ss) = do
   return []
 
 -- function calls
-evalStmt _ oracleF FunCallS{fun_kind = OracleCall, ..} = do
+evalStmt _ oracleF FunCallS{fun_kind = OracleCall, args, rets} = do
   arg_vals <- mapM lookupVar args
   let ret_vals = oracleF arg_vals
   return $ zip rets ret_vals
-evalStmt funCtx oracleF FunCallS{fun_kind = FunctionCall fun, ..} = do
+evalStmt funCtx oracleF FunCallS{fun_kind = FunctionCall fun, args, rets} = do
   arg_vals <- mapM lookupVar args
   fun_def <- lookupFun funCtx fun
   ret_vals <- lift $ evalFun funCtx oracleF arg_vals fun_def
@@ -112,7 +112,7 @@ evalProgram Program{funCtx, stmt} oracleF = do
             ]
 
 evalFun :: FunCtx SizeT -> OracleInterp -> [Value] -> FunDef SizeT -> Either String [Value]
-evalFun funCtx oracleF vals_in FunDef{..} = (`evalStateT` M.empty) $ do
+evalFun funCtx oracleF vals_in FunDef{params, rets, body} = (`evalStateT` M.empty) $ do
   zipWithM_ putValue param_names vals_in
   _ <- evalProgram Program{funCtx, stmt = body} oracleF
   mapM lookupVar ret_names

@@ -50,10 +50,9 @@ library
     hs-source-dirs:
           src
     default-extensions:
-          RecordWildCards
+          LambdaCase
           NamedFieldPuns
           DuplicateRecordFields
-          LambdaCase
           Safe
     ghc-options: -Wall
     default-language: Haskell2010
@@ -75,10 +74,9 @@ executable qcompose
     hs-source-dirs:
           tools
     default-extensions:
-          RecordWildCards
+          LambdaCase
           NamedFieldPuns
           DuplicateRecordFields
-          LambdaCase
     ghc-options: -Wall
     default-language: Haskell2010
 
@@ -96,10 +94,9 @@ test-suite spec
     hs-source-dirs:
           test
     default-extensions:
-          RecordWildCards
+          LambdaCase
           NamedFieldPuns
           DuplicateRecordFields
-          LambdaCase
     ghc-options: -Wall
     cpp-options: -DTEST
     build-depends:
