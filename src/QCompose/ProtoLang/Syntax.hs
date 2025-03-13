@@ -59,22 +59,22 @@ data Stmt a
 -- | A function definition in the prototype language.
 data FunDef a = FunDef
   { fun_name :: Ident
-  , params :: [(Ident, VarType a)]
-  , rets :: [(Ident, VarType a)]
+  , param_binds :: [(Ident, VarType a)]
+  , ret_binds :: [(Ident, VarType a)]
   , body :: Stmt a
   }
   deriving (Eq, Show, Read, Functor)
 
 -- | A declaration of the oracle's type
 data OracleDecl a = OracleDecl
-  { paramTypes :: [VarType a]
-  , retTypes :: [VarType a]
+  { param_types :: [VarType a]
+  , ret_types :: [VarType a]
   }
   deriving (Eq, Show, Read, Functor)
 
 -- | A function context contains the oracle declaration, and a list of functions
 data FunCtx a = FunCtx
-  { funDefs :: [FunDef a]
+  { fun_defs :: [FunDef a]
   , oracle :: OracleDecl a
   }
   deriving (Eq, Show, Read, Functor)
@@ -87,8 +87,8 @@ data Program a = Program
   deriving (Eq, Show, Read, Functor)
 
 lookupFun :: (MonadError String m) => FunCtx a -> Ident -> m (FunDef a)
-lookupFun FunCtx{funDefs} fname =
-  case find ((fname ==) . fun_name) funDefs of
+lookupFun FunCtx{fun_defs} fname =
+  case find ((fname ==) . fun_name) fun_defs of
     Nothing -> throwError $ "cannot find function " <> fname
     Just f -> return f
 
@@ -107,7 +107,7 @@ instance HasStmt FunDef where
   _stmt f funDef@FunDef{body} = (\body' -> funDef{body = body'}) <$> f body
 
 instance HasStmt FunCtx where
-  _stmt f (FunCtx funDefs oracle) = FunCtx <$> traverse (_stmt f) funDefs <*> pure oracle
+  _stmt f (FunCtx fun_defs oracle) = FunCtx <$> traverse (_stmt f) fun_defs <*> pure oracle
 
 instance HasStmt Program where
   _stmt f (Program funCtx stmt) = Program <$> _stmt f funCtx <*> f stmt
@@ -153,11 +153,11 @@ instance (Show a) => ToCodeString (Stmt a) where
   toCodeLines (SeqS ss) = concatMap toCodeLines ss
 
 instance (Show a) => ToCodeString (FunDef a) where
-  toCodeLines FunDef{fun_name, params, rets, body} =
-    [unwords ["def", fun_name, "(" <> commaList (showTypedVar <$> params) <> ")", "do"]]
+  toCodeLines FunDef{fun_name, param_binds, ret_binds, body} =
+    [unwords ["def", fun_name, "(" <> commaList (showTypedVar <$> param_binds) <> ")", "do"]]
       <> indent
         ( toCodeLines body
-            <> [unwords ["return", commaList (showTypedVar <$> rets)]]
+            <> [unwords ["return", commaList (showTypedVar <$> ret_binds)]]
         )
       <> ["end"]
     where
@@ -165,18 +165,18 @@ instance (Show a) => ToCodeString (FunDef a) where
       showTypedVar (x, ty) = unwords [x, ":", toCodeString ty]
 
 instance (Show a) => ToCodeString (OracleDecl a) where
-  toCodeString OracleDecl{paramTypes, retTypes} =
+  toCodeString OracleDecl{param_types, ret_types} =
     unwords
       [ "declare"
-      , "Oracle" <> "(" <> commaList (toCodeString <$> paramTypes) <> ")"
+      , "Oracle" <> "(" <> commaList (toCodeString <$> param_types) <> ")"
       , "->"
-      , commaList (toCodeString <$> retTypes)
+      , commaList (toCodeString <$> ret_types)
       ]
 
 instance (Show a) => ToCodeString (Program a) where
-  toCodeLines Program{funCtx = FunCtx{funDefs, oracle}, stmt} =
+  toCodeLines Program{funCtx = FunCtx{fun_defs, oracle}, stmt} =
     [toCodeString oracle, ""]
       <> fs
       <> toCodeLines stmt
     where
-      fs = map toCodeString funDefs
+      fs = map toCodeString fun_defs

@@ -9,7 +9,7 @@ matrixExample n m tyBool =
     { funCtx =
         FunCtx
           { oracle = OracleDecl [tyI, tyJ] [tyBool]
-          , funDefs = [check_entry, check_row, check_matrix]
+          , fun_defs = [check_entry, check_row, check_matrix]
           }
     , stmt = FunCallS{fun_kind = FunctionCall "HasAllOnesRow", rets = ["result"], args = []}
     }

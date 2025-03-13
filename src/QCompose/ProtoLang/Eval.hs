@@ -77,7 +77,7 @@ evalStmt funCtx oracleF FunCallS{fun_kind = FunctionCall fun, args, rets} = do
 -- `any`
 evalStmt funCtx oracleF FunCallS{fun_kind = SubroutineCall Contains, rets, args = all_args} = do
   pred_fun_def <- lookupFun funCtx predicate
-  let (_, s_arg_ty) = last $ params pred_fun_def
+  let (_, s_arg_ty) = last $ param_binds pred_fun_def
   sigma <- get
   has_sol <- lift $ anyM (evalPredicate sigma) (range s_arg_ty)
   return [(ok, if has_sol then 1 else 0)]
@@ -119,10 +119,10 @@ evalProgram Program{funCtx, stmt} oracleF = do
             ]
 
 evalFun :: FunCtx SizeT -> OracleInterp -> [Value] -> FunDef SizeT -> Either String [Value]
-evalFun funCtx oracleF vals_in FunDef{params, rets, body} = (`evalStateT` M.empty) $ do
+evalFun funCtx oracleF vals_in FunDef{param_binds, ret_binds, body} = (`evalStateT` M.empty) $ do
   zipWithM_ putValue param_names vals_in
   _ <- evalProgram Program{funCtx, stmt = body} oracleF
   mapM lookupVar ret_names
   where
-    param_names = map fst params
-    ret_names = map fst rets
+    param_names = map fst param_binds
+    ret_names = map fst ret_binds

@@ -22,8 +22,8 @@ data Unitary a
 data Stmt a
   = SkipU
   | UnitaryU {args :: [Ident], unitary :: Unitary a} -- q... *= U
-  | CallU {proc_name :: Ident, args :: [Ident]} -- call F(q...)
-  | CallDaggerU {proc_name :: Ident, args :: [Ident]} -- call F(q...)
+  | CallU {proc_id :: Ident, args :: [Ident]} -- call F(q...)
+  | CallDaggerU {proc_id :: Ident, args :: [Ident]} -- call F(q...)
   | SeqU [Stmt a] -- W1; W2; ...
   deriving (Eq, Show, Read)
 
@@ -35,9 +35,9 @@ data ProcDef a = ProcDef
   deriving (Eq, Show, Read)
 
 data Program a = Program
-  { oracleU :: P.OracleDecl a
-  , procs :: [ProcDef a]
-  , stmtU :: Stmt a
+  { oracle_decl :: P.OracleDecl a
+  , proc_defs :: [ProcDef a]
+  , stmt :: Stmt a
   }
   deriving (Eq, Show, Read)
 
@@ -63,10 +63,10 @@ instance (Show a) => ToCodeString (Stmt a) where
   toCodeLines UnitaryU{args, unitary} = [qc <> " := " <> toCodeString unitary <> "(" <> qc <> ")"]
     where
       qc = commaList args
-  toCodeLines CallU{proc_name, args} = ["call " <> proc_name <> "(" <> qc <> ")"]
+  toCodeLines CallU{proc_id, args} = ["call " <> proc_id <> "(" <> qc <> ")"]
     where
       qc = commaList args
-  toCodeLines CallDaggerU{proc_name, args} = ["call " <> proc_name <> "†" <> "(" <> qc <> ")"]
+  toCodeLines CallDaggerU{proc_id, args} = ["call " <> proc_id <> "†" <> "(" <> qc <> ")"]
     where
       qc = commaList args
   toCodeLines (SeqU ps) = concatMap toCodeLines ps
@@ -79,4 +79,4 @@ instance (Show a) => ToCodeString (ProcDef a) where
       plist = commaList (map showTypedIdent proc_params)
 
 instance (Show a) => ToCodeString (Program a) where
-  toCodeLines Program{oracleU, procs, stmtU} = toCodeString oracleU : map toCodeString procs <> [toCodeString stmtU]
+  toCodeLines Program{oracle_decl, proc_defs, stmt} = toCodeString oracle_decl : map toCodeString proc_defs <> [toCodeString stmt]

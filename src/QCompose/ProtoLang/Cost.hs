@@ -8,6 +8,7 @@ module QCompose.ProtoLang.Cost (
 import Control.Monad (filterM)
 import Control.Monad.State (execStateT)
 import qualified Data.Map as M
+import Lens.Micro
 import QCompose.Basic
 import QCompose.ProtoLang.Eval
 import QCompose.ProtoLang.Syntax
@@ -48,8 +49,8 @@ unitaryQueryCost algs d Program{funCtx, stmt} = cost d stmt
           2 * qry * cost_pred
       where
         -- arg_ty :: VarType SizeT
-        FunDef{params} = unsafeLookupFun predicate
-        Fin n = snd (last params)
+        FunDef{param_binds} = unsafeLookupFun predicate
+        Fin n = param_binds & last & snd
 
         delta_search = delta / 2
         qry = qSearchUnitaryCost algs n delta_search

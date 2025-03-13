@@ -70,30 +70,30 @@ newProcName name = do
 
 lowerU :: (P.TypeCheckable a) => Precision -> P.Stmt a -> CompilerT a (Stmt a)
 -- basic statements (do not depend on precision)
-lowerU _ P.AssignS{arg, ret} = do
+lowerU _ P.AssignS{P.arg, P.ret} = do
   ty <- zoom _typingCtx $ lookupVar arg
   return $ UnitaryU{args = [arg, ret], unitary = RevEmbed (IdF ty)}
-lowerU _ P.ConstS{ret, val, ty} = do
+lowerU _ P.ConstS{P.ret, P.val, P.ty} = do
   return $ UnitaryU{args = [ret], unitary = RevEmbed (ConstF ty val)}
-lowerU _ P.UnOpS{un_op = P.NotOp, ret, arg} = do
+lowerU _ P.UnOpS{P.un_op = P.NotOp, P.ret, P.arg} = do
   ty <- zoom _typingCtx $ lookupVar arg
   return $ UnitaryU{args = [arg, ret], unitary = RevEmbed (NotF ty)}
-lowerU _ P.BinOpS{bin_op, ret, lhs, rhs} = do
+lowerU _ P.BinOpS{P.bin_op, P.ret, P.lhs, P.rhs} = do
   ty <- zoom _typingCtx $ lookupVar lhs
   let unitary = case bin_op of
         P.AddOp -> RevEmbed (AddF ty)
         P.LEqOp -> RevEmbed (LEqF ty)
         P.AndOp -> Toffoli
   return $ UnitaryU{args = [lhs, rhs, ret], unitary}
-lowerU _ P.FunCallS{fun_kind = P.OracleCall, args, rets} = do
+lowerU _ P.FunCallS{P.fun_kind = P.OracleCall, P.args, P.rets} = do
   return $ UnitaryU{args = args ++ rets, unitary = Oracle}
 -- function/subroutine calls
-lowerU delta P.FunCallS{fun_kind = P.FunctionCall fname, args, rets} = do
+lowerU delta P.FunCallS{P.fun_kind = P.FunctionCall fname, P.args, P.rets} = do
   fun_def <- use _protoFunCtx >>= (`P.lookupFun` fname)
   ProcDef{proc_name, proc_params} <- lowerProcU delta fun_def
   let proc_args = undefined
-  return $ CallU{proc_name, args = proc_args}
-lowerU _ P.FunCallS{fun_kind = P.SubroutineCall P.Contains, args, rets} = do
+  return $ CallU{proc_id = proc_name, args = proc_args}
+lowerU _ P.FunCallS{P.fun_kind = P.SubroutineCall P.Contains, P.args, P.rets} = do
   error "TODO"
 -- composite statements
 lowerU _ (P.SeqS []) = return SkipU
@@ -128,7 +128,7 @@ lowerProgramU ::
   Precision ->
   P.Program a ->
   Either String (Program a, P.TypingCtx a)
-lowerProgramU gamma delta p@P.Program{funCtx, stmt} = do
+lowerProgramU gamma delta p@P.Program{P.funCtx, P.stmt} = do
   -- get the final typing context (i.e. including outputs)
   gamma' <- P.typeCheckProg gamma p
 
@@ -138,9 +138,9 @@ lowerProgramU gamma delta p@P.Program{funCtx, stmt} = do
 
   return
     ( Program
-        { oracleU = P.oracle funCtx
-        , stmtU = stmtU
-        , procs = loweringCtx' ^. _procDefs & reverse
+        { oracle_decl = P.oracle funCtx
+        , stmt = stmtU
+        , proc_defs = loweringCtx' ^. _procDefs & reverse
         }
     , loweringCtx' ^. _typingCtx
     )

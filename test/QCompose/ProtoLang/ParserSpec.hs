@@ -47,8 +47,8 @@ spec = do
         `shouldBe` Right
           ( FunDef
               { fun_name = "check_entry"
-              , params = [("i", Fin (SymExpr "N")), ("j", Fin (SymExpr "M"))]
-              , rets = [("e'", Fin (Value 2))]
+              , param_binds = [("i", Fin (SymExpr "N")), ("j", Fin (SymExpr "M"))]
+              , ret_binds = [("e'", Fin (Value 2))]
               , body =
                   SeqS
                     [ FunCallS{fun_kind = OracleCall, rets = ["e"], args = ["i", "j"]}

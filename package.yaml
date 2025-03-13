@@ -41,7 +41,6 @@ dependencies:
 default-extensions:
   - LambdaCase
   - NamedFieldPuns
-  - DuplicateRecordFields
 
 library:
   source-dirs: src

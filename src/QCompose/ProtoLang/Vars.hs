@@ -34,11 +34,11 @@ allVars s = freeVars s `S.union` outVars s
 
 -- | Check if a program has unique variable names
 checkVarsUnique :: Program a -> Bool
-checkVarsUnique Program{funCtx = FunCtx{funDefs}, stmt} =
-  isJust . foldM combine S.empty $ allVars stmt : map allFunVars funDefs
+checkVarsUnique Program{funCtx = FunCtx{fun_defs}, stmt} =
+  isJust . foldM combine S.empty $ allVars stmt : map allFunVars fun_defs
   where
     allFunVars :: FunDef a -> VarSet
-    allFunVars FunDef{params, body} = S.union (allVars body) (S.fromList $ map fst params)
+    allFunVars FunDef{param_binds, body} = S.union (allVars body) (S.fromList $ map fst param_binds)
 
     combine :: VarSet -> VarSet -> Maybe VarSet
     combine u v = do

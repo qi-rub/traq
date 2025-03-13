@@ -142,29 +142,29 @@ funDef :: TokenParser () -> Parser (FunDef SymbSize)
 funDef tp@TokenParser{..} = do
   reserved "def"
   fun_name <- identifier
-  params <- parens $ commaSep $ typedExpr tp identifier
+  param_binds <- parens $ commaSep $ typedExpr tp identifier
   reserved "do"
   body <- stmtP tp
   reserved "return"
-  rets <- commaSep $ typedExpr tp identifier
+  ret_binds <- commaSep $ typedExpr tp identifier
   reserved "end"
-  return FunDef{fun_name, params, rets, body}
+  return FunDef{fun_name, param_binds, ret_binds, body}
 
 oracleDecl :: TokenParser () -> Parser (OracleDecl SymbSize)
 oracleDecl tp@TokenParser{..} = do
   reserved "declare"
   reserved "Oracle"
-  paramTypes <- parens (commaSep (varType tp))
+  param_types <- parens (commaSep (varType tp))
   reservedOp "->"
-  retTypes <- commaSep (varType tp)
-  return OracleDecl{paramTypes, retTypes}
+  ret_types <- commaSep (varType tp)
+  return OracleDecl{param_types, ret_types}
 
 program :: TokenParser () -> Parser (Program SymbSize)
 program tp@TokenParser{..} = do
   oracle <- oracleDecl tp
-  funDefs <- many (funDef tp)
+  fun_defs <- many (funDef tp)
   stmt <- stmtP tp
-  return Program{funCtx = FunCtx{oracle, funDefs}, stmt}
+  return Program{funCtx = FunCtx{oracle, fun_defs}, stmt}
 
 parseCode :: (TokenParser () -> Parser a) -> String -> Either ParseError a
 parseCode parser = parse (whiteSpace p *> parser p <* eof) ""

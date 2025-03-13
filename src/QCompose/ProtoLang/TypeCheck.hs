@@ -55,7 +55,7 @@ checkSubroutine' funCtx Contains all_args rets = do
   (predicate, args) <- uncons all_args & maybe (throwError "`any` needs 1 argument (predicate)") pure
   arg_tys <- mapM lookupVar args
 
-  FunDef{params = pred_params, rets = pred_rets} <- lookupFun funCtx predicate
+  FunDef{param_binds = pred_params, ret_binds = pred_rets} <- lookupFun funCtx predicate
 
   when (map snd pred_rets /= [tbool]) $
     throwError "predicate must return a single Bool"
@@ -131,7 +131,7 @@ checkStmt funCtx@FunCtx{oracle} s = checkStmt' s >>= mapM_ (uncurry putValue)
 
     -- ret <- Oracle(args)
     checkStmt' FunCallS{fun_kind = OracleCall, rets, args} = do
-      let OracleDecl{paramTypes = o_arg_tys, retTypes = o_ret_tys} = oracle
+      let OracleDecl{param_types = o_arg_tys, ret_types = o_ret_tys} = oracle
 
       arg_tys <- mapM lookupVar args
       unless (arg_tys == o_arg_tys) $
@@ -161,10 +161,10 @@ checkStmt funCtx@FunCtx{oracle} s = checkStmt' s >>= mapM_ (uncurry putValue)
 
 -- | Type check a single function.
 typeCheckFun :: (TypeCheckable a) => FunCtx a -> FunDef a -> Either String (TypingCtx a)
-typeCheckFun funCtx FunDef{params, rets, body} = do
-  let gamma = M.fromList params
+typeCheckFun funCtx FunDef{param_binds, ret_binds, body} = do
+  let gamma = M.fromList param_binds
   gamma' <- execStateT (checkStmt funCtx body) gamma
-  forM_ rets $ \(x, t) -> do
+  forM_ ret_binds $ \(x, t) -> do
     let t' = gamma' M.! x
     when (t /= t') $
       throwError
@@ -179,8 +179,8 @@ typeCheckFun funCtx FunDef{params, rets, body} = do
 
 -- | Type check a full program (i.e. list of functions).
 typeCheckProg :: (TypeCheckable a) => TypingCtx a -> Program a -> Either String (TypingCtx a)
-typeCheckProg gamma Program{funCtx = funCtx@FunCtx{funDefs}, stmt} = do
-  mapM_ (typeCheckFun funCtx) funDefs
+typeCheckProg gamma Program{funCtx = funCtx@FunCtx{fun_defs}, stmt} = do
+  mapM_ (typeCheckFun funCtx) fun_defs
   execStateT (checkStmt funCtx stmt) gamma
 
 -- | Helper boolean predicate to check if a program is well-typed
