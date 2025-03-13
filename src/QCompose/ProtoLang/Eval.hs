@@ -1,4 +1,11 @@
-module QCompose.ProtoLang.Eval where
+module QCompose.ProtoLang.Eval (
+  range,
+  ProgramState,
+  OracleInterp,
+  evalStmt,
+  evalFun,
+  evalProgram,
+) where
 
 import Control.Monad.Except (catchError)
 import Control.Monad.Extra (anyM)

@@ -1,6 +1,14 @@
 {-# LANGUAGE ScopedTypeVariables #-}
 
-module QCompose.ProtoLang.TypeCheck where
+module QCompose.ProtoLang.TypeCheck (
+  TypingCtx,
+  TypeCheckable (..),
+  checkSubroutine',
+  checkStmt,
+  typeCheckFun,
+  typeCheckProg,
+  isWellTyped,
+) where
 
 import Control.Monad (forM_, unless, when)
 import Control.Monad.Except (throwError)

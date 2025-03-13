@@ -1,7 +1,21 @@
 {-# LANGUAGE DeriveFunctor #-}
 {-# LANGUAGE FlexibleContexts #-}
 
-module QCompose.ProtoLang.Syntax where
+module QCompose.ProtoLang.Syntax (
+  VarType (..),
+  UnOp (..),
+  BinOp (..),
+  Subroutine (..),
+  FunctionCallKind (..),
+  Stmt (..),
+  FunDef (..),
+  OracleDecl (..),
+  Program (..),
+  FunCtx (..),
+  lookupFun,
+  _ast,
+  _stmt,
+) where
 
 import Control.Monad.Except (MonadError, throwError)
 import Data.Foldable (find)
@@ -78,13 +92,16 @@ lookupFun FunCtx{funDefs} fname =
     Nothing -> throwError $ "cannot find function " <> fname
     Just f -> return f
 
+class HasAst a where
+  _ast :: Traversal' a a
+
+instance HasAst (Stmt a) where
+  _ast f (SeqS ss) = SeqS <$> traverse f ss
+  _ast f (IfThenElseS cond s_true s_false) = IfThenElseS cond <$> f s_true <*> f s_false
+  _ast _ s = pure s
+
 class HasStmt p where
   _stmt :: Traversal' (p a) (Stmt a)
-
-instance HasStmt Stmt where
-  _stmt f (SeqS ss) = SeqS <$> traverse f ss
-  _stmt f (IfThenElseS cond s_true s_false) = IfThenElseS cond <$> f s_true <*> f s_false
-  _stmt _ s = pure s
 
 instance HasStmt FunDef where
   _stmt f funDef@FunDef{body} = (\body' -> funDef{body = body'}) <$> f body

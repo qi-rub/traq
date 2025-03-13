@@ -7,7 +7,7 @@ import Test.Hspec
 
 -- | statement rewriter
 rw :: (Stmt a -> Maybe (Stmt a)) -> Stmt a -> Stmt a
-rw = rewriteOf _stmt
+rw = rewriteOf _ast
 
 spec :: Spec
 spec = do

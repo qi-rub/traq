@@ -59,7 +59,7 @@ spec = do
   describe "parse file" $ do
     it "parses example" $ do
       e <- parseFromFile (program protoLangTokenParser) "examples/matrix_search/matrix_search.qb"
-      let e' = e <&> _stmt %~ rewriteOf _stmt flattenSeq
+      let e' = e <&> _stmt %~ rewriteOf _ast flattenSeq
       e'
         `shouldBe` Right
           ( matrixExample (SymExpr "N") (SymExpr "M") (Fin (Value 2))

@@ -1,4 +1,9 @@
-module QCompose.ProtoLang.Cost where
+module QCompose.ProtoLang.Cost (
+  Complexity,
+  QSearchFormulas (..),
+  unitaryQueryCost,
+  quantumQueryCost,
+) where
 
 import Control.Monad (filterM)
 import Control.Monad.State (execStateT)
