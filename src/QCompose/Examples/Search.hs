@@ -4,9 +4,9 @@ import QCompose.Basic
 import QCompose.ProtoLang.Syntax
 
 arraySearch :: SizeT -> Program SizeT
-arraySearch n = Program{funCtx = FunCtx{oracle, fun_defs = [check]}, stmt}
+arraySearch n = Program{funCtx = FunCtx{oracle_decl, fun_defs = [check]}, stmt}
   where
-    oracle = OracleDecl{param_types = [Fin n], ret_types = [Fin 2]}
+    oracle_decl = OracleDecl{param_types = [Fin n], ret_types = [Fin 2]}
 
     check :: FunDef SizeT
     check =

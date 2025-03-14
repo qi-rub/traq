@@ -138,7 +138,7 @@ lowerProgram gamma delta p@P.Program{P.funCtx, P.stmt} = do
 
   return
     ( Program
-        { oracle_decl = P.oracle funCtx
+        { oracle_decl = P.oracle_decl funCtx
         , stmt = stmtU
         , proc_defs = loweringCtx' ^. _procDefs & reverse
         }

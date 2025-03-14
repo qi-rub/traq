@@ -36,6 +36,9 @@ instance TypeCheckable Int where
   tbool = Fin 2
   tmax (Fin n) (Fin m) = Fin (max n m)
 
+-- | The TypeChecker monad
+type TypeChecker a = StateT (TypingCtx a) (Either String)
+
 -- | Typecheck a subroutine call
 checkSubroutine' ::
   (TypeCheckable a) =>
@@ -46,7 +49,7 @@ checkSubroutine' ::
   [Ident] ->
   -- | returns
   [Ident] ->
-  StateT (TypingCtx a) (Either String) [(Ident, VarType a)]
+  TypeChecker a [(Ident, VarType a)]
 checkSubroutine' funCtx Contains all_args rets = do
   ok <- case rets of
     [ok] -> return ok
@@ -69,7 +72,12 @@ checkSubroutine' _ sub _ _ = throwError $ "unsupported subroutine " <> show sub
 {- | Typecheck a statement, given the current context and function definitions.
 | If successful, the typing context is updated.
 -}
-checkStmt :: forall a. (TypeCheckable a) => FunCtx a -> Stmt a -> StateT (TypingCtx a) (Either String) ()
+checkStmt ::
+  forall a.
+  (TypeCheckable a) =>
+  FunCtx a ->
+  Stmt a ->
+  TypeChecker a ()
 checkStmt funCtx (SeqS ss) = mapM_ (checkStmt funCtx) ss
 checkStmt funCtx IfThenElseS{cond, s_true, s_false} = do
   cond_ty <- lookupVar cond
@@ -92,11 +100,11 @@ checkStmt funCtx IfThenElseS{cond, s_true, s_false} = do
   unless (outs_t == outs_f) $
     throwError ("if: branches must declare same variables, got " <> show [outs_t, outs_f])
   put sigma_t
-checkStmt funCtx@FunCtx{oracle} s = checkStmt' s >>= mapM_ (uncurry putValue)
+checkStmt funCtx@FunCtx{oracle_decl} s = checkStmt' s >>= mapM_ (uncurry putValue)
   where
     -- Type check and return the new variable bindings.
     -- This does _not_ update the typing context!
-    checkStmt' :: Stmt a -> StateT (TypingCtx a) (Either String) [(Ident, VarType a)]
+    checkStmt' :: Stmt a -> TypeChecker a [(Ident, VarType a)]
     checkStmt' (SeqS _) = error "unreachable"
     checkStmt' IfThenElseS{} = error "unreachable"
     -- x <- x'
@@ -131,16 +139,16 @@ checkStmt funCtx@FunCtx{oracle} s = checkStmt' s >>= mapM_ (uncurry putValue)
 
     -- ret <- Oracle(args)
     checkStmt' FunCallS{fun_kind = OracleCall, rets, args} = do
-      let OracleDecl{param_types = o_arg_tys, ret_types = o_ret_tys} = oracle
+      let OracleDecl{param_types, ret_types} = oracle_decl
 
       arg_tys <- mapM lookupVar args
-      unless (arg_tys == o_arg_tys) $
-        throwError ("oracle expects " <> show o_arg_tys <> ", got " <> show args)
+      unless (arg_tys == param_types) $
+        throwError ("oracle expects " <> show param_types <> ", got " <> show args)
 
-      when (length rets /= length o_ret_tys) $
-        throwError ("oracle returns " <> show (length o_ret_tys) <> " values, but RHS has " <> show rets)
+      when (length rets /= length ret_types) $
+        throwError ("oracle returns " <> show (length ret_types) <> " values, but RHS has " <> show rets)
 
-      return $ zip rets o_ret_tys
+      return $ zip rets ret_types
 
     -- ret <- f(args)
     checkStmt' FunCallS{fun_kind = FunctionCall fun, rets, args} = do

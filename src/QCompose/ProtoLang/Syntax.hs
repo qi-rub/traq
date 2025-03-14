@@ -74,8 +74,8 @@ data OracleDecl a = OracleDecl
 
 -- | A function context contains the oracle declaration, and a list of functions
 data FunCtx a = FunCtx
-  { fun_defs :: [FunDef a]
-  , oracle :: OracleDecl a
+  { oracle_decl :: OracleDecl a
+  , fun_defs :: [FunDef a]
   }
   deriving (Eq, Show, Read, Functor)
 
@@ -109,7 +109,7 @@ instance HasStmt FunDef where
   _stmt f funDef@FunDef{body} = (\body' -> funDef{body = body'}) <$> f body
 
 instance HasStmt FunCtx where
-  _stmt f (FunCtx fun_defs oracle) = FunCtx <$> traverse (_stmt f) fun_defs <*> pure oracle
+  _stmt f (FunCtx oracle_decl fun_defs) = FunCtx oracle_decl <$> traverse (_stmt f) fun_defs
 
 instance HasStmt Program where
   _stmt f (Program funCtx stmt) = Program <$> _stmt f funCtx <*> f stmt
@@ -178,8 +178,8 @@ instance (Show a) => ToCodeString (OracleDecl a) where
       ]
 
 instance (Show a) => ToCodeString (Program a) where
-  toCodeLines Program{funCtx = FunCtx{fun_defs, oracle}, stmt} =
-    [toCodeString oracle, ""]
+  toCodeLines Program{funCtx = FunCtx{oracle_decl, fun_defs}, stmt} =
+    [toCodeString oracle_decl, ""]
       <> fs
       <> toCodeLines stmt
     where

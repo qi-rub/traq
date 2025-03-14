@@ -161,10 +161,10 @@ oracleDecl tp@TokenParser{..} = do
 
 program :: TokenParser () -> Parser (Program SymbSize)
 program tp@TokenParser{..} = do
-  oracle <- oracleDecl tp
+  oracle_decl <- oracleDecl tp
   fun_defs <- many (funDef tp)
   stmt <- stmtP tp
-  return Program{funCtx = FunCtx{oracle, fun_defs}, stmt}
+  return Program{funCtx = FunCtx{oracle_decl, fun_defs}, stmt}
 
 parseCode :: (TokenParser () -> Parser a) -> String -> Either ParseError a
 parseCode parser = parse (whiteSpace p *> parser p <* eof) ""

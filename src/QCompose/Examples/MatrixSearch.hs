@@ -1,20 +1,22 @@
+{-# LANGUAGE ScopedTypeVariables #-}
+
 module QCompose.Examples.MatrixSearch where
 
 import QCompose.Basic
 import QCompose.ProtoLang.Syntax
 
-matrixExample :: a -> a -> VarType a -> Program a
+matrixExample :: forall a. a -> a -> VarType a -> Program a
 matrixExample n m tyBool =
   Program
     { funCtx =
         FunCtx
-          { oracle = OracleDecl [tyI, tyJ] [tyBool]
+          { oracle_decl = OracleDecl [tyI, tyJ] [tyBool]
           , fun_defs = [check_entry, check_row, check_matrix]
           }
     , stmt = FunCallS{fun_kind = FunctionCall "HasAllOnesRow", rets = ["result"], args = []}
     }
   where
-    -- tyI, tyJ :: VarType a
+    tyI, tyJ :: VarType a
     tyI = Fin n
     tyJ = Fin m
 
