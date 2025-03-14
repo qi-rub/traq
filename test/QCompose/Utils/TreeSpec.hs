@@ -60,6 +60,12 @@ spec = do
       termProb (Choice [Choice []]) `shouldBe` 0
       termProb (Choice [Leaf (), Choice []]) `shouldBe` 0.5
 
+  it "flattenSingle" $ do
+    flattenSingle (Choice [Leaf ()]) `shouldBe` Leaf ()
+    flattenSingle (Choice [Leaf (), Leaf ()]) `shouldBe` Choice [Leaf (), Leaf ()]
+    flattenSingle (Choice [Choice []]) `shouldBe` (Choice [] :: Tree ())
+    flattenSingle (Choice [Leaf (), Choice [Leaf ()]]) `shouldBe` Choice [Leaf (), Leaf ()]
+
   describe "Instance Laws" $ do
     let f = (+ 1) :: Int -> Int
     let g = (* 2) :: Int -> Int
@@ -119,4 +125,21 @@ spec = do
       prop "Right zero" $ \m ->
         -- TODO this is weaker than the actual law:
         -- ((m :: Tree Int) >> _empty) `shouldBe` _empty
-        ((m :: Tree Int) >> _empty) `shouldSatisfy` isEmpty
+        ((m :: Tree Int) >> _empty) `shouldSatisfy` null
+
+  describe "compose" $ do
+    it "sequence" $ do
+      let coin = fromList [0, 1] :: Tree Int
+      let dice = fromList [1 .. 6] :: Tree Int
+      let m = do
+            c <- coin
+            if c == 0
+              then do
+                d <- dice
+                fromList $ replicate d d
+              else coin
+      m
+        `shouldBe` Choice
+          [ Choice [Choice (replicate d $ Leaf d) | d <- [1 .. 6]]
+          , coin
+          ]

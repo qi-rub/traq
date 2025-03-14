@@ -1,5 +1,10 @@
 -- | Support for non-determinism with a Tree data structure.
-module QCompose.Utils.Tree (Tree (..), isEmpty, termProb) where
+module QCompose.Utils.Tree (
+  Tree (..),
+  fromList,
+  flattenSingle,
+  termProb,
+) where
 
 import Control.Applicative
 import Control.Monad
@@ -12,10 +17,15 @@ data Tree a
     Choice [Tree a]
   deriving (Show, Read, Eq, Ord)
 
--- | True if there are no 'Leaf's
-isEmpty :: Tree a -> Bool
-isEmpty (Leaf _) = False
-isEmpty (Choice as) = all isEmpty as
+-- Convert a list to a single 'Choice'
+fromList :: [a] -> Tree a
+fromList = Choice . map Leaf
+
+-- Drop all 'Choice' nodes with a single child
+flattenSingle :: Tree a -> Tree a
+flattenSingle (Choice [a]) = flattenSingle a
+flattenSingle (Choice as) = Choice $ map flattenSingle as
+flattenSingle a = a
 
 {- | Probability that the computation terminates.
  'Choice' is treated as a uniform random choice.
@@ -25,6 +35,10 @@ termProb (Leaf _) = 1.0
 termProb (Choice []) = 0.0
 termProb (Choice as) =
   sum (map termProb as) / fromIntegral (length as)
+
+instance Foldable Tree where
+  foldr f b (Leaf a) = f a b
+  foldr f b (Choice ts) = foldr (flip (foldr f)) b ts
 
 instance Functor Tree where
   fmap f (Leaf a) = Leaf (f a)

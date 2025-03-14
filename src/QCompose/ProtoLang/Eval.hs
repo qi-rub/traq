@@ -16,6 +16,7 @@ import Lens.Micro
 import QCompose.Basic
 import QCompose.ProtoLang.Syntax
 import QCompose.Utils.Context
+import QCompose.Utils.Tree
 
 -- evaluation
 range :: VarType SizeT -> [Value]
@@ -27,11 +28,8 @@ type ProgramState = VarContext Value
 -- | Type for a function that implements the oracle
 type OracleInterp = [Value] -> [Value]
 
--- | Non-deterministic value type
-type NonDet = []
-
 -- | Non-deterministic Evaluation Monad
-type Evaluator = StateT ProgramState NonDet
+type Evaluator = StateT ProgramState Tree
 
 evalUnOp :: UnOp -> Value -> Value
 evalUnOp NotOp 0 = 1
@@ -108,7 +106,7 @@ evalStmt funCtx oracleF FunCallS{fun_kind = SubroutineCall sub, rets, args = (pr
 
     ok = head rets
 
-    evalPredicate :: ProgramState -> Value -> NonDet Bool
+    evalPredicate :: ProgramState -> Value -> Tree Bool
     evalPredicate sigma val = evalStateT (runPredicate "_search_arg" val) sigma
 
     runPredicate :: Ident -> Value -> Evaluator Bool
@@ -134,7 +132,7 @@ evalProgram Program{funCtx, stmt} oracleF = do
   mapM_ (uncurry putValue) rets
   return rets
 
-evalFun :: FunCtx SizeT -> OracleInterp -> [Value] -> FunDef SizeT -> NonDet [Value]
+evalFun :: FunCtx SizeT -> OracleInterp -> [Value] -> FunDef SizeT -> Tree [Value]
 evalFun funCtx oracleF vals_in FunDef{param_binds, ret_binds, body} = (`evalStateT` params) $ do
   _ <- evalProgram Program{funCtx, stmt = body} oracleF
   mapM lookupVar ret_names

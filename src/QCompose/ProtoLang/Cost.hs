@@ -7,9 +7,13 @@ module QCompose.ProtoLang.Cost (
 
 import Control.Monad (filterM)
 import Control.Monad.State (execStateT)
+import Data.Foldable (toList)
 import qualified Data.Map as M
 import Lens.Micro
+
 import QCompose.Basic
+import QCompose.Utils.Tree
+
 import QCompose.ProtoLang.Eval
 import QCompose.ProtoLang.Syntax
 
@@ -23,9 +27,10 @@ data QSearchFormulas = QSearchFormulas
   , qSearchUnitaryCost :: SizeT -> Precision -> Complexity -- n delta
   }
 
-detExtract :: [a] -> a
-detExtract [x] = x
-detExtract _ = error "unexpected non-determinism"
+detExtract :: Tree a -> a
+detExtract xs = case toList xs of
+  [x] -> x
+  _ -> error "unexpected non-determinism"
 
 unitaryQueryCost ::
   -- | Qry formulas
@@ -122,7 +127,7 @@ quantumQueryCost algs a_eps Program{funCtx, stmt} oracleF = cost stmt a_eps
           return $ b /= 0
 
         n = length space
-        t = minimum $ map length sols
+        t = minimum $ fmap length sols
 
         n_pred_calls = qSearchExpectedCost algs n t (eps / 2)
 

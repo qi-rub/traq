@@ -3,9 +3,13 @@
 
 module QCompose.Utils.Context (
   VarContext,
-  SafeLookup (..),
+  CanFail (..),
+  lookupVar,
+  putValue,
+  findBy,
 ) where
 
+import Control.Applicative (empty)
 import Control.Monad.Except (throwError)
 import Control.Monad.State (MonadState, gets)
 import Control.Monad.Trans (MonadTrans, lift)
@@ -15,38 +19,36 @@ import Lens.Micro
 import Lens.Micro.GHC ()
 import Lens.Micro.Mtl
 
+import QCompose.Utils.Tree
+
 import QCompose.Basic
 
 type VarContext a = M.Map Ident a
 
-class (Monad m) => SafeLookup m where
-  lookupVar :: (MonadTrans t, MonadState (VarContext a) (t m)) => Ident -> t m a
-  putValue :: (MonadTrans t, MonadState (VarContext a) (t m)) => Ident -> a -> t m ()
-  findBy :: (a -> Bool) -> [a] -> m a
+class (Monad m) => CanFail m where
+  showErrorMsg :: String -> m a
 
-instance SafeLookup (Either String) where
-  lookupVar x = do
-    v <- use (at x)
-    lift $ maybe (throwError $ "cannot find variable " <> show x) pure v
+instance CanFail (Either String) where
+  showErrorMsg = throwError
 
-  putValue x v = do
-    exists <- gets (M.member x)
-    if exists
-      then lift $ throwError ("variable " <> show x <> " already exists!")
-      else at x ?= v
+instance CanFail [] where
+  showErrorMsg _ = empty
 
-  findBy predicate =
-    maybe (throwError "no matching element") pure . find predicate
+instance CanFail Tree where
+  showErrorMsg _ = empty
 
-instance SafeLookup [] where
-  lookupVar x = do
-    v <- use (at x)
-    lift $ maybe [] pure v
+lookupVar :: (CanFail m, MonadTrans t, MonadState (VarContext a) (t m)) => Ident -> t m a
+lookupVar x = do
+  v <- use (at x)
+  lift $ maybe (showErrorMsg $ "cannot find variable " <> show x) pure v
 
-  putValue x v = do
-    exists <- gets (M.member x)
-    if exists
-      then lift []
-      else at x ?= v
+putValue :: (CanFail m, MonadTrans t, MonadState (VarContext a) (t m)) => Ident -> a -> t m ()
+putValue x v = do
+  exists <- gets (M.member x)
+  if exists
+    then lift $ showErrorMsg ("variable " <> show x <> " already exists!")
+    else at x ?= v
 
-  findBy predicate = maybe [] pure . find predicate
+findBy :: (CanFail m) => (a -> Bool) -> [a] -> m a
+findBy predicate =
+  maybe (showErrorMsg "no matching element") pure . find predicate

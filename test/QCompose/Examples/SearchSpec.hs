@@ -8,6 +8,7 @@ import QCompose.Basic
 import qualified QCompose.ProtoLang as P
 import qualified QCompose.UnitaryQPL as UQPL
 import QCompose.Utils.Printing
+import QCompose.Utils.Tree
 
 import QCompose.Examples.Search
 import QCompose.Subroutines.QSearch
@@ -57,6 +58,7 @@ spec = do
     it "evaluates" $ do
       let res = execStateT (P.evalProgram ex oracleF) M.empty
       res
-        `shouldBe` [ M.fromList [("result", 1), ("solution", i)]
-                   | i <- planted_sols
-                   ]
+        `shouldBe` fromList
+          [ M.fromList [("result", 1), ("solution", i)]
+          | i <- planted_sols
+          ]

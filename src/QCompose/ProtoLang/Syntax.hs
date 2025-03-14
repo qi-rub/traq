@@ -79,7 +79,7 @@ data FunCtx a = FunCtx
   }
   deriving (Eq, Show, Read, Functor)
 
-lookupFun :: (SafeLookup m) => Ident -> FunCtx a -> m (FunDef a)
+lookupFun :: (CanFail m) => Ident -> FunCtx a -> m (FunDef a)
 lookupFun fname funCtx =
   funCtx & fun_defs & findBy ((fname ==) . fun_name)
 
