@@ -23,6 +23,10 @@ data QSearchFormulas = QSearchFormulas
   , qSearchUnitaryCost :: SizeT -> Precision -> Complexity -- n delta
   }
 
+detExtract :: [a] -> a
+detExtract [x] = x
+detExtract _ = error "unexpected non-determinism"
+
 unitaryQueryCost ::
   -- | Qry formulas
   QSearchFormulas ->
@@ -34,7 +38,7 @@ unitaryQueryCost ::
 unitaryQueryCost algs d Program{funCtx, stmt} = cost d stmt
   where
     unsafeLookupFun :: Ident -> FunDef SizeT
-    unsafeLookupFun = either error id . lookupFun funCtx
+    unsafeLookupFun fname = detExtract $ lookupFun fname funCtx
 
     cost :: Precision -> Stmt SizeT -> Complexity
     cost _ FunCallS{fun_kind = OracleCall} = 1
@@ -81,6 +85,9 @@ quantumQueryCost ::
   Complexity
 quantumQueryCost algs a_eps Program{funCtx, stmt} oracleF = cost stmt a_eps
   where
+    unsafeLookupFun :: Ident -> FunDef SizeT
+    unsafeLookupFun fname = head $ lookupFun fname funCtx
+
     get :: ProgramState -> Ident -> Value
     get st x = st M.! x
 
@@ -92,39 +99,38 @@ quantumQueryCost algs a_eps Program{funCtx, stmt} oracleF = cost stmt a_eps
     cost (SeqS (s : ss)) eps sigma = cost s (eps / 2) sigma + cost (SeqS ss) (eps / 2) sigma'
       where
         runner = evalProgram Program{funCtx, stmt = s} oracleF
-        sigma' = either error id $ execStateT runner sigma
+        sigma' = detExtract $ execStateT runner sigma
     cost FunCallS{fun_kind = OracleCall} _ _ = 1
     cost FunCallS{fun_kind = FunctionCall f, args} eps sigma = cost body eps omega
       where
         vs = map (get sigma) args
-        FunDef _ fn_args _ body = either error id $ lookupFun funCtx f
+        FunDef _ fn_args _ body = unsafeLookupFun f
         omega = M.fromList $ zip (fst <$> fn_args) vs
 
     -- known cost formulas
     cost FunCallS{fun_kind = SubroutineCall c, args = (predicate : args)} eps sigma
-      | c == Contains || c == Search = either error id $ do
-          let vs = map (get sigma) args
-          funDef@(FunDef _ fn_args _ body) <- lookupFun funCtx predicate
-          let typ_x = snd $ last fn_args
+      | c == Contains || c == Search = n_pred_calls * pred_unitary_cost
+      where
+        vs = map (get sigma) args
+        funDef@(FunDef _ fn_args _ body) = unsafeLookupFun predicate
+        typ_x = snd $ last fn_args
 
-          let space = range typ_x
-          sols <- (`filterM` space) $ \v -> do
-            result <- evalFun funCtx oracleF (vs ++ [v]) funDef
-            let [b] = result
-            return $ b /= 0
+        space = range typ_x
+        sols = (`filterM` space) $ \v -> do
+          result <- evalFun funCtx oracleF (vs ++ [v]) funDef
+          let [b] = result
+          return $ b /= 0
 
-          let n = length space
-          let t = length sols
+        n = length space
+        t = minimum $ map length sols
 
-          let n_pred_calls = qSearchExpectedCost algs n t (eps / 2)
+        n_pred_calls = qSearchExpectedCost algs n t (eps / 2)
 
-          let q_worst = qSearchWorstCaseCost algs n (eps / 2)
-          let eps_per_pred_call = (eps / 2) / q_worst
-          let delta_per_pred_call = eps_per_pred_call / 2
+        q_worst = qSearchWorstCaseCost algs n (eps / 2)
+        eps_per_pred_call = (eps / 2) / q_worst
+        delta_per_pred_call = eps_per_pred_call / 2
 
-          let pred_unitary_cost = unitaryQueryCost algs delta_per_pred_call Program{funCtx, stmt = body}
-
-          return $ n_pred_calls * pred_unitary_cost
+        pred_unitary_cost = unitaryQueryCost algs delta_per_pred_call Program{funCtx, stmt = body}
 
     -- unknown subroutines
     cost FunCallS{fun_kind = SubroutineCall _} _ _ = error "unknown subroutine"

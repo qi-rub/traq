@@ -17,10 +17,10 @@ module QCompose.ProtoLang.Syntax (
   _stmt,
 ) where
 
-import Control.Monad.Except (MonadError, throwError)
-import Data.Foldable (find)
-import Lens.Micro (Traversal')
+import Lens.Micro
+
 import QCompose.Basic
+import QCompose.Utils.Context
 import QCompose.Utils.Printing
 
 -- proto-search language
@@ -79,18 +79,16 @@ data FunCtx a = FunCtx
   }
   deriving (Eq, Show, Read, Functor)
 
+lookupFun :: (SafeLookup m) => Ident -> FunCtx a -> m (FunDef a)
+lookupFun fname funCtx =
+  funCtx & fun_defs & findBy ((fname ==) . fun_name)
+
 -- | A program is a function context with a statement (which acts like the `main`)
 data Program a = Program
   { funCtx :: FunCtx a
   , stmt :: Stmt a
   }
   deriving (Eq, Show, Read, Functor)
-
-lookupFun :: (MonadError String m) => FunCtx a -> Ident -> m (FunDef a)
-lookupFun FunCtx{fun_defs} fname =
-  case find ((fname ==) . fun_name) fun_defs of
-    Nothing -> throwError $ "cannot find function " <> fname
-    Just f -> return f
 
 -- Lenses
 

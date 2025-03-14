@@ -28,7 +28,7 @@ spec = do
     let oracleF = \[i, j] -> [if i == j then 1 else 0]
     it "evaluates" $ do
       let res = execStateT (P.evalProgram ex oracleF) M.empty
-      res `shouldBe` Right (M.singleton "result" 0)
+      res `shouldBe` pure (M.singleton "result" 0)
 
     -- expected, worst, unitary
     let P.QSearchFormulas _ wcF ucF = cadeEtAlFormulas

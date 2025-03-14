@@ -4,6 +4,7 @@ import Control.Monad.State (StateT, runStateT)
 import Control.Monad.Trans (lift)
 import Lens.Micro
 import Lens.Micro.Mtl
+
 import QCompose.Basic
 import qualified QCompose.ProtoLang as P
 import QCompose.UnitaryQPL.Syntax
@@ -89,7 +90,7 @@ lower _ P.FunCallS{P.fun_kind = P.OracleCall, P.args, P.rets} = do
   return $ UnitaryU{args = args ++ rets, unitary = Oracle}
 -- function/subroutine calls
 lower delta P.FunCallS{P.fun_kind = P.FunctionCall fname, P.args, P.rets} = do
-  fun_def <- use _protoFunCtx >>= (`P.lookupFun` fname)
+  fun_def <- use _protoFunCtx >>= lift . P.lookupFun fname
   ProcDef{proc_name, proc_params} <- lowerProc delta fun_def
   let proc_args = undefined
   return $ CallU{proc_id = proc_name, args = proc_args}
