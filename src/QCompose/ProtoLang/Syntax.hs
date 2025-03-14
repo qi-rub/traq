@@ -92,6 +92,8 @@ lookupFun FunCtx{fun_defs} fname =
     Nothing -> throwError $ "cannot find function " <> fname
     Just f -> return f
 
+-- Lenses
+
 class HasAst a where
   _ast :: Traversal' a a
 
@@ -111,6 +113,8 @@ instance HasStmt FunCtx where
 
 instance HasStmt Program where
   _stmt f (Program funCtx stmt) = Program <$> _stmt f funCtx <*> f stmt
+
+-- Printing
 
 instance (Show a) => ToCodeString (VarType a) where
   toCodeString (Fin len) = "Fin<" <> show len <> ">"

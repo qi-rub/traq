@@ -68,48 +68,48 @@ newProcName name = do
   _uniqNameIdx += 1
   return $ "_" <> name <> "_" <> show i
 
-lowerU :: (P.TypeCheckable a) => Precision -> P.Stmt a -> CompilerT a (Stmt a)
+lower :: (P.TypeCheckable a) => Precision -> P.Stmt a -> CompilerT a (Stmt a)
 -- basic statements (do not depend on precision)
-lowerU _ P.AssignS{P.arg, P.ret} = do
+lower _ P.AssignS{P.arg, P.ret} = do
   ty <- zoom _typingCtx $ lookupVar arg
   return $ UnitaryU{args = [arg, ret], unitary = RevEmbed (IdF ty)}
-lowerU _ P.ConstS{P.ret, P.val, P.ty} = do
+lower _ P.ConstS{P.ret, P.val, P.ty} = do
   return $ UnitaryU{args = [ret], unitary = RevEmbed (ConstF ty val)}
-lowerU _ P.UnOpS{P.un_op = P.NotOp, P.ret, P.arg} = do
+lower _ P.UnOpS{P.un_op = P.NotOp, P.ret, P.arg} = do
   ty <- zoom _typingCtx $ lookupVar arg
   return $ UnitaryU{args = [arg, ret], unitary = RevEmbed (NotF ty)}
-lowerU _ P.BinOpS{P.bin_op, P.ret, P.lhs, P.rhs} = do
+lower _ P.BinOpS{P.bin_op, P.ret, P.lhs, P.rhs} = do
   ty <- zoom _typingCtx $ lookupVar lhs
   let unitary = case bin_op of
         P.AddOp -> RevEmbed (AddF ty)
         P.LEqOp -> RevEmbed (LEqF ty)
         P.AndOp -> Toffoli
   return $ UnitaryU{args = [lhs, rhs, ret], unitary}
-lowerU _ P.FunCallS{P.fun_kind = P.OracleCall, P.args, P.rets} = do
+lower _ P.FunCallS{P.fun_kind = P.OracleCall, P.args, P.rets} = do
   return $ UnitaryU{args = args ++ rets, unitary = Oracle}
 -- function/subroutine calls
-lowerU delta P.FunCallS{P.fun_kind = P.FunctionCall fname, P.args, P.rets} = do
+lower delta P.FunCallS{P.fun_kind = P.FunctionCall fname, P.args, P.rets} = do
   fun_def <- use _protoFunCtx >>= (`P.lookupFun` fname)
-  ProcDef{proc_name, proc_params} <- lowerProcU delta fun_def
+  ProcDef{proc_name, proc_params} <- lowerProc delta fun_def
   let proc_args = undefined
   return $ CallU{proc_id = proc_name, args = proc_args}
-lowerU _ P.FunCallS{P.fun_kind = P.SubroutineCall P.Contains, P.args, P.rets} = do
+lower _ P.FunCallS{P.fun_kind = P.SubroutineCall P.Contains, P.args, P.rets} = do
   error "TODO"
 -- composite statements
-lowerU _ (P.SeqS []) = return SkipU
-lowerU delta (P.SeqS [s]) = lowerU delta s
-lowerU delta (P.SeqS (s : ss)) = do
-  s' <- lowerU (delta / 2) s
-  ss' <- lowerU (delta / 2) (P.SeqS ss)
+lower _ (P.SeqS []) = return SkipU
+lower delta (P.SeqS [s]) = lower delta s
+lower delta (P.SeqS (s : ss)) = do
+  s' <- lower (delta / 2) s
+  ss' <- lower (delta / 2) (P.SeqS ss)
   return $ SeqU [s', ss']
 -- currently unsupported syntax
-lowerU _ _ = error " lowering: unsuppored operation!"
+lower _ _ = error " lowering: unsuppored operation!"
 
 {- | lower a function def to a uproc def.
  return the generated function
 -}
-lowerProcU :: (P.TypeCheckable a) => Precision -> P.FunDef a -> CompilerT a (ProcDef a)
-lowerProcU delta funDef = do
+lowerProc :: (P.TypeCheckable a) => Precision -> P.FunDef a -> CompilerT a (ProcDef a)
+lowerProc delta funDef = do
   gamma_save <- use _typingCtx
   funCtx <- use _protoFunCtx
   omega <- lift $ P.typeCheckFun funCtx funDef
@@ -122,19 +122,19 @@ lowerProcU delta funDef = do
 
  TODO returned the partitoned register spaces.
 -}
-lowerProgramU ::
+lowerProgram ::
   (P.TypeCheckable a) =>
   P.TypingCtx a ->
   Precision ->
   P.Program a ->
   Either String (Program a, P.TypingCtx a)
-lowerProgramU gamma delta p@P.Program{P.funCtx, P.stmt} = do
+lowerProgram gamma delta p@P.Program{P.funCtx, P.stmt} = do
   -- get the final typing context (i.e. including outputs)
   gamma' <- P.typeCheckProg gamma p
 
   -- use the full typing context to compile the program.
   let loweringCtx = makeLoweringCtx funCtx gamma'
-  (stmtU, loweringCtx') <- runStateT (lowerU delta stmt) loweringCtx
+  (stmtU, loweringCtx') <- runStateT (lower delta stmt) loweringCtx
 
   return
     ( Program
