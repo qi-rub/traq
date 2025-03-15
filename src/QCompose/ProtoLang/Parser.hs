@@ -62,8 +62,11 @@ typedExpr :: TokenParser () -> Parser a -> Parser (a, VarType SymbSize)
 typedExpr tp@TokenParser{..} pa = (,) <$> pa <*> (reservedOp ":" *> varType tp)
 
 stmtP :: TokenParser () -> Parser (Stmt SymbSize)
-stmtP tp@TokenParser{..} = SeqS <$> many (try (singleStmt <* optional semi))
+stmtP tp@TokenParser{..} = SeqS <$> (someStmt <|> return [])
   where
+    someStmt :: Parser [Stmt SymbSize]
+    someStmt = (:) <$> singleStmt <*> many (try (semi *> singleStmt))
+
     singleStmt :: Parser (Stmt SymbSize)
     singleStmt = do
       rets <- commaSep1 identifier
@@ -72,10 +75,10 @@ stmtP tp@TokenParser{..} = SeqS <$> many (try (singleStmt <* optional semi))
         [ try $ p rets
         | p <-
             [ funCallS
-            , guardSingleRet >=> assignS
             , guardSingleRet >=> constS
             , guardSingleRet >=> unOpS
             , guardSingleRet >=> binOpS
+            , guardSingleRet >=> assignS
             ]
         ]
 
@@ -145,6 +148,7 @@ funDef tp@TokenParser{..} = do
   param_binds <- parens $ commaSep $ typedExpr tp identifier
   reserved "do"
   body <- stmtP tp
+  _ <- semi
   reserved "return"
   ret_binds <- commaSep $ typedExpr tp identifier
   reserved "end"

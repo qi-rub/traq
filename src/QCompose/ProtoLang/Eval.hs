@@ -7,7 +7,7 @@ module QCompose.ProtoLang.Eval (
   evalProgram,
 ) where
 
-import Control.Monad.Extra (anyM)
+import Control.Monad.Extra (anyM, filterM)
 import Control.Monad.State (StateT, evalStateT, get)
 import Control.Monad.Trans (lift)
 import qualified Data.Map as M
@@ -82,29 +82,30 @@ evalStmt funCtx oracleF FunCallS{fun_kind = FunctionCall fun, args, rets} = do
   return $ zip rets ret_vals
 
 -- subroutines
--- `any`
-evalStmt funCtx oracleF FunCallS{fun_kind = SubroutineCall sub, rets, args = (predicate : args)}
-  | sub == Contains =
-      do
-        s_arg_ty <- getSearchArgTy
-        sigma <- get
-
-        has_sol <- lift $ anyM (evalPredicate sigma) (range s_arg_ty)
-        return [(ok, if has_sol then 1 else 0)]
-  | sub == Search = do
+-- `any` / `search`
+evalStmt funCtx oracleF FunCallS{fun_kind = SubroutineCall sub, rets = (ok : rets), args = (predicate : args)}
+  | sub == Contains = do
       s_arg_ty <- getSearchArgTy
       sigma <- get
 
       has_sol <- lift $ anyM (evalPredicate sigma) (range s_arg_ty)
-      let [_, sol] = rets
-      return [(ok, if has_sol then 1 else 0)]
+      return [(ok, boolToValue has_sol)]
+  | sub == Search = do
+      s_arg_ty <- getSearchArgTy
+      sigma <- get
+
+      let [sol] = rets
+      let vals = range s_arg_ty
+
+      sols <- lift $ filterM (evalPredicate sigma) vals
+      let has_sol = not $ null sols
+      let out_vals = if has_sol then sols else vals
+      lift $ fromList [[(ok, boolToValue has_sol), (sol, v)] | v <- out_vals]
   where
     getSearchArgTy = do
       FunDef{param_binds = pred_param_binds} <- lift $ funCtx & lookupFun predicate
       let (_, s_arg_ty) = last pred_param_binds
       return s_arg_ty
-
-    ok = head rets
 
     evalPredicate :: ProgramState -> Value -> Tree Bool
     evalPredicate sigma val = evalStateT (runPredicate "_search_arg" val) sigma
@@ -118,10 +119,6 @@ evalStmt funCtx oracleF FunCallS{fun_kind = SubroutineCall sub, rets, args = (pr
           oracleF
       val_ok <- lookupVar ok
       return $ val_ok /= 0
-
--- `search`
-evalStmt _ _ FunCallS{fun_kind = SubroutineCall Search} = do
-  error "non-deterministic"
 
 -- fallback
 evalStmt _ _ _ = error "unsupported"

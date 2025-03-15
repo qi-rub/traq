@@ -128,9 +128,10 @@ spec = do
         ((m :: Tree Int) >> _empty) `shouldSatisfy` null
 
   describe "compose" $ do
-    it "sequence" $ do
-      let coin = fromList [0, 1] :: Tree Int
-      let dice = fromList [1 .. 6] :: Tree Int
+    let coin = fromList [0, 1] :: Tree Int
+    let dice = fromList [1 .. 6] :: Tree Int
+
+    it ">>=" $ do
       let m = do
             c <- coin
             if c == 0
@@ -143,3 +144,7 @@ spec = do
           [ Choice [Choice (replicate d $ Leaf d) | d <- [1 .. 6]]
           , coin
           ]
+
+    it "mapM" $ do
+      let m = mapM (const coin) [(), ()]
+      m `shouldBe` Choice [Choice [Leaf [0, 0], Leaf [0, 1]], Choice [Leaf [1, 0], Leaf [1, 1]]]

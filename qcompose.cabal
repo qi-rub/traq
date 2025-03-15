@@ -86,6 +86,7 @@ test-suite spec
     main-is: Spec.hs
     other-modules:
           QCompose.Examples.MatrixSearchSpec
+          QCompose.Examples.NonDetSpec
           QCompose.Examples.SearchSpec
           QCompose.ProtoLang.CostSpec
           QCompose.ProtoLang.ParserSpec

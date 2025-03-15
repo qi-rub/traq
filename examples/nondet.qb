@@ -1,0 +1,8 @@
+declare Oracle(Fin<10>) -> Bool
+
+def call_oracle(i : Fin<10>) do
+	e <- Oracle(i);
+	return e : Bool
+end
+
+ok, x <- search(always);
