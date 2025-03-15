@@ -42,7 +42,7 @@ type TypeChecker a = StateT (TypingCtx a) (Either String)
 
 lookupFunE :: Ident -> FunCtx a -> Either String (FunDef a)
 lookupFunE fname funCtx =
-  lookupFun fname funCtx `catchError` \_ -> throwError ("cannot find function " <> fname)
+  lookupFun fname funCtx `catchError` \_ -> throwError ("cannot find function `" <> fname <> "`")
 
 -- | Typecheck a subroutine call
 checkSubroutine' ::

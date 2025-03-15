@@ -100,7 +100,7 @@ evalStmt funCtx oracleF FunCallS{fun_kind = SubroutineCall sub, rets = (ok : ret
       sols <- lift $ filterM (evalPredicate sigma) vals
       let has_sol = not $ null sols
       let out_vals = if has_sol then sols else vals
-      lift $ fromList [[(ok, boolToValue has_sol), (sol, v)] | v <- out_vals]
+      lift $ choice [pure [(ok, boolToValue has_sol), (sol, v)] | v <- out_vals]
   where
     getSearchArgTy = do
       FunDef{param_binds = pred_param_binds} <- lift $ funCtx & lookupFun predicate

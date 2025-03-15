@@ -58,7 +58,7 @@ spec = do
     it "evaluates" $ do
       let res = execStateT (P.evalProgram ex oracleF) M.empty
       res
-        `shouldBe` fromList
-          [ M.fromList [("result", 1), ("solution", i)]
+        `shouldBe` choice
+          [ pure $ M.fromList [("result", 1), ("solution", i)]
           | i <- planted_sols
           ]

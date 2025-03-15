@@ -28,7 +28,7 @@ spec = do
 
     it "typechecks" $ do
       ex <- load'
-      P.isWellTyped M.empty ex `shouldBe` True
+      P.typeCheckProg M.empty ex `shouldSatisfy` isRight
 
     it "all solutions" $ do
       ex <- load'
@@ -36,8 +36,8 @@ spec = do
       let out = execStateT (P.evalProgram ex oracleF) M.empty
 
       out
-        `shouldBe` fromList
-          [ M.fromList [("ok", 1), ("x", x)]
+        `shouldBe` choice
+          [ pure $ M.fromList [("ok", 1), ("x", x)]
           | x <- [0 .. 9]
           ]
 
@@ -47,8 +47,8 @@ spec = do
       let out = execStateT (P.evalProgram ex oracleF) M.empty
 
       out
-        `shouldBe` fromList
-          [ M.fromList [("ok", 0), ("x", x)]
+        `shouldBe` choice
+          [ pure $ M.fromList [("ok", 0), ("x", x)]
           | x <- [0 .. 9]
           ]
 
@@ -59,7 +59,7 @@ spec = do
       let out = execStateT (P.evalProgram ex oracleF) M.empty
 
       out
-        `shouldBe` fromList
-          [ M.fromList [("ok", 1), ("x", x)]
+        `shouldBe` choice
+          [ pure $ M.fromList [("ok", 1), ("x", x)]
           | x <- sols
           ]

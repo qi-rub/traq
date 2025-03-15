@@ -3,6 +3,7 @@
 module QCompose.Utils.TreeSpec where
 
 import Control.Applicative
+import Data.Foldable (toList)
 
 import QCompose.Utils.Tree
 
@@ -13,10 +14,15 @@ import Test.QuickCheck
 instance (Arbitrary a) => Arbitrary (Tree a) where
   arbitrary = sized $ \n -> chooseInt (0, n) >>= go
     where
-      go 0 = fmap Leaf arbitrary
+      go 0 = return Fail
+      go 1 = Leaf <$> arbitrary
       go n = do
         ss <- partSubtreeSizes (n - 1)
-        Choice <$> mapM go ss
+        ts <- mapM go ss
+        return $ case ts of
+          [] -> Fail
+          [t] -> t
+          (t : t' : ts') -> Choice t t' ts'
 
       partSubtreeSizes :: Int -> Gen [Int]
       partSubtreeSizes 1 = return [1]
@@ -47,6 +53,12 @@ _empty = empty
 _alt :: Tree Int -> Tree Int -> Tree Int
 _alt = (<|>)
 
+-- | Check if two functions are same by functional extensionality.
+shouldEqual :: (HasCallStack, Show a, Eq a) => (t -> a) -> (t -> a) -> (t -> Expectation)
+shouldEqual f g x = f x `shouldBe` g x
+
+infix 1 `shouldEqual`
+
 spec :: Spec
 spec = do
   describe "termProb" $ do
@@ -55,27 +67,24 @@ spec = do
 
     it "examples" $ do
       termProb (Leaf ()) `shouldBe` 1
-      termProb (Choice []) `shouldBe` 0
-      termProb (Choice [Leaf ()]) `shouldBe` 1
-      termProb (Choice [Choice []]) `shouldBe` 0
-      termProb (Choice [Leaf (), Choice []]) `shouldBe` 0.5
-
-  it "flattenSingle" $ do
-    flattenSingle (Choice [Leaf ()]) `shouldBe` Leaf ()
-    flattenSingle (Choice [Leaf (), Leaf ()]) `shouldBe` Choice [Leaf (), Leaf ()]
-    flattenSingle (Choice [Choice []]) `shouldBe` (Choice [] :: Tree ())
-    flattenSingle (Choice [Leaf (), Choice [Leaf ()]]) `shouldBe` Choice [Leaf (), Leaf ()]
+      termProb Fail `shouldBe` 0
+      termProb (Choice (Leaf ()) Fail []) `shouldBe` 0.5
 
   describe "Instance Laws" $ do
     let f = (+ 1) :: Int -> Int
     let g = (* 2) :: Int -> Int
 
-    describe "Functor laws" $ do
-      prop "Identity" $ \x ->
-        _fmap id x `shouldBe` (x :: Tree Int)
+    describe "Foldable" $ do
+      let fromList = choice . map Leaf :: [Int] -> Tree Int
+      prop "toList . fromList = id" $
+        toList . fromList `shouldEqual` id
 
-      prop "Composition" $ \x ->
-        _fmap (f . g) x `shouldBe` (_fmap f (_fmap g x) :: Tree Int)
+    describe "Functor laws" $ do
+      prop "Identity" $
+        _fmap id `shouldEqual` id
+
+      prop "Composition" $
+        _fmap (f . g) `shouldEqual` _fmap f . _fmap g
 
     describe "Applicative laws" $ do
       prop "Identity" $ \v ->
@@ -95,8 +104,8 @@ spec = do
           `shouldBe` u `_splat` (v `_splat` w)
 
     describe "Monad laws" $ do
-      let mf a = Choice [Leaf a, Leaf a]
-      let mg a = Choice [Choice [Leaf a], Leaf a]
+      let mf a = choice [pure a, pure a]
+      let mg a = choice [pure a, empty, pure a]
 
       prop "Right Unit" $ \m ->
         m `_bind` _return `shouldBe` m
@@ -118,18 +127,18 @@ spec = do
         u `_alt` (v `_alt` w) `shouldBe` (u `_alt` v) `_alt` w
 
     describe "MonadPlus laws" $ do
-      let mf a = Choice [Leaf a, Leaf a]
+      let mf a = Choice (Leaf a) (Leaf a) []
       prop "Left zero" $
         (_empty >>= mf) `shouldBe` _empty
 
-      prop "Right zero" $ \m ->
+      prop "Right zero" $ \m -> do
         -- TODO this is weaker than the actual law:
         -- ((m :: Tree Int) >> _empty) `shouldBe` _empty
         ((m :: Tree Int) >> _empty) `shouldSatisfy` null
 
   describe "compose" $ do
-    let coin = fromList [0, 1] :: Tree Int
-    let dice = fromList [1 .. 6] :: Tree Int
+    let coin = choice [pure 0, pure 1] :: Tree Int
+    let dice = choice (map pure [1 .. 6]) :: Tree Int
 
     it ">>=" $ do
       let m = do
@@ -137,14 +146,18 @@ spec = do
             if c == 0
               then do
                 d <- dice
-                fromList $ replicate d d
+                choice $ replicate d (pure d)
               else coin
       m
-        `shouldBe` Choice
-          [ Choice [Choice (replicate d $ Leaf d) | d <- [1 .. 6]]
+        `shouldBe` choice
+          [ choice [choice (replicate d $ pure d) | d <- [1 .. 6]]
           , coin
           ]
 
     it "mapM" $ do
       let m = mapM (const coin) [(), ()]
-      m `shouldBe` Choice [Choice [Leaf [0, 0], Leaf [0, 1]], Choice [Leaf [1, 0], Leaf [1, 1]]]
+      m
+        `shouldBe` choice
+          [ choice [pure [0, 0], pure [0, 1]]
+          , choice [pure [1, 0], pure [1, 1]]
+          ]
