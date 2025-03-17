@@ -2,13 +2,9 @@
 
 module QCompose.ProtoLang.Parser where
 
-import Control.Monad ((>=>))
 import Data.Either (isRight)
 import Data.Functor (($>))
-import QCompose.Basic
-import QCompose.ProtoLang.Syntax
-import QCompose.Utils.Printing
-import Text.Parsec (ParseError, choice, eof, many, optional, parse, try, (<|>))
+import Text.Parsec (ParseError, choice, eof, many, parse, try, (<|>))
 import Text.Parsec.Language (LanguageDef, emptyDef)
 import Text.Parsec.String (Parser)
 import Text.Parsec.Token (
@@ -19,6 +15,10 @@ import Text.Parsec.Token (
   reservedNames,
   reservedOpNames,
  )
+
+import QCompose.Basic
+import QCompose.ProtoLang.Syntax
+import QCompose.Utils.Printing
 
 -- TODO unify
 subroutines :: [(Subroutine, Ident)]
@@ -58,29 +58,27 @@ varType tp@TokenParser{..} = boolType <|> finType
     boolType = reserved "Bool" $> Fin (Value 2)
     finType = reserved "Fin" >> Fin <$> angles (symbSize tp)
 
-typedExpr :: TokenParser () -> Parser a -> Parser (a, VarType SymbSize)
-typedExpr tp@TokenParser{..} pa = (,) <$> pa <*> (reservedOp ":" *> varType tp)
+typedTerm :: TokenParser () -> Parser a -> Parser (a, VarType SymbSize)
+typedTerm tp@TokenParser{..} pa = (,) <$> pa <*> (reservedOp ":" *> varType tp)
 
-stmtP :: TokenParser () -> Parser (Stmt SymbSize)
-stmtP tp@TokenParser{..} = SeqS <$> (someStmt <|> return [])
+exprP :: TokenParser () -> Parser (Expr SymbSize)
+exprP tp@TokenParser{..} =
+  choice . map try $
+    [ funCallE
+    , unOpE
+    , binOpE
+    , constE
+    , varE
+    ]
   where
-    someStmt :: Parser [Stmt SymbSize]
-    someStmt = (:) <$> singleStmt <*> many (try (semi *> singleStmt))
+    varE :: Parser (Expr SymbSize)
+    varE = VarE <$> identifier
 
-    singleStmt :: Parser (Stmt SymbSize)
-    singleStmt = do
-      rets <- commaSep1 identifier
-      reservedOp "<-"
-      choice
-        [ try $ p rets
-        | p <-
-            [ funCallS
-            , guardSingleRet >=> constS
-            , guardSingleRet >=> unOpS
-            , guardSingleRet >=> binOpS
-            , guardSingleRet >=> assignS
-            ]
-        ]
+    constE :: Parser (Expr SymbSize)
+    constE = do
+      reserved "const"
+      (val, ty) <- typedTerm tp integer
+      return ConstE{val, ty}
 
     funCallKind :: Parser FunctionCallKind
     funCallKind = oracleCall <|> subroutineCall <|> functionCall
@@ -93,26 +91,11 @@ stmtP tp@TokenParser{..} = SeqS <$> (someStmt <|> return [])
             ]
         functionCall = FunctionCall <$> identifier
 
-    funCallS :: [Ident] -> Parser (Stmt SymbSize)
-    funCallS rets = do
+    funCallE :: Parser (Expr SymbSize)
+    funCallE = do
       fun_kind <- funCallKind
       args <- parens $ commaSep identifier
-      return FunCallS{fun_kind, rets, args}
-
-    guardSingleRet :: [Ident] -> Parser Ident
-    guardSingleRet [ret] = return ret
-    guardSingleRet _ = fail "expected exactly one return value"
-
-    assignS :: Ident -> Parser (Stmt SymbSize)
-    assignS ret = do
-      arg <- identifier
-      return AssignS{ret, arg}
-
-    constS :: Ident -> Parser (Stmt SymbSize)
-    constS ret = do
-      reserved "const"
-      (val, ty) <- typedExpr tp integer
-      return ConstS{ret, val, ty}
+      return FunCallE{fun_kind, args}
 
     unOp :: Parser UnOp
     unOp =
@@ -120,11 +103,11 @@ stmtP tp@TokenParser{..} = SeqS <$> (someStmt <|> return [])
         "!" -> return NotOp
         _ -> fail "invalid unary operator"
 
-    unOpS :: Ident -> Parser (Stmt SymbSize)
-    unOpS ret = do
+    unOpE :: Parser (Expr SymbSize)
+    unOpE = do
       un_op <- unOp
       arg <- identifier
-      return UnOpS{ret, un_op, arg}
+      return UnOpE{un_op, arg}
 
     binOp :: Parser BinOp
     binOp =
@@ -134,23 +117,36 @@ stmtP tp@TokenParser{..} = SeqS <$> (someStmt <|> return [])
         "&&" -> return AndOp
         _ -> fail "invalid binary operator"
 
-    binOpS :: Ident -> Parser (Stmt SymbSize)
-    binOpS ret = do
+    binOpE :: Parser (Expr SymbSize)
+    binOpE = do
       lhs <- identifier
       bin_op <- binOp
       rhs <- identifier
-      return BinOpS{ret, bin_op, lhs, rhs}
+      return BinOpE{bin_op, lhs, rhs}
+
+stmtP :: TokenParser () -> Parser (Stmt SymbSize)
+stmtP tp@TokenParser{..} = SeqS <$> (someStmt <|> return [])
+  where
+    someStmt :: Parser [Stmt SymbSize]
+    someStmt = (:) <$> exprS <*> many (try (semi *> exprS))
+
+    exprS :: Parser (Stmt SymbSize)
+    exprS = do
+      rets <- commaSep1 identifier
+      reservedOp "<-"
+      expr <- exprP tp
+      return ExprS{rets, expr}
 
 funDef :: TokenParser () -> Parser (FunDef SymbSize)
 funDef tp@TokenParser{..} = do
   reserved "def"
   fun_name <- identifier
-  param_binds <- parens $ commaSep $ typedExpr tp identifier
+  param_binds <- parens $ commaSep $ typedTerm tp identifier
   reserved "do"
   body <- stmtP tp
   _ <- semi
   reserved "return"
-  ret_binds <- commaSep $ typedExpr tp identifier
+  ret_binds <- commaSep $ typedTerm tp identifier
   reserved "end"
   return FunDef{fun_name, param_binds, ret_binds, body}
 

@@ -14,18 +14,24 @@ arraySearch n = Program{funCtx = FunCtx{oracle_decl, fun_defs = [check]}, stmt}
         { fun_name = "check"
         , param_binds = [("i", Fin n)]
         , body =
-            FunCallS
-              { fun_kind = OracleCall
-              , rets = ["b"]
-              , args = ["i"]
+            ExprS
+              { rets = ["b"]
+              , expr =
+                  FunCallE
+                    { fun_kind = OracleCall
+                    , args = ["i"]
+                    }
               }
         , ret_binds = [("b", Fin 2)]
         }
 
     stmt =
-      FunCallS
-        { fun_kind = SubroutineCall Contains
-        , args = ["check"]
+      ExprS
+        { expr =
+            FunCallE
+              { fun_kind = SubroutineCall Contains
+              , args = ["check"]
+              }
         , rets = ["result"]
         }
 
@@ -40,17 +46,23 @@ arraySearchIx n = Program{funCtx = FunCtx{oracle_decl, fun_defs = [check]}, stmt
         { fun_name = "check"
         , param_binds = [("i", Fin n)]
         , body =
-            FunCallS
-              { fun_kind = OracleCall
-              , rets = ["b"]
-              , args = ["i"]
+            ExprS
+              { rets = ["b"]
+              , expr =
+                  FunCallE
+                    { fun_kind = OracleCall
+                    , args = ["i"]
+                    }
               }
         , ret_binds = [("b", Fin 2)]
         }
 
     stmt =
-      FunCallS
-        { fun_kind = SubroutineCall Search
-        , args = ["check"]
-        , rets = ["result", "solution"]
+      ExprS
+        { rets = ["result", "solution"]
+        , expr =
+            FunCallE
+              { fun_kind = SubroutineCall Search
+              , args = ["check"]
+              }
         }

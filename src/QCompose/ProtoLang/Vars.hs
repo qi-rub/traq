@@ -8,25 +8,25 @@ import QCompose.ProtoLang.Syntax
 
 type VarSet = S.Set Ident
 
+-- | The set of free (unbound) variables in an expression
+freeVarsE :: Expr a -> VarSet
+freeVarsE VarE{arg} = S.singleton arg
+freeVarsE ConstE{} = S.empty
+freeVarsE UnOpE{arg} = S.singleton arg
+freeVarsE BinOpE{lhs, rhs} = S.fromList [lhs, rhs]
+freeVarsE FunCallE{args} = S.fromList args
+
 -- | The set of free (unbound) variables
 freeVars :: Stmt a -> VarSet
-freeVars AssignS{arg} = S.singleton arg
-freeVars ConstS{} = S.empty
-freeVars UnOpS{arg} = S.singleton arg
-freeVars BinOpS{lhs, rhs} = S.fromList [lhs, rhs]
-freeVars FunCallS{args} = S.fromList args
 freeVars IfThenElseS{cond, s_true, s_false} = S.unions [S.singleton cond, freeVars s_true, freeVars s_false]
 freeVars (SeqS ss) = S.unions (map freeVars ss) S.\\ outVars (SeqS ss)
+freeVars ExprS{expr} = freeVarsE expr
 
 -- | The set of generated output variables
 outVars :: Stmt a -> VarSet
-outVars AssignS{ret} = S.singleton ret
-outVars ConstS{ret} = S.singleton ret
-outVars UnOpS{ret} = S.singleton ret
-outVars BinOpS{ret} = S.singleton ret
-outVars FunCallS{rets} = S.fromList rets
 outVars IfThenElseS{s_true, s_false} = S.unions [outVars s_true, outVars s_false]
 outVars (SeqS ss) = S.unions $ map outVars ss
+outVars ExprS{rets} = S.fromList rets
 
 -- | All variables in a program
 allVars :: Stmt a -> VarSet

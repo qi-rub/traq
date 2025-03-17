@@ -5,12 +5,14 @@ module QCompose.Utils.Context (
   VarContext,
   CanFail (..),
   lookupVar,
+  lookupVar',
   putValue,
   findBy,
 ) where
 
 import Control.Applicative (empty)
 import Control.Monad.Except (throwError)
+import Control.Monad.Reader (MonadReader)
 import Control.Monad.State (MonadState, gets)
 import Control.Monad.Trans (MonadTrans, lift)
 import Data.Foldable (find)
@@ -40,6 +42,11 @@ instance CanFail Tree where
 lookupVar :: (CanFail m, MonadTrans t, MonadState (VarContext a) (t m)) => Ident -> t m a
 lookupVar x = do
   v <- use (at x)
+  lift $ maybe (showErrorMsg $ "cannot find variable " <> show x) pure v
+
+lookupVar' :: (CanFail m, MonadTrans t, MonadReader (VarContext a) (t m)) => Ident -> t m a
+lookupVar' x = do
+  v <- view (at x)
   lift $ maybe (showErrorMsg $ "cannot find variable " <> show x) pure v
 
 putValue :: (CanFail m, MonadTrans t, MonadState (VarContext a) (t m)) => Ident -> a -> t m ()

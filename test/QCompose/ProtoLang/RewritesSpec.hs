@@ -13,7 +13,7 @@ spec :: Spec
 spec = do
   describe "flattenSeq" $ do
     it "flattens simple" $ do
-      let s = AssignS{ret = "x", arg = "y"} :: Stmt Int
+      let s = ExprS{rets = ["x"], expr = VarE{arg = "y"}} :: Stmt Int
       rw flattenSeq s `shouldBe` s
       rw flattenSeq (SeqS [s]) `shouldBe` s
     it "flattens skip" $ do

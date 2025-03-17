@@ -27,7 +27,7 @@ spec = do
 
     let oracleF = \[i, j] -> [if i == j then 1 else 0]
     it "evaluates" $ do
-      let res = execStateT (P.evalProgram ex oracleF) M.empty
+      let res = execStateT (P.execProgram ex oracleF) M.empty
       res `shouldBe` pure (M.singleton "result" 0)
 
     -- expected, worst, unitary

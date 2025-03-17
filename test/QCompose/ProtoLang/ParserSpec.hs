@@ -13,22 +13,21 @@ spec :: Spec
 spec = do
   describe "parse statement" $ do
     it "parses assign" $ do
-      parseStmt "x' <- x" `shouldBe` Right (SeqS [AssignS{ret = "x'", arg = "x"}])
+      parseStmt "x' <- x" `shouldBe` Right (SeqS [ExprS{rets = ["x'"], expr = VarE{arg = "x"}}])
     it "parses seq assign" $ do
       parseStmt "x' <- x; y' <- const 3 : Fin<4>"
         `shouldBe` Right
           ( SeqS
-              [ AssignS{ret = "x'", arg = "x"}
-              , ConstS{ret = "y'", val = 3, ty = Fin (Value 4)}
+              [ ExprS{rets = ["x'"], expr = VarE{arg = "x"}}
+              , ExprS{rets = ["y'"], expr = ConstE{val = 3, ty = Fin (Value 4)}}
               ]
           )
     it "parses function call" $ do
       parseStmt "a, b <- f(x, y, z)"
         `shouldBe` Right
           ( SeqS
-              [ FunCallS
-                  { fun_kind = FunctionCall "f"
-                  , args = ["x", "y", "z"]
+              [ ExprS
+                  { expr = FunCallE{fun_kind = FunctionCall "f", args = ["x", "y", "z"]}
                   , rets = ["a", "b"]
                   }
               ]
@@ -51,8 +50,8 @@ spec = do
               , ret_binds = [("e'", Fin (Value 2))]
               , body =
                   SeqS
-                    [ FunCallS{fun_kind = OracleCall, rets = ["e"], args = ["i", "j"]}
-                    , UnOpS{un_op = NotOp, arg = "e", ret = "e'"}
+                    [ ExprS{rets = ["e"], expr = FunCallE{fun_kind = OracleCall, args = ["i", "j"]}}
+                    , ExprS{rets = ["e'"], expr = UnOpE{un_op = NotOp, arg = "e"}}
                     ]
               }
           )

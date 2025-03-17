@@ -10,7 +10,7 @@ module QCompose.ProtoLang.TypeCheck (
   isWellTyped,
 ) where
 
-import Control.Monad (forM_, unless, when)
+import Control.Monad (forM_, unless, when, zipWithM_)
 import Control.Monad.Except (catchError, throwError)
 import Control.Monad.State (StateT, execStateT, get, lift, put)
 import Data.Either (isRight)
@@ -52,17 +52,11 @@ checkSubroutine' ::
   Subroutine ->
   -- | arguments
   [Ident] ->
-  -- | returns
-  [Ident] ->
-  TypeChecker a [(Ident, VarType a)]
+  TypeChecker a [VarType a]
 -- contains
-checkSubroutine' funCtx Contains all_args rets = do
+checkSubroutine' funCtx Contains all_args = do
   let sub_name = "`" <> toCodeString Contains <> "`"
 
-  ok <- case rets of
-    [ok] -> return ok
-    _ -> throwError $ sub_name <> " expects 1 argument, got " <> show rets
-
   (predicate, args) <- uncons all_args & maybe (throwError $ sub_name <> " needs 1 argument (predicate)") pure
   arg_tys <- mapM lookupVar args
 
@@ -74,15 +68,11 @@ checkSubroutine' funCtx Contains all_args rets = do
   when (map snd (init pred_params) /= arg_tys) $
     throwError "Invalid arguments to bind to predicate"
 
-  return [(ok, tbool)]
+  return [tbool]
 
 -- search
-checkSubroutine' funCtx Search all_args rets = do
+checkSubroutine' funCtx Search all_args = do
   let sub_name = toCodeString Search
-
-  (ok, sol) <- case rets of
-    [ok, sol] -> return (ok, sol)
-    _ -> throwError $ sub_name <> " expects 2 argument, got " <> show rets
 
   (predicate, args) <- uncons all_args & maybe (throwError $ sub_name <> " needs 1 argument (predicate)") pure
   arg_tys <- mapM lookupVar args
@@ -95,10 +85,68 @@ checkSubroutine' funCtx Search all_args rets = do
   when (map snd (init pred_params) /= arg_tys) $
     throwError "Invalid arguments to bind to predicate"
 
-  return [(ok, tbool), (sol, snd $ last pred_params)]
+  return [tbool, snd $ last pred_params]
 
 -- unsupported
 -- checkSubroutine' _ sub _ _ = throwError $ "unsupported subroutine " <> show sub
+
+-- | Typecheck an expression and return the output types
+checkExpr ::
+  forall a.
+  (TypeCheckable a) =>
+  FunCtx a ->
+  Expr a ->
+  TypeChecker a [VarType a]
+-- x
+checkExpr _ VarE{arg} = do
+  ty <- lookupVar arg
+  return [ty]
+-- const v : t
+checkExpr _ ConstE{ty} = return [ty]
+-- `op` x
+checkExpr _ UnOpE{un_op, arg} = do
+  arg_ty <- lookupVar arg
+  ty <- case un_op of
+    NotOp -> do
+      unless (arg_ty == tbool) $ throwError ("`not` requires bool, got " <> show arg_ty)
+      return tbool
+  return [ty]
+-- x `op` y
+checkExpr _ BinOpE{bin_op, lhs, rhs} = do
+  ty_lhs <- lookupVar lhs
+  ty_rhs <- lookupVar rhs
+  ty <- case bin_op of
+    AndOp -> do
+      unless (ty_lhs == tbool && ty_rhs == tbool) $
+        throwError ("`and` requires bools, got " <> show [ty_lhs, ty_rhs])
+      return tbool
+    LEqOp -> return tbool
+    AddOp -> return $ tmax ty_lhs ty_rhs
+  return [ty]
+-- Oracle(x, ...)
+checkExpr FunCtx{oracle_decl} FunCallE{fun_kind = OracleCall, args} = do
+  let OracleDecl{param_types, ret_types} = oracle_decl
+
+  arg_tys <- mapM lookupVar args
+  unless (arg_tys == param_types) $
+    throwError ("oracle expects " <> show param_types <> ", got " <> show args)
+
+  return ret_types
+
+-- f(x, ...)
+checkExpr funCtx FunCallE{fun_kind = FunctionCall fun, args} = do
+  FunDef{param_binds, ret_binds} <- lift $ funCtx & lookupFunE fun
+
+  arg_tys <- mapM lookupVar args
+  let param_tys = map snd param_binds
+  unless (arg_tys == param_tys) $
+    throwError (fun <> " expects " <> show param_tys <> ", got " <> show (zip args arg_tys))
+
+  return $ map snd ret_binds
+
+-- `subroutine`(...)
+checkExpr funCtx FunCallE{fun_kind = SubroutineCall sub, args} = do
+  checkSubroutine' funCtx sub args
 
 {- | Typecheck a statement, given the current context and function definitions.
 | If successful, the typing context is updated.
@@ -131,72 +179,13 @@ checkStmt funCtx IfThenElseS{cond, s_true, s_false} = do
   unless (outs_t == outs_f) $
     throwError ("if: branches must declare same variables, got " <> show [outs_t, outs_f])
   put sigma_t
-checkStmt funCtx@FunCtx{oracle_decl} s = checkStmt' s >>= mapM_ (uncurry putValue)
-  where
-    -- Type check and return the new variable bindings.
-    -- This does _not_ update the typing context!
-    checkStmt' :: Stmt a -> TypeChecker a [(Ident, VarType a)]
-    checkStmt' (SeqS _) = error "unreachable"
-    checkStmt' IfThenElseS{} = error "unreachable"
-    -- x <- x'
-    checkStmt' AssignS{arg, ret} = do
-      arg_ty <- lookupVar arg
-      return [(ret, arg_ty)]
-
-    -- x <- v : t
-    checkStmt' ConstS{ret, ty} = do
-      return [(ret, ty)]
-
-    -- x <- op a
-    checkStmt' UnOpS{ret, un_op, arg} = do
-      ty <- lookupVar arg
-      case un_op of
-        NotOp -> unless (ty == tbool) $ throwError ("`not` requires bool, got " <> show ty)
-      return [(ret, tbool)]
-
-    -- x <- a op b
-    checkStmt' BinOpS{ret, bin_op, lhs, rhs} = do
-      ty_lhs <- lookupVar lhs
-      ty_rhs <- lookupVar rhs
-      case bin_op of
-        AndOp -> unless (ty_lhs == tbool && ty_rhs == tbool) $ throwError ("`and` requires bools, got " <> show [ty_lhs, ty_rhs])
-        _ -> return ()
-
-      let t = case bin_op of
-            AndOp -> tbool
-            LEqOp -> tbool
-            AddOp -> tmax ty_lhs ty_rhs
-      return [(ret, t)]
-
-    -- ret <- Oracle(args)
-    checkStmt' FunCallS{fun_kind = OracleCall, rets, args} = do
-      let OracleDecl{param_types, ret_types} = oracle_decl
-
-      arg_tys <- mapM lookupVar args
-      unless (arg_tys == param_types) $
-        throwError ("oracle expects " <> show param_types <> ", got " <> show args)
-
-      when (length rets /= length ret_types) $
-        throwError ("oracle returns " <> show (length ret_types) <> " values, but RHS has " <> show rets)
-
-      return $ zip rets ret_types
-
-    -- ret <- f(args)
-    checkStmt' FunCallS{fun_kind = FunctionCall fun, rets, args} = do
-      FunDef _ fn_params fn_rets _ <- lift $ funCtx & lookupFunE fun
-
-      arg_tys <- mapM lookupVar args
-      let param_tys = map snd fn_params
-      unless (arg_tys == param_tys) $
-        throwError (fun <> " expects " <> show param_tys <> ", got " <> show (zip args arg_tys))
-
-      when (length rets /= length fn_rets) $
-        throwError ("oracle returns " <> show (length fn_rets) <> " values, but RHS has " <> show rets)
-
-      return $ zip rets (map snd fn_rets)
-
-    -- ok <- any(f, args)
-    checkStmt' FunCallS{fun_kind = SubroutineCall sub, rets, args} = checkSubroutine' funCtx sub args rets
+checkStmt funCtx ExprS{rets, expr} = do
+  out_tys <- checkExpr funCtx expr
+  when (length out_tys /= length rets) $ do
+    throwError $
+      ("Expected " <> show (length out_tys) <> " outputs, but given " <> show (length out_tys) <> " vars to bind.")
+        <> (" (return variables: " <> show rets <> ", output types: " <> show out_tys <> ")")
+  zipWithM_ putValue rets out_tys
 
 -- | Type check a single function.
 typeCheckFun :: (TypeCheckable a) => FunCtx a -> FunDef a -> Either String (TypingCtx a)

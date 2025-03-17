@@ -7,6 +7,7 @@ module QCompose.ProtoLang.Syntax (
   BinOp (..),
   Subroutine (..),
   FunctionCallKind (..),
+  Expr (..),
   Stmt (..),
   FunDef (..),
   OracleDecl (..),
@@ -45,15 +46,22 @@ data FunctionCallKind
   | SubroutineCall Subroutine
   deriving (Eq, Show, Read)
 
+{- | An expression in the prototype language.
+ It appears as the RHS of an assignment statement.
+-}
+data Expr a
+  = VarE {arg :: Ident}
+  | ConstE {val :: Value, ty :: VarType a}
+  | UnOpE {un_op :: UnOp, arg :: Ident}
+  | BinOpE {bin_op :: BinOp, lhs :: Ident, rhs :: Ident}
+  | FunCallE {fun_kind :: FunctionCallKind, args :: [Ident]}
+  deriving (Eq, Show, Read, Functor)
+
 -- | A statement in the prototype language.
 data Stmt a
-  = AssignS {ret :: Ident, arg :: Ident}
-  | ConstS {ret :: Ident, val :: Value, ty :: VarType a}
-  | UnOpS {ret :: Ident, un_op :: UnOp, arg :: Ident}
-  | BinOpS {ret :: Ident, bin_op :: BinOp, lhs :: Ident, rhs :: Ident}
+  = ExprS {rets :: [Ident], expr :: Expr a}
   | IfThenElseS {cond :: Ident, s_true :: Stmt a, s_false :: Stmt a}
   | SeqS [Stmt a]
-  | FunCallS {fun_kind :: FunctionCallKind, rets :: [Ident], args :: [Ident]}
   deriving (Eq, Show, Read, Functor)
 
 -- | A function definition in the prototype language.
@@ -134,18 +142,17 @@ instance ToCodeString FunctionCallKind where
   toCodeString (FunctionCall f) = f
   toCodeString (SubroutineCall f) = toCodeString f
 
+instance (Show a) => ToCodeString (Expr a) where
+  toCodeString VarE{arg} = arg
+  toCodeString ConstE{val, ty} = unwords [show val, ":", toCodeString ty]
+  toCodeString UnOpE{un_op, arg} = toCodeString un_op <> arg
+  toCodeString BinOpE{bin_op, lhs, rhs} =
+    unwords [lhs, toCodeString bin_op, rhs]
+  toCodeString FunCallE{fun_kind, args} =
+    unwords [toCodeString fun_kind <> "(" <> commaList args <> ")"]
+
 instance (Show a) => ToCodeString (Stmt a) where
-  toCodeLines AssignS{ret, arg} = [unwords [ret, "<-", arg]]
-  toCodeLines ConstS{ret, val, ty} = [unwords [ret, "<-", show val, ":", toCodeString ty]]
-  toCodeLines UnOpS{ret, un_op, arg} = [unwords [ret, "<-", toCodeString un_op <> arg]]
-  toCodeLines BinOpS{ret, bin_op, lhs, rhs} = [unwords [ret, "<-", lhs, toCodeString bin_op, rhs]]
-  toCodeLines FunCallS{fun_kind, rets, args} =
-    [ unwords
-        [ commaList rets
-        , "<-"
-        , toCodeString fun_kind <> "(" <> commaList args <> ")"
-        ]
-    ]
+  toCodeLines ExprS{rets, expr} = [unwords [commaList rets, "<-", toCodeString expr]]
   toCodeLines IfThenElseS{cond, s_true, s_false} =
     [unwords ["if", cond, "then"]]
       <> indent (toCodeLines s_true)
@@ -178,7 +185,5 @@ instance (Show a) => ToCodeString (OracleDecl a) where
 instance (Show a) => ToCodeString (Program a) where
   toCodeLines Program{funCtx = FunCtx{oracle_decl, fun_defs}, stmt} =
     [toCodeString oracle_decl, ""]
-      <> fs
+      <> map toCodeString fun_defs
       <> toCodeLines stmt
-    where
-      fs = map toCodeString fun_defs

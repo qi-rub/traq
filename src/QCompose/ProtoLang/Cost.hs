@@ -45,15 +45,13 @@ unitaryQueryCost algs d Program{funCtx, stmt} = cost d stmt
     unsafeLookupFun :: Ident -> FunDef SizeT
     unsafeLookupFun fname = detExtract $ lookupFun fname funCtx
 
-    cost :: Precision -> Stmt SizeT -> Complexity
-    cost _ FunCallS{fun_kind = OracleCall} = 1
+    costE :: Precision -> Expr SizeT -> Complexity
+    costE _ FunCallE{fun_kind = OracleCall} = 1
     -- TODO properly handle the funCtx
-    cost delta FunCallS{fun_kind = FunctionCall fname} =
+    costE delta FunCallE{fun_kind = FunctionCall fname} =
       let FunDef{body} = unsafeLookupFun fname
        in cost delta body
-    cost delta (SeqS [s]) = cost delta s
-    cost delta (SeqS (s : ss)) = cost (delta / 2) s + cost (delta / 2) (SeqS ss)
-    cost delta FunCallS{fun_kind = SubroutineCall c, args = (predicate : args), rets = [b]}
+    costE delta FunCallE{fun_kind = SubroutineCall c, args = (predicate : args)}
       | c == Contains || c == Search =
           2 * qry * cost_pred
       where
@@ -64,17 +62,24 @@ unitaryQueryCost algs d Program{funCtx, stmt} = cost d stmt
         delta_search = delta / 2
         qry = qSearchUnitaryCost algs n delta_search
         cost_pred =
-          cost ((delta - delta_search) / (2 * qry)) $
-            FunCallS
+          costE ((delta - delta_search) / (2 * qry)) $
+            FunCallE
               { fun_kind = FunctionCall predicate
               , args = args
-              , rets = [b]
               }
+    -- zero-cost expressions
+    costE _ VarE{} = 0
+    costE _ ConstE{} = 0
+    costE _ UnOpE{} = 0
+    costE _ BinOpE{} = 0
+    costE _ FunCallE{} = error "invalid syntax"
 
-    -- unknown subroutine
-    cost _ FunCallS{fun_kind = SubroutineCall _} = error "unknown subroutine"
-    -- all other statements
-    cost _ _ = 0
+    cost :: Precision -> Stmt SizeT -> Complexity
+    cost delta ExprS{expr} = costE delta expr
+    cost delta IfThenElseS{s_true, s_false} = max (cost delta s_true) (cost delta s_false)
+    cost delta (SeqS [s]) = cost delta s
+    cost delta (SeqS (s : ss)) = cost (delta / 2) s + cost (delta / 2) (SeqS ss)
+    cost _ _ = error "invalid syntax"
 
 quantumQueryCost ::
   -- | Qry formulas
@@ -88,7 +93,7 @@ quantumQueryCost ::
   -- | state `sigma`
   ProgramState ->
   Complexity
-quantumQueryCost algs a_eps Program{funCtx, stmt} oracleF = cost stmt a_eps
+quantumQueryCost algs a_eps Program{funCtx, stmt} oracleF = cost a_eps stmt
   where
     unsafeLookupFun :: Ident -> FunDef SizeT
     unsafeLookupFun fname = head $ lookupFun fname funCtx
@@ -96,24 +101,16 @@ quantumQueryCost algs a_eps Program{funCtx, stmt} oracleF = cost stmt a_eps
     get :: ProgramState -> Ident -> Value
     get st x = st M.! x
 
-    cost :: Stmt SizeT -> FailProb -> ProgramState -> Complexity
-    cost IfThenElseS{cond, s_true, s_false} eps sigma =
-      let s = if get sigma cond /= 0 then s_true else s_false
-       in cost s eps sigma
-    cost (SeqS [s]) eps sigma = cost s eps sigma
-    cost (SeqS (s : ss)) eps sigma = cost s (eps / 2) sigma + cost (SeqS ss) (eps / 2) sigma'
-      where
-        runner = evalProgram Program{funCtx, stmt = s} oracleF
-        sigma' = detExtract $ execStateT runner sigma
-    cost FunCallS{fun_kind = OracleCall} _ _ = 1
-    cost FunCallS{fun_kind = FunctionCall f, args} eps sigma = cost body eps omega
+    costE :: FailProb -> Expr SizeT -> ProgramState -> Complexity
+    costE _ FunCallE{fun_kind = OracleCall} _ = 1
+    costE eps FunCallE{fun_kind = FunctionCall f, args} sigma = cost eps body omega
       where
         vs = map (get sigma) args
         FunDef _ fn_args _ body = unsafeLookupFun f
         omega = M.fromList $ zip (fst <$> fn_args) vs
 
     -- known cost formulas
-    cost FunCallS{fun_kind = SubroutineCall c, args = (predicate : args)} eps sigma
+    costE eps FunCallE{fun_kind = SubroutineCall c, args = (predicate : args)} sigma
       | c == Contains || c == Search = n_pred_calls * pred_unitary_cost
       where
         vs = map (get sigma) args
@@ -137,7 +134,23 @@ quantumQueryCost algs a_eps Program{funCtx, stmt} oracleF = cost stmt a_eps
 
         pred_unitary_cost = unitaryQueryCost algs delta_per_pred_call Program{funCtx, stmt = body}
 
-    -- unknown subroutines
-    cost FunCallS{fun_kind = SubroutineCall _} _ _ = error "unknown subroutine"
+    -- zero-cost expressions
+    costE _ VarE{} _ = 0
+    costE _ ConstE{} _ = 0
+    costE _ UnOpE{} _ = 0
+    costE _ BinOpE{} _ = 0
+    -- unsupported
+    costE _ FunCallE{} _ = error "invalid syntax"
+
+    cost :: FailProb -> Stmt SizeT -> ProgramState -> Complexity
+    cost eps ExprS{expr} sigma = costE eps expr sigma
+    cost eps IfThenElseS{cond, s_true, s_false} sigma =
+      let s = if get sigma cond /= 0 then s_true else s_false
+       in cost eps s sigma
+    cost eps (SeqS [s]) sigma = cost eps s sigma
+    cost eps (SeqS (s : ss)) sigma = cost (eps / 2) s sigma + cost (eps / 2) (SeqS ss) sigma'
+      where
+        runner = execProgram Program{funCtx, stmt = s} oracleF
+        sigma' = detExtract $ execStateT runner sigma
     -- all other statements
-    cost _ _ _ = 0
+    cost _ _ _ = error "INVALID"

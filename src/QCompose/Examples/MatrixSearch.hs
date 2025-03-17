@@ -13,7 +13,11 @@ matrixExample n m tyBool =
           { oracle_decl = OracleDecl [tyI, tyJ] [tyBool]
           , fun_defs = [check_entry, check_row, check_matrix]
           }
-    , stmt = FunCallS{fun_kind = FunctionCall "HasAllOnesRow", rets = ["result"], args = []}
+    , stmt =
+        ExprS
+          { expr = FunCallE{fun_kind = FunctionCall "HasAllOnesRow", args = []}
+          , rets = ["result"]
+          }
     }
   where
     tyI, tyJ :: VarType a
@@ -27,8 +31,8 @@ matrixExample n m tyBool =
         [(i, tyI), (j, tyJ)]
         [(e', tyBool)]
         ( SeqS
-            [ FunCallS{fun_kind = OracleCall, rets = [e], args = [i, j]}
-            , UnOpS{ret = e', un_op = NotOp, arg = e}
+            [ ExprS{rets = [e], expr = FunCallE{fun_kind = OracleCall, args = [i, j]}}
+            , ExprS{rets = [e'], expr = UnOpE{un_op = NotOp, arg = e}}
             ]
         )
       where
@@ -44,8 +48,8 @@ matrixExample n m tyBool =
         [(i, tyI)]
         [(ok', tyBool)]
         ( SeqS
-            [ FunCallS{fun_kind = SubroutineCall Contains, rets = [ok], args = ["IsEntryZero", i]}
-            , UnOpS{ret = ok', un_op = NotOp, arg = ok}
+            [ ExprS{rets = [ok], expr = FunCallE{fun_kind = SubroutineCall Contains, args = ["IsEntryZero", i]}}
+            , ExprS{rets = [ok'], expr = UnOpE{un_op = NotOp, arg = ok}}
             ]
         )
       where
@@ -59,7 +63,7 @@ matrixExample n m tyBool =
         "HasAllOnesRow"
         []
         [(ok, tyBool)]
-        (FunCallS{fun_kind = SubroutineCall Contains, rets = [ok], args = ["IsRowAllOnes"]})
+        ExprS{rets = [ok], expr = FunCallE{fun_kind = SubroutineCall Contains, args = ["IsRowAllOnes"]}}
       where
         ok = "ok"
 

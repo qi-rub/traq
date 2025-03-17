@@ -71,31 +71,31 @@ newProcName name = do
 
 lower :: (P.TypeCheckable a) => Precision -> P.Stmt a -> CompilerT a (Stmt a)
 -- basic statements (do not depend on precision)
-lower _ P.AssignS{P.arg, P.ret} = do
-  ty <- zoom _typingCtx $ lookupVar arg
-  return $ UnitaryU{args = [arg, ret], unitary = RevEmbed (IdF ty)}
-lower _ P.ConstS{P.ret, P.val, P.ty} = do
-  return $ UnitaryU{args = [ret], unitary = RevEmbed (ConstF ty val)}
-lower _ P.UnOpS{P.un_op = P.NotOp, P.ret, P.arg} = do
-  ty <- zoom _typingCtx $ lookupVar arg
-  return $ UnitaryU{args = [arg, ret], unitary = RevEmbed (NotF ty)}
-lower _ P.BinOpS{P.bin_op, P.ret, P.lhs, P.rhs} = do
-  ty <- zoom _typingCtx $ lookupVar lhs
-  let unitary = case bin_op of
-        P.AddOp -> RevEmbed (AddF ty)
-        P.LEqOp -> RevEmbed (LEqF ty)
-        P.AndOp -> Toffoli
-  return $ UnitaryU{args = [lhs, rhs, ret], unitary}
-lower _ P.FunCallS{P.fun_kind = P.OracleCall, P.args, P.rets} = do
-  return $ UnitaryU{args = args ++ rets, unitary = Oracle}
--- function/subroutine calls
-lower delta P.FunCallS{P.fun_kind = P.FunctionCall fname, P.args, P.rets} = do
-  fun_def <- use _protoFunCtx >>= lift . P.lookupFun fname
-  ProcDef{proc_name, proc_params} <- lowerProc delta fun_def
-  let proc_args = undefined
-  return $ CallU{proc_id = proc_name, args = proc_args}
-lower _ P.FunCallS{P.fun_kind = P.SubroutineCall P.Contains, P.args, P.rets} = do
-  error "TODO"
+-- lower _ P.AssignS{P.arg, P.ret} = do
+--   ty <- zoom _typingCtx $ lookupVar arg
+--   return $ UnitaryU{args = [arg, ret], unitary = RevEmbed (IdF ty)}
+-- lower _ P.ConstS{P.ret, P.val, P.ty} = do
+--   return $ UnitaryU{args = [ret], unitary = RevEmbed (ConstF ty val)}
+-- lower _ P.UnOpS{P.un_op = P.NotOp, P.ret, P.arg} = do
+--   ty <- zoom _typingCtx $ lookupVar arg
+--   return $ UnitaryU{args = [arg, ret], unitary = RevEmbed (NotF ty)}
+-- lower _ P.BinOpS{P.bin_op, P.ret, P.lhs, P.rhs} = do
+--   ty <- zoom _typingCtx $ lookupVar lhs
+--   let unitary = case bin_op of
+--         P.AddOp -> RevEmbed (AddF ty)
+--         P.LEqOp -> RevEmbed (LEqF ty)
+--         P.AndOp -> Toffoli
+--   return $ UnitaryU{args = [lhs, rhs, ret], unitary}
+-- lower _ P.FunCallS{P.fun_kind = P.OracleCall, P.args, P.rets} = do
+--   return $ UnitaryU{args = args ++ rets, unitary = Oracle}
+-- -- function/subroutine calls
+-- lower delta P.FunCallS{P.fun_kind = P.FunctionCall fname, P.args, P.rets} = do
+--   fun_def <- use _protoFunCtx >>= lift . P.lookupFun fname
+--   ProcDef{proc_name, proc_params} <- lowerProc delta fun_def
+--   let proc_args = undefined
+--   return $ CallU{proc_id = proc_name, args = proc_args}
+-- lower _ P.FunCallS{P.fun_kind = P.SubroutineCall P.Contains, P.args, P.rets} = do
+--   error "TODO"
 -- composite statements
 lower _ (P.SeqS []) = return SkipU
 lower delta (P.SeqS [s]) = lower delta s

@@ -33,7 +33,7 @@ spec = do
     it "all solutions" $ do
       ex <- load'
       let oracleF = const [1]
-      let out = execStateT (P.evalProgram ex oracleF) M.empty
+      let out = execStateT (P.execProgram ex oracleF) M.empty
 
       out
         `shouldBe` choice
@@ -44,7 +44,7 @@ spec = do
     it "no solutions" $ do
       ex <- load'
       let oracleF = const [0]
-      let out = execStateT (P.evalProgram ex oracleF) M.empty
+      let out = execStateT (P.execProgram ex oracleF) M.empty
 
       out
         `shouldBe` choice
@@ -56,7 +56,7 @@ spec = do
       ex <- load'
       let sols = [1, 4, 6] :: [Value]
       let oracleF = \[i] -> [boolToValue $ i `elem` sols]
-      let out = execStateT (P.evalProgram ex oracleF) M.empty
+      let out = execStateT (P.execProgram ex oracleF) M.empty
 
       out
         `shouldBe` choice

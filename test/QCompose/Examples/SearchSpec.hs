@@ -26,7 +26,7 @@ spec = do
 
     let oracleF = const [0]
     it "evaluates" $ do
-      let res = execStateT (P.evalProgram ex oracleF) M.empty
+      let res = execStateT (P.execProgram ex oracleF) M.empty
       res `shouldBe` pure (M.singleton "result" 0)
 
     let P.QSearchFormulas ecF _ ucF = cadeEtAlFormulas
@@ -56,7 +56,7 @@ spec = do
     let oracleF = \[i] -> [if i `elem` planted_sols then 1 else 0]
 
     it "evaluates" $ do
-      let res = execStateT (P.evalProgram ex oracleF) M.empty
+      let res = execStateT (P.execProgram ex oracleF) M.empty
       res
         `shouldBe` choice
           [ pure $ M.fromList [("result", 1), ("solution", i)]
