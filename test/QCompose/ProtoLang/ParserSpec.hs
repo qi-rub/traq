@@ -61,5 +61,4 @@ spec = do
       let e' = e <&> _stmt %~ rewriteOf _ast flattenSeq
       e'
         `shouldBe` Right
-          ( matrixExample (SymExpr "N") (SymExpr "M") (Fin (Value 2))
-          )
+          (matrixExample (SymExpr "N") (SymExpr "M") (Fin (Value 2)))

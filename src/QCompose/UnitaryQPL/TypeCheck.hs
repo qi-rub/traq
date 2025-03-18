@@ -34,7 +34,8 @@ verifyArgs args tys = do
     view $ typingCtx . at x . singular _Just
 
   when (arg_tys /= tys) $
-    throwError $ "mismatched args: " <> show (arg_tys, tys)
+    throwError $
+      "mismatched args: " <> show (arg_tys, tys)
 
 unitarySignature :: (TypeCheckable a) => Unitary a -> TypeChecker a [VarType a]
 unitarySignature Toffoli = return [tbool, tbool, tbool]

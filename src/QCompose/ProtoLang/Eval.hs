@@ -78,17 +78,17 @@ evalExpr funCtx oracleF FunCallE{fun_kind = FunctionCall fun, args} = do
 -- `any` / `search`
 evalExpr funCtx oracleF FunCallE{fun_kind = SubroutineCall sub, args = (predicate : args)}
   | sub == Contains = do
-    vals <- getSearchRange
-    has_sol <- anyM evalPredicate vals
+      vals <- getSearchRange
+      has_sol <- anyM evalPredicate vals
 
-    return [boolToValue has_sol]
+      return [boolToValue has_sol]
   | sub == Search = do
-    vals <- getSearchRange
-    sols <- filterM evalPredicate vals
+      vals <- getSearchRange
+      sols <- filterM evalPredicate vals
 
-    let has_sol = not $ null sols
-    let out_vals = if has_sol then sols else vals
-    lift $ choice [pure [boolToValue has_sol, v] | v <- out_vals]
+      let has_sol = not $ null sols
+      let out_vals = if has_sol then sols else vals
+      lift $ choice [pure [boolToValue has_sol, v] | v <- out_vals]
  where
   getSearchRange = do
     FunDef{param_binds = pred_param_binds} <- lift $ funCtx & lookupFun predicate

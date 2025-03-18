@@ -53,7 +53,7 @@ unitaryQueryCost algs d Program{funCtx, stmt} = cost d stmt
      in cost delta body
   costE delta FunCallE{fun_kind = SubroutineCall c, args = (predicate : args)}
     | c == Contains || c == Search =
-      2 * qry * cost_pred
+        2 * qry * cost_pred
    where
     FunDef{param_binds} = unsafeLookupFun predicate
     Fin n = param_binds & last & snd

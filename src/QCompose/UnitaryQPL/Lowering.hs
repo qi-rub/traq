@@ -86,12 +86,12 @@ addProc procDef = tell [procDef]
 -- | A procDef generated from a funDef, along with the partitioned register spaces.
 data LoweredProc a = LoweredProc
   { lowered_def :: ProcDef a
-  , -- | the inputs to the original fun
-    inp_tys :: [P.VarType a]
-  , -- | the outputs of the original fun
-    out_tys :: [P.VarType a]
-  , -- | all other registers
-    aux_tys :: [P.VarType a]
+  , inp_tys :: [P.VarType a]
+  -- ^ the inputs to the original fun
+  , out_tys :: [P.VarType a]
+  -- ^ the outputs of the original fun
+  , aux_tys :: [P.VarType a]
+  -- ^ all other registers
   }
 
 -- | Compile a single expression statement

@@ -7,7 +7,7 @@ flattenSeq :: Stmt a -> Maybe (Stmt a)
 flattenSeq (SeqS [s]) = Just s
 flattenSeq (SeqS ss)
   | any isSeq ss =
-    Just . fromList . concatMap toList $ ss
+      Just . fromList . concatMap toList $ ss
  where
   isSeq :: Stmt a -> Bool
   isSeq (SeqS _) = True

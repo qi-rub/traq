@@ -4,7 +4,7 @@ import Data.Either
 import Data.Maybe
 import Test.Hspec
 
-assertJust :: Show a => Maybe a -> IO ()
+assertJust :: (Show a) => Maybe a -> IO ()
 assertJust v = v `shouldSatisfy` isJust
 
 expectJust :: (Show a) => Maybe a -> IO a
