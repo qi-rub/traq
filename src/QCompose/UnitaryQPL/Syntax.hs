@@ -59,11 +59,11 @@ instance (Show a) => ToCodeString (Unitary a) where
   toCodeString u = show u
 
 instance (Show a) => ToCodeString (Stmt a) where
-  toCodeLines SkipS = ["skip"]
-  toCodeLines UnitaryS{args, unitary} = [qc <> " *= " <> toCodeString unitary]
+  toCodeLines SkipS = ["skip;"]
+  toCodeLines UnitaryS{args, unitary} = [qc <> " *= " <> toCodeString unitary <> ";"]
    where
     qc = commaList args
-  toCodeLines CallS{proc_id, dagger, args} = ["call " <> proc_id <> dg <> "(" <> qc <> ")"]
+  toCodeLines CallS{proc_id, dagger, args} = ["call " <> proc_id <> dg <> "(" <> qc <> ");"]
    where
     qc = commaList args
     dg = if dagger then "†" else ""
@@ -73,8 +73,9 @@ instance (Show a) => ToCodeString (ProcDef a) where
   toCodeLines ProcDef{proc_name, proc_params, proc_body} =
     ["proc " <> proc_name <> "(" <> plist <> ") do"]
       <> indent (toCodeLines proc_body)
+      <> ["end"]
    where
     plist = commaList $ map showTypedIdent proc_params
 
 instance (Show a) => ToCodeString (Program a) where
-  toCodeLines Program{oracle_decl, proc_defs, stmt} = toCodeString oracle_decl : map toCodeString proc_defs <> [toCodeString stmt]
+  toCodeLines Program{oracle_decl, proc_defs, stmt} = toCodeString oracle_decl : "" : map toCodeString proc_defs <> [toCodeString stmt]

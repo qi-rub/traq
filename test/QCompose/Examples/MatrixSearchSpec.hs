@@ -1,7 +1,6 @@
 module QCompose.Examples.MatrixSearchSpec (spec) where
 
 import Control.Monad.State (execStateT)
-import Data.Either (isRight)
 import qualified Data.Map as M
 
 import qualified QCompose.ProtoLang as P
@@ -12,6 +11,7 @@ import QCompose.Examples.MatrixSearch
 import QCompose.Subroutines.QSearch
 
 import Test.Hspec
+import TestHelpers
 
 spec :: Spec
 spec = do
@@ -50,6 +50,10 @@ spec = do
     it "generate code" $ do
       toCodeString ex `shouldSatisfy` (not . null)
 
-    it "lowers to UQPL" $ do
-      let ex_uqpl = UQPL.lowerProgram zalkaQSearch M.empty 0.001 ex
-      ex_uqpl `shouldSatisfy` isRight
+    describe "lower to UQPL" $ do
+      it "lowers" $ do
+        assertRight $ UQPL.lowerProgram zalkaQSearch M.empty 0.001 ex
+
+      it "type checks" $ do
+        (ex_uqpl, gamma) <- expectRight $ UQPL.lowerProgram zalkaQSearch M.empty 0.001 ex
+        assertRight $ UQPL.typeCheckProgram gamma ex_uqpl

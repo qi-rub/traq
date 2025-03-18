@@ -1,3 +1,4 @@
+{-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE Rank2Types #-}
 
 module QCompose.Utils.MonadHelpers (
@@ -7,8 +8,10 @@ module QCompose.Utils.MonadHelpers (
   embedStateT,
   embedReaderT,
   embedWriterT,
+  throwFrom,
 ) where
 
+import Control.Monad.Except (MonadError, catchError, throwError)
 import Control.Monad.RWS (RWST (..))
 import Control.Monad.Reader (ReaderT (..), runReaderT)
 import Control.Monad.State (MonadState, StateT, get, put, runStateT)
@@ -53,3 +56,10 @@ embedWriterT :: (Monad m, Monoid w) => WriterT w m a -> RWST r w s m a
 embedWriterT m = RWST $ \_ s -> do
   (a, w) <- runWriterT m
   return (a, s, w)
+
+throwFrom :: (MonadError String m) => m a -> String -> m a
+throwFrom action msg =
+  action `catchError` \e ->
+    throwError $
+      unlines
+        [msg, "caught while handling exception:", e]

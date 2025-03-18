@@ -128,14 +128,17 @@ lowerExpr delta P.FunCallE{P.fun_kind = P.FunctionCall f, P.args} rets = do
   LoweredProc{lowered_def, inp_tys, out_tys, aux_tys} <- lowerFunDef delta fun
   addProc lowered_def
 
-  guard $ length inp_tys == length args
-  guard $ length out_tys == length rets
+  when (length inp_tys /= length args) $
+    throwError "mismatched number of args"
+  when (length out_tys /= length rets) $
+    throwError "mismatched number of rets"
 
   aux_args <- forM aux_tys allocAncilla
   return
     CallS
       { proc_id = proc_name lowered_def
       , args = args ++ rets ++ aux_args
+      , dagger = False
       }
 
 -- `any`
@@ -170,7 +173,7 @@ lowerExpr delta P.FunCallE{P.fun_kind = SubroutineCall P.Contains, P.args = (pre
 
   -- emit the qsearch procedure
   -- TODO maybe this can be somehow "parametrized" so we don't have to generate each time.
-  qsearch_proc_name <- newIdent "_qsearch_"
+  qsearch_proc_name <- newIdent "QSearch"
   qsearch_ancilla_tys <- view (qsearchConfig . _ancillaTypes) <&> (\f -> f n delta_search)
   let qsearch_param_tys =
         init pred_inp_tys
@@ -179,12 +182,15 @@ lowerExpr delta P.FunCallE{P.fun_kind = SubroutineCall P.Contains, P.args = (pre
           ++ pred_aux_tys
           ++ qsearch_ancilla_tys
 
-  qsearch_param_names <- replicateM (length qsearch_param_tys) $ newIdent "_qsearch_arg_"
+  qsearch_param_names <- replicateM (length qsearch_param_tys) $ newIdent "_qs"
   addProc
     ProcDef
       { proc_name = qsearch_proc_name
       , proc_params = zip qsearch_param_names qsearch_param_tys
-      , proc_body = UnitaryS qsearch_param_names $ BlackBox $ "QSearch[" <> proc_name pred_proc <> "]"
+      , proc_body =
+          UnitaryS qsearch_param_names $
+            BlackBox $
+              "QSearch[" <> show delta_search <> "][" <> proc_name pred_proc <> "]"
       }
 
   qsearch_ancilla <- mapM allocAncilla qsearch_ancilla_tys
@@ -194,6 +200,7 @@ lowerExpr delta P.FunCallE{P.fun_kind = SubroutineCall P.Contains, P.args = (pre
     CallS
       { proc_id = qsearch_proc_name
       , args = args ++ rets ++ [search_elem] ++ pred_ancilla ++ qsearch_ancilla
+      , dagger = False
       }
 
 -- error out in all other cases
@@ -249,10 +256,10 @@ lowerFunDef delta P.FunDef{P.fun_name, P.param_binds, P.ret_binds, P.body} = do
     let (ret_names, copiesS) = unzip rets & over _2 catMaybes
 
     let proc_body' = SeqS [proc_body, SeqS copiesS]
-    all_binds <- use typingCtx <&> M.toList
-    aux_tys <- use typingCtx <&> M.toList <&> filter (not . (`elem` param_names ++ ret_names) . fst) <&> map snd
+    aux_binds <- use typingCtx <&> M.toList <&> filter (not . (`elem` param_names ++ ret_names) . fst)
+    let all_binds = param_binds ++ ret_binds ++ aux_binds
 
-    return (proc_body', all_binds, aux_tys)
+    return (proc_body', all_binds, map snd aux_binds)
 
   return
     LoweredProc
@@ -268,15 +275,19 @@ lowerProgram ::
   P.TypingCtx SizeT ->
   Precision ->
   P.Program SizeT ->
-  Either String (Program SizeT)
-lowerProgram qsearch_config gamma_in delta P.Program{P.funCtx, P.stmt} = do
-  (stmtU, _, outputU) <- runRWST compiler config ctx
+  Either String (Program SizeT, P.TypingCtx SizeT)
+lowerProgram qsearch_config gamma_in delta prog@P.Program{P.funCtx, P.stmt} = do
+  unless (P.checkVarsUnique prog) $
+    throwError "program does not have unique variables!"
+  (stmtU, ctx', outputU) <- runRWST compiler config ctx
   return
-    Program
-      { oracle_decl = funCtx & P.oracle_decl
-      , proc_defs = outputU ^. loweredProcs
-      , stmt = stmtU
-      }
+    ( Program
+        { oracle_decl = funCtx & P.oracle_decl
+        , proc_defs = outputU ^. loweredProcs
+        , stmt = stmtU
+        }
+    , ctx' ^. typingCtx
+    )
  where
   config = (funCtx, qsearch_config)
   ctx = emptyLoweringCtx & typingCtx .~ gamma_in
