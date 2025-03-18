@@ -9,9 +9,9 @@ import Test.Hspec
 
 unsafeParseProgram :: String -> Program SizeT
 unsafeParseProgram = fmap subs . either (error . show) id . parseProgram
-  where
-    subs (Value v) = v
-    subs (SymExpr _) = error "should not be symbolic"
+ where
+  subs (Value v) = v
+  subs (SymExpr _) = error "should not be symbolic"
 
 spec :: Spec
 spec = do

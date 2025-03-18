@@ -3,7 +3,8 @@
 module QCompose.ProtoLang.TypeCheck (
   TypingCtx,
   TypeCheckable (..),
-  checkSubroutine',
+  checkSubroutine,
+  checkExpr,
   checkStmt,
   typeCheckFun,
   typeCheckProg,
@@ -45,7 +46,7 @@ lookupFunE fname funCtx =
   lookupFun fname funCtx `catchError` \_ -> throwError ("cannot find function `" <> fname <> "`")
 
 -- | Typecheck a subroutine call
-checkSubroutine' ::
+checkSubroutine ::
   (TypeCheckable a) =>
   FunCtx a ->
   -- | subroutine tag
@@ -54,7 +55,7 @@ checkSubroutine' ::
   [Ident] ->
   TypeChecker a [VarType a]
 -- contains
-checkSubroutine' funCtx Contains all_args = do
+checkSubroutine funCtx Contains all_args = do
   let sub_name = "`" <> toCodeString Contains <> "`"
 
   (predicate, args) <- uncons all_args & maybe (throwError $ sub_name <> " needs 1 argument (predicate)") pure
@@ -71,7 +72,7 @@ checkSubroutine' funCtx Contains all_args = do
   return [tbool]
 
 -- search
-checkSubroutine' funCtx Search all_args = do
+checkSubroutine funCtx Search all_args = do
   let sub_name = toCodeString Search
 
   (predicate, args) <- uncons all_args & maybe (throwError $ sub_name <> " needs 1 argument (predicate)") pure
@@ -88,7 +89,7 @@ checkSubroutine' funCtx Search all_args = do
   return [tbool, snd $ last pred_params]
 
 -- unsupported
--- checkSubroutine' _ sub _ _ = throwError $ "unsupported subroutine " <> show sub
+-- checkSubroutine _ sub _ _ = throwError $ "unsupported subroutine " <> show sub
 
 -- | Typecheck an expression and return the output types
 checkExpr ::
@@ -146,7 +147,7 @@ checkExpr funCtx FunCallE{fun_kind = FunctionCall fun, args} = do
 
 -- `subroutine`(...)
 checkExpr funCtx FunCallE{fun_kind = SubroutineCall sub, args} = do
-  checkSubroutine' funCtx sub args
+  checkSubroutine funCtx sub args
 
 {- | Typecheck a statement, given the current context and function definitions.
 | If successful, the typing context is updated.
@@ -157,7 +158,17 @@ checkStmt ::
   FunCtx a ->
   Stmt a ->
   TypeChecker a ()
+-- single statement
+checkStmt funCtx ExprS{rets, expr} = do
+  out_tys <- checkExpr funCtx expr
+  when (length out_tys /= length rets) $ do
+    throwError $
+      ("Expected " <> show (length out_tys) <> " outputs, but given " <> show (length out_tys) <> " vars to bind.")
+        <> (" (return variables: " <> show rets <> ", output types: " <> show out_tys <> ")")
+  zipWithM_ putValue rets out_tys
+-- sequence
 checkStmt funCtx (SeqS ss) = mapM_ (checkStmt funCtx) ss
+-- ifte
 checkStmt funCtx IfThenElseS{cond, s_true, s_false} = do
   cond_ty <- lookupVar cond
   unless (cond_ty == tbool) $
@@ -179,13 +190,6 @@ checkStmt funCtx IfThenElseS{cond, s_true, s_false} = do
   unless (outs_t == outs_f) $
     throwError ("if: branches must declare same variables, got " <> show [outs_t, outs_f])
   put sigma_t
-checkStmt funCtx ExprS{rets, expr} = do
-  out_tys <- checkExpr funCtx expr
-  when (length out_tys /= length rets) $ do
-    throwError $
-      ("Expected " <> show (length out_tys) <> " outputs, but given " <> show (length out_tys) <> " vars to bind.")
-        <> (" (return variables: " <> show rets <> ", output types: " <> show out_tys <> ")")
-  zipWithM_ putValue rets out_tys
 
 -- | Type check a single function.
 typeCheckFun :: (TypeCheckable a) => FunCtx a -> FunDef a -> Either String (TypingCtx a)

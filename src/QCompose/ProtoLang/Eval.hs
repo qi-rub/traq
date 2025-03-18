@@ -9,7 +9,7 @@ module QCompose.ProtoLang.Eval (
 
 import Control.Monad (filterM, zipWithM_)
 import Control.Monad.Extra (anyM)
-import Control.Monad.Reader (ReaderT, ask)
+import Control.Monad.Reader (ReaderT, local)
 import Control.Monad.State (StateT, evalStateT)
 import Control.Monad.Trans (lift)
 import qualified Data.Map as M
@@ -78,39 +78,33 @@ evalExpr funCtx oracleF FunCallE{fun_kind = FunctionCall fun, args} = do
 -- `any` / `search`
 evalExpr funCtx oracleF FunCallE{fun_kind = SubroutineCall sub, args = (predicate : args)}
   | sub == Contains = do
-      vals <- getSearchRange
-      sigma <- ask
-      has_sol <- lift $ anyM (evalPredicate sigma) vals
+    vals <- getSearchRange
+    has_sol <- anyM evalPredicate vals
 
-      return [boolToValue has_sol]
+    return [boolToValue has_sol]
   | sub == Search = do
-      vals <- getSearchRange
-      sigma <- ask
-      sols <- lift $ filterM (evalPredicate sigma) vals
+    vals <- getSearchRange
+    sols <- filterM evalPredicate vals
 
-      let has_sol = not $ null sols
-      let out_vals = if has_sol then sols else vals
-      lift $ choice [pure [boolToValue has_sol, v] | v <- out_vals]
-  where
-    getSearchRange = do
-      FunDef{param_binds = pred_param_binds} <- lift $ funCtx & lookupFun predicate
-      let (_, s_arg_ty) = last pred_param_binds
-      return $ range s_arg_ty
+    let has_sol = not $ null sols
+    let out_vals = if has_sol then sols else vals
+    lift $ choice [pure [boolToValue has_sol, v] | v <- out_vals]
+ where
+  getSearchRange = do
+    FunDef{param_binds = pred_param_binds} <- lift $ funCtx & lookupFun predicate
+    let (_, s_arg_ty) = last pred_param_binds
+    return $ range s_arg_ty
 
-    evalPredicate :: ProgramState -> Value -> Tree Bool
-    evalPredicate sigma val = evalStateT (runPredicate "_search_arg" val) sigma
+  evalPredicate :: Value -> Evaluator Bool
+  evalPredicate val = (/= 0) <$> runPredicate "_search_arg" val
 
-    runPredicate :: Ident -> Value -> Executor Bool
-    runPredicate s_arg val = do
-      putValue s_arg val
-      res <-
-        withFrozenState $
-          evalExpr
-            funCtx
-            oracleF
-            FunCallE{fun_kind = FunctionCall predicate, args = args ++ [s_arg]}
-      let val_ok = head res
-      return $ val_ok /= 0
+  runPredicate :: Ident -> Value -> Evaluator Value
+  runPredicate s_arg val = local (at s_arg ?~ val) $ do
+    head
+      <$> evalExpr
+        funCtx
+        oracleF
+        FunCallE{fun_kind = FunctionCall predicate, args = args ++ [s_arg]}
 -- unsupported
 evalExpr _ _ _ = error "unsupported"
 
@@ -129,10 +123,10 @@ evalFun funCtx oracleF vals_in FunDef{param_binds, ret_binds, body} =
   (`evalStateT` params) $ do
     execStmt funCtx oracleF body
     mapM lookupVar ret_names
-  where
-    param_names = map fst param_binds
-    params = M.fromList $ zip param_names vals_in
-    ret_names = map fst ret_binds
+ where
+  param_names = map fst param_binds
+  params = M.fromList $ zip param_names vals_in
+  ret_names = map fst ret_binds
 
 execProgram :: Program SizeT -> OracleInterp -> Executor ()
 execProgram Program{funCtx, stmt} oracleF = execStmt funCtx oracleF stmt

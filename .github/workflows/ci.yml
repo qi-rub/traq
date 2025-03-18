@@ -24,6 +24,7 @@ jobs:
           pattern: |
             src/**/*.hs
             test/**/*.hs
+            tools/**/*.hs
 
   hpack:
     name: Check hpack generated config

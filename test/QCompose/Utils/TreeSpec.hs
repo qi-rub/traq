@@ -13,24 +13,24 @@ import Test.QuickCheck
 
 instance (Arbitrary a) => Arbitrary (Tree a) where
   arbitrary = sized $ \n -> chooseInt (0, n) >>= go
-    where
-      go 0 = return Fail
-      go 1 = Leaf <$> arbitrary
-      go n = do
-        ss <- partSubtreeSizes (n - 1)
-        ts <- mapM go ss
-        return $ case ts of
-          [] -> Fail
-          [t] -> t
-          (t : t' : ts') -> Choice t t' ts'
+   where
+    go 0 = return Fail
+    go 1 = Leaf <$> arbitrary
+    go n = do
+      ss <- partSubtreeSizes (n - 1)
+      ts <- mapM go ss
+      return $ case ts of
+        [] -> Fail
+        [t] -> t
+        (t : t' : ts') -> Choice t t' ts'
 
-      partSubtreeSizes :: Int -> Gen [Int]
-      partSubtreeSizes 1 = return [1]
-      partSubtreeSizes n | n > 1 = do
-        first <- chooseInt (1, n)
-        rest <- partSubtreeSizes (n - first)
-        return $ first : rest
-      partSubtreeSizes _ = return []
+    partSubtreeSizes :: Int -> Gen [Int]
+    partSubtreeSizes 1 = return [1]
+    partSubtreeSizes n | n > 1 = do
+      first <- chooseInt (1, n)
+      rest <- partSubtreeSizes (n - first)
+      return $ first : rest
+    partSubtreeSizes _ = return []
 
 _fmap :: (Int -> Int) -> Tree Int -> Tree Int
 _fmap = fmap

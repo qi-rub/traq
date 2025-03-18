@@ -169,9 +169,9 @@ instance (Show a) => ToCodeString (FunDef a) where
             <> [unwords ["return", commaList (showTypedVar <$> ret_binds)]]
         )
       <> ["end"]
-    where
-      -- showTypedVar :: (Ident, VarType a) -> String
-      showTypedVar (x, ty) = unwords [x, ":", toCodeString ty]
+   where
+    -- showTypedVar :: (Ident, VarType a) -> String
+    showTypedVar (x, ty) = unwords [x, ":", toCodeString ty]
 
 instance (Show a) => ToCodeString (OracleDecl a) where
   toCodeString OracleDecl{param_types, ret_types} =

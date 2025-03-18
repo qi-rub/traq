@@ -28,13 +28,13 @@ choice (a : a' : as) = Choice a a' as
 -- flatten all trivial branches
 flattenTrivial :: Tree a -> Tree a
 flattenTrivial (Choice a a' as) = go (flattenTrivial a) (flattenTrivial a') (map flattenTrivial as)
-  where
-    isFail :: Tree a -> Bool
-    isFail Fail = True
-    isFail _ = False
+ where
+  isFail :: Tree a -> Bool
+  isFail Fail = True
+  isFail _ = False
 
-    go Fail Fail bs | all isFail bs = Fail
-    go b b' bs = Choice b b' bs
+  go Fail Fail bs | all isFail bs = Fail
+  go b b' bs = Choice b b' bs
 flattenTrivial a = a
 
 {- | Probability that the computation terminates.

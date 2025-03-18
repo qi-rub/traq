@@ -16,15 +16,15 @@ data Unitary a
   = Toffoli
   | CNOT
   | Oracle
-  | RevEmbed (ReversibleFun a)
+  | RevEmbedU (ReversibleFun a)
   deriving (Eq, Show, Read)
 
 data Stmt a
-  = SkipU
-  | UnitaryU {args :: [Ident], unitary :: Unitary a} -- q... *= U
-  | CallU {proc_id :: Ident, args :: [Ident]} -- call F(q...)
-  | CallDaggerU {proc_id :: Ident, args :: [Ident]} -- call F(q...)
-  | SeqU [Stmt a] -- W1; W2; ...
+  = SkipS
+  | UnitaryS {args :: [Ident], unitary :: Unitary a} -- q... *= U
+  | CallS {proc_id :: Ident, args :: [Ident]} -- call F(q...)
+  | CallDaggerS {proc_id :: Ident, args :: [Ident]} -- call F(q...)
+  | SeqS [Stmt a] -- W1; W2; ...
   deriving (Eq, Show, Read)
 
 data ProcDef a = ProcDef
@@ -55,28 +55,28 @@ instance (Show a) => ToCodeString (ReversibleFun a) where
   toCodeString LEqF{ty} = showTypedIdent ("x", ty) <> ", " <> showTypedIdent ("y", ty) <> " => x≤y"
 
 instance (Show a) => ToCodeString (Unitary a) where
-  toCodeString (RevEmbed f) = "Utry[" <> toCodeString f <> "]"
+  toCodeString (RevEmbedU f) = "RevEmbed[" <> toCodeString f <> "]"
   toCodeString u = show u
 
 instance (Show a) => ToCodeString (Stmt a) where
-  toCodeLines SkipU = ["skip"]
-  toCodeLines UnitaryU{args, unitary} = [qc <> " := " <> toCodeString unitary <> "(" <> qc <> ")"]
-    where
-      qc = commaList args
-  toCodeLines CallU{proc_id, args} = ["call " <> proc_id <> "(" <> qc <> ")"]
-    where
-      qc = commaList args
-  toCodeLines CallDaggerU{proc_id, args} = ["call " <> proc_id <> "†" <> "(" <> qc <> ")"]
-    where
-      qc = commaList args
-  toCodeLines (SeqU ps) = concatMap toCodeLines ps
+  toCodeLines SkipS = ["skip"]
+  toCodeLines UnitaryS{args, unitary} = [qc <> " *= " <> toCodeString unitary]
+   where
+    qc = commaList args
+  toCodeLines CallS{proc_id, args} = ["call " <> proc_id <> "(" <> qc <> ")"]
+   where
+    qc = commaList args
+  toCodeLines CallDaggerS{proc_id, args} = ["call " <> proc_id <> "†" <> "(" <> qc <> ")"]
+   where
+    qc = commaList args
+  toCodeLines (SeqS ps) = concatMap toCodeLines ps
 
 instance (Show a) => ToCodeString (ProcDef a) where
   toCodeLines ProcDef{proc_name, proc_params, proc_body} =
     ["proc " <> proc_name <> "(" <> plist <> ") do"]
       <> indent (toCodeLines proc_body)
-    where
-      plist = commaList (map showTypedIdent proc_params)
+   where
+    plist = commaList $ map showTypedIdent proc_params
 
 instance (Show a) => ToCodeString (Program a) where
   toCodeLines Program{oracle_decl, proc_defs, stmt} = toCodeString oracle_decl : map toCodeString proc_defs <> [toCodeString stmt]

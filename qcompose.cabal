@@ -94,7 +94,9 @@ test-suite spec
           QCompose.ProtoLang.RewritesSpec
           QCompose.ProtoLang.TypeCheckSpec
           QCompose.ProtoLang.VarsSpec
+          QCompose.UnitaryQPL.LoweringSpec
           QCompose.Utils.TreeSpec
+          TestHelpers
     hs-source-dirs:
           test
     default-extensions:

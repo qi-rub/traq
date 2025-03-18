@@ -42,7 +42,7 @@ spec = do
       toCodeString ex `shouldSatisfy` (not . null)
 
     xit "lowers to UQPL" $ do
-      let ex_uqpl = UQPL.lowerProgram M.empty 0.001 ex
+      let ex_uqpl = UQPL.lowerProgram zalkaQSearch M.empty 0.001 ex
       ex_uqpl `shouldSatisfy` isRight
 
   describe "arraySearch (returning solution)" $ do

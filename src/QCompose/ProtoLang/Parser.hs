@@ -54,9 +54,9 @@ symbSize TokenParser{..} = (Value . fromIntegral <$> integer) <|> (SymExpr <$> i
 
 varType :: TokenParser () -> Parser (VarType SymbSize)
 varType tp@TokenParser{..} = boolType <|> finType
-  where
-    boolType = reserved "Bool" $> Fin (Value 2)
-    finType = reserved "Fin" >> Fin <$> angles (symbSize tp)
+ where
+  boolType = reserved "Bool" $> Fin (Value 2)
+  finType = reserved "Fin" >> Fin <$> angles (symbSize tp)
 
 typedTerm :: TokenParser () -> Parser a -> Parser (a, VarType SymbSize)
 typedTerm tp@TokenParser{..} pa = (,) <$> pa <*> (reservedOp ":" *> varType tp)
@@ -70,72 +70,72 @@ exprP tp@TokenParser{..} =
     , constE
     , varE
     ]
-  where
-    varE :: Parser (Expr SymbSize)
-    varE = VarE <$> identifier
+ where
+  varE :: Parser (Expr SymbSize)
+  varE = VarE <$> identifier
 
-    constE :: Parser (Expr SymbSize)
-    constE = do
-      reserved "const"
-      (val, ty) <- typedTerm tp integer
-      return ConstE{val, ty}
+  constE :: Parser (Expr SymbSize)
+  constE = do
+    reserved "const"
+    (val, ty) <- typedTerm tp integer
+    return ConstE{val, ty}
 
-    funCallKind :: Parser FunctionCallKind
-    funCallKind = oracleCall <|> subroutineCall <|> functionCall
-      where
-        oracleCall = reserved "Oracle" $> OracleCall
-        subroutineCall =
-          choice
-            [ reserved sname $> SubroutineCall sub
-            | (sub, sname) <- subroutines
-            ]
-        functionCall = FunctionCall <$> identifier
+  funCallKind :: Parser FunctionCallKind
+  funCallKind = oracleCall <|> subroutineCall <|> functionCall
+   where
+    oracleCall = reserved "Oracle" $> OracleCall
+    subroutineCall =
+      choice
+        [ reserved sname $> SubroutineCall sub
+        | (sub, sname) <- subroutines
+        ]
+    functionCall = FunctionCall <$> identifier
 
-    funCallE :: Parser (Expr SymbSize)
-    funCallE = do
-      fun_kind <- funCallKind
-      args <- parens $ commaSep identifier
-      return FunCallE{fun_kind, args}
+  funCallE :: Parser (Expr SymbSize)
+  funCallE = do
+    fun_kind <- funCallKind
+    args <- parens $ commaSep identifier
+    return FunCallE{fun_kind, args}
 
-    unOp :: Parser UnOp
-    unOp =
-      operator >>= \case
-        "!" -> return NotOp
-        _ -> fail "invalid unary operator"
+  unOp :: Parser UnOp
+  unOp =
+    operator >>= \case
+      "!" -> return NotOp
+      _ -> fail "invalid unary operator"
 
-    unOpE :: Parser (Expr SymbSize)
-    unOpE = do
-      un_op <- unOp
-      arg <- identifier
-      return UnOpE{un_op, arg}
+  unOpE :: Parser (Expr SymbSize)
+  unOpE = do
+    un_op <- unOp
+    arg <- identifier
+    return UnOpE{un_op, arg}
 
-    binOp :: Parser BinOp
-    binOp =
-      operator >>= \case
-        "+" -> return AddOp
-        "<=" -> return LEqOp
-        "&&" -> return AndOp
-        _ -> fail "invalid binary operator"
+  binOp :: Parser BinOp
+  binOp =
+    operator >>= \case
+      "+" -> return AddOp
+      "<=" -> return LEqOp
+      "&&" -> return AndOp
+      _ -> fail "invalid binary operator"
 
-    binOpE :: Parser (Expr SymbSize)
-    binOpE = do
-      lhs <- identifier
-      bin_op <- binOp
-      rhs <- identifier
-      return BinOpE{bin_op, lhs, rhs}
+  binOpE :: Parser (Expr SymbSize)
+  binOpE = do
+    lhs <- identifier
+    bin_op <- binOp
+    rhs <- identifier
+    return BinOpE{bin_op, lhs, rhs}
 
 stmtP :: TokenParser () -> Parser (Stmt SymbSize)
 stmtP tp@TokenParser{..} = SeqS <$> (someStmt <|> return [])
-  where
-    someStmt :: Parser [Stmt SymbSize]
-    someStmt = (:) <$> exprS <*> many (try (semi *> exprS))
+ where
+  someStmt :: Parser [Stmt SymbSize]
+  someStmt = (:) <$> exprS <*> many (try (semi *> exprS))
 
-    exprS :: Parser (Stmt SymbSize)
-    exprS = do
-      rets <- commaSep1 identifier
-      reservedOp "<-"
-      expr <- exprP tp
-      return ExprS{rets, expr}
+  exprS :: Parser (Stmt SymbSize)
+  exprS = do
+    rets <- commaSep1 identifier
+    reservedOp "<-"
+    expr <- exprP tp
+    return ExprS{rets, expr}
 
 funDef :: TokenParser () -> Parser (FunDef SymbSize)
 funDef tp@TokenParser{..} = do
@@ -168,8 +168,8 @@ program tp@TokenParser{..} = do
 
 parseCode :: (TokenParser () -> Parser a) -> String -> Either ParseError a
 parseCode parser = parse (whiteSpace p *> parser p <* eof) ""
-  where
-    p = protoLangTokenParser
+ where
+  p = protoLangTokenParser
 
 parseProgram :: String -> Either ParseError (Program SymbSize)
 parseProgram = parseCode program

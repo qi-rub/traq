@@ -36,14 +36,14 @@ allVars s = freeVars s `S.union` outVars s
 checkVarsUnique :: Program a -> Bool
 checkVarsUnique Program{funCtx = FunCtx{fun_defs}, stmt} =
   isJust . foldM combine S.empty $ allVars stmt : map allFunVars fun_defs
-  where
-    allFunVars :: FunDef a -> VarSet
-    allFunVars FunDef{param_binds, body} = S.union (allVars body) (S.fromList $ map fst param_binds)
+ where
+  allFunVars :: FunDef a -> VarSet
+  allFunVars FunDef{param_binds, body} = S.union (allVars body) (S.fromList $ map fst param_binds)
 
-    combine :: VarSet -> VarSet -> Maybe VarSet
-    combine u v = do
-      guard $ S.disjoint u v
-      return $ S.union u v
+  combine :: VarSet -> VarSet -> Maybe VarSet
+  combine u v = do
+    guard $ S.disjoint u v
+    return $ S.union u v
 
 -- | Make all variable names in the program unique
 makeVarsUnique :: Program a -> Program a
