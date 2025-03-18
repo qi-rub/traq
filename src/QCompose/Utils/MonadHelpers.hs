@@ -1,5 +1,8 @@
+{-# LANGUAGE Rank2Types #-}
+
 module QCompose.Utils.MonadHelpers (
   withSandbox,
+  withSandboxOf,
   withFrozenState,
   embedStateT,
   embedReaderT,
@@ -11,6 +14,8 @@ import Control.Monad.Reader (ReaderT (..), runReaderT)
 import Control.Monad.State (MonadState, StateT, get, put, runStateT)
 import Control.Monad.Trans (lift)
 import Control.Monad.Writer (WriterT (..))
+import Lens.Micro
+import Lens.Micro.Mtl
 
 -- | Save the current state, run a computation and restore the saved state.
 withSandbox :: (MonadState s m) => m a -> m a
@@ -18,6 +23,14 @@ withSandbox m = do
   s <- get
   a <- m
   put s
+  return a
+
+-- | Save the current state, run a computation and restore the saved state.
+withSandboxOf :: (MonadState s m) => Lens' s s' -> m a -> m a
+withSandboxOf part action = do
+  s <- use part
+  a <- action
+  part .= s
   return a
 
 -- | Run a computation with the current state as a read-only environment.

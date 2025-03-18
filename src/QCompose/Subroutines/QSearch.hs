@@ -38,10 +38,11 @@ cadeEtAlFormulas =
     log_fac :: SizeT
     log_fac = ceiling (log (1 / eps) / (2 * log (4 / 3)))
 
-zalkaQSearch :: U.QSearchUnitaryImpl a
+zalkaQSearch :: U.QSearchUnitaryImpl
 zalkaQSearch =
   U.QSearchUnitaryImpl
-    { U.qsearchAncilla = anc
+    { U.ancillaTypes = anc
+    , U.costFormulas = cadeEtAlFormulas
     }
  where
   -- anc n delta = error "TODO"

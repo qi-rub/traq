@@ -55,14 +55,14 @@ unitaryQueryCost algs d Program{funCtx, stmt} = cost d stmt
     | c == Contains || c == Search =
       2 * qry * cost_pred
    where
-    -- arg_ty :: VarType SizeT
     FunDef{param_binds} = unsafeLookupFun predicate
     Fin n = param_binds & last & snd
 
     delta_search = delta / 2
     qry = qSearchUnitaryCost algs n delta_search
+    delta_per_pred_call = (delta - delta_search) / (2 * qry)
     cost_pred =
-      costE ((delta - delta_search) / (2 * qry)) $
+      costE delta_per_pred_call $
         FunCallE
           { fun_kind = FunctionCall predicate
           , args = args

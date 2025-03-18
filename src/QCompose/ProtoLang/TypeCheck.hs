@@ -197,7 +197,7 @@ typeCheckFun funCtx FunDef{param_binds, ret_binds, body} = do
   let gamma = M.fromList param_binds
   gamma' <- execStateT (checkStmt funCtx body) gamma
   forM_ ret_binds $ \(x, t) -> do
-    let t' = gamma' M.! x
+    t' <- gamma' ^. at x & maybe (throwError $ "missing in returns: " <> show x) pure
     when (t /= t') $
       throwError
         ( "return term "

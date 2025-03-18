@@ -17,19 +17,19 @@ data Unitary a
   | CNOT
   | Oracle
   | RevEmbedU (ReversibleFun a)
+  | BlackBox String
   deriving (Eq, Show, Read)
 
 data Stmt a
   = SkipS
   | UnitaryS {args :: [Ident], unitary :: Unitary a} -- q... *= U
-  | CallS {proc_id :: Ident, args :: [Ident]} -- call F(q...)
-  | CallDaggerS {proc_id :: Ident, args :: [Ident]} -- call F(q...)
+  | CallS {proc_id :: Ident, dagger :: Bool, args :: [Ident]} -- call F(q...)
   | SeqS [Stmt a] -- W1; W2; ...
   deriving (Eq, Show, Read)
 
 data ProcDef a = ProcDef
   { proc_name :: Ident
-  , proc_params :: [(Ident, P.VarType SizeT)]
+  , proc_params :: [(Ident, P.VarType a)]
   , proc_body :: Stmt a
   }
   deriving (Eq, Show, Read)
@@ -63,12 +63,10 @@ instance (Show a) => ToCodeString (Stmt a) where
   toCodeLines UnitaryS{args, unitary} = [qc <> " *= " <> toCodeString unitary]
    where
     qc = commaList args
-  toCodeLines CallS{proc_id, args} = ["call " <> proc_id <> "(" <> qc <> ")"]
+  toCodeLines CallS{proc_id, dagger, args} = ["call " <> proc_id <> dg <> "(" <> qc <> ")"]
    where
     qc = commaList args
-  toCodeLines CallDaggerS{proc_id, args} = ["call " <> proc_id <> "†" <> "(" <> qc <> ")"]
-   where
-    qc = commaList args
+    dg = if dagger then "†" else ""
   toCodeLines (SeqS ps) = concatMap toCodeLines ps
 
 instance (Show a) => ToCodeString (ProcDef a) where

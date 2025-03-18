@@ -36,6 +36,7 @@ library
           QCompose.UnitaryQPL
           QCompose.UnitaryQPL.Lowering
           QCompose.UnitaryQPL.Syntax
+          QCompose.UnitaryQPL.TypeCheck
           QCompose.Utils.Context
           QCompose.Utils.MonadHelpers
           QCompose.Utils.Printing
