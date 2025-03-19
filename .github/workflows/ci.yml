@@ -105,3 +105,47 @@ jobs:
 
       - name: Build documentation
         run: cabal haddock all
+  
+  pages:
+    runs-on: ubuntu-latest
+    needs: build # build documentation only when all tests pass
+
+    permissions:
+      contents: write
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up GHC 8.6.5
+        uses: haskell-actions/setup@v2
+        id: setup
+        with:
+          ghc-version: "8.6.5"
+
+      - name: Configure the build
+        run: |
+          cabal configure --disable-tests --disable-benchmarks --disable-documentation
+          cabal build all --dry-run
+        # The last step generates dist-newstyle/cache/plan.json for the cache key.
+
+      - name: Restore cached dependencies
+        uses: actions/cache/restore@v4
+        id: cache
+        env:
+          key: ${{ runner.os }}-ghc-${{ steps.setup.outputs.ghc-version }}-cabal-${{ steps.setup.outputs.cabal-version }}
+        with:
+          path: ${{ steps.setup.outputs.cabal-store }}
+          key: ${{ env.key }}-plan-${{ hashFiles('**/plan.json') }}
+          restore-keys: ${{ env.key }}-
+
+      - name: Build documentation
+        run: cabal haddock all
+
+      - name: Deploy to GH pages
+        uses: peaceiris/actions-gh-pages@v4
+        if: ${{ github.event_name == 'push' && github.ref == 'refs/heads/main' }}
+        with:
+          publish_branch: gh-pages
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          publish_dir: ./dist-newstyle/build/x86_64-linux/ghc-8.6.5/qcompose-0.1.0.0/doc/html/
+          force_orphan: true
