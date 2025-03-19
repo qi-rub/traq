@@ -22,7 +22,7 @@ spec = do
     let ex = arraySearch n
 
     it "type checks" $ do
-      P.isWellTyped M.empty ex `shouldBe` True
+      assertRight $ P.typeCheckProg M.empty ex
 
     let oracleF = const [0]
     it "evaluates" $ do
@@ -54,7 +54,7 @@ spec = do
     let ex = arraySearchIx n
 
     it "type checks" $ do
-      P.isWellTyped M.empty ex `shouldBe` True
+      assertRight $ P.typeCheckProg M.empty ex
 
     let planted_sols = [2, 4, 5] :: [Value]
     let oracleF = \[i] -> [if i `elem` planted_sols then 1 else 0]

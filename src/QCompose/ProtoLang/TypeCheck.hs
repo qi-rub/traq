@@ -3,18 +3,17 @@
 module QCompose.ProtoLang.TypeCheck (
   TypingCtx,
   TypeCheckable (..),
+  TypeChecker,
   checkSubroutine,
   checkExpr,
   checkStmt,
   typeCheckFun,
   typeCheckProg,
-  isWellTyped,
 ) where
 
 import Control.Monad (forM_, unless, when, zipWithM_)
 import Control.Monad.Except (catchError, throwError)
 import Control.Monad.State (StateT, execStateT, get, lift, put)
-import Data.Either (isRight)
 import Data.List (uncons)
 import qualified Data.Map as M
 import Lens.Micro
@@ -150,7 +149,7 @@ checkExpr funCtx FunCallE{fun_kind = SubroutineCall sub, args} = do
   checkSubroutine funCtx sub args
 
 {- | Typecheck a statement, given the current context and function definitions.
-| If successful, the typing context is updated.
+ If successful, the typing context is updated.
 -}
 checkStmt ::
   forall a.
@@ -214,7 +213,3 @@ typeCheckProg :: (TypeCheckable a) => TypingCtx a -> Program a -> Either String 
 typeCheckProg gamma Program{funCtx = funCtx@FunCtx{fun_defs}, stmt} = do
   mapM_ (typeCheckFun funCtx) fun_defs
   execStateT (checkStmt funCtx stmt) gamma
-
--- | Helper boolean predicate to check if a program is well-typed
-isWellTyped :: (TypeCheckable a) => TypingCtx a -> Program a -> Bool
-isWellTyped gamma = isRight . typeCheckProg gamma

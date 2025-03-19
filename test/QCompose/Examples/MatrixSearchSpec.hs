@@ -20,7 +20,7 @@ spec = do
     let ex = matrixExampleS n m
 
     it "type checks" $ do
-      P.isWellTyped M.empty ex `shouldBe` True
+      assertRight $ P.typeCheckProg M.empty ex
 
     it "has unique vars" $ do
       P.checkVarsUnique ex `shouldBe` True
