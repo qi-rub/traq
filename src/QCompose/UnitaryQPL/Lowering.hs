@@ -152,10 +152,9 @@ lowerExpr delta P.FunCallE{P.fun_kind = SubroutineCall P.Contains, P.args = (pre
   -- precision for the search
   let delta_search = delta / 2
   -- precision for each predicate call
-  delta_per_pred_call <- do
-    calc_u_cost <- view qsearchConfig <&> costFormulas <&> P.qSearchUnitaryCost
-    let n_qry = calc_u_cost n delta_search
-    return $ (delta - delta_search) / (2 * n_qry)
+  calc_u_cost <- view qsearchConfig <&> costFormulas <&> P.qSearchUnitaryCost
+  let n_qry = calc_u_cost n delta_search
+  let delta_per_pred_call = (delta - delta_search) / (2 * n_qry)
 
   -- compile the predicate
   LoweredProc
@@ -189,8 +188,8 @@ lowerExpr delta P.FunCallE{P.fun_kind = SubroutineCall P.Contains, P.args = (pre
       , proc_params = zip qsearch_param_names qsearch_param_tys
       , proc_body =
           UnitaryS qsearch_param_names $
-            BlackBox $
-              "QSearch[" <> show delta_search <> "][" <> proc_name pred_proc <> "]"
+            BlackBoxU $
+              QSearchBB (proc_name pred_proc) n_qry
       }
 
   qsearch_ancilla <- mapM allocAncilla qsearch_ancilla_tys

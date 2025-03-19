@@ -18,3 +18,6 @@ instance (Show a) => Show (Symbolic a) where
 boolToValue :: Bool -> Value
 boolToValue True = 1
 boolToValue False = 0
+
+-- | Value type for representing the query complexity.
+type Complexity = Float

@@ -1,5 +1,6 @@
 module QCompose.Subroutines.QSearch where
 
+import qualified QCompose.CQPL as CQ
 import QCompose.Prelude
 import QCompose.ProtoLang (Complexity)
 import qualified QCompose.ProtoLang as P
@@ -47,3 +48,11 @@ zalkaQSearch =
  where
   -- anc n delta = error "TODO"
   anc _ _ = []
+
+randomSearch :: CQ.ProcDef a
+randomSearch =
+  CQ.ProcDef
+    { CQ.proc_name = "randomSearch"
+    , CQ.proc_params = []
+    , CQ.proc_body = undefined
+    }

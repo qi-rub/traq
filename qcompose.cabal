@@ -21,6 +21,8 @@ extra-doc-files:
 library
     exposed-modules:
           QCompose
+          QCompose.CQPL
+          QCompose.CQPL.Syntax
           QCompose.Examples.MatrixSearch
           QCompose.Examples.Search
           QCompose.Prelude
@@ -34,6 +36,8 @@ library
           QCompose.ProtoLang.Vars
           QCompose.Subroutines.QSearch
           QCompose.UnitaryQPL
+          QCompose.UnitaryQPL.Builder
+          QCompose.UnitaryQPL.Cost
           QCompose.UnitaryQPL.Lowering
           QCompose.UnitaryQPL.Syntax
           QCompose.UnitaryQPL.TypeCheck

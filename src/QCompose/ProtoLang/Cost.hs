@@ -17,9 +17,6 @@ import QCompose.Utils.Tree
 import QCompose.ProtoLang.Eval
 import QCompose.ProtoLang.Syntax
 
--- | Value type for representing the query complexity.
-type Complexity = Float
-
 -- | Computed cost functions (quantum, unitary) of a given set of algorithms implementing quantum search
 data QSearchFormulas = QSearchFormulas
   { qSearchExpectedCost :: SizeT -> SizeT -> FailProb -> Complexity -- n t eps

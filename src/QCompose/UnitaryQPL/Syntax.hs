@@ -12,12 +12,17 @@ data ReversibleFun a
   | LEqF {ty :: P.VarType a} -- x, y -> x <= y
   deriving (Eq, Show, Read)
 
+data BlackBox a
+  = BlackBox Ident
+  | QSearchBB {pred_name :: Ident, n_pred_calls :: Float}
+  deriving (Eq, Show, Read)
+
 data Unitary a
   = Toffoli
   | CNOT
   | Oracle
   | RevEmbedU (ReversibleFun a)
-  | BlackBox String
+  | BlackBoxU (BlackBox a)
   deriving (Eq, Show, Read)
 
 data Stmt a
