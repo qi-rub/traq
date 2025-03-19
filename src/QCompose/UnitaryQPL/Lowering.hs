@@ -8,7 +8,7 @@ import Lens.Micro
 import Lens.Micro.Mtl
 
 import Data.Maybe (catMaybes)
-import QCompose.Basic
+import QCompose.Prelude
 import qualified QCompose.ProtoLang as P
 import QCompose.ProtoLang.Syntax (FunctionCallKind (SubroutineCall))
 import QCompose.UnitaryQPL.Syntax

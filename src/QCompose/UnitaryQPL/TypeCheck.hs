@@ -11,7 +11,7 @@ import qualified Data.Map as M
 import Lens.Micro
 import Lens.Micro.Mtl
 
-import QCompose.Basic
+import QCompose.Prelude
 import QCompose.ProtoLang (OracleDecl (..), TypeCheckable (..), TypingCtx, VarType)
 import QCompose.UnitaryQPL.Syntax
 import QCompose.Utils.MonadHelpers

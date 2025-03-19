@@ -1,6 +1,6 @@
 module QCompose.ProtoLang.CostSpec (spec) where
 
-import QCompose.Basic
+import QCompose.Prelude
 import QCompose.ProtoLang.Cost
 import QCompose.ProtoLang.Parser
 import QCompose.ProtoLang.Syntax

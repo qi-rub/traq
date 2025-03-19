@@ -20,7 +20,7 @@ module QCompose.ProtoLang.Syntax (
 
 import Lens.Micro
 
-import QCompose.Basic
+import QCompose.Prelude
 import QCompose.Utils.Context
 import QCompose.Utils.Printing
 

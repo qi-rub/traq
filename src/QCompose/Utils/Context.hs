@@ -23,7 +23,7 @@ import Lens.Micro.Mtl
 
 import QCompose.Utils.Tree
 
-import QCompose.Basic
+import QCompose.Prelude
 
 type VarContext a = M.Map Ident a
 

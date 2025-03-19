@@ -19,7 +19,7 @@ import Data.List (uncons)
 import qualified Data.Map as M
 import Lens.Micro
 
-import QCompose.Basic
+import QCompose.Prelude
 import QCompose.ProtoLang.Syntax
 import QCompose.Utils.Context
 import QCompose.Utils.Printing

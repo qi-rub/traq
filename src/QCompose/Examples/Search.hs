@@ -1,6 +1,6 @@
 module QCompose.Examples.Search where
 
-import QCompose.Basic
+import QCompose.Prelude
 import QCompose.ProtoLang.Syntax
 
 arraySearch :: SizeT -> Program SizeT

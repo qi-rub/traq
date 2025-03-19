@@ -6,7 +6,7 @@ import qualified Data.Map as M
 import Lens.Micro
 import Text.Parsec.String (parseFromFile)
 
-import QCompose.Basic
+import QCompose.Prelude
 import qualified QCompose.ProtoLang as P
 import qualified QCompose.ProtoLang.Parser as PP
 import QCompose.Utils.Tree

@@ -1,6 +1,6 @@
 module QCompose.UnitaryQPL.Syntax where
 
-import QCompose.Basic
+import QCompose.Prelude
 import qualified QCompose.ProtoLang as P
 import QCompose.Utils.Printing
 

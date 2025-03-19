@@ -1,6 +1,6 @@
 module QCompose.Subroutines.QSearch where
 
-import QCompose.Basic
+import QCompose.Prelude
 import QCompose.ProtoLang (Complexity)
 import qualified QCompose.ProtoLang as P
 import qualified QCompose.UnitaryQPL as U

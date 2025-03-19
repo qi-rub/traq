@@ -2,7 +2,7 @@
 
 module QCompose.Examples.MatrixSearch where
 
-import QCompose.Basic
+import QCompose.Prelude
 import QCompose.ProtoLang.Syntax
 
 matrixExample :: forall a. a -> a -> VarType a -> Program a

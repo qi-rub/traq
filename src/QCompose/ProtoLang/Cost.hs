@@ -11,7 +11,7 @@ import Data.Foldable (toList)
 import qualified Data.Map as M
 import Lens.Micro
 
-import QCompose.Basic
+import QCompose.Prelude
 import QCompose.Utils.Tree
 
 import QCompose.ProtoLang.Eval

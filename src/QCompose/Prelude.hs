@@ -1,4 +1,4 @@
-module QCompose.Basic where
+module QCompose.Prelude where
 
 type Ident = String
 

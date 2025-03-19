@@ -21,9 +21,9 @@ extra-doc-files:
 library
     exposed-modules:
           QCompose
-          QCompose.Basic
           QCompose.Examples.MatrixSearch
           QCompose.Examples.Search
+          QCompose.Prelude
           QCompose.ProtoLang
           QCompose.ProtoLang.Cost
           QCompose.ProtoLang.Eval

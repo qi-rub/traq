@@ -16,7 +16,7 @@ import Text.Parsec.Token (
   reservedOpNames,
  )
 
-import QCompose.Basic
+import QCompose.Prelude
 import QCompose.ProtoLang.Syntax
 import QCompose.Utils.Printing
 

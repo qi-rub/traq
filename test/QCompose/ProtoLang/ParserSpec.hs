@@ -1,7 +1,7 @@
 module QCompose.ProtoLang.ParserSpec (spec) where
 
 import Lens.Micro
-import QCompose.Basic
+import QCompose.Prelude
 import QCompose.Examples.MatrixSearch (matrixExample)
 import QCompose.ProtoLang.Parser
 import QCompose.ProtoLang.Rewrites

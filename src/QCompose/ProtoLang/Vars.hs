@@ -3,7 +3,7 @@ module QCompose.ProtoLang.Vars where
 import Control.Monad (foldM, guard)
 import Data.Maybe (isJust)
 import qualified Data.Set as S
-import QCompose.Basic
+import QCompose.Prelude
 import QCompose.ProtoLang.Syntax
 
 type VarSet = S.Set Ident

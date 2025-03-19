@@ -3,7 +3,7 @@ module QCompose.Examples.SearchSpec (spec) where
 import Control.Monad.State (execStateT)
 import qualified Data.Map as M
 
-import QCompose.Basic
+import QCompose.Prelude
 import qualified QCompose.ProtoLang as P
 import qualified QCompose.UnitaryQPL as UQPL
 import QCompose.Utils.Printing
