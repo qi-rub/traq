@@ -1,8 +1,9 @@
 module QCompose.ProtoLang.ParserSpec (spec) where
 
+import qualified Data.Number.Symbolic as Sym
+
 import Lens.Micro
 import QCompose.Examples.MatrixSearch (matrixExample)
-import QCompose.Prelude
 import QCompose.ProtoLang.Parser
 import QCompose.ProtoLang.Rewrites
 import QCompose.ProtoLang.Syntax
@@ -19,7 +20,7 @@ spec = do
         `shouldBe` Right
           ( SeqS
               [ ExprS{rets = ["x'"], expr = VarE{arg = "x"}}
-              , ExprS{rets = ["y'"], expr = ConstE{val = 3, ty = Fin (Value 4)}}
+              , ExprS{rets = ["y'"], expr = ConstE{val = 3, ty = Fin (Sym.con 4)}}
               ]
           )
     it "parses function call" $ do
@@ -46,8 +47,8 @@ spec = do
         `shouldBe` Right
           ( FunDef
               { fun_name = "check_entry"
-              , param_binds = [("i", Fin (SymExpr "N")), ("j", Fin (SymExpr "M"))]
-              , ret_binds = [("e'", Fin (Value 2))]
+              , param_binds = [("i", Fin (Sym.var "N")), ("j", Fin (Sym.var "M"))]
+              , ret_binds = [("e'", Fin (Sym.con 2))]
               , body =
                   SeqS
                     [ ExprS{rets = ["e"], expr = FunCallE{fun_kind = OracleCall, args = ["i", "j"]}}
@@ -61,4 +62,4 @@ spec = do
       let e' = e <&> _stmt %~ rewriteOf _ast flattenSeq
       e'
         `shouldBe` Right
-          (matrixExample (SymExpr "N") (SymExpr "M") (Fin (Value 2)))
+          (matrixExample (Sym.var "N") (Sym.var "M") (Fin (Sym.con 2)))

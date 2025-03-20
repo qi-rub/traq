@@ -3,6 +3,7 @@ module QCompose.Examples.NonDetSpec (spec) where
 import Control.Monad.State
 import Data.Either (fromRight, isRight)
 import qualified Data.Map as M
+import qualified Data.Number.Symbolic as Sym
 import Lens.Micro
 import Text.Parsec.String (parseFromFile)
 
@@ -24,7 +25,7 @@ spec = do
     let load' =
           load
             <&> fromRight undefined
-            <&> fmap (\case Value v -> v; _ -> undefined)
+            <&> fmap Sym.unSym
 
     it "typechecks" $ do
       ex <- load'

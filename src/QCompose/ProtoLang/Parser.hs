@@ -4,6 +4,7 @@ module QCompose.ProtoLang.Parser where
 
 import Data.Either (isRight)
 import Data.Functor (($>))
+import qualified Data.Number.Symbolic as Sym
 import Text.Parsec (ParseError, choice, eof, many, parse, try, (<|>))
 import Text.Parsec.Language (LanguageDef, emptyDef)
 import Text.Parsec.String (Parser)
@@ -50,12 +51,12 @@ protoLangTokenParser :: TokenParser st
 protoLangTokenParser = makeTokenParser protoLangDef
 
 symbSize :: TokenParser () -> Parser SymbSize
-symbSize TokenParser{..} = (Value . fromIntegral <$> integer) <|> (SymExpr <$> identifier)
+symbSize TokenParser{..} = (Sym.con . fromIntegral <$> integer) <|> (Sym.var <$> identifier)
 
 varType :: TokenParser () -> Parser (VarType SymbSize)
 varType tp@TokenParser{..} = boolType <|> finType
  where
-  boolType = reserved "Bool" $> Fin (Value 2)
+  boolType = reserved "Bool" $> Fin (Sym.con 2)
   finType = reserved "Fin" >> Fin <$> angles (symbSize tp)
 
 typedTerm :: TokenParser () -> Parser a -> Parser (a, VarType SymbSize)

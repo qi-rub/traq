@@ -18,6 +18,7 @@ data Expr a
   | ConstFloatE {float_val :: Float}
   | VarE {var :: Ident}
   | AddE {lhs, rhs :: Expr a}
+  | MulE {lhs, rhs :: Expr a}
   | LEqE {lhs, rhs :: Expr a}
   | AndE {lhs, rhs :: Expr a}
   | NotE {arg :: Expr a}
@@ -30,6 +31,7 @@ data Stmt a
   = SkipS
   | AssignS {args :: [Ident], expr :: Expr a}
   | RandomS {ret :: Ident, ty :: VarType a}
+  | RandomDynS {ret :: Ident, max_val :: Ident}
   | CallS {fun :: FunctionCall, args :: [Ident]}
   | CallUProcAndMeasS {uproc_id :: Ident}
   | SeqS [Stmt a]

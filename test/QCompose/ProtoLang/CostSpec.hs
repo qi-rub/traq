@@ -1,17 +1,17 @@
 module QCompose.ProtoLang.CostSpec (spec) where
 
+import qualified Data.Number.Symbolic as Sym
+
 import QCompose.Prelude
 import QCompose.ProtoLang.Cost
 import QCompose.ProtoLang.Parser
 import QCompose.ProtoLang.Syntax
 import QCompose.Subroutines.QSearch
+
 import Test.Hspec
 
 unsafeParseProgram :: String -> Program SizeT
-unsafeParseProgram = fmap subs . either (error . show) id . parseProgram
- where
-  subs (Value v) = v
-  subs (SymExpr _) = error "should not be symbolic"
+unsafeParseProgram = fmap Sym.unSym . either (error . show) id . parseProgram
 
 spec :: Spec
 spec = do
