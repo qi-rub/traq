@@ -5,7 +5,7 @@ import qualified Data.Map as M
 import qualified QCompose.ProtoLang as P
 import qualified QCompose.UnitaryQPL as U
 
-import QCompose.Subroutines.QSearch
+import QCompose.Primitives.QSearch
 import QCompose.Utils.Printing
 
 import Test.Hspec

@@ -10,7 +10,7 @@ import Lens.Micro.Mtl
 import Data.Maybe (catMaybes)
 import QCompose.Prelude
 import qualified QCompose.ProtoLang as P
-import QCompose.ProtoLang.Syntax (FunctionCallKind (SubroutineCall))
+import QCompose.ProtoLang.Syntax (FunctionCallKind (PrimitiveCall))
 import QCompose.UnitaryQPL.Syntax
 import QCompose.Utils.Context
 import QCompose.Utils.MonadHelpers
@@ -142,7 +142,7 @@ lowerExpr delta P.FunCallE{P.fun_kind = P.FunctionCall f, P.args} rets = do
       }
 
 -- `any`
-lowerExpr delta P.FunCallE{P.fun_kind = SubroutineCall P.Contains, P.args = (predicate : args)} rets = do
+lowerExpr delta P.FunCallE{P.fun_kind = PrimitiveCall P.Contains, P.args = (predicate : args)} rets = do
   -- the predicate
   pred_fun@P.FunDef{P.param_binds} <- view protoFunCtx >>= (lift . P.lookupFun predicate)
 

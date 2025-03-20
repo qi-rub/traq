@@ -22,7 +22,7 @@ import QCompose.ProtoLang.Syntax
 import QCompose.Utils.Printing
 
 -- TODO unify
-subroutines :: [(Subroutine, Ident)]
+subroutines :: [(Primitive, Ident)]
 subroutines = [(sub, toCodeString sub) | sub <- [minBound ..]]
 
 protoLangDef :: LanguageDef st
@@ -87,7 +87,7 @@ exprP tp@TokenParser{..} =
     oracleCall = reserved "Oracle" $> OracleCall
     subroutineCall =
       choice
-        [ reserved sname $> SubroutineCall sub
+        [ reserved sname $> PrimitiveCall sub
         | (sub, sname) <- subroutines
         ]
     functionCall = FunctionCall <$> identifier

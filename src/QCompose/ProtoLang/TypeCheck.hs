@@ -4,7 +4,7 @@ module QCompose.ProtoLang.TypeCheck (
   TypingCtx,
   TypeCheckable (..),
   TypeChecker,
-  checkSubroutine,
+  checkPrimitive,
   checkExpr,
   checkStmt,
   typeCheckFun,
@@ -45,16 +45,16 @@ lookupFunE fname funCtx =
   lookupFun fname funCtx `catchError` \_ -> throwError ("cannot find function `" <> fname <> "`")
 
 -- | Typecheck a subroutine call
-checkSubroutine ::
+checkPrimitive ::
   (TypeCheckable a) =>
   FunCtx a ->
   -- | subroutine tag
-  Subroutine ->
+  Primitive ->
   -- | arguments
   [Ident] ->
   TypeChecker a [VarType a]
 -- contains
-checkSubroutine funCtx Contains all_args = do
+checkPrimitive funCtx Contains all_args = do
   let sub_name = "`" <> toCodeString Contains <> "`"
 
   (predicate, args) <- uncons all_args & maybe (throwError $ sub_name <> " needs 1 argument (predicate)") pure
@@ -71,7 +71,7 @@ checkSubroutine funCtx Contains all_args = do
   return [tbool]
 
 -- search
-checkSubroutine funCtx Search all_args = do
+checkPrimitive funCtx Search all_args = do
   let sub_name = toCodeString Search
 
   (predicate, args) <- uncons all_args & maybe (throwError $ sub_name <> " needs 1 argument (predicate)") pure
@@ -88,7 +88,7 @@ checkSubroutine funCtx Search all_args = do
   return [tbool, snd $ last pred_params]
 
 -- unsupported
--- checkSubroutine _ sub _ _ = throwError $ "unsupported subroutine " <> show sub
+-- checkPrimitive _ sub _ _ = throwError $ "unsupported subroutine " <> show sub
 
 -- | Typecheck an expression and return the output types
 checkExpr ::
@@ -145,8 +145,8 @@ checkExpr funCtx FunCallE{fun_kind = FunctionCall fun, args} = do
   return $ map snd ret_binds
 
 -- `subroutine`(...)
-checkExpr funCtx FunCallE{fun_kind = SubroutineCall sub, args} = do
-  checkSubroutine funCtx sub args
+checkExpr funCtx FunCallE{fun_kind = PrimitiveCall sub, args} = do
+  checkPrimitive funCtx sub args
 
 {- | Typecheck a statement, given the current context and function definitions.
  If successful, the typing context is updated.

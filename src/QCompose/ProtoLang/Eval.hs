@@ -76,7 +76,7 @@ evalExpr funCtx oracleF FunCallE{fun_kind = FunctionCall fun, args} = do
 
 -- subroutines
 -- `any` / `search`
-evalExpr funCtx oracleF FunCallE{fun_kind = SubroutineCall sub, args = (predicate : args)}
+evalExpr funCtx oracleF FunCallE{fun_kind = PrimitiveCall sub, args = (predicate : args)}
   | sub == Contains = do
       vals <- getSearchRange
       has_sol <- anyM evalPredicate vals

@@ -48,7 +48,7 @@ unitaryQueryCost algs d Program{funCtx, stmt} = cost d stmt
   costE delta FunCallE{fun_kind = FunctionCall fname} =
     let FunDef{body} = unsafeLookupFun fname
      in cost delta body
-  costE delta FunCallE{fun_kind = SubroutineCall c, args = (predicate : args)}
+  costE delta FunCallE{fun_kind = PrimitiveCall c, args = (predicate : args)}
     | c == Contains || c == Search =
         2 * qry * cost_pred
    where
@@ -107,7 +107,7 @@ quantumQueryCost algs a_eps Program{funCtx, stmt} oracleF = cost a_eps stmt
     omega = M.fromList $ zip (fst <$> fn_args) vs
 
   -- known cost formulas
-  costE eps FunCallE{fun_kind = SubroutineCall c, args = (predicate : args)} sigma
+  costE eps FunCallE{fun_kind = PrimitiveCall c, args = (predicate : args)} sigma
     | c == Contains || c == Search = n_pred_calls * pred_unitary_cost
    where
     vs = map (get sigma) args

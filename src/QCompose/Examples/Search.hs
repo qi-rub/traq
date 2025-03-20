@@ -29,7 +29,7 @@ arraySearch n = Program{funCtx = FunCtx{oracle_decl, fun_defs = [check]}, stmt}
     ExprS
       { expr =
           FunCallE
-            { fun_kind = SubroutineCall Contains
+            { fun_kind = PrimitiveCall Contains
             , args = ["check"]
             }
       , rets = ["result"]
@@ -62,7 +62,7 @@ arraySearchIx n = Program{funCtx = FunCtx{oracle_decl, fun_defs = [check]}, stmt
       { rets = ["result", "solution"]
       , expr =
           FunCallE
-            { fun_kind = SubroutineCall Search
+            { fun_kind = PrimitiveCall Search
             , args = ["check"]
             }
       }

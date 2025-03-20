@@ -26,6 +26,7 @@ library
           QCompose.Examples.MatrixSearch
           QCompose.Examples.Search
           QCompose.Prelude
+          QCompose.Primitives.QSearch
           QCompose.ProtoLang
           QCompose.ProtoLang.Cost
           QCompose.ProtoLang.Eval
@@ -34,7 +35,6 @@ library
           QCompose.ProtoLang.Syntax
           QCompose.ProtoLang.TypeCheck
           QCompose.ProtoLang.Vars
-          QCompose.Subroutines.QSearch
           QCompose.UnitaryQPL
           QCompose.UnitaryQPL.Builder
           QCompose.UnitaryQPL.Cost

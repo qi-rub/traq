@@ -8,7 +8,7 @@ import qualified QCompose.UnitaryQPL as UQPL
 import QCompose.Utils.Printing
 
 import QCompose.Examples.MatrixSearch
-import QCompose.Subroutines.QSearch
+import QCompose.Primitives.QSearch
 
 import Test.Hspec
 import TestHelpers

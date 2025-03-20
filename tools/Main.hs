@@ -7,7 +7,7 @@ import qualified QCompose.UnitaryQPL as U
 
 import Control.Exception (assert)
 import QCompose.Examples.MatrixSearch
-import QCompose.Subroutines.QSearch
+import QCompose.Primitives.QSearch
 import QCompose.Utils.Printing
 
 main :: IO ()

@@ -5,7 +5,7 @@ module QCompose.ProtoLang.Syntax (
   VarType (..),
   UnOp (..),
   BinOp (..),
-  Subroutine (..),
+  Primitive (..),
   FunctionCallKind (..),
   Expr (..),
   Stmt (..),
@@ -34,8 +34,8 @@ data UnOp = NotOp
 data BinOp = AddOp | LEqOp | AndOp
   deriving (Eq, Show, Read)
 
--- | Built-in subroutines/primitives
-data Subroutine
+-- | Built-in primitives
+data Primitive
   = Search
   | Contains
   deriving (Eq, Show, Read, Enum, Bounded)
@@ -43,7 +43,7 @@ data Subroutine
 data FunctionCallKind
   = OracleCall
   | FunctionCall Ident
-  | SubroutineCall Subroutine
+  | PrimitiveCall Primitive
   deriving (Eq, Show, Read)
 
 {- | An expression in the prototype language.
@@ -133,14 +133,14 @@ instance ToCodeString BinOp where
   toCodeString LEqOp = "<="
   toCodeString AndOp = "/\\"
 
-instance ToCodeString Subroutine where
+instance ToCodeString Primitive where
   toCodeString Search = "search"
   toCodeString Contains = "any"
 
 instance ToCodeString FunctionCallKind where
   toCodeString OracleCall = "Oracle"
   toCodeString (FunctionCall f) = f
-  toCodeString (SubroutineCall f) = toCodeString f
+  toCodeString (PrimitiveCall f) = toCodeString f
 
 instance (Show a) => ToCodeString (Expr a) where
   toCodeString VarE{arg} = arg

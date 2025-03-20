@@ -10,7 +10,7 @@ import QCompose.Utils.Printing
 import QCompose.Utils.Tree
 
 import QCompose.Examples.Search
-import QCompose.Subroutines.QSearch
+import QCompose.Primitives.QSearch
 
 import Test.Hspec
 import TestHelpers

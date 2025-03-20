@@ -5,11 +5,11 @@ References:
 
  1. [Quantifying Grover speed-ups beyond asymptotic analysis](https://arxiv.org/abs/2203.04975)
 -}
-module QCompose.Subroutines.QSearch where
+module QCompose.Primitives.QSearch where
 
 import qualified QCompose.CQPL as CQ
 import QCompose.Prelude
-import QCompose.ProtoLang (Complexity, VarType (..))
+import QCompose.ProtoLang (VarType (..))
 import qualified QCompose.ProtoLang as P
 import qualified QCompose.UnitaryQPL as U
 

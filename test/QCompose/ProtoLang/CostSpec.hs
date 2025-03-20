@@ -6,7 +6,7 @@ import QCompose.Prelude
 import QCompose.ProtoLang.Cost
 import QCompose.ProtoLang.Parser
 import QCompose.ProtoLang.Syntax
-import QCompose.Subroutines.QSearch
+import QCompose.Primitives.QSearch
 
 import Test.Hspec
 
