@@ -1,6 +1,6 @@
 module QCompose.UnitaryQPL.LoweringSpec (spec) where
 
-import qualified Data.Map as M
+import qualified Data.Map as Map
 
 import qualified QCompose.ProtoLang as P
 import qualified QCompose.UnitaryQPL as U
@@ -22,7 +22,7 @@ spec = do
           expectRight $
             U.lowerProgram
               zalkaQSearch
-              (M.singleton "x" (P.Fin 10))
+              (Map.singleton "x" (P.Fin 10))
               0
               P.Program
                 { P.funCtx = P.FunCtx{P.oracle_decl = dummy_oracle, P.fun_defs = []}
@@ -30,18 +30,18 @@ spec = do
                 }
         res
           `shouldBe` U.Program
-            { U.oracle_decl = dummy_oracle
+            { U.oracle_decl = U.lowerOracleDecl dummy_oracle
             , U.proc_defs = []
             , U.stmt = U.UnitaryS ["x", "y"] $ U.RevEmbedU (U.IdF (P.Fin 10))
             }
 
         toCodeString res
           `shouldBe` unlines
-            [ "declare Oracle() -> Fin<2>\n"
+            [ "uproc Oracle(Fin<2>)\n"
             , "x, y *= RevEmbed[x : Fin<10> => x];"
             , ""
             ]
 
-        gamma `shouldBe` M.fromList [("x", P.Fin 10), ("y", P.Fin 10)]
+        gamma `shouldBe` Map.fromList [("x", P.Fin 10), ("y", P.Fin 10)]
 
         assertRight $ U.typeCheckProgram gamma res

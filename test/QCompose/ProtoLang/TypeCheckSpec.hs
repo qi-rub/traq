@@ -1,6 +1,6 @@
 module QCompose.ProtoLang.TypeCheckSpec (spec) where
 
-import qualified Data.Map as M
+import qualified Data.Map as Map
 import QCompose.Examples.MatrixSearch (matrixExampleS)
 import QCompose.ProtoLang.TypeCheck
 
@@ -11,4 +11,4 @@ spec :: Spec
 spec = do
   describe "typecheck" $ do
     it "matrix example" $ do
-      assertRight $ typeCheckProg M.empty (matrixExampleS 4 5)
+      assertRight $ typeCheckProg Map.empty (matrixExampleS 4 5)

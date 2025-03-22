@@ -15,7 +15,7 @@ import Control.Monad (forM_, unless, when, zipWithM_)
 import Control.Monad.Except (catchError, throwError)
 import Control.Monad.State (StateT, execStateT, get, lift, put)
 import Data.List (uncons)
-import qualified Data.Map as M
+import qualified Data.Map as Map
 import Lens.Micro
 
 import QCompose.Prelude
@@ -177,14 +177,14 @@ checkStmt funCtx IfThenElseS{cond, s_true, s_false} = do
   sigma <- get
 
   sigma_t <- lift $ execStateT (checkStmt funCtx s_true) sigma
-  when (sigma M.\\ sigma_t /= M.empty) $
+  when (sigma Map.\\ sigma_t /= Map.empty) $
     error "Invalid final state, missing initial variables"
-  let outs_t = sigma_t M.\\ sigma
+  let outs_t = sigma_t Map.\\ sigma
 
   sigma_f <- lift $ execStateT (checkStmt funCtx s_false) sigma
-  when (sigma M.\\ sigma_t /= M.empty) $
+  when (sigma Map.\\ sigma_t /= Map.empty) $
     error "Invalid final state, missing initial variables"
-  let outs_f = sigma_f M.\\ sigma
+  let outs_f = sigma_f Map.\\ sigma
 
   unless (outs_t == outs_f) $
     throwError ("if: branches must declare same variables, got " <> show [outs_t, outs_f])
@@ -193,7 +193,7 @@ checkStmt funCtx IfThenElseS{cond, s_true, s_false} = do
 -- | Type check a single function.
 typeCheckFun :: (TypeCheckable a) => FunCtx a -> FunDef a -> Either String (TypingCtx a)
 typeCheckFun funCtx FunDef{param_binds, ret_binds, body} = do
-  let gamma = M.fromList param_binds
+  let gamma = Map.fromList param_binds
   gamma' <- execStateT (checkStmt funCtx body) gamma
   forM_ ret_binds $ \(x, t) -> do
     t' <- gamma' ^. at x & maybe (throwError $ "missing in returns: " <> show x) pure

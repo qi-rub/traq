@@ -16,7 +16,7 @@ import Control.Monad.Reader (MonadReader)
 import Control.Monad.State (MonadState, gets)
 import Control.Monad.Trans (MonadTrans, lift)
 import Data.Foldable (find)
-import qualified Data.Map as M
+import qualified Data.Map as Map
 import Lens.Micro
 import Lens.Micro.GHC ()
 import Lens.Micro.Mtl
@@ -25,7 +25,7 @@ import QCompose.Utils.Tree
 
 import QCompose.Prelude
 
-type VarContext a = M.Map Ident a
+type VarContext a = Map.Map Ident a
 
 class (Monad m) => CanFail m where
   showErrorMsg :: String -> m a
@@ -51,7 +51,7 @@ lookupVar' x = do
 
 putValue :: (CanFail m, MonadTrans t, MonadState (VarContext a) (t m)) => Ident -> a -> t m ()
 putValue x v = do
-  exists <- gets (M.member x)
+  exists <- gets (Map.member x)
   if exists
     then lift $ showErrorMsg ("variable " <> show x <> " already exists!")
     else at x ?= v

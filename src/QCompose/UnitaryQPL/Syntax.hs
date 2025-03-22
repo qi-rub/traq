@@ -3,6 +3,7 @@ module QCompose.UnitaryQPL.Syntax where
 import QCompose.Prelude
 import qualified QCompose.ProtoLang as P
 import QCompose.Utils.Printing
+import Text.Printf (printf)
 
 data ReversibleFun a
   = ConstF {ty :: P.VarType a, val :: Integer} -- () -> val
@@ -39,8 +40,13 @@ data ProcDef a = ProcDef
   }
   deriving (Eq, Show, Read)
 
+data OracleDecl a = OracleDecl
+  { param_types :: [P.VarType a]
+  }
+  deriving (Eq, Show, Read)
+
 data Program a = Program
-  { oracle_decl :: P.OracleDecl a
+  { oracle_decl :: OracleDecl a
   , proc_defs :: [ProcDef a]
   , stmt :: Stmt a
   }
@@ -76,11 +82,17 @@ instance (Show a) => ToCodeString (Stmt a) where
 
 instance (Show a) => ToCodeString (ProcDef a) where
   toCodeLines ProcDef{proc_name, proc_params, proc_body} =
-    ["proc " <> proc_name <> "(" <> plist <> ") do"]
+    ["uproc " <> proc_name <> "(" <> plist <> ") do"]
       <> indent (toCodeLines proc_body)
       <> ["end"]
    where
     plist = commaList $ map showTypedIdent proc_params
+
+instance (Show a) => ToCodeString (OracleDecl a) where
+  toCodeString OracleDecl{param_types} =
+    printf "uproc Oracle(%s)" plist
+   where
+    plist = commaList $ map toCodeString param_types
 
 instance (Show a) => ToCodeString (Program a) where
   toCodeLines Program{oracle_decl, proc_defs, stmt} = toCodeString oracle_decl : "" : map toCodeString proc_defs <> [toCodeString stmt]

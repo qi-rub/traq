@@ -55,6 +55,28 @@ zalkaQSearch =
   -- anc n delta = error "TODO"
   anc _ _ = []
 
+-- Primitives to implement Grover search and its variants
+groverIteration ::
+  -- | registers to search (reflect) over
+  [Ident] ->
+  -- | flag register (output of predicate)
+  Ident ->
+  -- | phase oracle
+  U.Stmt a ->
+  U.Stmt a
+groverIteration xs flag ph_oracle =
+  U.SeqS
+    [ ph_oracle
+    , U.UnitaryS xs $ U.BlackBoxU $ U.BlackBox "Hadamards"
+    , U.UnitaryS (xs ++ [flag]) $ U.BlackBoxU $ U.BlackBox "MCX"
+    , U.UnitaryS xs $ U.BlackBoxU $ U.BlackBox "Hadamards"
+    ]
+
+zalkaQSearchImpl ::
+  U.ProcDef a ->
+  U.Stmt a
+zalkaQSearchImpl = undefined
+
 -- | Implementation of the hybrid quantum search algorithm \( \textbf{QSearch} \).
 qSearch ::
   -- | search element type

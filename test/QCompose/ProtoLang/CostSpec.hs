@@ -3,10 +3,10 @@ module QCompose.ProtoLang.CostSpec (spec) where
 import qualified Data.Number.Symbolic as Sym
 
 import QCompose.Prelude
+import QCompose.Primitives.QSearch
 import QCompose.ProtoLang.Cost
 import QCompose.ProtoLang.Parser
 import QCompose.ProtoLang.Syntax
-import QCompose.Primitives.QSearch
 
 import Test.Hspec
 

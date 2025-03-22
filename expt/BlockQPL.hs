@@ -1,33 +1,33 @@
 module QCompose.BlockQPL where
-	
-import qualified Data.Map as M
+
+import qualified Data.Map as Map
 
 -- cq-while language
 data CQType = CType VarType | QType VarType
 
-data CQWhile =
-  -- simple
-  Skip
+data CQWhile
+  = -- simple
+    Skip
   | Return [Ident]
-  -- sequences
-  | Seq [CQWhile]
+  | -- sequences
+    Seq [CQWhile]
   | Repeat Int CQWhile
-  -- classical
-  | CNew Ident
+  | -- classical
+    CNew Ident
   | CAssign [Ident] SimpleExpr
   | CRandom Ident VarType
   | CDiscard Ident
-  -- control flow
-  | CWhile Ident CQWhile
+  | -- control flow
+    CWhile Ident CQWhile
   | CIfTE Ident CQWhile CQWhile
-  -- q. unitary
-  | QNew Ident VarType
+  | -- q. unitary
+    QNew Ident VarType
   | QDiscard Ident
   | QUnitary [Ident] String
-  -- quantum
-  | QMeas Ident Ident
-  -- placeholder
-  | CQHole String
+  | -- quantum
+    QMeas Ident Ident
+  | -- placeholder
+    CQHole String
   deriving (Eq, Show, Read)
 
 class Rewritable a where
@@ -42,22 +42,22 @@ instance Rewritable CQWhile where
 
 flatten_seq :: CQWhile -> CQWhile
 flatten_seq = rewrite flatten_aux
-  where
-    flatten_aux :: CQWhile -> CQWhile
-    flatten_aux (Seq ps) = 
-      let ps' = concatMap into_seq ps in
-      case ps' of
-        [p] -> p
-        _ -> Seq ps'
-    flatten_aux p = p
+ where
+  flatten_aux :: CQWhile -> CQWhile
+  flatten_aux (Seq ps) =
+    let ps' = concatMap into_seq ps
+     in case ps' of
+          [p] -> p
+          _ -> Seq ps'
+  flatten_aux p = p
 
-    into_seq :: CQWhile -> [CQWhile]
-    into_seq (Seq qs) = qs
-    into_seq Skip = []
-    into_seq q = [q]
+  into_seq :: CQWhile -> [CQWhile]
+  into_seq (Seq qs) = qs
+  into_seq Skip = []
+  into_seq q = [q]
 
 -- Compilation
-type TypeCtx = M.Map Ident VarType
+type TypeCtx = Map.Map Ident VarType
 
 type Compiler = TypeCtx -> Stmt -> CQWhile
 
@@ -72,11 +72,11 @@ compile_classical :: Compiler
 --   where
 --     compiled_body = compile_classical ctx body
 
---     compute_stmts = 
---       case expr of 
+--     compute_stmts =
+--       case expr of
 --         E simple_expr -> CAssign xs simple_expr
---         ESearch pred args -> 
---           let [ans, ok] = xs in 
+--         ESearch pred args ->
+--           let [ans, ok] = xs in
 --             Seq [
 --               CNew "loop",
 --               CAssign ["loop"] (EConst 1 (Fin 1)),

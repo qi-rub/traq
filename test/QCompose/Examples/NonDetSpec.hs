@@ -2,7 +2,7 @@ module QCompose.Examples.NonDetSpec (spec) where
 
 import Control.Monad.State
 import Data.Either (fromRight, isRight)
-import qualified Data.Map as M
+import qualified Data.Map as Map
 import qualified Data.Number.Symbolic as Sym
 import Lens.Micro
 import Text.Parsec.String (parseFromFile)
@@ -29,27 +29,27 @@ spec = do
 
     it "typechecks" $ do
       ex <- load'
-      P.typeCheckProg M.empty ex `shouldSatisfy` isRight
+      P.typeCheckProg Map.empty ex `shouldSatisfy` isRight
 
     it "all solutions" $ do
       ex <- load'
       let oracleF = const [1]
-      let out = execStateT (P.execProgram ex oracleF) M.empty
+      let out = execStateT (P.execProgram ex oracleF) Map.empty
 
       out
         `shouldBe` choice
-          [ pure $ M.fromList [("ok", 1), ("x", x)]
+          [ pure $ Map.fromList [("ok", 1), ("x", x)]
           | x <- [0 .. 9]
           ]
 
     it "no solutions" $ do
       ex <- load'
       let oracleF = const [0]
-      let out = execStateT (P.execProgram ex oracleF) M.empty
+      let out = execStateT (P.execProgram ex oracleF) Map.empty
 
       out
         `shouldBe` choice
-          [ pure $ M.fromList [("ok", 0), ("x", x)]
+          [ pure $ Map.fromList [("ok", 0), ("x", x)]
           | x <- [0 .. 9]
           ]
 
@@ -57,10 +57,10 @@ spec = do
       ex <- load'
       let sols = [1, 4, 6] :: [Value]
       let oracleF = \[i] -> [boolToValue $ i `elem` sols]
-      let out = execStateT (P.execProgram ex oracleF) M.empty
+      let out = execStateT (P.execProgram ex oracleF) Map.empty
 
       out
         `shouldBe` choice
-          [ pure $ M.fromList [("ok", 1), ("x", x)]
+          [ pure $ Map.fromList [("ok", 1), ("x", x)]
           | x <- sols
           ]

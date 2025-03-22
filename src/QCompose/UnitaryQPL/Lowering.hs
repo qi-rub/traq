@@ -3,11 +3,13 @@ module QCompose.UnitaryQPL.Lowering where
 import Control.Monad.Except (throwError)
 import Control.Monad.RWS
 import Control.Monad.Trans (lift)
-import qualified Data.Map as M
+import qualified Data.Map as Map
+import Data.Maybe (catMaybes)
+import qualified Data.Set as Set
 import Lens.Micro
 import Lens.Micro.Mtl
+import Text.Printf (printf)
 
-import Data.Maybe (catMaybes)
 import QCompose.Prelude
 import qualified QCompose.ProtoLang as P
 import QCompose.ProtoLang.Syntax (FunctionCallKind (PrimitiveCall))
@@ -39,17 +41,16 @@ qsearchConfig = _2
 {- | A global lowering context storing the source functions and generated procedures
  along with info to generate unique ancilla and variable/procedure names
 -}
-type LoweringCtx a = (Int, Int, P.TypingCtx a)
+type LoweringCtx a = (Set.Set Ident, P.TypingCtx a)
 
 emptyLoweringCtx :: LoweringCtx a
-emptyLoweringCtx = (0, 0, M.empty)
+emptyLoweringCtx = (Set.empty, Map.empty)
 
-ancillaIdx, uniqNameIdx :: Lens' (LoweringCtx a) Int
-ancillaIdx = _1
-uniqNameIdx = _2
+uniqNames :: Lens' (LoweringCtx a) (Set.Set Ident)
+uniqNames = _1
 
 typingCtx :: Lens' (LoweringCtx a) (P.TypingCtx a)
-typingCtx = _3
+typingCtx = _2
 
 -- | The outputs of lowering
 type LoweringOutput a = [ProcDef a]
@@ -65,23 +66,34 @@ type CompilerT a = RWST (LoweringConfig a) (LoweringOutput a) (LoweringCtx a) (E
 
 newIdent :: Ident -> CompilerT a Ident
 newIdent prefix = do
-  i <- use uniqNameIdx
-  uniqNameIdx += 1
-  return $ prefix ++ "_" ++ show i
+  ident <-
+    msum . map checked $
+      prefix : map ((prefix <>) . ("_" <>) . show) [1 :: Int ..]
+  uniqNames . at ident ?= ()
+  return ident
+ where
+  checked :: Ident -> CompilerT a Ident
+  checked name = do
+    already_exists <- use (uniqNames . at name)
+    case already_exists of
+      Nothing -> return name
+      Just () -> throwError "next ident please!"
 
 -- | Allocate an ancilla register, and update the typing context.
 allocAncilla :: P.VarType a -> CompilerT a Ident
 allocAncilla ty = do
-  i <- use ancillaIdx
-  ancillaIdx += 1
-
-  let name = "_aux_" <> show i
+  name <- newIdent "aux"
   zoom typingCtx $ putValue name ty
   return name
 
 -- | Add a new procedure.
 addProc :: ProcDef a -> CompilerT a ()
 addProc procDef = tell [procDef]
+
+-- | lower an oracle declaration to a uqpl oracle decl
+lowerOracleDecl :: P.OracleDecl a -> OracleDecl a
+lowerOracleDecl P.OracleDecl{P.param_types, P.ret_types} =
+  OracleDecl{param_types = param_types ++ ret_types}
 
 -- | A procDef generated from a funDef, along with the partitioned register spaces.
 data LoweredProc a = LoweredProc
@@ -172,7 +184,9 @@ lowerExpr delta P.FunCallE{P.fun_kind = PrimitiveCall P.Contains, P.args = (pred
 
   -- emit the qsearch procedure
   -- TODO maybe this can be somehow "parametrized" so we don't have to generate each time.
-  qsearch_proc_name <- newIdent "QSearch"
+  qsearch_proc_name <-
+    newIdent $
+      printf "QSearch[%d, %e, %s]" n delta_search (proc_name pred_proc)
   qsearch_ancilla_tys <- view (qsearchConfig . _ancillaTypes) <&> (\f -> f n delta_search)
   let qsearch_param_tys =
         init pred_inp_tys
@@ -237,9 +251,9 @@ lowerFunDef ::
   P.FunDef SizeT ->
   CompilerT SizeT (LoweredProc SizeT)
 lowerFunDef delta P.FunDef{P.fun_name, P.param_binds, P.ret_binds, P.body} = do
-  proc_name <- newIdent fun_name
+  proc_name <- newIdent $ printf "%s[%e]" fun_name delta
   (proc_body, all_binds, aux_tys) <- withSandboxOf typingCtx $ do
-    typingCtx .= M.fromList param_binds
+    typingCtx .= Map.fromList param_binds
 
     proc_body <- lowerStmt delta body
 
@@ -255,7 +269,7 @@ lowerFunDef delta P.FunDef{P.fun_name, P.param_binds, P.ret_binds, P.body} = do
     let (ret_names, copiesS) = unzip rets & over _2 catMaybes
 
     let proc_body' = SeqS [proc_body, SeqS copiesS]
-    aux_binds <- use typingCtx <&> M.toList <&> filter (not . (`elem` param_names ++ ret_names) . fst)
+    aux_binds <- use typingCtx <&> Map.toList <&> filter (not . (`elem` param_names ++ ret_names) . fst)
     let all_binds = param_binds ++ ret_binds ++ aux_binds
 
     return (proc_body', all_binds, map snd aux_binds)
@@ -281,7 +295,7 @@ lowerProgram qsearch_config gamma_in delta prog@P.Program{P.funCtx, P.stmt} = do
   (stmtU, ctx', outputU) <- runRWST compiler config ctx
   return
     ( Program
-        { oracle_decl = funCtx & P.oracle_decl
+        { oracle_decl = funCtx & P.oracle_decl & lowerOracleDecl
         , proc_defs = outputU ^. loweredProcs
         , stmt = stmtU
         }
@@ -289,5 +303,8 @@ lowerProgram qsearch_config gamma_in delta prog@P.Program{P.funCtx, P.stmt} = do
     )
  where
   config = (funCtx, qsearch_config)
-  ctx = emptyLoweringCtx & typingCtx .~ gamma_in
+  ctx =
+    emptyLoweringCtx
+      & typingCtx .~ gamma_in
+      & uniqNames .~ P.allNamesP prog
   compiler = lowerStmt delta stmt

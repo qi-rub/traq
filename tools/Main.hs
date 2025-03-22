@@ -1,6 +1,6 @@
 module Main where
 
-import qualified Data.Map as M
+import qualified Data.Map as Map
 
 import qualified QCompose.ProtoLang as P
 import qualified QCompose.UnitaryQPL as U
@@ -25,7 +25,7 @@ main = do
   let u_formula_cost = P.unitaryQueryCost cadeEtAlFormulas delta ex
 
   putStrLn $ replicate 80 '='
-  let (Right (exU, _)) = U.lowerProgram zalkaQSearch M.empty delta ex
+  let (Right (exU, _)) = U.lowerProgram zalkaQSearch Map.empty delta ex
   putStrLn $ toCodeString exU
 
   let u_true_cost = U.programCost exU

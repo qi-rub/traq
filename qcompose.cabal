@@ -36,7 +36,6 @@ library
           QCompose.ProtoLang.TypeCheck
           QCompose.ProtoLang.Vars
           QCompose.UnitaryQPL
-          QCompose.UnitaryQPL.Builder
           QCompose.UnitaryQPL.Cost
           QCompose.UnitaryQPL.Lowering
           QCompose.UnitaryQPL.Syntax

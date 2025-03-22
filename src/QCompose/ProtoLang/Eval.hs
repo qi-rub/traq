@@ -12,7 +12,7 @@ import Control.Monad.Extra (anyM)
 import Control.Monad.Reader (ReaderT, local)
 import Control.Monad.State (StateT, evalStateT)
 import Control.Monad.Trans (lift)
-import qualified Data.Map as M
+import qualified Data.Map as Map
 import Lens.Micro
 
 import QCompose.Prelude
@@ -125,7 +125,7 @@ evalFun funCtx oracleF vals_in FunDef{param_binds, ret_binds, body} =
     mapM lookupVar ret_names
  where
   param_names = map fst param_binds
-  params = M.fromList $ zip param_names vals_in
+  params = Map.fromList $ zip param_names vals_in
   ret_names = map fst ret_binds
 
 execProgram :: Program SizeT -> OracleInterp -> Executor ()

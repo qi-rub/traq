@@ -3,13 +3,17 @@ module QCompose.ProtoLang.Cost (
   QSearchFormulas (..),
   unitaryQueryCost,
   quantumQueryCost,
+  needsEpsS,
+  needsEpsP,
 ) where
 
 import Control.Monad (filterM)
+import Control.Monad.Reader (Reader, runReader)
 import Control.Monad.State (execStateT)
 import Data.Foldable (toList)
-import qualified Data.Map as M
+import qualified Data.Map as Map
 import Lens.Micro
+import Lens.Micro.Mtl
 
 import QCompose.Prelude
 import QCompose.Utils.Tree
@@ -96,7 +100,7 @@ quantumQueryCost algs a_eps Program{funCtx, stmt} oracleF = cost a_eps stmt
   unsafeLookupFun fname = head $ lookupFun fname funCtx
 
   get :: ProgramState -> Ident -> Value
-  get st x = st M.! x
+  get st x = st Map.! x
 
   costE :: FailProb -> Expr SizeT -> ProgramState -> Complexity
   costE _ FunCallE{fun_kind = OracleCall} _ = 1
@@ -104,7 +108,7 @@ quantumQueryCost algs a_eps Program{funCtx, stmt} oracleF = cost a_eps stmt
    where
     vs = map (get sigma) args
     FunDef _ fn_args _ body = unsafeLookupFun f
-    omega = M.fromList $ zip (fst <$> fn_args) vs
+    omega = Map.fromList $ zip (fst <$> fn_args) vs
 
   -- known cost formulas
   costE eps FunCallE{fun_kind = PrimitiveCall c, args = (predicate : args)} sigma
@@ -151,3 +155,18 @@ quantumQueryCost algs a_eps Program{funCtx, stmt} oracleF = cost a_eps stmt
     sigma' = detExtract $ execStateT runner sigma
   -- all other statements
   cost _ _ _ = error "INVALID"
+
+-- | Compute if a statement can fail and therefore needs a failure probability to implement
+needsEpsS :: Stmt a -> Reader (FunCtx a) Bool
+needsEpsS IfThenElseS{s_true, s_false} = (||) <$> needsEpsS s_true <*> needsEpsS s_false
+needsEpsS (SeqS ss) = or <$> traverse needsEpsS ss
+needsEpsS ExprS{expr = FunCallE{fun_kind = PrimitiveCall _}} = return True
+needsEpsS ExprS{expr = FunCallE{fun_kind = FunctionCall f}} =
+  view (to unsafeLookupFun . to body) >>= needsEpsS
+ where
+  unsafeLookupFun = head . lookupFun f
+needsEpsS _ = return False
+
+-- | Compute if a program can fail and therefore needs a failure probability to implement
+needsEpsP :: Program a -> Bool
+needsEpsP Program{funCtx, stmt} = runReader (needsEpsS stmt) funCtx

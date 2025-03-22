@@ -7,12 +7,12 @@ module QCompose.UnitaryQPL.TypeCheck (
 import Control.Monad (forM, forM_, when)
 import Control.Monad.Except (throwError)
 import Control.Monad.Reader (ReaderT, local, runReaderT)
-import qualified Data.Map as M
+import qualified Data.Map as Map
 import Lens.Micro
 import Lens.Micro.Mtl
 
 import QCompose.Prelude
-import QCompose.ProtoLang (OracleDecl (..), TypeCheckable (..), TypingCtx, VarType)
+import QCompose.ProtoLang (TypeCheckable (..), TypingCtx, VarType)
 import QCompose.UnitaryQPL.Syntax
 import QCompose.Utils.MonadHelpers
 
@@ -40,8 +40,7 @@ verifyArgs args tys = do
 unitarySignature :: (TypeCheckable a) => Unitary a -> TypeChecker a [VarType a]
 unitarySignature Toffoli = return [tbool, tbool, tbool]
 unitarySignature CNOT = return [tbool, tbool]
-unitarySignature Oracle = magnify oracleDecl $ do
-  (++) <$> view (to param_types) <*> view (to ret_types)
+unitarySignature Oracle = view (oracleDecl . to param_types)
 unitarySignature (RevEmbedU f) = return $ revFunTys f
  where
   revFunTys ConstF{ty} = [ty]
@@ -74,13 +73,13 @@ typeCheckStmt' s = typeCheckStmt s `throwFrom` ("typecheck failed: " <> show s)
 
 typeCheckProc :: (TypeCheckable a) => ProcDef a -> TypeChecker a ()
 typeCheckProc procdef@ProcDef{proc_params, proc_body} =
-  local (typingCtx .~ M.fromList proc_params) $
+  local (typingCtx .~ Map.fromList proc_params) $
     typeCheckStmt' proc_body
       `throwFrom` ("typecheck proc failed: " <> show procdef)
 
 typeCheckProgram :: (TypeCheckable a) => TypingCtx a -> Program a -> Either String ()
 typeCheckProgram gamma Program{oracle_decl, proc_defs, stmt} = do
-  let ctx = (oracle_decl, proc_defs, M.empty)
+  let ctx = (oracle_decl, proc_defs, Map.empty)
 
   forM_ proc_defs $ (`runReaderT` ctx) . typeCheckProc
 
