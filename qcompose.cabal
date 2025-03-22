@@ -23,6 +23,7 @@ library
           QCompose
           QCompose.Control.MonadHelpers
           QCompose.CQPL
+          QCompose.CQPL.Lowering
           QCompose.CQPL.Syntax
           QCompose.Data.Context
           QCompose.Data.Tree
