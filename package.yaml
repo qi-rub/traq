@@ -48,10 +48,17 @@ library:
   default-extensions:
     - Safe
 
-executable:
-  main: Main.hs
+_exe_opts: &exe_opts
   source-dirs: tools
   dependencies: qcompose
+
+executables:
+  qcompose:
+    main: Main.hs
+    <<: *exe_opts
+  uqplcompile:
+    main: uqplcompile.hs
+    <<: *exe_opts
 
 tests:
   spec:

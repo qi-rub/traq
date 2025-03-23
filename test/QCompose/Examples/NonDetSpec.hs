@@ -17,7 +17,7 @@ import Test.Hspec
 spec :: Spec
 spec = do
   describe "SimpleExample" $ do
-    let load = parseFromFile (PP.program PP.protoLangTokenParser) "examples/nondet.qb"
+    let load = parseFromFile PP.programParser "examples/nondet.qb"
     it "parses" $ do
       mEx <- load
       mEx `shouldSatisfy` isRight

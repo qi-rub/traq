@@ -138,7 +138,6 @@ lowerExpr _ P.FunCallE{P.fun_kind = P.OracleCall, P.args} rets = do
 lowerExpr delta P.FunCallE{P.fun_kind = P.FunctionCall f, P.args} rets = do
   fun <- view protoFunCtx >>= (lift . P.lookupFun f)
   LoweredProc{lowered_def, inp_tys, out_tys, aux_tys} <- lowerFunDef delta fun
-  addProc lowered_def
 
   when (length inp_tys /= length args) $
     throwError "mismatched number of args"
@@ -179,8 +178,6 @@ lowerExpr delta P.FunCallE{P.fun_kind = PrimitiveCall P.Contains, P.args = (pred
 
   when (pred_out_tys /= [P.tbool]) $ throwError "invalid outputs for predicate"
   when (last pred_inp_tys /= s_ty) $ throwError "mismatched search argument type"
-
-  addProc pred_proc
 
   -- emit the qsearch procedure
   -- TODO maybe this can be somehow "parametrized" so we don't have to generate each time.
@@ -244,13 +241,15 @@ lowerStmt _ _ = error "lowering: unsupported"
 {- | Compile a single function definition with the given precision.
  Each invocation will generate a new proc, even if an identical one exists.
 
+ This can produce entangled aux registers.
+
  TODO try to cache compiled procs by key (funDefName, Precision).
 -}
-lowerFunDef ::
+lowerFunDefWithGarbage ::
   Precision ->
   P.FunDef SizeT ->
   CompilerT SizeT (LoweredProc SizeT)
-lowerFunDef delta P.FunDef{P.fun_name, P.param_binds, P.ret_binds, P.body} = do
+lowerFunDefWithGarbage delta P.FunDef{P.fun_name, P.param_binds, P.ret_binds, P.body} = do
   proc_name <- newIdent $ printf "%s[%e]" fun_name delta
   (proc_body, all_binds, aux_tys) <- withSandboxOf typingCtx $ do
     typingCtx .= Map.fromList param_binds
@@ -274,12 +273,73 @@ lowerFunDef delta P.FunDef{P.fun_name, P.param_binds, P.ret_binds, P.body} = do
 
     return (proc_body', all_binds, map snd aux_binds)
 
+  let procDef = ProcDef{proc_name, proc_params = all_binds, proc_body}
+  addProc procDef
   return
     LoweredProc
-      { lowered_def = ProcDef{proc_name, proc_params = all_binds, proc_body}
+      { lowered_def = procDef
       , inp_tys = map snd param_binds
       , out_tys = map snd ret_binds
       , aux_tys = aux_tys
+      }
+
+{- | Compile a single function definition with the given precision.
+ Each invocation will generate a new proc, even if an identical one exists.
+
+ The auxillary registers are uncomputed.
+
+ TODO try to cache compiled procs by key (funDefName, Precision).
+-}
+lowerFunDef ::
+  Precision ->
+  P.FunDef SizeT ->
+  CompilerT SizeT (LoweredProc SizeT)
+lowerFunDef delta fun@P.FunDef{P.fun_name, P.param_binds} = withSandboxOf typingCtx $ do
+  -- get the proc call that computes with garbage
+  lowered_proc <- lowerFunDefWithGarbage (delta / 2) fun
+  let g_dirty_name = lowered_proc ^. to lowered_def . to proc_name
+
+  typingCtx .= Map.fromList param_binds
+
+  proc_name <- newIdent $ printf "%s_clean[%e]" fun_name delta
+
+  let g_params = map fst param_binds
+  g_outs <- mapM allocAncilla $ lowered_proc ^. to out_tys
+  let g_aux_tys = lowered_proc ^. to aux_tys
+  g_ancs <- mapM allocAncilla g_aux_tys
+  let g_args = g_params ++ g_outs ++ g_ancs
+
+  let g_out_tys = lowered_proc ^. to out_tys
+  outs <- mapM allocAncilla g_out_tys
+
+  -- call g, copy and uncompute g
+  let proc_body =
+        SeqS
+          [ CallS{proc_id = g_dirty_name, dagger = False, args = g_args}
+          , SeqS
+              [ UnitaryS [x, x'] (RevEmbedU $ IdF ty)
+              | (x, x', ty) <- zip3 g_outs outs g_out_tys
+              ]
+          , CallS{proc_id = g_dirty_name, dagger = True, args = g_args}
+          ]
+
+  let proc_def =
+        ProcDef
+          { proc_name
+          , proc_params =
+              param_binds
+                ++ zip outs g_out_tys
+                ++ zip g_outs g_out_tys
+                ++ zip g_ancs g_aux_tys
+          , proc_body
+          }
+  addProc proc_def
+  return
+    LoweredProc
+      { lowered_def = proc_def
+      , inp_tys = map snd param_binds
+      , out_tys = g_out_tys
+      , aux_tys = g_out_tys ++ g_aux_tys
       }
 
 -- | Lower a full program into a UQPL program.

@@ -1,11 +1,12 @@
 module QCompose.UnitaryQPL.Syntax where
 
+import Text.Printf (printf)
+
 import QCompose.Prelude
 import qualified QCompose.ProtoLang as P
 import QCompose.Utils.Printing
-import Text.Printf (printf)
 
-data ReversibleFun a
+data ClassicalFun a
   = ConstF {ty :: P.VarType a, val :: Integer} -- () -> val
   | NotF {ty :: P.VarType a} -- x -> ~x
   | IdF {ty :: P.VarType a} -- x -> x
@@ -21,8 +22,12 @@ data BlackBox a
 data Unitary a
   = Toffoli
   | CNOT
+  | XGate
+  | HGate
   | Oracle
-  | RevEmbedU (ReversibleFun a)
+  | -- | maps \( |0\rangle \) to \( \frac1{\sqrt{|\Sigma_T|}} \sum_{x \in \Sigma_T} |x\rangle \)
+    Unif (P.VarType a)
+  | RevEmbedU (ClassicalFun a)
   | BlackBoxU (BlackBox a)
   deriving (Eq, Show, Read)
 
@@ -58,7 +63,7 @@ showTypedIdent (ident, ty) = ident <> " : " <> toCodeString ty
 showTypedValue :: (Show a, Show v) => (v, P.VarType a) -> String
 showTypedValue (v, ty) = show v <> " : " <> toCodeString ty
 
-instance (Show a) => ToCodeString (ReversibleFun a) where
+instance (Show a) => ToCodeString (ClassicalFun a) where
   toCodeString ConstF{val, ty} = "() => " <> showTypedValue (val, ty)
   toCodeString NotF{ty} = showTypedIdent ("x", ty) <> " => ~x"
   toCodeString IdF{ty} = showTypedIdent ("x", ty) <> " => x"
@@ -67,6 +72,7 @@ instance (Show a) => ToCodeString (ReversibleFun a) where
 
 instance (Show a) => ToCodeString (Unitary a) where
   toCodeString (RevEmbedU f) = "RevEmbed[" <> toCodeString f <> "]"
+  toCodeString (Unif ty) = "Unif[" <> toCodeString ty <> "]"
   toCodeString u = show u
 
 instance (Show a) => ToCodeString (Stmt a) where

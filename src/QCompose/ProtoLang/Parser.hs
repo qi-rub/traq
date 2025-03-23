@@ -1,6 +1,13 @@
 {-# LANGUAGE RecordWildCards #-}
 
-module QCompose.ProtoLang.Parser where
+module QCompose.ProtoLang.Parser (
+  programParser,
+  parseCode,
+  parseProgram,
+  parseFunDef,
+  parseStmt,
+  isValidIdentifier,
+) where
 
 import Data.Either (isRight)
 import Data.Functor (($>))
@@ -166,6 +173,9 @@ program tp@TokenParser{..} = do
   fun_defs <- many (funDef tp)
   stmt <- stmtP tp
   return Program{funCtx = FunCtx{oracle_decl, fun_defs}, stmt}
+
+programParser :: Parser (Program SymbSize)
+programParser = program protoLangTokenParser
 
 parseCode :: (TokenParser () -> Parser a) -> String -> Either ParseError a
 parseCode parser = parse (whiteSpace p *> parser p <* eof) ""

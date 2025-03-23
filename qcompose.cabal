@@ -67,6 +67,12 @@ library
 
 executable qcompose
     main-is: Main.hs
+    hs-source-dirs:
+          tools
+    default-extensions:
+          LambdaCase
+          NamedFieldPuns
+    ghc-options: -Wall
     build-depends:
           base >=4.10 && <5
         , containers >=0.6 && <1
@@ -80,12 +86,31 @@ executable qcompose
         , qcompose
         , quipper ==0.9.0.0
         , transformers >=0.4 && <0.6
+    default-language: Haskell2010
+
+executable uqplcompile
+    main-is: uqplcompile.hs
+    other-modules:
+          Main
     hs-source-dirs:
           tools
     default-extensions:
           LambdaCase
           NamedFieldPuns
     ghc-options: -Wall
+    build-depends:
+          base >=4.10 && <5
+        , containers >=0.6 && <1
+        , extra >=1.8 && <2
+        , microlens ==0.4.*
+        , microlens-ghc ==0.4.*
+        , microlens-mtl ==0.2.*
+        , mtl >=2.2.2
+        , numbers ==3000.2.*
+        , parsec >=3.1.17 && <3.2
+        , qcompose
+        , quipper ==0.9.0.0
+        , transformers >=0.4 && <0.6
     default-language: Haskell2010
 
 test-suite spec
