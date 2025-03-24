@@ -23,10 +23,10 @@ import QCompose.ProtoLang.Eval
 import QCompose.ProtoLang.Syntax
 
 -- | Computed cost functions (quantum, unitary) of a given set of algorithms implementing quantum search
-data QSearchFormulas sizeT = QSearchFormulas
-  { qSearchExpectedCost :: sizeT -> sizeT -> FailProb -> Complexity -- n t eps
-  , qSearchWorstCaseCost :: sizeT -> FailProb -> Complexity -- n eps
-  , qSearchUnitaryCost :: sizeT -> Precision -> Complexity -- n delta
+data QSearchFormulas sizeT costT = QSearchFormulas
+  { qSearchExpectedCost :: sizeT -> sizeT -> costT -> costT -- n t eps
+  , qSearchWorstCaseCost :: sizeT -> costT -> costT -- n eps
+  , qSearchUnitaryCost :: sizeT -> costT -> costT -- n delta
   }
 
 detExtract :: Tree a -> a
@@ -35,23 +35,25 @@ detExtract xs = case toList xs of
   _ -> error "unexpected non-determinism"
 
 unitaryQueryCost ::
+  forall sizeT costT.
+  (Num sizeT, Floating costT) =>
   -- | Qry formulas
-  QSearchFormulas SizeT ->
+  QSearchFormulas sizeT costT ->
   -- | precision (l2-norm)
-  Precision ->
+  costT ->
   -- | program `P`
-  Program SizeT ->
-  Complexity
+  Program sizeT ->
+  costT
 unitaryQueryCost algs d Program{funCtx, stmt} = cost d stmt
  where
-  unsafeLookupFun :: Ident -> FunDef SizeT
+  unsafeLookupFun :: Ident -> FunDef sizeT
   unsafeLookupFun fname =
     funCtx
       ^. to fun_defs
         . to (map $ \f -> (f ^. to fun_name, f))
         . atL fname
 
-  costE :: Precision -> Expr SizeT -> Complexity
+  costE :: costT -> Expr sizeT -> costT
   costE _ FunCallE{fun_kind = OracleCall} = 1
   -- TODO properly handle the funCtx
   costE delta FunCallE{fun_kind = FunctionCall fname} = 2 * cost (delta / 2) body
@@ -85,16 +87,16 @@ unitaryQueryCost algs d Program{funCtx, stmt} = cost d stmt
   costE _ BinOpE{} = 0
   costE _ FunCallE{} = error "invalid syntax"
 
-  cost :: Precision -> Stmt SizeT -> Complexity
+  cost :: costT -> Stmt sizeT -> costT
   cost delta ExprS{expr} = costE delta expr
-  cost delta IfThenElseS{s_true, s_false} = max (cost delta s_true) (cost delta s_false)
+  cost delta IfThenElseS{s_true, s_false} = cost delta s_true + cost delta s_false
   cost delta (SeqS [s]) = cost delta s
   cost delta (SeqS (s : ss)) = cost (delta / 2) s + cost (delta / 2) (SeqS ss)
   cost _ _ = error "invalid syntax"
 
 quantumQueryCost ::
   -- | Qry formulas
-  QSearchFormulas SizeT ->
+  QSearchFormulas SizeT Complexity ->
   -- | failure probability `eps`
   FailProb ->
   -- | program `P`

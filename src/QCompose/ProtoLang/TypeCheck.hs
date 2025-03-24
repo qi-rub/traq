@@ -20,6 +20,7 @@ import QCompose.Prelude
 import QCompose.ProtoLang.Syntax
 import QCompose.Utils.Context
 import QCompose.Utils.Printing
+import Text.Printf (printf)
 
 type TypingCtx a = VarContext (VarType a)
 
@@ -194,16 +195,17 @@ typeCheckFun funCtx FunDef{param_binds, ret_binds, body} = do
   let gamma = Map.fromList param_binds
   gamma' <- execStateT (checkStmt funCtx body) gamma
   forM_ ret_binds $ \(x, t) -> do
-    t' <- gamma' ^. at x & maybe (throwError $ "missing in returns: " <> show x) pure
+    when (has _Just (gamma ^. at x)) $ do
+      throwError $ printf "parameter `%s` cannot be returned, please copy it into a new variable and return that" x
+    t' <- gamma' ^. at x & maybe (throwError $ printf "missing in returns: %s" x) pure
     when (t /= t') $
-      throwError
-        ( "return term "
-            <> x
-            <> ": expected type "
-            <> show t
-            <> ", got type "
-            <> show t'
-        )
+      throwError $
+        printf
+          "return term %s: expected type %s, got type %s"
+          x
+          (show t)
+          (show t')
+
   return gamma'
 
 -- | Type check a full program (i.e. list of functions).

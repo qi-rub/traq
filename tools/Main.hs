@@ -1,20 +1,33 @@
 module Main where
 
 import qualified Data.Map as Map
+import qualified Data.Number.Symbolic as Sym
 
 import qualified QCompose.ProtoLang as P
 import qualified QCompose.UnitaryQPL as U
 
 import Control.Exception (assert)
 import QCompose.Examples.MatrixSearch
+import QCompose.Prelude
 import QCompose.Primitives.QSearch
 import QCompose.Utils.Printing
 
-main :: IO ()
-main = do
-  putStrLn "hello qcompose"
+symbolicEx :: IO ()
+symbolicEx = do
+  putStrLn "symbolic program:"
 
-  let (n, m) = (10, 10)
+  let n = Sym.var "N" :: Sym.Sym SizeT
+  let m = Sym.var "M" :: Sym.Sym SizeT
+  let ex = matrixExample n m (P.Fin $ Sym.con 2)
+
+  let delta = Sym.var "δ" :: Sym.Sym Double
+  let u_formula_cost = P.unitaryQueryCost symbolicFormulas delta ex
+  print u_formula_cost
+
+concreteEx :: IO ()
+concreteEx = do
+  putStrLn "concrete program:"
+  let (n, m) = (1000, 1000)
   let ex = matrixExampleS n m
 
   putStrLn $ replicate 80 '='
@@ -28,9 +41,15 @@ main = do
   let (Right (exU, _)) = U.lowerProgram zalkaQSearch Map.empty delta ex
   putStrLn $ toCodeString exU
 
-  let u_true_cost = U.programCost exU
+  let (u_true_cost, _) = U.programCost exU
 
   putStrLn "Unitary Cost:"
   putStrLn $ " - Abstract cost: " <> show u_formula_cost
   putStrLn $ " - Actual cost: " <> show u_true_cost
   assert (u_true_cost == u_formula_cost) $ return ()
+
+main :: IO ()
+main = do
+  putStrLn "hello qcompose"
+  symbolicEx
+  concreteEx

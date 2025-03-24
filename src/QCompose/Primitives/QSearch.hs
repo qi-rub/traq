@@ -7,14 +7,27 @@ References:
 -}
 module QCompose.Primitives.QSearch where
 
+import qualified Data.Number.Symbolic as Sym
+
 import qualified QCompose.CQPL as CQ
 import QCompose.Prelude
 import QCompose.ProtoLang (VarType (..))
 import qualified QCompose.ProtoLang as P
 import qualified QCompose.UnitaryQPL as U
 
+symbolicFormulas :: forall sizeT costT. (Show sizeT, Show costT, Integral sizeT, RealFloat costT) => P.QSearchFormulas (Sym.Sym sizeT) (Sym.Sym costT)
+symbolicFormulas =
+  P.QSearchFormulas
+    { P.qSearchExpectedCost = error "no symbolic support"
+    , P.qSearchWorstCaseCost = error "no symbolic support"
+    , P.qSearchUnitaryCost = ucF
+    }
+ where
+  ucF :: Sym.Sym sizeT -> Sym.Sym costT -> Sym.Sym costT
+  ucF n eps = Sym.var $ "Qry(" <> show n <> ", " <> show eps <> ")"
+
 -- | Cost formulas for quantum search algorithms \( \textbf{QSearch} \) and \( \textbf{QSearch}_\text{Zalka} \).
-cadeEtAlFormulas :: forall sizeT. (Integral sizeT) => P.QSearchFormulas sizeT
+cadeEtAlFormulas :: forall sizeT costT. (Integral sizeT, RealFloat costT) => P.QSearchFormulas sizeT costT
 cadeEtAlFormulas =
   P.QSearchFormulas
     { P.qSearchExpectedCost = eqsearch
@@ -22,15 +35,15 @@ cadeEtAlFormulas =
     , P.qSearchUnitaryCost = zalka
     }
  where
-  eqsearch_worst :: sizeT -> FailProb -> Complexity
+  eqsearch_worst :: sizeT -> costT -> costT
   eqsearch_worst n eps = 9.2 * log (1 / eps) * sqrt (fromIntegral n)
 
-  f :: sizeT -> sizeT -> Complexity
+  f :: sizeT -> sizeT -> costT
   f n t
     | 4 * t < n = 2.0344
     | otherwise = 3.1 * sqrt (fromIntegral n / fromIntegral t)
 
-  eqsearch :: sizeT -> sizeT -> FailProb -> Complexity
+  eqsearch :: sizeT -> sizeT -> costT -> costT
   eqsearch n t eps
     | t == 0 = eqsearch_worst n eps
     | otherwise = f n t * (1 + 1 / (1 - term))
@@ -38,11 +51,12 @@ cadeEtAlFormulas =
     term = f n t / (9.2 * sqrt (fromIntegral n))
 
   -- TODO verify for precision instead of fail prob
-  zalka :: sizeT -> FailProb -> Complexity
-  zalka n eps = 5 * fromIntegral log_fac + pi * sqrt (fromIntegral (n * log_fac))
+  zalka :: sizeT -> costT -> costT
+  zalka n eps = 5 * log_fac + pi * sqrt (fromIntegral n * log_fac)
    where
-    log_fac :: sizeT
-    log_fac = ceiling (log (1 / eps) / (2 * log (4 / 3)))
+    -- log_fac = ceiling log_fac
+    log_fac :: costT
+    log_fac = log (1 / eps) / (2 * log (4 / 3))
 
 -- | Ancilla and Cost formulas for the unitary quantum search algorithm \( \textbf{QSearch}_\text{Zalka} \).
 zalkaQSearch :: U.QSearchUnitaryImpl

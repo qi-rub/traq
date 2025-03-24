@@ -67,7 +67,7 @@ typeCheckStmt CallS{proc_id, args} = do
       <&> filter ((proc_id ==) . proc_name)
       <&> head
       <&> proc_params
-      <&> map snd
+      <&> map (^. _3)
   verifyArgs args proc_param_tys
 -- compound statements
 typeCheckStmt (SeqS ss) = mapM_ typeCheckStmt' ss
@@ -77,9 +77,11 @@ typeCheckStmt' s = typeCheckStmt s `throwFrom` ("typecheck failed: " <> show s)
 
 typeCheckProc :: (TypeCheckable a) => ProcDef a -> TypeChecker a ()
 typeCheckProc procdef@ProcDef{proc_params, proc_body} =
-  local (typingCtx .~ Map.fromList proc_params) $
+  local (typingCtx .~ Map.fromList (map withoutTag proc_params)) $
     typeCheckStmt' proc_body
       `throwFrom` ("typecheck proc failed: " <> show procdef)
+ where
+  withoutTag (x, _, ty) = (x, ty)
 
 typeCheckProgram :: (TypeCheckable a) => TypingCtx a -> Program a -> Either String ()
 typeCheckProgram gamma Program{oracle_decl, proc_defs, stmt} = do

@@ -3,8 +3,8 @@ module QCompose.UnitaryQPL.Lowering where
 import Control.Monad.Except (throwError)
 import Control.Monad.RWS
 import Control.Monad.Trans (lift)
+import Data.List (intersect)
 import qualified Data.Map as Map
-import Data.Maybe (catMaybes)
 import qualified Data.Set as Set
 import Lens.Micro
 import Lens.Micro.Mtl
@@ -20,13 +20,13 @@ import QCompose.Utils.MonadHelpers
 -- | Formulas for primitives
 data QSearchUnitaryImpl = QSearchUnitaryImpl
   { ancillaTypes :: SizeT -> Precision -> [P.VarType SizeT]
-  , costFormulas :: P.QSearchFormulas SizeT
+  , costFormulas :: P.QSearchFormulas SizeT Complexity
   }
 
 _ancillaTypes :: Lens' QSearchUnitaryImpl (SizeT -> Precision -> [P.VarType SizeT])
 _ancillaTypes = lens ancillaTypes (\s a -> s{ancillaTypes = a})
 
-_costFormulas :: Lens' QSearchUnitaryImpl (P.QSearchFormulas SizeT)
+_costFormulas :: Lens' QSearchUnitaryImpl (P.QSearchFormulas SizeT Complexity)
 _costFormulas = lens costFormulas (\s a -> s{costFormulas = a})
 
 -- | Configuration for lowering
@@ -196,7 +196,7 @@ lowerExpr delta P.FunCallE{P.fun_kind = PrimitiveCall P.Contains, P.args = (pred
   addProc
     ProcDef
       { proc_name = qsearch_proc_name
-      , proc_params = zip qsearch_param_names qsearch_param_tys
+      , proc_params = withTag ParamUnk $ zip qsearch_param_names qsearch_param_tys
       , proc_body =
           UnitaryS qsearch_param_names $
             BlackBoxU $
@@ -249,39 +249,32 @@ lowerFunDefWithGarbage ::
   Precision ->
   P.FunDef SizeT ->
   CompilerT SizeT (LoweredProc SizeT)
-lowerFunDefWithGarbage delta P.FunDef{P.fun_name, P.param_binds, P.ret_binds, P.body} = do
+lowerFunDefWithGarbage delta P.FunDef{P.fun_name, P.param_binds, P.ret_binds, P.body} = withSandboxOf typingCtx $ do
   proc_name <- newIdent $ printf "%s[%e]" fun_name delta
-  (proc_body, all_binds, aux_tys) <- withSandboxOf typingCtx $ do
-    typingCtx .= Map.fromList param_binds
 
-    proc_body <- lowerStmt delta body
+  typingCtx .= Map.fromList param_binds
+  proc_body <- lowerStmt delta body
+  let param_names = map fst param_binds
+  let ret_names = map fst ret_binds
+  when (param_names `intersect` ret_names /= []) $
+    throwError "function should not return parameters!"
 
-    let param_names = map fst param_binds
-    rets <- forM ret_binds $ \(x, ty) -> do
-      -- if a parameter is directly returned, then make a copy
-      if x `elem` param_names
-        then do
-          x' <- allocAncilla ty
-          let copyS = UnitaryS [x, x'] $ RevEmbedU $ IdF ty
-          return (x', Just copyS)
-        else return (x, Nothing)
-    let (ret_names, copiesS) = unzip rets & over _2 catMaybes
-
-    let proc_body' = SeqS [proc_body, SeqS copiesS]
-    aux_binds <- use typingCtx <&> Map.toList <&> filter (not . (`elem` param_names ++ ret_names) . fst)
-    let all_binds = param_binds ++ ret_binds ++ aux_binds
-
-    return (proc_body', all_binds, map snd aux_binds)
+  aux_binds <- use typingCtx <&> Map.toList <&> filter (not . (`elem` param_names ++ ret_names) . fst)
+  let all_binds = withTag ParamInp param_binds ++ withTag ParamOut ret_binds ++ withTag ParamAux aux_binds
 
   let procDef = ProcDef{proc_name, proc_params = all_binds, proc_body}
   addProc procDef
+
   return
     LoweredProc
       { lowered_def = procDef
       , inp_tys = map snd param_binds
       , out_tys = map snd ret_binds
-      , aux_tys = aux_tys
+      , aux_tys = map snd aux_binds
       }
+
+withTag :: ParamTag -> [(Ident, P.VarType a)] -> [(Ident, ParamTag, P.VarType a)]
+withTag tag = map $ \(x, ty) -> (x, tag, ty)
 
 {- | Compile a single function definition with the given precision.
  Each invocation will generate a new proc, even if an identical one exists.
@@ -294,31 +287,31 @@ lowerFunDef ::
   Precision ->
   P.FunDef SizeT ->
   CompilerT SizeT (LoweredProc SizeT)
-lowerFunDef delta fun@P.FunDef{P.fun_name, P.param_binds} = withSandboxOf typingCtx $ do
+lowerFunDef delta fun@P.FunDef{P.fun_name, P.param_binds, P.ret_binds} = withSandboxOf typingCtx $ do
   -- get the proc call that computes with garbage
-  lowered_proc <- lowerFunDefWithGarbage (delta / 2) fun
-  let g_dirty_name = lowered_proc ^. to lowered_def . to proc_name
+  LoweredProc{lowered_def, aux_tys = g_aux_tys, out_tys = g_ret_tys} <- lowerFunDefWithGarbage (delta / 2) fun
+  let g_dirty_name = lowered_def ^. to proc_name
 
-  typingCtx .= Map.fromList param_binds
+  typingCtx .= Map.fromList (param_binds ++ ret_binds)
 
   proc_name <- newIdent $ printf "%s_clean[%e]" fun_name delta
 
-  let g_params = map fst param_binds
-  g_outs <- mapM allocAncilla $ lowered_proc ^. to out_tys
-  let g_aux_tys = lowered_proc ^. to aux_tys
-  g_ancs <- mapM allocAncilla g_aux_tys
-  let g_args = g_params ++ g_outs ++ g_ancs
+  let g_params_names = map fst param_binds
+  let ret_names = map fst ret_binds
 
-  let g_out_tys = lowered_proc ^. to out_tys
-  outs <- mapM allocAncilla g_out_tys
+  g_ret_names <- mapM allocAncilla g_ret_tys
+
+  g_aux_names <- mapM allocAncilla g_aux_tys
+
+  let g_args = g_params_names ++ g_ret_names ++ g_aux_names
 
   -- call g, copy and uncompute g
   let proc_body =
         SeqS
           [ CallS{proc_id = g_dirty_name, dagger = False, args = g_args}
-          , SeqS
+          , SeqS -- copy all the return values
               [ UnitaryS [x, x'] (RevEmbedU $ IdF ty)
-              | (x, x', ty) <- zip3 g_outs outs g_out_tys
+              | (x, x', ty) <- zip3 g_ret_names ret_names g_ret_tys
               ]
           , CallS{proc_id = g_dirty_name, dagger = True, args = g_args}
           ]
@@ -327,10 +320,10 @@ lowerFunDef delta fun@P.FunDef{P.fun_name, P.param_binds} = withSandboxOf typing
         ProcDef
           { proc_name
           , proc_params =
-              param_binds
-                ++ zip outs g_out_tys
-                ++ zip g_outs g_out_tys
-                ++ zip g_ancs g_aux_tys
+              withTag ParamInp param_binds
+                ++ zip3 ret_names (repeat ParamOut) g_ret_tys
+                ++ zip3 g_ret_names (repeat ParamAux) g_ret_tys
+                ++ zip3 g_aux_names (repeat ParamAux) g_aux_tys
           , proc_body
           }
   addProc proc_def
@@ -338,8 +331,8 @@ lowerFunDef delta fun@P.FunDef{P.fun_name, P.param_binds} = withSandboxOf typing
     LoweredProc
       { lowered_def = proc_def
       , inp_tys = map snd param_binds
-      , out_tys = g_out_tys
-      , aux_tys = g_out_tys ++ g_aux_tys
+      , out_tys = g_ret_tys
+      , aux_tys = g_ret_tys ++ g_aux_tys
       }
 
 -- | Lower a full program into a UQPL program.

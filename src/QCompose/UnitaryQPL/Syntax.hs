@@ -51,9 +51,11 @@ adjointS s@CallS{dagger} = s{dagger = not dagger}
 adjointS (SeqS ss) = SeqS . reverse $ map adjointS ss
 adjointS s@UnitaryS{unitary} = s{unitary = adjointU unitary}
 
+data ParamTag = ParamInp | ParamOut | ParamAux | ParamUnk deriving (Eq, Show, Read, Enum)
+
 data ProcDef a = ProcDef
   { proc_name :: Ident
-  , proc_params :: [(Ident, P.VarType a)]
+  , proc_params :: [(Ident, ParamTag, P.VarType a)]
   , proc_body :: Stmt a
   }
   deriving (Eq, Show, Read)
@@ -99,13 +101,20 @@ instance (Show a) => ToCodeString (Stmt a) where
     dg = if dagger then "†" else ""
   toCodeLines (SeqS ps) = concatMap toCodeLines ps
 
+instance ToCodeString ParamTag where
+  toCodeString ParamInp = "IN"
+  toCodeString ParamOut = "OUT"
+  toCodeString ParamAux = "AUX"
+  toCodeString ParamUnk = ""
+
 instance (Show a) => ToCodeString (ProcDef a) where
   toCodeLines ProcDef{proc_name, proc_params, proc_body} =
     ["uproc " <> proc_name <> "(" <> plist <> ") do"]
       <> indent (toCodeLines proc_body)
       <> ["end"]
    where
-    plist = commaList $ map showTypedIdent proc_params
+    plist = commaList $ map showParam proc_params
+    showParam (x, tag, ty) = printf "%s : %s %s" x (toCodeString tag) (toCodeString ty)
 
 instance (Show a) => ToCodeString (OracleDecl a) where
   toCodeString OracleDecl{param_types} =
