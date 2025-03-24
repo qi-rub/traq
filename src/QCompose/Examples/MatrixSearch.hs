@@ -1,5 +1,3 @@
-{-# LANGUAGE ScopedTypeVariables #-}
-
 module QCompose.Examples.MatrixSearch where
 
 import QCompose.Prelude

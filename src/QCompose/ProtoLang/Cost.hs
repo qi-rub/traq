@@ -23,10 +23,10 @@ import QCompose.ProtoLang.Eval
 import QCompose.ProtoLang.Syntax
 
 -- | Computed cost functions (quantum, unitary) of a given set of algorithms implementing quantum search
-data QSearchFormulas = QSearchFormulas
-  { qSearchExpectedCost :: SizeT -> SizeT -> FailProb -> Complexity -- n t eps
-  , qSearchWorstCaseCost :: SizeT -> FailProb -> Complexity -- n eps
-  , qSearchUnitaryCost :: SizeT -> Precision -> Complexity -- n delta
+data QSearchFormulas sizeT = QSearchFormulas
+  { qSearchExpectedCost :: sizeT -> sizeT -> FailProb -> Complexity -- n t eps
+  , qSearchWorstCaseCost :: sizeT -> FailProb -> Complexity -- n eps
+  , qSearchUnitaryCost :: sizeT -> Precision -> Complexity -- n delta
   }
 
 detExtract :: Tree a -> a
@@ -36,7 +36,7 @@ detExtract xs = case toList xs of
 
 unitaryQueryCost ::
   -- | Qry formulas
-  QSearchFormulas ->
+  QSearchFormulas SizeT ->
   -- | precision (l2-norm)
   Precision ->
   -- | program `P`
@@ -94,7 +94,7 @@ unitaryQueryCost algs d Program{funCtx, stmt} = cost d stmt
 
 quantumQueryCost ::
   -- | Qry formulas
-  QSearchFormulas ->
+  QSearchFormulas SizeT ->
   -- | failure probability `eps`
   FailProb ->
   -- | program `P`

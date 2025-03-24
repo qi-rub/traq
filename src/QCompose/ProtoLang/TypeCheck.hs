@@ -1,5 +1,3 @@
-{-# LANGUAGE ScopedTypeVariables #-}
-
 module QCompose.ProtoLang.TypeCheck (
   TypingCtx,
   TypeCheckable (..),

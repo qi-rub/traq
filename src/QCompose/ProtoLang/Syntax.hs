@@ -24,13 +24,15 @@ import QCompose.Prelude
 import QCompose.Utils.Context
 import QCompose.Utils.Printing
 
--- proto-search language
-newtype VarType a = Fin a -- Fin<N>
+-- | Types
+newtype VarType sizeT = Fin sizeT -- Fin<N>
   deriving (Eq, Show, Read, Functor)
 
+-- | Unary operations
 data UnOp = NotOp
   deriving (Eq, Show, Read)
 
+-- | Binary operations
 data BinOp = AddOp | LEqOp | AndOp
   deriving (Eq, Show, Read)
 
@@ -49,52 +51,52 @@ data FunctionCallKind
 {- | An expression in the prototype language.
  It appears as the RHS of an assignment statement.
 -}
-data Expr a
+data Expr sizeT
   = VarE {arg :: Ident}
-  | ConstE {val :: Value, ty :: VarType a}
+  | ConstE {val :: Value, ty :: VarType sizeT}
   | UnOpE {un_op :: UnOp, arg :: Ident}
   | BinOpE {bin_op :: BinOp, lhs :: Ident, rhs :: Ident}
   | FunCallE {fun_kind :: FunctionCallKind, args :: [Ident]}
   deriving (Eq, Show, Read, Functor)
 
 -- | A statement in the prototype language.
-data Stmt a
-  = ExprS {rets :: [Ident], expr :: Expr a}
-  | IfThenElseS {cond :: Ident, s_true :: Stmt a, s_false :: Stmt a}
-  | SeqS [Stmt a]
+data Stmt sizeT
+  = ExprS {rets :: [Ident], expr :: Expr sizeT}
+  | IfThenElseS {cond :: Ident, s_true :: Stmt sizeT, s_false :: Stmt sizeT}
+  | SeqS [Stmt sizeT]
   deriving (Eq, Show, Read, Functor)
 
 -- | A function definition in the prototype language.
-data FunDef a = FunDef
+data FunDef sizeT = FunDef
   { fun_name :: Ident
-  , param_binds :: [(Ident, VarType a)]
-  , ret_binds :: [(Ident, VarType a)]
-  , body :: Stmt a
+  , param_binds :: [(Ident, VarType sizeT)]
+  , ret_binds :: [(Ident, VarType sizeT)]
+  , body :: Stmt sizeT
   }
   deriving (Eq, Show, Read, Functor)
 
 -- | A declaration of the oracle's type
-data OracleDecl a = OracleDecl
-  { param_types :: [VarType a]
-  , ret_types :: [VarType a]
+data OracleDecl sizeT = OracleDecl
+  { param_types :: [VarType sizeT]
+  , ret_types :: [VarType sizeT]
   }
   deriving (Eq, Show, Read, Functor)
 
 -- | A function context contains the oracle declaration, and a list of functions
-data FunCtx a = FunCtx
-  { oracle_decl :: OracleDecl a
-  , fun_defs :: [FunDef a]
+data FunCtx sizeT = FunCtx
+  { oracle_decl :: OracleDecl sizeT
+  , fun_defs :: [FunDef sizeT]
   }
   deriving (Eq, Show, Read, Functor)
 
-lookupFun :: (CanFail m) => Ident -> FunCtx a -> m (FunDef a)
+lookupFun :: (CanFail m) => Ident -> FunCtx sizeT -> m (FunDef sizeT)
 lookupFun fname funCtx =
   funCtx & fun_defs & findBy ((fname ==) . fun_name)
 
 -- | A program is a function context with a statement (which acts like the `main`)
-data Program a = Program
-  { funCtx :: FunCtx a
-  , stmt :: Stmt a
+data Program sizeT = Program
+  { funCtx :: FunCtx sizeT
+  , stmt :: Stmt sizeT
   }
   deriving (Eq, Show, Read, Functor)
 

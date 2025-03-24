@@ -20,13 +20,13 @@ import QCompose.Utils.MonadHelpers
 -- | Formulas for primitives
 data QSearchUnitaryImpl = QSearchUnitaryImpl
   { ancillaTypes :: SizeT -> Precision -> [P.VarType SizeT]
-  , costFormulas :: P.QSearchFormulas
+  , costFormulas :: P.QSearchFormulas SizeT
   }
 
 _ancillaTypes :: Lens' QSearchUnitaryImpl (SizeT -> Precision -> [P.VarType SizeT])
 _ancillaTypes = lens ancillaTypes (\s a -> s{ancillaTypes = a})
 
-_costFormulas :: Lens' QSearchUnitaryImpl P.QSearchFormulas
+_costFormulas :: Lens' QSearchUnitaryImpl (P.QSearchFormulas SizeT)
 _costFormulas = lens costFormulas (\s a -> s{costFormulas = a})
 
 -- | Configuration for lowering

@@ -14,7 +14,7 @@ import qualified QCompose.ProtoLang as P
 import qualified QCompose.UnitaryQPL as U
 
 -- | Cost formulas for quantum search algorithms \( \textbf{QSearch} \) and \( \textbf{QSearch}_\text{Zalka} \).
-cadeEtAlFormulas :: P.QSearchFormulas
+cadeEtAlFormulas :: forall sizeT. (Integral sizeT) => P.QSearchFormulas sizeT
 cadeEtAlFormulas =
   P.QSearchFormulas
     { P.qSearchExpectedCost = eqsearch
@@ -22,15 +22,15 @@ cadeEtAlFormulas =
     , P.qSearchUnitaryCost = zalka
     }
  where
-  eqsearch_worst :: SizeT -> FailProb -> Complexity
+  eqsearch_worst :: sizeT -> FailProb -> Complexity
   eqsearch_worst n eps = 9.2 * log (1 / eps) * sqrt (fromIntegral n)
 
-  f :: SizeT -> SizeT -> Complexity
+  f :: sizeT -> sizeT -> Complexity
   f n t
     | 4 * t < n = 2.0344
     | otherwise = 3.1 * sqrt (fromIntegral n / fromIntegral t)
 
-  eqsearch :: SizeT -> SizeT -> FailProb -> Complexity
+  eqsearch :: sizeT -> sizeT -> FailProb -> Complexity
   eqsearch n t eps
     | t == 0 = eqsearch_worst n eps
     | otherwise = f n t * (1 + 1 / (1 - term))
@@ -38,10 +38,10 @@ cadeEtAlFormulas =
     term = f n t / (9.2 * sqrt (fromIntegral n))
 
   -- TODO verify for precision instead of fail prob
-  zalka :: SizeT -> FailProb -> Complexity
+  zalka :: sizeT -> FailProb -> Complexity
   zalka n eps = 5 * fromIntegral log_fac + pi * sqrt (fromIntegral (n * log_fac))
    where
-    log_fac :: SizeT
+    log_fac :: sizeT
     log_fac = ceiling (log (1 / eps) / (2 * log (4 / 3)))
 
 -- | Ancilla and Cost formulas for the unitary quantum search algorithm \( \textbf{QSearch}_\text{Zalka} \).

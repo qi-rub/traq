@@ -16,6 +16,7 @@ unsafeParseProgram = fmap Sym.unSym . either (error . show) id . parseProgram
 spec :: Spec
 spec = do
   describe "unitary cost of statements" $ do
+    let formulas = cadeEtAlFormulas
     it "fun call of oracle" $ do
       let prog =
             unsafeParseProgram . unlines $
@@ -27,7 +28,7 @@ spec = do
               , "i <- const 10 : Fin<100>;"
               , "res <- f(i)"
               ]
-      let c = unitaryQueryCost cadeEtAlFormulas 0.001 prog
+      let c = unitaryQueryCost formulas 0.001 prog
       c `shouldBe` 2
 
     it "search with no oracle" $ do
@@ -40,7 +41,7 @@ spec = do
               , "end"
               , "res <- any(f)"
               ]
-      let c = unitaryQueryCost cadeEtAlFormulas 0.001 prog
+      let c = unitaryQueryCost formulas 0.001 prog
       c `shouldBe` 0
 
     it "search with 1x oracle" $ do
@@ -53,5 +54,5 @@ spec = do
               , "end"
               , "res <- any(f)"
               ]
-      let c = unitaryQueryCost cadeEtAlFormulas 0.001 prog
-      c `shouldBe` 2 * qSearchUnitaryCost cadeEtAlFormulas 100 (0.001 / 2)
+      let c = unitaryQueryCost formulas 0.001 prog
+      c `shouldBe` 2 * qSearchUnitaryCost formulas 100 (0.001 / 2)
