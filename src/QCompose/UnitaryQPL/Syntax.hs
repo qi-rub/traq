@@ -27,9 +27,16 @@ data Unitary a
   | Oracle
   | -- | maps \( |0\rangle \) to \( \frac1{\sqrt{|\Sigma_T|}} \sum_{x \in \Sigma_T} |x\rangle \)
     Unif (P.VarType a)
+  | UnifDagger (P.VarType a)
   | RevEmbedU (ClassicalFun a)
   | BlackBoxU (BlackBox a)
   deriving (Eq, Show, Read)
+
+adjointU :: Unitary a -> Unitary a
+adjointU (BlackBoxU _) = error "cannot compute adjoint of blackbox"
+adjointU (Unif ty) = UnifDagger ty
+adjointU (UnifDagger ty) = Unif ty
+adjointU u = u
 
 data Stmt a
   = SkipS
@@ -38,6 +45,12 @@ data Stmt a
   | SeqS [Stmt a] -- W1; W2; ...
   deriving (Eq, Show, Read)
 
+adjointS :: Stmt a -> Stmt a
+adjointS SkipS = SkipS
+adjointS s@CallS{dagger} = s{dagger = not dagger}
+adjointS (SeqS ss) = SeqS . reverse $ map adjointS ss
+adjointS s@UnitaryS{unitary} = s{unitary = adjointU unitary}
+
 data ProcDef a = ProcDef
   { proc_name :: Ident
   , proc_params :: [(Ident, P.VarType a)]
@@ -45,7 +58,7 @@ data ProcDef a = ProcDef
   }
   deriving (Eq, Show, Read)
 
-data OracleDecl a = OracleDecl
+newtype OracleDecl a = OracleDecl
   { param_types :: [P.VarType a]
   }
   deriving (Eq, Show, Read)
@@ -80,7 +93,7 @@ instance (Show a) => ToCodeString (Stmt a) where
   toCodeLines UnitaryS{args, unitary} = [qc <> " *= " <> toCodeString unitary <> ";"]
    where
     qc = commaList args
-  toCodeLines CallS{proc_id, dagger, args} = ["call " <> proc_id <> dg <> "(" <> qc <> ");"]
+  toCodeLines CallS{proc_id, dagger, args} = ["call" <> dg <> " " <> proc_id <> "(" <> qc <> ");"]
    where
     qc = commaList args
     dg = if dagger then "†" else ""

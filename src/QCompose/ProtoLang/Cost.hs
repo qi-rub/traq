@@ -16,6 +16,7 @@ import Lens.Micro
 import Lens.Micro.Mtl
 
 import QCompose.Prelude
+import QCompose.Utils.MonadHelpers
 import QCompose.Utils.Tree
 
 import QCompose.ProtoLang.Eval
@@ -44,24 +45,33 @@ unitaryQueryCost ::
 unitaryQueryCost algs d Program{funCtx, stmt} = cost d stmt
  where
   unsafeLookupFun :: Ident -> FunDef SizeT
-  unsafeLookupFun fname = detExtract $ lookupFun fname funCtx
+  unsafeLookupFun fname =
+    funCtx
+      ^. to fun_defs
+        . to (map $ \f -> (f ^. to fun_name, f))
+        . atL fname
 
   costE :: Precision -> Expr SizeT -> Complexity
   costE _ FunCallE{fun_kind = OracleCall} = 1
   -- TODO properly handle the funCtx
-  costE delta FunCallE{fun_kind = FunctionCall fname} =
-    let FunDef{body} = unsafeLookupFun fname
-     in cost delta body
+  costE delta FunCallE{fun_kind = FunctionCall fname} = 2 * cost (delta / 2) body
+   where
+    FunDef{body} = unsafeLookupFun fname
   costE delta FunCallE{fun_kind = PrimitiveCall c, args = (predicate : args)}
-    | c == Contains || c == Search =
-        2 * qry * cost_pred
+    | c == Contains || c == Search = qry * cost_pred
    where
     FunDef{param_binds} = unsafeLookupFun predicate
     Fin n = param_binds & last & snd
 
+    -- split the precision
     delta_search = delta / 2
+    delta_pred = delta - delta_search
+
+    -- number of predicate queries
     qry = qSearchUnitaryCost algs n delta_search
-    delta_per_pred_call = (delta - delta_search) / (2 * qry)
+    -- precision per predicate call
+    delta_per_pred_call = delta_pred / qry
+
     cost_pred =
       costE delta_per_pred_call $
         FunCallE

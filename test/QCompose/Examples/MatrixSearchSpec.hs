@@ -36,9 +36,9 @@ spec = do
     it "unitary cost for delta=0.0001" $ do
       let delta = 0.0001
       let cu = P.unitaryQueryCost cadeEtAlFormulas delta ex
-      let nu_outer = 2 * ucF n (delta / 2)
-      let nu_inner = 2 * ucF m (delta / 2 / nu_outer / 2 / 2)
-      cu `shouldBe` nu_outer * nu_inner
+      let nu_outer = ucF n (delta / 4)
+      let nu_inner = 2 * ucF m (delta / 4 / nu_outer / 8)
+      cu `shouldBe` 2 * nu_outer * 2 * nu_inner
 
     it "quantum cost for eps=0.0001" $ do
       let eps = 0.0001

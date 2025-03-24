@@ -67,9 +67,9 @@ groverIteration ::
 groverIteration xs flag ph_oracle =
   U.SeqS
     [ ph_oracle
-    , U.UnitaryS xs $ U.BlackBoxU $ U.BlackBox "Hadamards"
+    , U.UnitaryS xs $ U.Unif undefined
     , U.UnitaryS (xs ++ [flag]) $ U.BlackBoxU $ U.BlackBox "MCX"
-    , U.UnitaryS xs $ U.BlackBoxU $ U.BlackBox "Hadamards"
+    , U.UnitaryS xs $ U.UnifDagger undefined
     ]
 
 zalkaQSearchImpl ::

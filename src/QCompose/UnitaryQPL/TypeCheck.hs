@@ -43,6 +43,7 @@ unitarySignature CNOT = return [tbool, tbool]
 unitarySignature XGate = return [tbool]
 unitarySignature HGate = return [tbool]
 unitarySignature (Unif ty) = return [ty]
+unitarySignature (UnifDagger ty) = return [ty]
 unitarySignature Oracle = view (oracleDecl . to param_types)
 unitarySignature (RevEmbedU f) = return $ revFunTys f
  where
