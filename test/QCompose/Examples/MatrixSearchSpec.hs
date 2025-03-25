@@ -1,7 +1,8 @@
 module QCompose.Examples.MatrixSearchSpec (spec) where
 
 import Control.Monad.State (execStateT)
-import qualified Data.Map as Map
+
+import qualified QCompose.Utils.Context as Ctx
 
 import qualified QCompose.ProtoLang as P
 import qualified QCompose.UnitaryQPL as UQPL
@@ -20,15 +21,15 @@ spec = do
     let ex = matrixExampleS n m
 
     it "type checks" $ do
-      assertRight $ P.typeCheckProg Map.empty ex
+      assertRight $ P.typeCheckProg Ctx.empty ex
 
     it "has unique vars" $ do
       P.checkVarsUnique ex `shouldBe` True
 
     let oracleF = \[i, j] -> [if i == j then 1 else 0]
     it "evaluates" $ do
-      let res = execStateT (P.execProgram ex oracleF) Map.empty
-      res `shouldBe` pure (Map.singleton "result" 0)
+      let res = execStateT (P.execProgram ex oracleF) Ctx.empty
+      res `shouldBe` pure (Ctx.singleton "result" 0)
 
     -- expected, worst, unitary
     let P.QSearchFormulas _ wcF ucF = cadeEtAlFormulas
@@ -42,7 +43,7 @@ spec = do
 
     it "quantum cost for eps=0.0001" $ do
       let eps = 0.0001
-      let cq = P.quantumQueryCost cadeEtAlFormulas eps ex oracleF Map.empty
+      let cq = P.quantumQueryCost cadeEtAlFormulas eps ex oracleF Ctx.empty
       let nq_outer = wcF n (eps / 2)
       let nq_inner = 2 * ucF m (eps / 2 / nq_outer / 2 / 4)
       cq `shouldBe` nq_outer * nq_inner
@@ -52,8 +53,8 @@ spec = do
 
     describe "lower to UQPL" $ do
       it "lowers" $ do
-        assertRight $ UQPL.lowerProgram zalkaQSearch Map.empty 0.001 ex
+        assertRight $ UQPL.lowerProgram zalkaQSearch Ctx.empty 0.001 ex
 
       it "type checks" $ do
-        (ex_uqpl, gamma) <- expectRight $ UQPL.lowerProgram zalkaQSearch Map.empty 0.001 ex
+        (ex_uqpl, gamma) <- expectRight $ UQPL.lowerProgram zalkaQSearch Ctx.empty 0.001 ex
         assertRight $ UQPL.typeCheckProgram gamma ex_uqpl

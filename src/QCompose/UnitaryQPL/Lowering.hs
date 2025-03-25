@@ -4,17 +4,17 @@ import Control.Monad.Except (throwError)
 import Control.Monad.RWS
 import Control.Monad.Trans (lift)
 import Data.List (intersect)
-import qualified Data.Map as Map
 import qualified Data.Set as Set
 import Lens.Micro
 import Lens.Micro.Mtl
 import Text.Printf (printf)
 
+import qualified QCompose.Utils.Context as Ctx
+
 import QCompose.Prelude
 import qualified QCompose.ProtoLang as P
 import QCompose.ProtoLang.Syntax (FunctionCallKind (PrimitiveCall))
 import QCompose.UnitaryQPL.Syntax
-import QCompose.Utils.Context
 import QCompose.Utils.MonadHelpers
 
 -- | Formulas for primitives
@@ -44,7 +44,7 @@ qsearchConfig = _2
 type LoweringCtx a = (Set.Set Ident, P.TypingCtx a)
 
 emptyLoweringCtx :: LoweringCtx a
-emptyLoweringCtx = (Set.empty, Map.empty)
+emptyLoweringCtx = (Set.empty, Ctx.empty)
 
 uniqNames :: Lens' (LoweringCtx a) (Set.Set Ident)
 uniqNames = _1
@@ -83,7 +83,7 @@ newIdent prefix = do
 allocAncilla :: P.VarType a -> CompilerT a Ident
 allocAncilla ty = do
   name <- newIdent "aux"
-  zoom typingCtx $ putValue name ty
+  zoom typingCtx $ Ctx.put name ty
   return name
 
 -- | Add a new procedure.
@@ -115,15 +115,15 @@ lowerExpr ::
   CompilerT SizeT (Stmt SizeT)
 -- basic expressions
 lowerExpr _ P.VarE{P.arg} [ret] = do
-  ty <- zoom typingCtx $ lookupVar arg
+  ty <- zoom typingCtx $ Ctx.lookup arg
   return $ UnitaryS [arg, ret] $ RevEmbedU $ IdF ty
 lowerExpr _ P.ConstE{P.val, P.ty} [ret] =
   return $ UnitaryS [ret] $ RevEmbedU $ ConstF ty val
 lowerExpr _ P.UnOpE{P.un_op, P.arg} [ret] = do
-  ty <- zoom typingCtx $ lookupVar arg
+  ty <- zoom typingCtx $ Ctx.lookup arg
   return $ UnitaryS [arg, ret] $ RevEmbedU $ case un_op of P.NotOp -> NotF ty
 lowerExpr _ P.BinOpE{P.bin_op, P.lhs, P.rhs} [ret] = do
-  ty <- zoom typingCtx $ lookupVar lhs
+  ty <- zoom typingCtx $ Ctx.lookup lhs
   return $
     UnitaryS [lhs, rhs, ret] $ case bin_op of
       P.AddOp -> RevEmbedU $ AddF ty
@@ -252,14 +252,14 @@ lowerFunDefWithGarbage ::
 lowerFunDefWithGarbage delta P.FunDef{P.fun_name, P.param_binds, P.ret_binds, P.body} = withSandboxOf typingCtx $ do
   proc_name <- newIdent $ printf "%s[%e]" fun_name delta
 
-  typingCtx .= Map.fromList param_binds
+  typingCtx .= Ctx.fromList param_binds
   proc_body <- lowerStmt delta body
   let param_names = map fst param_binds
   let ret_names = map fst ret_binds
   when (param_names `intersect` ret_names /= []) $
     throwError "function should not return parameters!"
 
-  aux_binds <- use typingCtx <&> Map.toList <&> filter (not . (`elem` param_names ++ ret_names) . fst)
+  aux_binds <- use typingCtx <&> Ctx.toList <&> filter (not . (`elem` param_names ++ ret_names) . fst)
   let all_binds = withTag ParamInp param_binds ++ withTag ParamOut ret_binds ++ withTag ParamAux aux_binds
 
   let procDef = ProcDef{proc_name, proc_params = all_binds, proc_body}
@@ -292,7 +292,7 @@ lowerFunDef delta fun@P.FunDef{P.fun_name, P.param_binds, P.ret_binds} = withSan
   LoweredProc{lowered_def, aux_tys = g_aux_tys, out_tys = g_ret_tys} <- lowerFunDefWithGarbage (delta / 2) fun
   let g_dirty_name = lowered_def ^. to proc_name
 
-  typingCtx .= Map.fromList (param_binds ++ ret_binds)
+  typingCtx .= Ctx.fromList (param_binds ++ ret_binds)
 
   proc_name <- newIdent $ printf "%s_clean[%e]" fun_name delta
 

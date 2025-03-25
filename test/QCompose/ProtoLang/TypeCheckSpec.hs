@@ -1,7 +1,8 @@
 module QCompose.ProtoLang.TypeCheckSpec (spec) where
 
 import Data.Either (isLeft)
-import qualified Data.Map as Map
+
+import qualified QCompose.Utils.Context as Ctx
 
 import QCompose.Examples.MatrixSearch (matrixExampleS)
 import QCompose.ProtoLang.Syntax
@@ -24,4 +25,4 @@ spec = do
               FunDef Int
       typeCheckFun undefined bad_fun `shouldSatisfy` isLeft
     it "matrix example" $ do
-      assertRight $ typeCheckProg Map.empty (matrixExampleS 4 5)
+      assertRight $ typeCheckProg Ctx.empty (matrixExampleS 4 5)

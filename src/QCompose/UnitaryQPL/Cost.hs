@@ -1,15 +1,16 @@
 module QCompose.UnitaryQPL.Cost where
 
 import Control.Monad.RWS (RWS, runRWS)
-import qualified Data.Map as Map
 import Lens.Micro
 import Lens.Micro.Mtl
+
+import qualified QCompose.Utils.Context as Ctx
 
 import QCompose.Prelude
 import QCompose.UnitaryQPL.Syntax
 
-type ProcCtx a = Map.Map Ident (ProcDef a)
-type CostMap = Map.Map Ident Complexity
+type ProcCtx a = Ctx.Context (ProcDef a)
+type CostMap = Ctx.Context Complexity
 
 type CostCalculator a = RWS (ProcCtx a) () CostMap
 
@@ -29,17 +30,17 @@ stmtCost CallS{proc_id} = procCost proc_id
 
 procCost :: Ident -> CostCalculator a Complexity
 procCost name = do
-  mCost <- use $ at name
+  mCost <- use $ Ctx.at name
   case mCost of
     Just cost -> return cost
     Nothing -> do
-      ProcDef{proc_body} <- view $ at name . singular _Just
+      ProcDef{proc_body} <- view $ Ctx.at name . singular _Just
       cost <- stmtCost proc_body
-      at name ?= cost
+      Ctx.at name ?= cost
       return cost
 
 programCost :: Program a -> (Complexity, CostMap)
 programCost Program{proc_defs, stmt} = (cost, proc_costs)
  where
-  (cost, proc_costs, _) = runRWS (stmtCost stmt) proc_map Map.empty
-  proc_map = Map.fromList $ [(proc_name p, p) | p <- proc_defs]
+  (cost, proc_costs, _) = runRWS (stmtCost stmt) proc_map Ctx.empty
+  proc_map = Ctx.fromList $ [(proc_name p, p) | p <- proc_defs]

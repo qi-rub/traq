@@ -1,6 +1,6 @@
 module QCompose.UnitaryQPL.LoweringSpec (spec) where
 
-import qualified Data.Map as Map
+import qualified QCompose.Utils.Context as Ctx
 
 import qualified QCompose.ProtoLang as P
 import qualified QCompose.UnitaryQPL as U
@@ -22,7 +22,7 @@ spec = do
           expectRight $
             U.lowerProgram
               zalkaQSearch
-              (Map.singleton "x" (P.Fin 10))
+              (Ctx.singleton "x" (P.Fin 10))
               0
               P.Program
                 { P.funCtx = P.FunCtx{P.oracle_decl = dummy_oracle, P.fun_defs = []}
@@ -42,6 +42,6 @@ spec = do
             , ""
             ]
 
-        gamma `shouldBe` Map.fromList [("x", P.Fin 10), ("y", P.Fin 10)]
+        gamma `shouldBe` Ctx.fromList [("x", P.Fin 10), ("y", P.Fin 10)]
 
         assertRight $ U.typeCheckProgram gamma res

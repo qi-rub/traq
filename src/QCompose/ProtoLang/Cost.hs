@@ -11,14 +11,14 @@ import Control.Monad (filterM)
 import Control.Monad.Reader (Reader, runReader)
 import Control.Monad.State (execStateT)
 import Data.Foldable (toList)
-import qualified Data.Map as Map
 import Lens.Micro
 import Lens.Micro.Mtl
 
-import QCompose.Prelude
+import qualified QCompose.Utils.Context as Ctx
 import QCompose.Utils.MonadHelpers
-import QCompose.Utils.Tree
+import qualified QCompose.Utils.Tree as Tree
 
+import QCompose.Prelude
 import QCompose.ProtoLang.Eval
 import QCompose.ProtoLang.Syntax
 
@@ -29,7 +29,7 @@ data QSearchFormulas sizeT costT = QSearchFormulas
   , qSearchUnitaryCost :: sizeT -> costT -> costT -- n delta
   }
 
-detExtract :: Tree a -> a
+detExtract :: Tree.Tree a -> a
 detExtract xs = case toList xs of
   [x] -> x
   _ -> error "unexpected non-determinism"
@@ -112,7 +112,7 @@ quantumQueryCost algs a_eps Program{funCtx, stmt} oracleF = cost a_eps stmt
   unsafeLookupFun fname = head $ lookupFun fname funCtx
 
   get :: ProgramState -> Ident -> Value
-  get st x = st Map.! x
+  get = flip Ctx.get
 
   costE :: FailProb -> Expr SizeT -> ProgramState -> Complexity
   costE _ FunCallE{fun_kind = OracleCall} _ = 1
@@ -120,7 +120,7 @@ quantumQueryCost algs a_eps Program{funCtx, stmt} oracleF = cost a_eps stmt
    where
     vs = map (get sigma) args
     FunDef _ fn_args _ body = unsafeLookupFun f
-    omega = Map.fromList $ zip (fst <$> fn_args) vs
+    omega = Ctx.fromList $ zip (map fst fn_args) vs
 
   -- known cost formulas
   costE eps FunCallE{fun_kind = PrimitiveCall c, args = (predicate : args)} sigma

@@ -1,12 +1,13 @@
 module Main where
 
-import qualified Data.Map as Map
+import Control.Exception (assert)
 import qualified Data.Number.Symbolic as Sym
+
+import qualified QCompose.Utils.Context as Ctx
 
 import qualified QCompose.ProtoLang as P
 import qualified QCompose.UnitaryQPL as U
 
-import Control.Exception (assert)
 import QCompose.Examples.MatrixSearch
 import QCompose.Prelude
 import QCompose.Primitives.QSearch
@@ -38,7 +39,7 @@ concreteEx = do
   let u_formula_cost = P.unitaryQueryCost cadeEtAlFormulas delta ex
 
   putStrLn $ replicate 80 '='
-  let (Right (exU, _)) = U.lowerProgram zalkaQSearch Map.empty delta ex
+  let (Right (exU, _)) = U.lowerProgram zalkaQSearch Ctx.empty delta ex
   putStrLn $ toCodeString exU
 
   let (u_true_cost, _) = U.programCost exU

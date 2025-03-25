@@ -13,16 +13,16 @@ import Control.Monad (forM_, unless, when, zipWithM_)
 import Control.Monad.Except (catchError, throwError)
 import Control.Monad.State (StateT, execStateT, get, lift, put)
 import Data.List (uncons)
-import qualified Data.Map as Map
 import Lens.Micro
+import Text.Printf (printf)
+
+import qualified QCompose.Utils.Context as Ctx
 
 import QCompose.Prelude
 import QCompose.ProtoLang.Syntax
-import QCompose.Utils.Context
 import QCompose.Utils.Printing
-import Text.Printf (printf)
 
-type TypingCtx a = VarContext (VarType a)
+type TypingCtx a = Ctx.Context (VarType a)
 
 class (Eq a, Show a) => TypeCheckable a where
   tbool :: VarType a
@@ -57,7 +57,7 @@ checkPrimitive funCtx Contains all_args = do
   let sub_name = "`" <> toCodeString Contains <> "`"
 
   (predicate, args) <- uncons all_args & maybe (throwError $ sub_name <> " needs 1 argument (predicate)") pure
-  arg_tys <- mapM lookupVar args
+  arg_tys <- mapM Ctx.lookup args
 
   FunDef{param_binds = pred_params, ret_binds = pred_rets} <- lift $ funCtx & lookupFunE predicate
 
@@ -74,7 +74,7 @@ checkPrimitive funCtx Search all_args = do
   let sub_name = toCodeString Search
 
   (predicate, args) <- uncons all_args & maybe (throwError $ sub_name <> " needs 1 argument (predicate)") pure
-  arg_tys <- mapM lookupVar args
+  arg_tys <- mapM Ctx.lookup args
 
   FunDef{param_binds = pred_params, ret_binds = pred_rets} <- lift $ funCtx & lookupFunE predicate
 
@@ -98,13 +98,13 @@ checkExpr ::
   TypeChecker a [VarType a]
 -- x
 checkExpr _ VarE{arg} = do
-  ty <- lookupVar arg
+  ty <- Ctx.lookup arg
   return [ty]
 -- const v : t
 checkExpr _ ConstE{ty} = return [ty]
 -- `op` x
 checkExpr _ UnOpE{un_op, arg} = do
-  arg_ty <- lookupVar arg
+  arg_ty <- Ctx.lookup arg
   ty <- case un_op of
     NotOp -> do
       unless (arg_ty == tbool) $ throwError ("`not` requires bool, got " <> show arg_ty)
@@ -112,8 +112,8 @@ checkExpr _ UnOpE{un_op, arg} = do
   return [ty]
 -- x `op` y
 checkExpr _ BinOpE{bin_op, lhs, rhs} = do
-  ty_lhs <- lookupVar lhs
-  ty_rhs <- lookupVar rhs
+  ty_lhs <- Ctx.lookup lhs
+  ty_rhs <- Ctx.lookup rhs
   ty <- case bin_op of
     AndOp -> do
       unless (ty_lhs == tbool && ty_rhs == tbool) $
@@ -126,7 +126,7 @@ checkExpr _ BinOpE{bin_op, lhs, rhs} = do
 checkExpr FunCtx{oracle_decl} FunCallE{fun_kind = OracleCall, args} = do
   let OracleDecl{param_types, ret_types} = oracle_decl
 
-  arg_tys <- mapM lookupVar args
+  arg_tys <- mapM Ctx.lookup args
   unless (arg_tys == param_types) $
     throwError ("oracle expects " <> show param_types <> ", got " <> show args)
 
@@ -136,7 +136,7 @@ checkExpr FunCtx{oracle_decl} FunCallE{fun_kind = OracleCall, args} = do
 checkExpr funCtx FunCallE{fun_kind = FunctionCall fun, args} = do
   FunDef{param_binds, ret_binds} <- lift $ funCtx & lookupFunE fun
 
-  arg_tys <- mapM lookupVar args
+  arg_tys <- mapM Ctx.lookup args
   let param_tys = map snd param_binds
   unless (arg_tys == param_tys) $
     throwError (fun <> " expects " <> show param_tys <> ", got " <> show (zip args arg_tys))
@@ -163,12 +163,12 @@ checkStmt funCtx ExprS{rets, expr} = do
     throwError $
       ("Expected " <> show (length out_tys) <> " outputs, but given " <> show (length out_tys) <> " vars to bind.")
         <> (" (return variables: " <> show rets <> ", output types: " <> show out_tys <> ")")
-  zipWithM_ putValue rets out_tys
+  zipWithM_ Ctx.put rets out_tys
 -- sequence
 checkStmt funCtx (SeqS ss) = mapM_ (checkStmt funCtx) ss
 -- ifte
 checkStmt funCtx IfThenElseS{cond, s_true, s_false} = do
-  cond_ty <- lookupVar cond
+  cond_ty <- Ctx.lookup cond
   unless (cond_ty == tbool) $
     throwError $
       "`if` condition must be a boolean, got " <> show (cond, cond_ty)
@@ -176,14 +176,14 @@ checkStmt funCtx IfThenElseS{cond, s_true, s_false} = do
   sigma <- get
 
   sigma_t <- lift $ execStateT (checkStmt funCtx s_true) sigma
-  when (sigma Map.\\ sigma_t /= Map.empty) $
+  unless (Ctx.null $ sigma Ctx.\\ sigma_t) $
     error "Invalid final state, missing initial variables"
-  let outs_t = sigma_t Map.\\ sigma
+  let outs_t = sigma_t Ctx.\\ sigma
 
   sigma_f <- lift $ execStateT (checkStmt funCtx s_false) sigma
-  when (sigma Map.\\ sigma_t /= Map.empty) $
+  unless (Ctx.null $ sigma Ctx.\\ sigma_t) $
     error "Invalid final state, missing initial variables"
-  let outs_f = sigma_f Map.\\ sigma
+  let outs_f = sigma_f Ctx.\\ sigma
 
   unless (outs_t == outs_f) $
     throwError ("if: branches must declare same variables, got " <> show [outs_t, outs_f])
@@ -192,12 +192,12 @@ checkStmt funCtx IfThenElseS{cond, s_true, s_false} = do
 -- | Type check a single function.
 typeCheckFun :: (TypeCheckable a) => FunCtx a -> FunDef a -> Either String (TypingCtx a)
 typeCheckFun funCtx FunDef{param_binds, ret_binds, body} = do
-  let gamma = Map.fromList param_binds
+  let gamma = Ctx.fromList param_binds
   gamma' <- execStateT (checkStmt funCtx body) gamma
   forM_ ret_binds $ \(x, t) -> do
-    when (has _Just (gamma ^. at x)) $ do
+    when (has _Just (gamma ^. Ctx.at x)) $ do
       throwError $ printf "parameter `%s` cannot be returned, please copy it into a new variable and return that" x
-    t' <- gamma' ^. at x & maybe (throwError $ printf "missing in returns: %s" x) pure
+    t' <- gamma' ^. Ctx.at x & maybe (throwError $ printf "missing in returns: %s" x) pure
     when (t /= t') $
       throwError $
         printf

@@ -7,9 +7,10 @@ module QCompose.UnitaryQPL.TypeCheck (
 import Control.Monad (forM, forM_, when)
 import Control.Monad.Except (throwError)
 import Control.Monad.Reader (ReaderT, local, runReaderT)
-import qualified Data.Map as Map
 import Lens.Micro
 import Lens.Micro.Mtl
+
+import qualified QCompose.Utils.Context as Ctx
 
 import QCompose.Prelude
 import QCompose.ProtoLang (TypeCheckable (..), TypingCtx, VarType)
@@ -31,7 +32,7 @@ typingCtx = _3
 verifyArgs :: (TypeCheckable a) => [Ident] -> [VarType a] -> TypeChecker a ()
 verifyArgs args tys = do
   arg_tys <- forM args $ \x -> do
-    view $ typingCtx . at x . singular _Just
+    view $ typingCtx . Ctx.at x . singular _Just
 
   when (arg_tys /= tys) $
     throwError $
@@ -77,7 +78,7 @@ typeCheckStmt' s = typeCheckStmt s `throwFrom` ("typecheck failed: " <> show s)
 
 typeCheckProc :: (TypeCheckable a) => ProcDef a -> TypeChecker a ()
 typeCheckProc procdef@ProcDef{proc_params, proc_body} =
-  local (typingCtx .~ Map.fromList (map withoutTag proc_params)) $
+  local (typingCtx .~ Ctx.fromList (map withoutTag proc_params)) $
     typeCheckStmt' proc_body
       `throwFrom` ("typecheck proc failed: " <> show procdef)
  where
@@ -85,7 +86,7 @@ typeCheckProc procdef@ProcDef{proc_params, proc_body} =
 
 typeCheckProgram :: (TypeCheckable a) => TypingCtx a -> Program a -> Either String ()
 typeCheckProgram gamma Program{oracle_decl, proc_defs, stmt} = do
-  let ctx = (oracle_decl, proc_defs, Map.empty)
+  let ctx = (oracle_decl, proc_defs, Ctx.empty)
 
   forM_ proc_defs $ (`runReaderT` ctx) . typeCheckProc
 
