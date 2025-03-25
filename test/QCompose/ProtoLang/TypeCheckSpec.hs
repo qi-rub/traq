@@ -2,7 +2,7 @@ module QCompose.ProtoLang.TypeCheckSpec (spec) where
 
 import Data.Either (isLeft)
 
-import qualified QCompose.Utils.Context as Ctx
+import qualified QCompose.Data.Context as Ctx
 
 import QCompose.Examples.MatrixSearch (matrixExampleS)
 import QCompose.ProtoLang.Syntax

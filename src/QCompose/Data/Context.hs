@@ -2,7 +2,7 @@
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE Rank2Types #-}
 
-module QCompose.Utils.Context (
+module QCompose.Data.Context (
   Context,
   at,
   empty,
@@ -33,8 +33,8 @@ import qualified Lens.Micro as Lens
 import Lens.Micro.GHC ()
 import Lens.Micro.Mtl
 
+import qualified QCompose.Data.Tree as Tree
 import QCompose.Prelude
-import qualified QCompose.Utils.Tree as Tree
 
 newtype Context a = Context (Map.Map Ident a)
   deriving (Eq, Show, Read)

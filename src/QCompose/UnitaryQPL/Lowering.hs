@@ -9,7 +9,7 @@ import Lens.Micro
 import Lens.Micro.Mtl
 import Text.Printf (printf)
 
-import qualified QCompose.Utils.Context as Ctx
+import qualified QCompose.Data.Context as Ctx
 
 import QCompose.Prelude
 import qualified QCompose.ProtoLang as P

@@ -10,7 +10,7 @@ import Control.Monad.Reader (ReaderT, local, runReaderT)
 import Lens.Micro
 import Lens.Micro.Mtl
 
-import qualified QCompose.Utils.Context as Ctx
+import qualified QCompose.Data.Context as Ctx
 
 import QCompose.Prelude
 import QCompose.ProtoLang (TypeCheckable (..), TypingCtx, VarType)

@@ -1,11 +1,11 @@
 {-# OPTIONS_GHC -Wno-orphans #-}
 
-module QCompose.Utils.TreeSpec where
+module QCompose.Data.TreeSpec where
 
 import Control.Applicative
 import Data.Foldable (toList)
 
-import QCompose.Utils.Tree
+import QCompose.Data.Tree
 
 import Test.Hspec
 import Test.Hspec.QuickCheck

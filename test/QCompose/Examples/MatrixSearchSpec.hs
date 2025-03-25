@@ -2,7 +2,7 @@ module QCompose.Examples.MatrixSearchSpec (spec) where
 
 import Control.Monad.State (execStateT)
 
-import qualified QCompose.Utils.Context as Ctx
+import qualified QCompose.Data.Context as Ctx
 
 import qualified QCompose.ProtoLang as P
 import qualified QCompose.UnitaryQPL as UQPL

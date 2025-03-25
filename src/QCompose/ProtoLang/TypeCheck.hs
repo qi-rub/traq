@@ -16,7 +16,7 @@ import Data.List (uncons)
 import Lens.Micro
 import Text.Printf (printf)
 
-import qualified QCompose.Utils.Context as Ctx
+import qualified QCompose.Data.Context as Ctx
 
 import QCompose.Prelude
 import QCompose.ProtoLang.Syntax

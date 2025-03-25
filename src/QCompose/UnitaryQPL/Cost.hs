@@ -4,7 +4,7 @@ import Control.Monad.RWS (RWS, runRWS)
 import Lens.Micro
 import Lens.Micro.Mtl
 
-import qualified QCompose.Utils.Context as Ctx
+import qualified QCompose.Data.Context as Ctx
 
 import QCompose.Prelude
 import QCompose.UnitaryQPL.Syntax

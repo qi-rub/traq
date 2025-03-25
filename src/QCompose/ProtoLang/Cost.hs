@@ -14,9 +14,9 @@ import Data.Foldable (toList)
 import Lens.Micro
 import Lens.Micro.Mtl
 
-import qualified QCompose.Utils.Context as Ctx
+import qualified QCompose.Data.Context as Ctx
+import qualified QCompose.Data.Tree as Tree
 import QCompose.Utils.MonadHelpers
-import qualified QCompose.Utils.Tree as Tree
 
 import QCompose.Prelude
 import QCompose.ProtoLang.Eval
@@ -34,6 +34,13 @@ detExtract xs = case toList xs of
   [x] -> x
   _ -> error "unexpected non-determinism"
 
+unsafeLookupFun :: FunCtx sizeT -> Ident -> FunDef sizeT
+unsafeLookupFun funCtx fname =
+  funCtx
+    ^. to fun_defs
+      . to (map $ \f -> (f ^. to fun_name, f))
+      . atL fname
+
 unitaryQueryCost ::
   forall sizeT costT.
   (Num sizeT, Floating costT) =>
@@ -46,23 +53,16 @@ unitaryQueryCost ::
   costT
 unitaryQueryCost algs d Program{funCtx, stmt} = cost d stmt
  where
-  unsafeLookupFun :: Ident -> FunDef sizeT
-  unsafeLookupFun fname =
-    funCtx
-      ^. to fun_defs
-        . to (map $ \f -> (f ^. to fun_name, f))
-        . atL fname
-
   costE :: costT -> Expr sizeT -> costT
   costE _ FunCallE{fun_kind = OracleCall} = 1
   -- TODO properly handle the funCtx
   costE delta FunCallE{fun_kind = FunctionCall fname} = 2 * cost (delta / 2) body
    where
-    FunDef{body} = unsafeLookupFun fname
+    FunDef{body} = unsafeLookupFun funCtx fname
   costE delta FunCallE{fun_kind = PrimitiveCall c, args = (predicate : args)}
     | c == Contains || c == Search = qry * cost_pred
    where
-    FunDef{param_binds} = unsafeLookupFun predicate
+    FunDef{param_binds} = unsafeLookupFun funCtx predicate
     Fin n = param_binds & last & snd
 
     -- split the precision
@@ -108,9 +108,6 @@ quantumQueryCost ::
   Complexity
 quantumQueryCost algs a_eps Program{funCtx, stmt} oracleF = cost a_eps stmt
  where
-  unsafeLookupFun :: Ident -> FunDef SizeT
-  unsafeLookupFun fname = head $ lookupFun fname funCtx
-
   get :: ProgramState -> Ident -> Value
   get = flip Ctx.get
 
@@ -119,7 +116,7 @@ quantumQueryCost algs a_eps Program{funCtx, stmt} oracleF = cost a_eps stmt
   costE eps FunCallE{fun_kind = FunctionCall f, args} sigma = cost eps body omega
    where
     vs = map (get sigma) args
-    FunDef _ fn_args _ body = unsafeLookupFun f
+    FunDef _ fn_args _ body = unsafeLookupFun funCtx f
     omega = Ctx.fromList $ zip (map fst fn_args) vs
 
   -- known cost formulas
@@ -127,7 +124,7 @@ quantumQueryCost algs a_eps Program{funCtx, stmt} oracleF = cost a_eps stmt
     | c == Contains || c == Search = n_pred_calls * pred_unitary_cost
    where
     vs = map (get sigma) args
-    funDef@(FunDef _ fn_args _ body) = unsafeLookupFun predicate
+    funDef@(FunDef _ fn_args _ body) = unsafeLookupFun funCtx predicate
     typ_x = snd $ last fn_args
 
     space = range typ_x
@@ -174,9 +171,7 @@ needsEpsS IfThenElseS{s_true, s_false} = (||) <$> needsEpsS s_true <*> needsEpsS
 needsEpsS (SeqS ss) = or <$> traverse needsEpsS ss
 needsEpsS ExprS{expr = FunCallE{fun_kind = PrimitiveCall _}} = return True
 needsEpsS ExprS{expr = FunCallE{fun_kind = FunctionCall f}} =
-  view (to unsafeLookupFun . to body) >>= needsEpsS
- where
-  unsafeLookupFun = head . lookupFun f
+  view (to (`unsafeLookupFun` f) . to body) >>= needsEpsS
 needsEpsS _ = return False
 
 -- | Compute if a program can fail and therefore needs a failure probability to implement

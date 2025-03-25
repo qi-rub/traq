@@ -14,9 +14,9 @@ import Control.Monad.State (StateT, evalStateT)
 import Control.Monad.Trans (lift)
 import Lens.Micro
 
-import qualified QCompose.Utils.Context as Ctx
+import qualified QCompose.Data.Context as Ctx
+import qualified QCompose.Data.Tree as Tree
 import QCompose.Utils.MonadHelpers
-import qualified QCompose.Utils.Tree as Tree
 
 import QCompose.Prelude
 import QCompose.ProtoLang.Syntax

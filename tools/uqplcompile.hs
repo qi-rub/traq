@@ -4,7 +4,7 @@ import Control.Monad (forM_)
 import qualified Data.Number.Symbolic as Sym
 import Lens.Micro
 
-import qualified QCompose.Utils.Context as Ctx
+import qualified QCompose.Data.Context as Ctx
 
 import QCompose.Prelude
 import QCompose.Primitives.QSearch
@@ -25,7 +25,7 @@ main = do
   let Right (uqpl_prog, _) = UQPL.lowerProgram zalkaQSearch Ctx.empty delta prog
   let (cost, proc_costs) = UQPL.programCost uqpl_prog
   forM_ (uqpl_prog ^. to UQPL.proc_defs) $ \p -> do
-    putStrLn $ "// Cost: " <> show (proc_costs ^. at (p ^. to UQPL.proc_name) . singular _Just)
+    putStrLn $ "// Cost: " <> show (proc_costs ^. Ctx.at (p ^. to UQPL.proc_name) . singular _Just)
     putStrLn $ toCodeString p
 
   putStrLn $ "// Cost: " <> show cost

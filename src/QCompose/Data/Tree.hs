@@ -1,5 +1,5 @@
 -- | Support for non-determinism with a Tree data structure.
-module QCompose.Utils.Tree (
+module QCompose.Data.Tree (
   Tree (..),
   choice,
   flattenTrivial,

@@ -6,8 +6,8 @@ import qualified Data.Number.Symbolic as Sym
 import Lens.Micro
 import Text.Parsec.String (parseFromFile)
 
-import qualified QCompose.Utils.Context as Ctx
-import qualified QCompose.Utils.Tree as Tree
+import qualified QCompose.Data.Context as Ctx
+import qualified QCompose.Data.Tree as Tree
 
 import QCompose.Prelude
 import qualified QCompose.ProtoLang as P

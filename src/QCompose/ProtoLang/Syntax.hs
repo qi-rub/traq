@@ -20,8 +20,9 @@ module QCompose.ProtoLang.Syntax (
 
 import Lens.Micro
 
+import qualified QCompose.Data.Context as Ctx
+
 import QCompose.Prelude
-import QCompose.Utils.Context
 import QCompose.Utils.Printing
 
 -- | Types
@@ -89,9 +90,11 @@ data FunCtx sizeT = FunCtx
   }
   deriving (Eq, Show, Read, Functor)
 
-lookupFun :: (CanFail m) => Ident -> FunCtx sizeT -> m (FunDef sizeT)
+-- lookupFun :: (CanFail m) => Ident -> FunCtx sizeT -> m (FunDef sizeT)
 lookupFun fname funCtx =
-  funCtx & fun_defs & findBy ((fname ==) . fun_name)
+  funCtx
+    ^. to fun_defs
+      . to (Ctx.findBy ((fname ==) . fun_name))
 
 -- | A program is a function context with a statement (which acts like the `main`)
 data Program sizeT = Program

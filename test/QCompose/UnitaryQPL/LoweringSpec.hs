@@ -1,6 +1,6 @@
 module QCompose.UnitaryQPL.LoweringSpec (spec) where
 
-import qualified QCompose.Utils.Context as Ctx
+import qualified QCompose.Data.Context as Ctx
 
 import qualified QCompose.ProtoLang as P
 import qualified QCompose.UnitaryQPL as U

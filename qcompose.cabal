@@ -23,6 +23,8 @@ library
           QCompose
           QCompose.CQPL
           QCompose.CQPL.Syntax
+          QCompose.Data.Context
+          QCompose.Data.Tree
           QCompose.Examples.MatrixSearch
           QCompose.Examples.Search
           QCompose.Prelude
@@ -40,10 +42,8 @@ library
           QCompose.UnitaryQPL.Lowering
           QCompose.UnitaryQPL.Syntax
           QCompose.UnitaryQPL.TypeCheck
-          QCompose.Utils.Context
           QCompose.Utils.MonadHelpers
           QCompose.Utils.Printing
-          QCompose.Utils.Tree
     build-depends:
           base >=4.10 && <5
         , containers >=0.6 && <1
@@ -120,6 +120,7 @@ test-suite spec
     type: exitcode-stdio-1.0
     main-is: Spec.hs
     other-modules:
+          QCompose.Data.TreeSpec
           QCompose.Examples.MatrixSearchSpec
           QCompose.Examples.NonDetSpec
           QCompose.Examples.SearchSpec
@@ -129,7 +130,6 @@ test-suite spec
           QCompose.ProtoLang.TypeCheckSpec
           QCompose.ProtoLang.VarsSpec
           QCompose.UnitaryQPL.LoweringSpec
-          QCompose.Utils.TreeSpec
           TestHelpers
     hs-source-dirs:
           test

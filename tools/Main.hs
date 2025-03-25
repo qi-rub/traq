@@ -3,7 +3,7 @@ module Main where
 import Control.Exception (assert)
 import qualified Data.Number.Symbolic as Sym
 
-import qualified QCompose.Utils.Context as Ctx
+import qualified QCompose.Data.Context as Ctx
 
 import qualified QCompose.ProtoLang as P
 import qualified QCompose.UnitaryQPL as U
