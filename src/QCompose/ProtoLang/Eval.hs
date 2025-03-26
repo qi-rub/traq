@@ -46,7 +46,7 @@ lookupS :: Ident -> Executor Value
 lookupS k = use (Ctx.at k . singular _Just)
 
 putS :: Ident -> Value -> Executor ()
-putS k v = Ctx.at k ?= v
+putS = Ctx.unsafePut
 
 evalUnOp :: UnOp -> Value -> Value
 evalUnOp NotOp 0 = 1
@@ -107,7 +107,7 @@ evalExpr funCtx oracleF FunCallE{fun_kind = PrimitiveCall sub, args = (predicate
   evalPredicate val = (/= 0) <$> runPredicate "_search_arg" val
 
   runPredicate :: Ident -> Value -> Evaluator Value
-  runPredicate s_arg val = local (Ctx.at s_arg ?~ val) $ do
+  runPredicate s_arg val = local (Ctx.ins s_arg .~ val) $ do
     head
       <$> evalExpr
         funCtx

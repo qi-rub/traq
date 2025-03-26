@@ -6,6 +6,7 @@
 module QCompose.Data.Context (
   Context,
   at,
+  ins,
   empty,
   null,
   (\\),
@@ -15,66 +16,114 @@ module QCompose.Data.Context (
   elems,
   lookup,
   lookup',
+  unsafePut,
   put,
 ) where
 
 import Prelude hiding (lookup, null)
+import qualified Prelude
 
 import Control.Monad.Except (MonadError, throwError)
 import Control.Monad.Reader (MonadReader)
-import Control.Monad.State (MonadState)
-import qualified Data.Map as Map
-import Lens.Micro hiding (at)
-import qualified Lens.Micro as Lens
+import Control.Monad.State (MonadState, modify)
+import qualified Data.Foldable as Foldable
+import qualified Data.List as List
+import Text.Printf (printf)
+
+import Lens.Micro hiding (at, ix)
 import Lens.Micro.GHC ()
 import Lens.Micro.Mtl
-import Text.Printf (printf)
+
+import QCompose.Control.MonadHelpers
 
 type Ident = String
 
-newtype Context a = Context (Map.Map Ident a)
+data Binding a = Binding Ident a
   deriving (Eq, Show, Read, Functor, Foldable, Traversable)
 
-unCtx :: Lens' (Context a) (Map.Map Ident a)
-unCtx f (Context m) = Context <$> f m
+_binding :: Lens' (Binding a) (Ident, a)
+_binding focus (Binding k v) = uncurry Binding <$> focus (k, v)
 
-at :: Ident -> Lens' (Context a) (Maybe a)
-at k = unCtx . Lens.at k
+_var :: Lens' (Binding a) Ident
+_var = _binding . _1
+
+_val :: Lens' (Binding a) a
+_val = _binding . _2
+
+newtype Context a = Context [Binding a]
+  deriving (Eq, Show, Read, Functor, Foldable, Traversable)
+
+_ctx :: Lens' (Context a) [Binding a]
+_ctx focus (Context m) = Context <$> focus m
+
+_binds :: Traversal' (Context a) (Binding a)
+_binds focus (Context m) = Context <$> traverse focus m
+
+-- Lenses
+
+at :: Ident -> SimpleGetter (Context a) (Maybe a)
+at k = _ctx . to (map $ view _binding) . to (Foldable.find ((== k) . fst)) . to (fmap snd)
+
+ins :: Ident -> ASetter' (Context a) a
+ins k = sets $ \f (Context bs) ->
+  let v = f (error "Context.ins can only be used to set, not modify")
+   in Context (Binding k v : bs)
+
+-- | Get/Modify an existing binding.
+ix :: Ident -> Traversal' (Context a) a
+ix k focus = \(Context m) -> Context <$> go m
+ where
+  go [] = error $ "no binding: " <> k
+  go (b : bs)
+    | b ^. _var == k = (: bs) <$> _val focus b
+    | otherwise = (b :) <$> go bs
+
+-- Primary Functions
 
 empty :: Context a
-empty = Context Map.empty
+empty = Context []
 
 null :: Context a -> Bool
-null (Context m) = Map.null m
+null (Context m) = Prelude.null m
 
 (\\) :: Context a -> Context a -> Context a
-(Context m) \\ (Context m') = Context (m Map.\\ m')
+(Context m) \\ (Context m') = Context (List.deleteFirstsBy (\a b -> a ^. _var == b ^. _var) m m')
+
+-- | truncate terms till `k`
+trunc :: Ident -> Context a -> Context a
+trunc k (Context m) = Context $ dropWhile ((k ==) . view _var) m
+
+merge :: Context a -> Context a -> Context a
+merge (Context m) (Context m') = Context (m' ++ m)
+-- * Conversions
 
 fromList :: [(Ident, a)] -> Context a
-fromList = Context . Map.fromList
+fromList = Context . map (uncurry Binding) . reverse
+
+toList :: Context a -> [(Ident, a)]
+toList c = reverse $ c ^.. _binds . _binding
+
+-- Secondary functions
 
 singleton :: Ident -> a -> Context a
 singleton k v = fromList [(k, v)]
 
-toList :: Context a -> [(Ident, a)]
-toList = view (unCtx . to Map.assocs)
-
 elems :: Context a -> [a]
 elems = map snd . toList
 
+-- Monadic functions
+
 lookup :: (MonadError String m, MonadState (Context a) m) => Ident -> m a
-lookup x = do
-  v <- use (at x)
-  maybe (throwError $ "cannot find variable " <> show x) pure v
+lookup x = use (at x) >>= maybeWithError (printf "cannot find variable `%s`" x)
 
 lookup' :: (MonadError String m, MonadReader (Context a) m) => Ident -> m a
-lookup' x = do
-  v <- view (at x)
-  maybe (throwError $ "cannot find variable " <> show x) pure v
+lookup' x = view (at x) >>= maybeWithError (printf "cannot find variable `%s`" x)
+
+unsafePut :: (MonadState (Context a) m) => Ident -> a -> m ()
+unsafePut x v = ins x .= v
 
 put :: (MonadError String m, MonadState (Context a) m) => Ident -> a -> m ()
-put x v = do
-  exists <- use (unCtx . to (Map.member x))
-  if exists
-    then throwError (printf "variable `%s` already exists!" x)
-    else at x ?= v
+put x v =
+  use (at x) >>= \case
+    Nothing -> unsafePut x v
+    _ -> throwError (printf "variable `%s` already exists!" x)
