@@ -10,11 +10,11 @@ import Text.Printf (printf)
 
 import qualified QCompose.Data.Context as Ctx
 
+import QCompose.Control.MonadHelpers
 import QCompose.Prelude
 import qualified QCompose.ProtoLang as P
 import QCompose.ProtoLang.Syntax (FunctionCallKind (PrimitiveCall))
 import QCompose.UnitaryQPL.Syntax
-import QCompose.Utils.MonadHelpers
 
 -- | Formulas for primitives
 data QSearchUnitaryImpl = QSearchUnitaryImpl

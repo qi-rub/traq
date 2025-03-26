@@ -21,6 +21,7 @@ extra-doc-files:
 library
     exposed-modules:
           QCompose
+          QCompose.Control.MonadHelpers
           QCompose.CQPL
           QCompose.CQPL.Syntax
           QCompose.Data.Context
@@ -42,7 +43,6 @@ library
           QCompose.UnitaryQPL.Lowering
           QCompose.UnitaryQPL.Syntax
           QCompose.UnitaryQPL.TypeCheck
-          QCompose.Utils.MonadHelpers
           QCompose.Utils.Printing
     build-depends:
           base >=4.10 && <5

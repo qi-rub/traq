@@ -18,9 +18,9 @@ import Text.Printf (printf)
 
 import qualified QCompose.Data.Context as Ctx
 
+import QCompose.Control.MonadHelpers
 import QCompose.Prelude
 import QCompose.ProtoLang.Syntax
-import QCompose.Utils.MonadHelpers
 import QCompose.Utils.Printing
 
 type TypingCtx a = Ctx.Context (VarType a)

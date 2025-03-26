@@ -12,10 +12,10 @@ import Lens.Micro.Mtl
 
 import qualified QCompose.Data.Context as Ctx
 
+import QCompose.Control.MonadHelpers
 import QCompose.Prelude
 import QCompose.ProtoLang (TypeCheckable (..), TypingCtx, VarType)
 import QCompose.UnitaryQPL.Syntax
-import QCompose.Utils.MonadHelpers
 
 type CheckingCtx a = (OracleDecl a, [ProcDef a], TypingCtx a)
 type TypeChecker a = ReaderT (CheckingCtx a) (Either String)
