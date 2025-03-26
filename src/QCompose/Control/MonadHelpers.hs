@@ -65,6 +65,5 @@ throwFrom action msg =
       unlines
         [msg, "caught while handling exception:", e]
 
-maybeWithError :: (MonadError String m) => String -> Maybe a -> m a
-maybeWithError err Nothing = throwError err
-maybeWithError _ (Just v) = return v
+maybeWithError :: (MonadError e m) => e -> Maybe a -> m a
+maybeWithError err = maybe (throwError err) return

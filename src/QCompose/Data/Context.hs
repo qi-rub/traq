@@ -13,7 +13,6 @@ module QCompose.Data.Context (
   singleton,
   toList,
   elems,
-  CanFail (..),
   lookup,
   lookup',
   put,
@@ -21,29 +20,26 @@ module QCompose.Data.Context (
 
 import Prelude hiding (lookup, null)
 
-import qualified Control.Applicative as Ap
-import Control.Monad.Except (throwError)
+import Control.Monad.Except (MonadError, throwError)
 import Control.Monad.Reader (MonadReader)
 import Control.Monad.State (MonadState)
-import Control.Monad.Trans (MonadTrans, lift)
 import qualified Data.Map as Map
 import Lens.Micro hiding (at)
 import qualified Lens.Micro as Lens
 import Lens.Micro.GHC ()
 import Lens.Micro.Mtl
-
-import qualified QCompose.Data.Tree as Tree
+import Text.Printf (printf)
 
 type Ident = String
 
 newtype Context a = Context (Map.Map Ident a)
   deriving (Eq, Show, Read, Functor, Foldable, Traversable)
 
-ctx :: Lens' (Context a) (Map.Map Ident a)
-ctx f (Context m) = Context <$> f m
+unCtx :: Lens' (Context a) (Map.Map Ident a)
+unCtx f (Context m) = Context <$> f m
 
 at :: Ident -> Lens' (Context a) (Maybe a)
-at k = ctx . Lens.at k
+at k = unCtx . Lens.at k
 
 empty :: Context a
 empty = Context Map.empty
@@ -61,36 +57,24 @@ singleton :: Ident -> a -> Context a
 singleton k v = fromList [(k, v)]
 
 toList :: Context a -> [(Ident, a)]
-toList = view (ctx . to Map.assocs)
+toList = view (unCtx . to Map.assocs)
 
 elems :: Context a -> [a]
 elems = map snd . toList
 
-class (Monad m) => CanFail m where
-  showErrorMsg :: String -> m a
-
-instance CanFail (Either String) where
-  showErrorMsg = throwError
-
-instance CanFail [] where
-  showErrorMsg _ = Ap.empty
-
-instance CanFail Tree.Tree where
-  showErrorMsg _ = Ap.empty
-
-lookup :: (CanFail m, MonadTrans t, MonadState (Context a) (t m)) => Ident -> t m a
+lookup :: (MonadError String m, MonadState (Context a) m) => Ident -> m a
 lookup x = do
   v <- use (at x)
-  lift $ maybe (showErrorMsg $ "cannot find variable " <> show x) pure v
+  maybe (throwError $ "cannot find variable " <> show x) pure v
 
-lookup' :: (CanFail m, MonadTrans t, MonadReader (Context a) (t m)) => Ident -> t m a
+lookup' :: (MonadError String m, MonadReader (Context a) m) => Ident -> m a
 lookup' x = do
   v <- view (at x)
-  lift $ maybe (showErrorMsg $ "cannot find variable " <> show x) pure v
+  maybe (throwError $ "cannot find variable " <> show x) pure v
 
-put :: (CanFail m, MonadTrans t, MonadState (Context a) (t m)) => Ident -> a -> t m ()
+put :: (MonadError String m, MonadState (Context a) m) => Ident -> a -> m ()
 put x v = do
-  exists <- use (ctx . to (Map.member x))
+  exists <- use (unCtx . to (Map.member x))
   if exists
-    then lift $ showErrorMsg ("variable " <> show x <> " already exists!")
+    then throwError (printf "variable `%s` already exists!" x)
     else at x ?= v
