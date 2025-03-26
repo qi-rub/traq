@@ -9,7 +9,7 @@ matrixExample n m tyBool =
     { funCtx =
         FunCtx
           { oracle_decl = OracleDecl [tyI, tyJ] [tyBool]
-          , fun_defs = [check_entry, check_row, check_matrix]
+          , fun_defs = mkFunDefCtx [check_entry, check_row, check_matrix]
           }
     , stmt =
         ExprS

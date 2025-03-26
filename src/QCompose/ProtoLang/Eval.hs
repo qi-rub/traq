@@ -71,29 +71,26 @@ evalExpr _ oracleF FunCallE{fun_kind = OracleCall, args} = do
   return $ oracleF arg_vals
 evalExpr funCtx oracleF FunCallE{fun_kind = FunctionCall fun, args} = do
   arg_vals <- mapM Ctx.lookup' args
-  fun_def <- lift $ funCtx & lookupFun fun
+  let fun_def = funCtx ^. to fun_defs . Ctx.at fun . singular _Just
   lift $ evalFun funCtx oracleF arg_vals fun_def
 
 -- subroutines
 -- `any` / `search`
 evalExpr funCtx oracleF FunCallE{fun_kind = PrimitiveCall sub, args = (predicate : args)}
   | sub == Contains = do
-      vals <- getSearchRange
-      has_sol <- anyM evalPredicate vals
+      has_sol <- anyM evalPredicate search_range
 
       return [boolToValue has_sol]
   | sub == Search = do
-      vals <- getSearchRange
-      sols <- filterM evalPredicate vals
+      sols <- filterM evalPredicate search_range
 
       let has_sol = not $ null sols
-      let out_vals = if has_sol then sols else vals
+      let out_vals = if has_sol then sols else search_range
       lift $ Tree.choice [pure [boolToValue has_sol, v] | v <- out_vals]
  where
-  getSearchRange = do
-    FunDef{param_binds = pred_param_binds} <- lift $ funCtx & lookupFun predicate
-    let (_, s_arg_ty) = last pred_param_binds
-    return $ range s_arg_ty
+  FunDef{param_binds = pred_param_binds} = funCtx ^. to fun_defs . Ctx.at predicate . singular _Just
+  (_, s_arg_ty) = last pred_param_binds
+  search_range = range s_arg_ty
 
   evalPredicate :: Value -> Evaluator Bool
   evalPredicate val = (/= 0) <$> runPredicate "_search_arg" val

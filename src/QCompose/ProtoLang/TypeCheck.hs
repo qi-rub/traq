@@ -10,8 +10,8 @@ module QCompose.ProtoLang.TypeCheck (
 ) where
 
 import Control.Monad (forM_, unless, when, zipWithM_)
-import Control.Monad.Except (catchError, throwError)
-import Control.Monad.State (StateT, execStateT, get, lift, put)
+import Control.Monad.Except (throwError)
+import Control.Monad.State (StateT, execStateT, get, put)
 import Data.List (uncons)
 import Lens.Micro
 import Text.Printf (printf)
@@ -20,6 +20,7 @@ import qualified QCompose.Data.Context as Ctx
 
 import QCompose.Prelude
 import QCompose.ProtoLang.Syntax
+import QCompose.Utils.MonadHelpers
 import QCompose.Utils.Printing
 
 type TypingCtx a = Ctx.Context (VarType a)
@@ -39,9 +40,10 @@ instance TypeCheckable Int where
 -- | The TypeChecker monad
 type TypeChecker a = StateT (TypingCtx a) (Either String)
 
-lookupFunE :: Ident -> FunCtx a -> Either String (FunDef a)
+lookupFunE :: Ident -> FunCtx a -> TypeChecker a (FunDef a)
 lookupFunE fname funCtx =
-  lookupFun fname funCtx `catchError` \_ -> throwError ("cannot find function `" <> fname <> "`")
+  maybeWithError (printf "cannot find function `%s`" fname) $
+    funCtx ^. to fun_defs . Ctx.at fname
 
 -- | Typecheck a subroutine call
 checkPrimitive ::
@@ -59,7 +61,7 @@ checkPrimitive funCtx Contains all_args = do
   (predicate, args) <- uncons all_args & maybe (throwError $ sub_name <> " needs 1 argument (predicate)") pure
   arg_tys <- mapM Ctx.lookup args
 
-  FunDef{param_binds = pred_params, ret_binds = pred_rets} <- lift $ funCtx & lookupFunE predicate
+  FunDef{param_binds = pred_params, ret_binds = pred_rets} <- funCtx & lookupFunE predicate
 
   when (map snd pred_rets /= [tbool]) $
     throwError "predicate must return a single Bool"
@@ -76,7 +78,7 @@ checkPrimitive funCtx Search all_args = do
   (predicate, args) <- uncons all_args & maybe (throwError $ sub_name <> " needs 1 argument (predicate)") pure
   arg_tys <- mapM Ctx.lookup args
 
-  FunDef{param_binds = pred_params, ret_binds = pred_rets} <- lift $ funCtx & lookupFunE predicate
+  FunDef{param_binds = pred_params, ret_binds = pred_rets} <- funCtx & lookupFunE predicate
 
   when (map snd pred_rets /= [tbool]) $
     throwError "predicate must return a single Bool"
@@ -134,7 +136,7 @@ checkExpr FunCtx{oracle_decl} FunCallE{fun_kind = OracleCall, args} = do
 
 -- f(x, ...)
 checkExpr funCtx FunCallE{fun_kind = FunctionCall fun, args} = do
-  FunDef{param_binds, ret_binds} <- lift $ funCtx & lookupFunE fun
+  FunDef{param_binds, ret_binds} <- funCtx & lookupFunE fun
 
   arg_tys <- mapM Ctx.lookup args
   let param_tys = map snd param_binds
@@ -173,20 +175,10 @@ checkStmt funCtx IfThenElseS{cond, s_true, s_false} = do
     throwError $
       "`if` condition must be a boolean, got " <> show (cond, cond_ty)
 
-  sigma <- get
-
-  sigma_t <- lift $ execStateT (checkStmt funCtx s_true) sigma
-  unless (Ctx.null $ sigma Ctx.\\ sigma_t) $
-    error "Invalid final state, missing initial variables"
-  let outs_t = sigma_t Ctx.\\ sigma
-
-  sigma_f <- lift $ execStateT (checkStmt funCtx s_false) sigma
-  unless (Ctx.null $ sigma Ctx.\\ sigma_t) $
-    error "Invalid final state, missing initial variables"
-  let outs_f = sigma_f Ctx.\\ sigma
-
-  unless (outs_t == outs_f) $
-    throwError ("if: branches must declare same variables, got " <> show [outs_t, outs_f])
+  sigma_t <- withSandbox $ checkStmt funCtx s_true >> get
+  sigma_f <- withSandbox $ checkStmt funCtx s_false >> get
+  when (sigma_t /= sigma_f) $
+    throwError ("if: branches must declare same variables, got " <> show [sigma_t, sigma_f])
   put sigma_t
 
 -- | Type check a single function.

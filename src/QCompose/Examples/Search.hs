@@ -1,10 +1,16 @@
 module QCompose.Examples.Search where
 
+import qualified QCompose.Data.Context as Ctx
+
 import QCompose.Prelude
 import QCompose.ProtoLang.Syntax
 
 arraySearch :: SizeT -> Program SizeT
-arraySearch n = Program{funCtx = FunCtx{oracle_decl, fun_defs = [check]}, stmt}
+arraySearch n =
+  Program
+    { funCtx = FunCtx{oracle_decl, fun_defs = Ctx.fromList [("check", check)]}
+    , stmt
+    }
  where
   oracle_decl = OracleDecl{param_types = [Fin n], ret_types = [Fin 2]}
 
@@ -36,7 +42,11 @@ arraySearch n = Program{funCtx = FunCtx{oracle_decl, fun_defs = [check]}, stmt}
       }
 
 arraySearchIx :: SizeT -> Program SizeT
-arraySearchIx n = Program{funCtx = FunCtx{oracle_decl, fun_defs = [check]}, stmt}
+arraySearchIx n =
+  Program
+    { funCtx = FunCtx{oracle_decl, fun_defs = Ctx.fromList [("check", check)]}
+    , stmt
+    }
  where
   oracle_decl = OracleDecl{param_types = [Fin n], ret_types = [Fin 2]}
 

@@ -25,7 +25,7 @@ spec = do
               (Ctx.singleton "x" (P.Fin 10))
               0
               P.Program
-                { P.funCtx = P.FunCtx{P.oracle_decl = dummy_oracle, P.fun_defs = []}
+                { P.funCtx = P.FunCtx{P.oracle_decl = dummy_oracle, P.fun_defs = Ctx.empty}
                 , P.stmt = s
                 }
         res

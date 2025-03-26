@@ -13,7 +13,7 @@ module QCompose.ProtoLang.Syntax (
   OracleDecl (..),
   Program (..),
   FunCtx (..),
-  lookupFun,
+  mkFunDefCtx,
   _ast,
   _stmt,
 ) where
@@ -86,15 +86,13 @@ data OracleDecl sizeT = OracleDecl
 -- | A function context contains the oracle declaration, and a list of functions
 data FunCtx sizeT = FunCtx
   { oracle_decl :: OracleDecl sizeT
-  , fun_defs :: [FunDef sizeT]
+  , fun_defs :: Ctx.Context (FunDef sizeT)
   }
   deriving (Eq, Show, Read, Functor)
 
--- lookupFun :: (CanFail m) => Ident -> FunCtx sizeT -> m (FunDef sizeT)
-lookupFun fname funCtx =
-  funCtx
-    ^. to fun_defs
-      . to (Ctx.findBy ((fname ==) . fun_name))
+-- | Create a mapping of function names to function defs.
+mkFunDefCtx :: [FunDef a] -> Ctx.Context (FunDef a)
+mkFunDefCtx fs = Ctx.fromList [(fun_name f, f) | f <- fs]
 
 -- | A program is a function context with a statement (which acts like the `main`)
 data Program sizeT = Program
@@ -190,5 +188,5 @@ instance (Show a) => ToCodeString (OracleDecl a) where
 instance (Show a) => ToCodeString (Program a) where
   toCodeLines Program{funCtx = FunCtx{oracle_decl, fun_defs}, stmt} =
     [toCodeString oracle_decl, ""]
-      <> map toCodeString fun_defs
+      <> map toCodeString (Ctx.elems fun_defs)
       <> toCodeLines stmt

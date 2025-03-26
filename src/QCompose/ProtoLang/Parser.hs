@@ -170,7 +170,7 @@ oracleDecl tp@TokenParser{..} = do
 program :: TokenParser () -> Parser (Program SymbSize)
 program tp@TokenParser{..} = do
   oracle_decl <- oracleDecl tp
-  fun_defs <- many (funDef tp)
+  fun_defs <- mkFunDefCtx <$> many (funDef tp)
   stmt <- stmtP tp
   return Program{funCtx = FunCtx{oracle_decl, fun_defs}, stmt}
 

@@ -46,7 +46,7 @@ concreteEx = do
 
   putStrLn "Unitary Cost:"
   putStrLn $ " - Abstract cost: " <> show u_formula_cost
-  putStrLn $ " - Actual cost: " <> show u_true_cost
+  putStrLn $ " - Actual cost:   " <> show u_true_cost
   assert (u_true_cost == u_formula_cost) $ return ()
 
 main :: IO ()

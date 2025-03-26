@@ -16,7 +16,6 @@ import Lens.Micro.Mtl
 
 import qualified QCompose.Data.Context as Ctx
 import qualified QCompose.Data.Tree as Tree
-import QCompose.Utils.MonadHelpers
 
 import QCompose.Prelude
 import QCompose.ProtoLang.Eval
@@ -35,11 +34,7 @@ detExtract xs = case toList xs of
   _ -> error "unexpected non-determinism"
 
 unsafeLookupFun :: FunCtx sizeT -> Ident -> FunDef sizeT
-unsafeLookupFun funCtx fname =
-  funCtx
-    ^. to fun_defs
-      . to (map $ \f -> (f ^. to fun_name, f))
-      . atL fname
+unsafeLookupFun funCtx fname = funCtx ^. to fun_defs . Ctx.at fname . singular _Just
 
 unitaryQueryCost ::
   forall sizeT costT.
@@ -109,7 +104,7 @@ quantumQueryCost ::
 quantumQueryCost algs a_eps Program{funCtx, stmt} oracleF = cost a_eps stmt
  where
   get :: ProgramState -> Ident -> Value
-  get = flip Ctx.get
+  get st k = st ^. Ctx.at k . singular _Just
 
   costE :: FailProb -> Expr SizeT -> ProgramState -> Complexity
   costE _ FunCallE{fun_kind = OracleCall} _ = 1

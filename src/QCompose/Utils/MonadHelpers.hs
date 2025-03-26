@@ -9,7 +9,7 @@ module QCompose.Utils.MonadHelpers (
   embedReaderT,
   embedWriterT,
   throwFrom,
-  atL,
+  maybeWithError,
 ) where
 
 import Control.Monad.Except (MonadError, catchError, throwError)
@@ -65,11 +65,6 @@ throwFrom action msg =
       unlines
         [msg, "caught while handling exception:", e]
 
--- | Lens to lookup a key in a key-value pair list.
-atL :: (Eq k) => k -> Lens' [(k, v)] v
-atL k focus = go
- where
-  go [] = error "cannot find key"
-  go ((k', v) : kvs')
-    | k == k' = ((,) k' <$> focus v) <&> (: kvs')
-    | otherwise = ((k', v) :) <$> go kvs'
+maybeWithError :: (MonadError String m) => String -> Maybe a -> m a
+maybeWithError err Nothing = throwError err
+maybeWithError _ (Just v) = return v

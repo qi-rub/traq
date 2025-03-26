@@ -2,7 +2,6 @@ module QCompose.UnitaryQPL.Lowering where
 
 import Control.Monad.Except (throwError)
 import Control.Monad.RWS
-import Control.Monad.Trans (lift)
 import Data.List (intersect)
 import qualified Data.Set as Set
 import Lens.Micro
@@ -136,7 +135,9 @@ lowerExpr _ P.FunCallE{P.fun_kind = P.OracleCall, P.args} rets = do
 
 -- function call
 lowerExpr delta P.FunCallE{P.fun_kind = P.FunctionCall f, P.args} rets = do
-  fun <- view protoFunCtx >>= (lift . P.lookupFun f)
+  fun <-
+    view (protoFunCtx . to P.fun_defs . Ctx.at f)
+      >>= maybeWithError ("cannot find function " <> f)
   LoweredProc{lowered_def, inp_tys, out_tys, aux_tys} <- lowerFunDef delta fun
 
   when (length inp_tys /= length args) $
@@ -155,7 +156,9 @@ lowerExpr delta P.FunCallE{P.fun_kind = P.FunctionCall f, P.args} rets = do
 -- `any`
 lowerExpr delta P.FunCallE{P.fun_kind = PrimitiveCall P.Contains, P.args = (predicate : args)} rets = do
   -- the predicate
-  pred_fun@P.FunDef{P.param_binds} <- view protoFunCtx >>= (lift . P.lookupFun predicate)
+  pred_fun@P.FunDef{P.param_binds} <-
+    view (protoFunCtx . to P.fun_defs . Ctx.at predicate)
+      >>= maybeWithError ("cannot find predicate " <> predicate)
 
   -- size of the search space
   let s_ty@(P.Fin n) = param_binds & last & snd
