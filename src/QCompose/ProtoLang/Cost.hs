@@ -80,6 +80,7 @@ unitaryQueryCost algs d Program{funCtx, stmt} = cost d stmt
   costE _ ConstE{} = 0
   costE _ UnOpE{} = 0
   costE _ BinOpE{} = 0
+  costE _ TernaryE{} = 0
   costE _ FunCallE{} = error "invalid syntax"
 
   cost :: costT -> Stmt sizeT -> costT
@@ -144,6 +145,7 @@ quantumQueryCost algs a_eps Program{funCtx, stmt} oracleF = cost a_eps stmt
   costE _ ConstE{} _ = 0
   costE _ UnOpE{} _ = 0
   costE _ BinOpE{} _ = 0
+  costE _ TernaryE{} _ = 0
   -- unsupported
   costE _ FunCallE{} _ = error "invalid syntax"
 

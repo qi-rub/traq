@@ -17,6 +17,7 @@ freeVarsE VarE{arg} = Set.singleton arg
 freeVarsE ConstE{} = Set.empty
 freeVarsE UnOpE{arg} = Set.singleton arg
 freeVarsE BinOpE{lhs, rhs} = Set.fromList [lhs, rhs]
+freeVarsE TernaryE{branch, lhs, rhs} = Set.fromList [branch, lhs, rhs]
 freeVarsE FunCallE{args} = Set.fromList args
 
 -- | The set of free (unbound) variables

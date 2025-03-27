@@ -128,6 +128,15 @@ lowerExpr _ P.BinOpE{P.bin_op, P.lhs, P.rhs} [ret] = do
       P.AddOp -> RevEmbedU $ AddF ty
       P.LEqOp -> RevEmbedU $ LEqF ty
       P.AndOp -> Toffoli
+lowerExpr _ P.TernaryE{P.branch, P.lhs, P.rhs} [ret] = do
+  ty <- zoom typingCtx $ Ctx.lookup lhs
+  let c_copy = Controlled $ RevEmbedU $ IdF ty
+  return . SeqS $
+    [ UnitaryS [branch] XGate
+    , UnitaryS [branch, lhs, ret] c_copy
+    , UnitaryS [branch] XGate
+    , UnitaryS [branch, rhs, ret] c_copy
+    ]
 
 -- oracle call
 lowerExpr _ P.FunCallE{P.fun_kind = P.OracleCall, P.args} rets = do

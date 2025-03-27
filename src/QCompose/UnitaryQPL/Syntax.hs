@@ -30,6 +30,7 @@ data Unitary a
   | UnifDagger (P.VarType a)
   | RevEmbedU (ClassicalFun a)
   | BlackBoxU (BlackBox a)
+  | Controlled (Unitary a)
   deriving (Eq, Show, Read)
 
 adjointU :: Unitary a -> Unitary a

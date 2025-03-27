@@ -54,6 +54,7 @@ unitarySignature (RevEmbedU f) = return $ revFunTys f
   revFunTys AddF{ty} = [ty, ty, ty]
   revFunTys LEqF{ty} = [ty, ty, tbool]
 unitarySignature (BlackBoxU bb) = throwError $ "cannot find signature for blackbox: " <> show bb
+unitarySignature (Controlled u) = (tbool :) <$> unitarySignature u
 
 typeCheckStmt :: (TypeCheckable a) => Stmt a -> TypeChecker a ()
 -- single statements

@@ -124,6 +124,19 @@ checkExpr _ BinOpE{bin_op, lhs, rhs} = do
     LEqOp -> return tbool
     AddOp -> return $ tmax ty_lhs ty_rhs
   return [ty]
+-- ifte b x y
+checkExpr _ TernaryE{branch, lhs, rhs} = do
+  ty_branch <- Ctx.lookup branch
+  unless (ty_branch == tbool) $
+    throwError (printf "`ifte` requires bool to branch, got %s" (show ty_branch))
+
+  ty_lhs <- Ctx.lookup lhs
+  ty_rhs <- Ctx.lookup rhs
+  unless (ty_lhs == ty_rhs) $
+    throwError ("`ifte` requires same lhs and rhs type, got " <> show [ty_lhs, ty_rhs])
+
+  return [ty_lhs]
+
 -- Oracle(x, ...)
 checkExpr FunCtx{oracle_decl} FunCallE{fun_kind = OracleCall, args} = do
   let OracleDecl{param_types, ret_types} = oracle_decl

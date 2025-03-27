@@ -57,6 +57,7 @@ data Expr sizeT
   | ConstE {val :: Value, ty :: VarType sizeT}
   | UnOpE {un_op :: UnOp, arg :: Ident}
   | BinOpE {bin_op :: BinOp, lhs :: Ident, rhs :: Ident}
+  | TernaryE {branch, lhs, rhs :: Ident}
   | FunCallE {fun_kind :: FunctionCallKind, args :: [Ident]}
   deriving (Eq, Show, Read, Functor)
 
@@ -151,6 +152,8 @@ instance (Show a) => ToCodeString (Expr a) where
   toCodeString UnOpE{un_op, arg} = toCodeString un_op <> arg
   toCodeString BinOpE{bin_op, lhs, rhs} =
     unwords [lhs, toCodeString bin_op, rhs]
+  toCodeString TernaryE{branch, lhs, rhs} =
+    unwords ["ifte", branch, lhs, rhs]
   toCodeString FunCallE{fun_kind, args} =
     unwords [toCodeString fun_kind <> "(" <> commaList args <> ")"]
 
