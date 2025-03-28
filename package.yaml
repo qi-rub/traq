@@ -54,8 +54,8 @@ _exe_opts: &exe_opts
   dependencies: qcompose
 
 executables:
-  qcompose:
-    main: Main.hs
+  matrixsearch:
+    main: matrixsearch.hs
     <<: *exe_opts
   uqplcompile:
     main: uqplcompile.hs

@@ -66,8 +66,8 @@ library
     ghc-options: -Wall
     default-language: Haskell2010
 
-executable qcompose
-    main-is: Main.hs
+executable matrixsearch
+    main-is: matrixsearch.hs
     hs-source-dirs:
           tools
     default-extensions:
@@ -92,8 +92,6 @@ executable qcompose
 
 executable uqplcompile
     main-is: uqplcompile.hs
-    other-modules:
-          Main
     hs-source-dirs:
           tools
     default-extensions:
