@@ -1,5 +1,6 @@
 module QCompose.CQPL.Syntax (
   VarType (..),
+  Value (..),
   Expr (..),
   FunctionCall (..),
   Stmt (..),
@@ -10,16 +11,21 @@ module QCompose.CQPL.Syntax (
 
 import Text.Printf (printf)
 
-import QCompose.Prelude
+import QCompose.Prelude hiding (Value)
 import qualified QCompose.UnitaryQPL as UQPL
 import QCompose.Utils.Printing
 
 data VarType = IntT | FloatT
   deriving (Eq, Show, Read)
 
+data Value
+  = IntV Int
+  | FloatV Float
+  | SymV String
+  deriving (Eq, Show, Read)
+
 data Expr
   = ConstE {val :: Value}
-  | ConstFloatE {float_val :: Float}
   | VarE {var :: Ident}
   | AddE {lhs, rhs :: Expr}
   | MulE {lhs, rhs :: Expr}
@@ -32,15 +38,14 @@ data Expr
 data FunctionCall
   = FunctionCall Ident
   | OracleCall
+  | UProcAndMeas Ident
   deriving (Eq, Show, Read)
 
 data Stmt
   = SkipS
   | AssignS {rets :: [Ident], expr :: Expr}
-  | RandomS {ret :: Ident, max_val :: Value}
-  | RandomDynS {ret :: Ident, max_var :: Ident}
+  | RandomS {ret :: Ident, max_val :: Expr}
   | CallS {fun :: FunctionCall, args :: [Ident]}
-  | CallUProcAndMeasS {uproc_id :: Ident, args :: [Ident]}
   | SeqS [Stmt]
   | IfThenElseS {cond :: Ident, s_true, s_false :: Stmt}
   | ForS {iter_var :: Ident, iter_lim :: Expr, loop_body :: Stmt}
@@ -75,9 +80,13 @@ parenBinExpr :: String -> Expr -> Expr -> String
 parenBinExpr op_sym lhs rhs =
   "(" ++ unwords [toCodeString lhs, op_sym, toCodeString rhs] ++ ")"
 
+instance ToCodeString Value where
+  toCodeString (IntV v) = show v
+  toCodeString (FloatV v) = show v
+  toCodeString (SymV v) = v
+
 instance ToCodeString Expr where
-  toCodeString ConstE{val} = show val
-  toCodeString ConstFloatE{float_val} = show float_val
+  toCodeString ConstE{val} = toCodeString val
   toCodeString VarE{var} = var
   toCodeString AddE{lhs, rhs} = parenBinExpr "+" lhs rhs
   toCodeString MulE{lhs, rhs} = parenBinExpr "*" lhs rhs
@@ -92,15 +101,13 @@ instance ToCodeString Stmt where
   toCodeLines AssignS{rets, expr} =
     [printf "%s := %s;" (commaList rets) (toCodeString expr)]
   toCodeLines RandomS{ret, max_val} =
-    [printf "%s :=$ %d;" ret max_val]
-  toCodeLines RandomDynS{ret, max_var} =
-    [printf "%s :=$ [0 ... %s];" ret max_var]
+    [printf "%s :=$ %s;" ret (toCodeString max_val)]
   toCodeLines CallS{fun = FunctionCall f, args} =
     [printf "call %s(%s);" f (commaList args)]
   toCodeLines CallS{fun = OracleCall, args} =
     [printf "Oracle(%s);" (commaList args)]
-  toCodeLines CallUProcAndMeasS{uproc_id, args} =
-    [printf "call-uproc-and-meas %s(%s);" uproc_id (commaList args)]
+  toCodeLines CallS{fun = UProcAndMeas uproc_id, args} =
+    [printf "call_uproc_and_meas %s(%s);" uproc_id (commaList args)]
   toCodeLines (SeqS ss) = concatMap toCodeLines ss
   toCodeLines IfThenElseS{cond, s_true, s_false} =
     [printf "if (%s) then" cond]

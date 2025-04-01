@@ -29,7 +29,7 @@ spec = do
               , "res <- f(i)"
               ]
       let c = unitaryQueryCost formulas 0.001 prog
-      c `shouldBe` 2
+      c `shouldBe` (2 :: Double)
 
     it "search with no oracle" $ do
       let prog =

@@ -114,9 +114,9 @@ qSearch ty n_samples eps =
  where
   classicalSampling :: CQ.Stmt
   classicalSampling =
-    CQ.ForS "k" (CQ.ConstE $ fromIntegral n_samples) $
+    CQ.ForS "k" (CQ.ConstE $ CQ.IntV n_samples) $
       CQ.SeqS
-        [ CQ.RandomS "x" (fromIntegral n)
+        [ CQ.RandomS "x" (CQ.ConstE (CQ.IntV n))
         , CQ.CallS CQ.OracleCall ["x", "ok"]
         , CQ.IfThenElseS
             "ok"
@@ -137,16 +137,16 @@ qSearch ty n_samples eps =
   q_max = ceiling $ alpha * sqrt_n
 
   quantumSampling, quantumSamplingOneRound :: CQ.Stmt
-  quantumSampling = CQ.ForS "r" (CQ.ConstE $ fromIntegral n_runs) quantumSamplingOneRound
+  quantumSampling = CQ.ForS "r" (CQ.ConstE $ CQ.IntV n_runs) quantumSamplingOneRound
   quantumSamplingOneRound =
     CQ.SeqS
-      [ CQ.AssignS ["m"] (CQ.ConstFloatE lambda)
-      , CQ.AssignS ["Q_sum"] (CQ.ConstE 0)
-      , CQ.RandomDynS "j" "m"
+      [ CQ.AssignS ["m"] (CQ.ConstE (CQ.FloatV lambda))
+      , CQ.AssignS ["Q_sum"] (CQ.ConstE (CQ.IntV 0))
+      , CQ.RandomS "j" (CQ.VarE "m")
       , CQ.WhileS
           ( CQ.LEqE
               (CQ.AddE (CQ.VarE "Q_sum") (CQ.VarE "j"))
-              (CQ.ConstE $ fromIntegral q_max)
+              (CQ.ConstE $ CQ.IntV q_max)
           )
           ( CQ.SeqS
               [ error "TODO grover cycle"
@@ -155,9 +155,9 @@ qSearch ty n_samples eps =
                   "ok"
                   (CQ.ReturnS ["y"])
                   ( CQ.SeqS
-                      [ CQ.AssignS ["Q_sum"] $ CQ.AddE (CQ.VarE "Q_sum") (CQ.AddE (CQ.VarE "j") (CQ.ConstE 1))
-                      , CQ.AssignS ["m"] $ CQ.MinE (CQ.MulE (CQ.ConstFloatE lambda) (CQ.VarE "m")) (CQ.ConstFloatE sqrt_n)
-                      , CQ.RandomDynS "j" "m"
+                      [ CQ.AssignS ["Q_sum"] $ CQ.AddE (CQ.VarE "Q_sum") (CQ.AddE (CQ.VarE "j") (CQ.ConstE $ CQ.IntV 1))
+                      , CQ.AssignS ["m"] $ CQ.MinE (CQ.MulE (CQ.ConstE (CQ.FloatV lambda)) (CQ.VarE "m")) (CQ.ConstE (CQ.FloatV sqrt_n))
+                      , CQ.RandomS "j" (CQ.VarE "m")
                       ]
                   )
               ]
