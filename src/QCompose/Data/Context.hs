@@ -25,7 +25,7 @@ import qualified Prelude
 
 import Control.Monad.Except (MonadError, throwError)
 import Control.Monad.Reader (MonadReader)
-import Control.Monad.State (MonadState, modify)
+import Control.Monad.State (MonadState)
 import qualified Data.Foldable as Foldable
 import qualified Data.List as List
 import Text.Printf (printf)
@@ -91,7 +91,9 @@ null (Context m) = Prelude.null m
 
 -- | truncate terms till `k`
 trunc :: Ident -> Context a -> Context a
-trunc k (Context m) = Context $ dropWhile ((k ==) . view _var) m
+trunc k (Context m) = Context (go m)
+ where
+  go = tail . dropWhile ((k /=) . view _var)
 
 merge :: Context a -> Context a -> Context a
 merge (Context m) (Context m') = Context (m' ++ m)
