@@ -104,6 +104,7 @@ qSearch ty n_samples eps =
   CQ.ProcDef
     { CQ.proc_name = "qSearch"
     , CQ.proc_params = []
+    , CQ.proc_local_vars = []
     , CQ.proc_body =
         CQ.SeqS
           [ classicalSampling
@@ -111,11 +112,11 @@ qSearch ty n_samples eps =
           ]
     }
  where
-  classicalSampling :: CQ.Stmt SizeT
+  classicalSampling :: CQ.Stmt
   classicalSampling =
-    CQ.ForS "k" (Fin n_samples) $
+    CQ.ForS "k" (CQ.ConstE $ fromIntegral n_samples) $
       CQ.SeqS
-        [ CQ.RandomS "x" ty
+        [ CQ.RandomS "x" (fromIntegral n)
         , CQ.CallS CQ.OracleCall ["x", "ok"]
         , CQ.IfThenElseS
             "ok"
@@ -135,8 +136,8 @@ qSearch ty n_samples eps =
   n_runs = ceiling $ logBase 3 (1 / eps)
   q_max = ceiling $ alpha * sqrt_n
 
-  quantumSampling, quantumSamplingOneRound :: CQ.Stmt SizeT
-  quantumSampling = CQ.ForS "r" (Fin n_runs) quantumSamplingOneRound
+  quantumSampling, quantumSamplingOneRound :: CQ.Stmt
+  quantumSampling = CQ.ForS "r" (CQ.ConstE $ fromIntegral n_runs) quantumSamplingOneRound
   quantumSamplingOneRound =
     CQ.SeqS
       [ CQ.AssignS ["m"] (CQ.ConstFloatE lambda)

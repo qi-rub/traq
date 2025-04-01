@@ -1,53 +1,131 @@
-{-# LANGUAGE Rank2Types #-}
-
 module QCompose.CQPL.Syntax (
+  VarType (..),
   Expr (..),
   FunctionCall (..),
   Stmt (..),
   ProcDef (..),
+  OracleDecl (..),
   Program (..),
 ) where
 
+import Text.Printf (printf)
+
 import QCompose.Prelude
+import qualified QCompose.UnitaryQPL as UQPL
+import QCompose.Utils.Printing
 
-import QCompose.ProtoLang (VarType (..))
-import qualified QCompose.ProtoLang as P
+data VarType = IntT | FloatT
+  deriving (Eq, Show, Read)
 
-data Expr a
+data Expr
   = ConstE {val :: Value}
   | ConstFloatE {float_val :: Float}
   | VarE {var :: Ident}
-  | AddE {lhs, rhs :: Expr a}
-  | MulE {lhs, rhs :: Expr a}
-  | LEqE {lhs, rhs :: Expr a}
-  | AndE {lhs, rhs :: Expr a}
-  | NotE {arg :: Expr a}
-  | MinE {lhs, rhs :: Expr a}
+  | AddE {lhs, rhs :: Expr}
+  | MulE {lhs, rhs :: Expr}
+  | LEqE {lhs, rhs :: Expr}
+  | AndE {lhs, rhs :: Expr}
+  | NotE {arg :: Expr}
+  | MinE {lhs, rhs :: Expr}
   deriving (Eq, Show, Read)
 
-data FunctionCall = FunctionCall Ident | OracleCall
+data FunctionCall
+  = FunctionCall Ident
+  | OracleCall
+  deriving (Eq, Show, Read)
 
-data Stmt a
+data Stmt
   = SkipS
-  | AssignS {args :: [Ident], expr :: Expr a}
-  | RandomS {ret :: Ident, ty :: VarType a}
-  | RandomDynS {ret :: Ident, max_val :: Ident}
+  | AssignS {rets :: [Ident], expr :: Expr}
+  | RandomS {ret :: Ident, max_val :: Value}
+  | RandomDynS {ret :: Ident, max_var :: Ident}
   | CallS {fun :: FunctionCall, args :: [Ident]}
-  | CallUProcAndMeasS {uproc_id :: Ident}
-  | SeqS [Stmt a]
-  | IfThenElseS {cond :: Ident, s_true, s_false :: Stmt a}
-  | ForS {iter_var :: Ident, iter_ty :: VarType a, loop_body :: Stmt a}
-  | WhileS {cond_expr :: Expr a, loop_body :: Stmt a}
+  | CallUProcAndMeasS {uproc_id :: Ident, args :: [Ident]}
+  | SeqS [Stmt]
+  | IfThenElseS {cond :: Ident, s_true, s_false :: Stmt}
+  | ForS {iter_var :: Ident, iter_lim :: Expr, loop_body :: Stmt}
+  | WhileS {cond_expr :: Expr, loop_body :: Stmt}
   | ReturnS {rets :: [Ident]}
 
-data ProcDef a = ProcDef
-  { proc_name :: Ident
-  , proc_params :: [(Ident, VarType a)]
-  , proc_body :: Stmt a
+data ProcDef a
+  = ProcDef
+      { proc_name :: Ident
+      , proc_params :: [(Ident, VarType)]
+      , proc_local_vars :: [(Ident, VarType)]
+      , proc_body :: Stmt
+      }
+  | UQPLProcDef (UQPL.ProcDef a)
+
+newtype OracleDecl = OracleDecl
+  { oracle_param_types :: [VarType]
   }
+  deriving (Eq, Show, Read)
 
 data Program a = Program
-  { oracle_decl :: P.OracleDecl a
+  { oracle_decl :: OracleDecl
   , proc_defs :: [ProcDef a]
-  , stmt :: Stmt a
+  , stmt :: Stmt
   }
+
+instance ToCodeString VarType where
+  toCodeString IntT = "int"
+  toCodeString FloatT = "float"
+
+parenBinExpr :: String -> Expr -> Expr -> String
+parenBinExpr op_sym lhs rhs =
+  "(" ++ unwords [toCodeString lhs, op_sym, toCodeString rhs] ++ ")"
+
+instance ToCodeString Expr where
+  toCodeString ConstE{val} = show val
+  toCodeString ConstFloatE{float_val} = show float_val
+  toCodeString VarE{var} = var
+  toCodeString AddE{lhs, rhs} = parenBinExpr "+" lhs rhs
+  toCodeString MulE{lhs, rhs} = parenBinExpr "*" lhs rhs
+  toCodeString LEqE{lhs, rhs} = parenBinExpr "<=" lhs rhs
+  toCodeString AndE{lhs, rhs} = parenBinExpr "&&" lhs rhs
+  toCodeString NotE{arg} = "!" ++ toCodeString arg
+  toCodeString MinE{lhs, rhs} =
+    "min(" ++ toCodeString lhs ++ ", " ++ toCodeString rhs ++ ")"
+
+instance ToCodeString Stmt where
+  toCodeLines SkipS = []
+  toCodeLines AssignS{rets, expr} =
+    [printf "%s := %s;" (commaList rets) (toCodeString expr)]
+  toCodeLines RandomS{ret, max_val} =
+    [printf "%s :=$ %d;" ret max_val]
+  toCodeLines RandomDynS{ret, max_var} =
+    [printf "%s :=$ [0 ... %s];" ret max_var]
+  toCodeLines CallS{fun = FunctionCall f, args} =
+    [printf "call %s(%s);" f (commaList args)]
+  toCodeLines CallS{fun = OracleCall, args} =
+    [printf "Oracle(%s);" (commaList args)]
+  toCodeLines CallUProcAndMeasS{uproc_id, args} =
+    [printf "call-uproc-and-meas %s(%s);" uproc_id (commaList args)]
+  toCodeLines (SeqS ss) = concatMap toCodeLines ss
+  toCodeLines IfThenElseS{cond, s_true, s_false} =
+    [printf "if (%s) then" cond]
+      ++ indent (toCodeLines s_true)
+      ++ ["else"]
+      ++ indent (toCodeLines s_false)
+      ++ ["end"]
+  toCodeLines ForS{iter_var, iter_lim, loop_body} =
+    [printf "for (%s in range(%s)) do" iter_var (toCodeString iter_lim)]
+      ++ indent (toCodeLines loop_body)
+      ++ ["end"]
+  toCodeLines WhileS{cond_expr, loop_body} =
+    [printf "while (%s) do" (toCodeString cond_expr)]
+      ++ indent (toCodeLines loop_body)
+      ++ ["end"]
+  toCodeLines ReturnS{rets} =
+    [printf "return %s;" (commaList rets)]
+
+instance (Show a) => ToCodeString (ProcDef a) where
+  toCodeLines ProcDef{proc_name, proc_params, proc_body} =
+    [printf "proc %s(%s)" proc_name (commaList $ map fst proc_params)]
+      ++ indent (toCodeLines proc_body)
+      ++ ["end"]
+  toCodeLines (UQPLProcDef uproc) = toCodeLines uproc
+
+instance (Show a) => ToCodeString (Program a) where
+  toCodeLines Program{proc_defs, stmt} =
+    map toCodeString proc_defs ++ [toCodeString stmt]
