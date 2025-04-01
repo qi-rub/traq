@@ -17,30 +17,30 @@ uproc QSearch[10, 1.2458199e-7, IsEntryZero_clean[3.2719186e-10]](_qs :  Fin<20>
 end
 
 // Cost: 380.76126
-uproc IsRowAllOnes[4.9832795e-7](i : IN Fin<20>, okr' : OUT Fin<2>, aux_2 : AUX Fin<2>, aux_3 : AUX Fin<2>, aux_4 : AUX Fin<10>, okr : AUX Fin<2>) do
+uproc IsRowAllOnes[4.9832795e-7](i : IN Fin<20>, okr' : OUT Fin<2>, okr : AUX Fin<2>, aux_2 : AUX Fin<2>, aux_3 : AUX Fin<2>, aux_4 : AUX Fin<10>) do
   call QSearch[10, 1.2458199e-7, IsEntryZero_clean[3.2719186e-10]](i, okr, aux_4, aux_2, aux_3);
   okr, okr' *= RevEmbed[x : Fin<2> => ~x];
 end
 
 // Cost: 761.5225
-uproc IsRowAllOnes_clean[9.966559e-7](i : IN Fin<20>, okr' : OUT Fin<2>, aux_5 : AUX Fin<2>, aux_6 : AUX Fin<2>, aux_7 : AUX Fin<2>, aux_8 : AUX Fin<10>, aux_9 : AUX Fin<2>) do
+uproc IsRowAllOnes_clean[9.966559e-7](i : IN Fin<20>, okr' : OUT Fin<2>, aux_5 : AUX Fin<2>, aux_6 : AUX Fin<2>, aux_7 : AUX Fin<2>, aux_8 : AUX Fin<2>, aux_9 : AUX Fin<10>) do
   call IsRowAllOnes[4.9832795e-7](i, aux_5, aux_6, aux_7, aux_8, aux_9);
   aux_5, okr' *= RevEmbed[x : Fin<2> => x];
   call† IsRowAllOnes[4.9832795e-7](i, aux_5, aux_6, aux_7, aux_8, aux_9);
 end
 
 // Cost: 95509.71
-uproc QSearch[20, 2.5e-4, IsRowAllOnes_clean[9.966559e-7]](_qs_5 :  Fin<2>, _qs_6 :  Fin<20>, _qs_7 :  Fin<2>, _qs_8 :  Fin<2>, _qs_9 :  Fin<2>, _qs_10 :  Fin<10>, _qs_11 :  Fin<2>) do
+uproc QSearch[20, 2.5e-4, IsRowAllOnes_clean[9.966559e-7]](_qs_5 :  Fin<2>, _qs_6 :  Fin<20>, _qs_7 :  Fin<2>, _qs_8 :  Fin<2>, _qs_9 :  Fin<2>, _qs_10 :  Fin<2>, _qs_11 :  Fin<10>) do
   _qs_5, _qs_6, _qs_7, _qs_8, _qs_9, _qs_10, _qs_11 *= BlackBoxU (QSearchBB {pred_name = "IsRowAllOnes_clean[9.966559e-7]", n_pred_calls = 125.41942});
 end
 
 // Cost: 95509.71
-uproc HasAllOnesRow[5.0e-4](ok : OUT Fin<2>, aux_10 : AUX Fin<2>, aux_11 : AUX Fin<2>, aux_12 : AUX Fin<2>, aux_13 : AUX Fin<10>, aux_14 : AUX Fin<2>, aux_15 : AUX Fin<20>) do
+uproc HasAllOnesRow[5.0e-4](ok : OUT Fin<2>, aux_10 : AUX Fin<2>, aux_11 : AUX Fin<2>, aux_12 : AUX Fin<2>, aux_13 : AUX Fin<2>, aux_14 : AUX Fin<10>, aux_15 : AUX Fin<20>) do
   call QSearch[20, 2.5e-4, IsRowAllOnes_clean[9.966559e-7]](ok, aux_15, aux_10, aux_11, aux_12, aux_13, aux_14);
 end
 
 // Cost: 191019.42
-uproc HasAllOnesRow_clean[1.0e-3](ok : OUT Fin<2>, aux_16 : AUX Fin<2>, aux_17 : AUX Fin<2>, aux_18 : AUX Fin<2>, aux_19 : AUX Fin<2>, aux_20 : AUX Fin<10>, aux_21 : AUX Fin<2>, aux_22 : AUX Fin<20>) do
+uproc HasAllOnesRow_clean[1.0e-3](ok : OUT Fin<2>, aux_16 : AUX Fin<2>, aux_17 : AUX Fin<2>, aux_18 : AUX Fin<2>, aux_19 : AUX Fin<2>, aux_20 : AUX Fin<2>, aux_21 : AUX Fin<10>, aux_22 : AUX Fin<20>) do
   call HasAllOnesRow[5.0e-4](aux_16, aux_17, aux_18, aux_19, aux_20, aux_21, aux_22);
   aux_16, ok *= RevEmbed[x : Fin<2> => x];
   call† HasAllOnesRow[5.0e-4](aux_16, aux_17, aux_18, aux_19, aux_20, aux_21, aux_22);
