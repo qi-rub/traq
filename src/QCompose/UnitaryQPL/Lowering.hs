@@ -17,53 +17,50 @@ import QCompose.ProtoLang.Syntax (FunctionCallKind (PrimitiveCall))
 import QCompose.UnitaryQPL.Syntax
 
 -- | Formulas for primitives
-data QSearchUnitaryImpl = QSearchUnitaryImpl
-  { ancillaTypes :: SizeT -> Precision -> [P.VarType SizeT]
-  , costFormulas :: P.QSearchFormulas SizeT Complexity
+data QSearchUnitaryImpl costT = QSearchUnitaryImpl
+  { ancillaTypes ::
+      SizeT -> -- size of search space
+      costT -> -- precision
+      [P.VarType SizeT]
+  , costFormulas :: P.QSearchFormulas SizeT costT
   }
 
-_ancillaTypes :: Lens' QSearchUnitaryImpl (SizeT -> Precision -> [P.VarType SizeT])
-_ancillaTypes = lens ancillaTypes (\s a -> s{ancillaTypes = a})
-
-_costFormulas :: Lens' QSearchUnitaryImpl (P.QSearchFormulas SizeT Complexity)
-_costFormulas = lens costFormulas (\s a -> s{costFormulas = a})
-
 -- | Configuration for lowering
-type LoweringConfig a = (P.FunCtx a, QSearchUnitaryImpl)
+type LoweringConfig sizeT costT = (P.FunCtx sizeT, QSearchUnitaryImpl costT)
 
-protoFunCtx :: Lens' (LoweringConfig a) (P.FunCtx a)
+protoFunCtx :: Lens' (LoweringConfig sizeT costT) (P.FunCtx sizeT)
 protoFunCtx = _1
 
-qsearchConfig :: Lens' (LoweringConfig a) QSearchUnitaryImpl
+qsearchConfig :: Lens' (LoweringConfig sizeT costT) (QSearchUnitaryImpl costT)
 qsearchConfig = _2
 
 {- | A global lowering context storing the source functions and generated procedures
  along with info to generate unique ancilla and variable/procedure names
 -}
-type LoweringCtx a = (Set.Set Ident, P.TypingCtx a)
+type LoweringCtx sizeT = (Set.Set Ident, P.TypingCtx sizeT)
 
-emptyLoweringCtx :: LoweringCtx a
+emptyLoweringCtx :: LoweringCtx sizeT
 emptyLoweringCtx = (Set.empty, Ctx.empty)
 
-uniqNames :: Lens' (LoweringCtx a) (Set.Set Ident)
+uniqNames :: Lens' (LoweringCtx sizeT) (Set.Set Ident)
 uniqNames = _1
 
-typingCtx :: Lens' (LoweringCtx a) (P.TypingCtx a)
+typingCtx :: Lens' (LoweringCtx sizeT) (P.TypingCtx sizeT)
 typingCtx = _2
 
 -- | The outputs of lowering
-type LoweringOutput a = [ProcDef a]
+type LoweringOutput sizeT costT = [ProcDef sizeT costT]
 
-loweredProcs :: Lens' (LoweringOutput a) [ProcDef a]
+loweredProcs :: Lens' (LoweringOutput sizeT costT) [ProcDef sizeT costT]
 loweredProcs = id
 
 {- | Monad to compile ProtoQB to UQPL programs.
 This should contain the _final_ typing context for the input program,
 that is, contains both the inputs and outputs of each statement.
 -}
-type CompilerT a = RWST (LoweringConfig a) (LoweringOutput a) (LoweringCtx a) (Either String)
+type CompilerT sizeT costT = RWST (LoweringConfig sizeT costT) (LoweringOutput sizeT costT) (LoweringCtx sizeT) (Either String)
 
-newIdent :: Ident -> CompilerT a Ident
+newIdent :: Ident -> CompilerT sizeT costT Ident
 newIdent prefix = do
   ident <-
     msum . map checked $
@@ -71,7 +68,7 @@ newIdent prefix = do
   uniqNames . at ident ?= ()
   return ident
  where
-  checked :: Ident -> CompilerT a Ident
+  checked :: Ident -> CompilerT sizeT costT Ident
   checked name = do
     already_exists <- use (uniqNames . at name)
     case already_exists of
@@ -79,39 +76,44 @@ newIdent prefix = do
       Just () -> throwError "next ident please!"
 
 -- | Allocate an ancilla register, and update the typing context.
-allocAncilla :: P.VarType a -> CompilerT a Ident
+allocAncilla :: P.VarType sizeT -> CompilerT sizeT costT Ident
 allocAncilla ty = do
   name <- newIdent "aux"
   zoom typingCtx $ Ctx.put name ty
   return name
 
 -- | Add a new procedure.
-addProc :: ProcDef a -> CompilerT a ()
+addProc :: ProcDef sizeT costT -> CompilerT sizeT costT ()
 addProc procDef = tell [procDef]
 
 -- | lower an oracle declaration to a uqpl oracle decl
-lowerOracleDecl :: P.OracleDecl a -> OracleDecl a
+lowerOracleDecl :: P.OracleDecl sizeT -> OracleDecl sizeT
 lowerOracleDecl P.OracleDecl{P.param_types, P.ret_types} =
   OracleDecl{param_types = param_types ++ ret_types}
 
 -- | A procDef generated from a funDef, along with the partitioned register spaces.
-data LoweredProc a = LoweredProc
-  { lowered_def :: ProcDef a
-  , inp_tys :: [P.VarType a]
+data LoweredProc sizeT costT = LoweredProc
+  { lowered_def :: ProcDef sizeT costT
+  , inp_tys :: [P.VarType sizeT]
   -- ^ the inputs to the original fun
-  , out_tys :: [P.VarType a]
+  , out_tys :: [P.VarType sizeT]
   -- ^ the outputs of the original fun
-  , aux_tys :: [P.VarType a]
+  , aux_tys :: [P.VarType sizeT]
   -- ^ all other registers
   }
 
+-- Compiler for concrete size type @Int@
+type CompilerT' costT = CompilerT SizeT costT
+
 -- | Compile a single expression statement
 lowerExpr ::
-  Precision ->
+  forall costT.
+  (Show costT, Floating costT) =>
+  costT ->
   P.Expr SizeT ->
   -- | returns
   [Ident] ->
-  CompilerT SizeT (Stmt SizeT)
+  CompilerT' costT (Stmt SizeT costT)
 -- basic expressions
 lowerExpr _ P.VarE{P.arg} [ret] = do
   ty <- zoom typingCtx $ Ctx.lookup arg
@@ -175,8 +177,8 @@ lowerExpr delta P.FunCallE{P.fun_kind = PrimitiveCall P.Contains, P.args = (pred
   -- precision for the search
   let delta_search = delta / 2
   -- precision for each predicate call
-  calc_u_cost <- view qsearchConfig <&> costFormulas <&> P.qSearchUnitaryCost
-  let n_qry = calc_u_cost n delta_search
+  calc_u_cost <- view $ qsearchConfig . to costFormulas . to P.qSearchUnitaryCost
+  let n_qry = (calc_u_cost :: SizeT -> costT -> costT) n delta_search
   let delta_per_pred_call = (delta - delta_search) / (2 * n_qry)
 
   -- compile the predicate
@@ -195,8 +197,8 @@ lowerExpr delta P.FunCallE{P.fun_kind = PrimitiveCall P.Contains, P.args = (pred
   -- TODO maybe this can be somehow "parametrized" so we don't have to generate each time.
   qsearch_proc_name <-
     newIdent $
-      printf "QSearch[%d, %e, %s]" n delta_search (proc_name pred_proc)
-  qsearch_ancilla_tys <- view (qsearchConfig . _ancillaTypes) <&> (\f -> f n delta_search)
+      printf "QSearch[%d, %s, %s]" n (show delta_search) (proc_name pred_proc)
+  qsearch_ancilla_tys <- view (qsearchConfig . to ancillaTypes) <&> (\f -> f n delta_search)
   let qsearch_param_tys =
         init pred_inp_tys
           ++ pred_out_tys
@@ -230,9 +232,10 @@ lowerExpr _ e rets = throwError $ "cannot compile unsupported expression: " <> s
 
 -- | Compile a statement (simple or compound)
 lowerStmt ::
-  Precision ->
+  (Show costT, Floating costT) =>
+  costT ->
   P.Stmt SizeT ->
-  CompilerT SizeT (Stmt SizeT)
+  CompilerT' costT (Stmt SizeT costT)
 -- single statement
 lowerStmt delta s@P.ExprS{P.rets, P.expr} = do
   checker <- P.checkStmt <$> view protoFunCtx <*> pure s
@@ -258,11 +261,13 @@ lowerStmt _ _ = error "lowering: unsupported"
  TODO try to cache compiled procs by key (funDefName, Precision).
 -}
 lowerFunDefWithGarbage ::
-  Precision ->
+  (Show costT, Floating costT) =>
+  -- | precision \delta
+  costT ->
   P.FunDef SizeT ->
-  CompilerT SizeT (LoweredProc SizeT)
+  CompilerT' costT (LoweredProc SizeT costT)
 lowerFunDefWithGarbage delta P.FunDef{P.fun_name, P.param_binds, P.ret_binds, P.body} = withSandboxOf typingCtx $ do
-  proc_name <- newIdent $ printf "%s[%e]" fun_name delta
+  proc_name <- newIdent $ printf "%s[%s]" fun_name (show delta)
 
   typingCtx .= Ctx.fromList param_binds
   proc_body <- lowerStmt delta body
@@ -296,9 +301,11 @@ withTag tag = map $ \(x, ty) -> (x, tag, ty)
  TODO try to cache compiled procs by key (funDefName, Precision).
 -}
 lowerFunDef ::
-  Precision ->
+  (Show costT, Floating costT) =>
+  -- | precision \delta
+  costT ->
   P.FunDef SizeT ->
-  CompilerT SizeT (LoweredProc SizeT)
+  CompilerT' costT (LoweredProc SizeT costT)
 lowerFunDef delta fun@P.FunDef{P.fun_name, P.param_binds, P.ret_binds} = withSandboxOf typingCtx $ do
   -- get the proc call that computes with garbage
   LoweredProc{lowered_def, aux_tys = g_aux_tys, out_tys = g_ret_tys} <- lowerFunDefWithGarbage (delta / 2) fun
@@ -306,7 +313,7 @@ lowerFunDef delta fun@P.FunDef{P.fun_name, P.param_binds, P.ret_binds} = withSan
 
   typingCtx .= Ctx.fromList (param_binds ++ ret_binds)
 
-  proc_name <- newIdent $ printf "%s_clean[%e]" fun_name delta
+  proc_name <- newIdent $ printf "%s_clean[%s]" fun_name (show delta)
 
   let g_params_names = map fst param_binds
   let ret_names = map fst ret_binds
@@ -349,11 +356,13 @@ lowerFunDef delta fun@P.FunDef{P.fun_name, P.param_binds, P.ret_binds} = withSan
 
 -- | Lower a full program into a UQPL program.
 lowerProgram ::
-  QSearchUnitaryImpl ->
+  (Show costT, Floating costT) =>
+  QSearchUnitaryImpl costT ->
   P.TypingCtx SizeT ->
-  Precision ->
+  -- | precision \delta
+  costT ->
   P.Program SizeT ->
-  Either String (Program SizeT, P.TypingCtx SizeT)
+  Either String (Program SizeT costT, P.TypingCtx SizeT)
 lowerProgram qsearch_config gamma_in delta prog@P.Program{P.funCtx, P.stmt} = do
   unless (P.checkVarsUnique prog) $
     throwError "program does not have unique variables!"

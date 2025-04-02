@@ -10,12 +10,12 @@ import qualified QCompose.Data.Context as Ctx
 import QCompose.Prelude
 import QCompose.UnitaryQPL.Syntax
 
-type ProcCtx a = Ctx.Context (ProcDef a)
-type CostMap = Map.Map Ident Complexity
+type ProcCtx a costT = Ctx.Context (ProcDef a costT)
+type CostMap costT = Map.Map Ident costT
 
-type CostCalculator a = RWS (ProcCtx a) () CostMap
+type CostCalculator a costT = RWS (ProcCtx a costT) () (CostMap costT)
 
-unitaryCost :: Unitary a -> CostCalculator a Complexity
+unitaryCost :: (Show costT, Floating costT) => Unitary a costT -> CostCalculator a costT costT
 unitaryCost Oracle = return 1
 unitaryCost (BlackBoxU QSearchBB{pred_name, n_pred_calls}) = do
   pred_cost <- procCost pred_name
@@ -23,13 +23,13 @@ unitaryCost (BlackBoxU QSearchBB{pred_name, n_pred_calls}) = do
 unitaryCost (BlackBoxU (BlackBox _)) = error "cannot compute cost of blackbox"
 unitaryCost _ = return 0
 
-stmtCost :: Stmt a -> CostCalculator a Complexity
+stmtCost :: (Show costT, Floating costT) => Stmt a costT -> CostCalculator a costT costT
 stmtCost SkipS = return 0
 stmtCost (SeqS ss) = sum <$> mapM stmtCost ss
 stmtCost UnitaryS{unitary} = unitaryCost unitary
 stmtCost CallS{proc_id} = procCost proc_id
 
-procCost :: Ident -> CostCalculator a Complexity
+procCost :: (Show costT, Floating costT) => Ident -> CostCalculator a costT costT
 procCost name = do
   mCost <- use $ at name
   case mCost of
@@ -40,7 +40,7 @@ procCost name = do
       at name ?= cost
       return cost
 
-programCost :: Program a -> (Complexity, CostMap)
+programCost :: (Show costT, Floating costT) => Program a costT -> (costT, CostMap costT)
 programCost Program{proc_defs, stmt} = (cost, proc_costs)
  where
   (cost, proc_costs, _) = runRWS (stmtCost stmt) proc_map Map.empty

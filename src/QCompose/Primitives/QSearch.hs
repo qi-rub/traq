@@ -59,7 +59,7 @@ cadeEtAlFormulas =
     log_fac = log (1 / eps) / (2 * log (4 / 3))
 
 -- | Ancilla and Cost formulas for the unitary quantum search algorithm \( \textbf{QSearch}_\text{Zalka} \).
-zalkaQSearch :: U.QSearchUnitaryImpl
+zalkaQSearch :: (RealFloat costT) => U.QSearchUnitaryImpl costT
 zalkaQSearch =
   U.QSearchUnitaryImpl
     { U.ancillaTypes = anc
@@ -71,13 +71,14 @@ zalkaQSearch =
 
 -- Primitives to implement Grover search and its variants
 groverIteration ::
+  (RealFloat costT) =>
   -- | registers to search (reflect) over
   [Ident] ->
   -- | flag register (output of predicate)
   Ident ->
   -- | phase oracle
-  U.Stmt a ->
-  U.Stmt a
+  U.Stmt a costT ->
+  U.Stmt a costT
 groverIteration xs flag ph_oracle =
   U.SeqS
     [ ph_oracle
@@ -87,8 +88,9 @@ groverIteration xs flag ph_oracle =
     ]
 
 zalkaQSearchImpl ::
-  U.ProcDef a ->
-  U.Stmt a
+  (RealFloat costT) =>
+  U.ProcDef a costT ->
+  U.Stmt a costT
 zalkaQSearchImpl = undefined
 
 -- | Implementation of the hybrid quantum search algorithm \( \textbf{QSearch} \).

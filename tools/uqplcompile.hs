@@ -1,10 +1,11 @@
 module Main (main) where
 
 import Control.Monad (forM_)
-import Control.Monad.Trans.Writer
+import Control.Monad.Trans.Writer (execWriterT, tell)
 import qualified Data.Number.Symbolic as Sym
 import Lens.Micro
 import Options.Applicative
+import Text.Read (readMaybe)
 
 import qualified QCompose.Data.Context as Ctx
 
@@ -17,7 +18,8 @@ import QCompose.Utils.Printing
 data Options = Options
   { in_file :: FilePath
   , out_file :: FilePath
-  , delta :: Float
+  , delta :: Maybe Float
+  , params :: [(Ident, SizeT)]
   }
   deriving (Show)
 
@@ -33,19 +35,28 @@ opts =
     Options
       <$> strOption (long "input" <> short 'i' <> metavar "FILENAME" <> help "Input file")
       <*> strOption (long "output" <> short 'o' <> metavar "FILENAME" <> help "Output file")
-      <*> option
-        auto
-        ( long "precision"
-            <> short 'p'
-            <> metavar "FLOAT"
-            <> help "The precision to lower the whole program"
+      <*> optional
+        ( option
+            auto
+            ( long "precision"
+                <> short 'p'
+                <> metavar "FLOAT"
+                <> help "The precision to lower the whole program"
+            )
         )
+      <*> many (option (maybeReader parseKeyValue) (long "arg" <> help "paramters..." <> metavar "NAME=VALUE"))
 
-subsNM :: (SymbSize -> SizeT)
-subsNM = Sym.unSym . Sym.subst "N" (Sym.con n) . Sym.subst "M" (Sym.con m)
+  parseKeyValue s = do
+    let key = takeWhile (/= '=') s
+    let valS = tail $ dropWhile (/= '=') s
+    val <- readMaybe valS
+    return (key, val)
+
+subsNM :: [(Ident, SizeT)] -> (SymbSize -> SizeT)
+subsNM params s = Sym.unSym $ foldr subsOnce s params
  where
-  n = 20
-  m = 10
+  subsOnce :: (Ident, SizeT) -> SymbSize -> SymbSize
+  subsOnce (k, v) = Sym.subst k (Sym.con v)
 
 main :: IO ()
 main = do
@@ -53,10 +64,11 @@ main = do
 
   -- parse
   code <- readFile in_file
-  let Right prog = fmap subsNM <$> P.parseProgram code
+  let Right prog = fmap (subsNM params) <$> P.parseProgram code
 
   -- compile
-  let Right (uqpl_prog, _) = UQPL.lowerProgram zalkaQSearch Ctx.empty delta prog
+  let delta' = maybe (Sym.var "d") Sym.con delta
+  let Right (uqpl_prog, _) = UQPL.lowerProgram zalkaQSearch Ctx.empty delta' prog
   -- get costs
   let (cost, proc_costs) = UQPL.programCost uqpl_prog
 

@@ -59,7 +59,7 @@ data ProcDef a
       , proc_local_vars :: [(Ident, VarType)]
       , proc_body :: Stmt
       }
-  | UQPLProcDef (UQPL.ProcDef a)
+  | UQPLProcDef (UQPL.ProcDef a Float)
 
 newtype OracleDecl = OracleDecl
   { oracle_param_types :: [VarType]

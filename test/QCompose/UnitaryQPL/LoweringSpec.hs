@@ -23,7 +23,7 @@ spec = do
             U.lowerProgram
               zalkaQSearch
               (Ctx.singleton "x" (P.Fin 10))
-              0
+              (0 :: Double)
               P.Program
                 { P.funCtx = P.FunCtx{P.oracle_decl = dummy_oracle, P.fun_defs = Ctx.empty}
                 , P.stmt = s

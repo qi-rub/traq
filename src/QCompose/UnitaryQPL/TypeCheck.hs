@@ -17,19 +17,19 @@ import QCompose.Prelude
 import QCompose.ProtoLang (TypeCheckable (..), TypingCtx, VarType)
 import QCompose.UnitaryQPL.Syntax
 
-type CheckingCtx a = (OracleDecl a, [ProcDef a], TypingCtx a)
-type TypeChecker a = ReaderT (CheckingCtx a) (Either String)
+type CheckingCtx a costT = (OracleDecl a, [ProcDef a costT], TypingCtx a)
+type TypeChecker a costT = ReaderT (CheckingCtx a costT) (Either String)
 
-oracleDecl :: Lens' (CheckingCtx a) (OracleDecl a)
+oracleDecl :: Lens' (CheckingCtx a costT) (OracleDecl a)
 oracleDecl = _1
 
-procDefs :: Lens' (CheckingCtx a) [ProcDef a]
+procDefs :: Lens' (CheckingCtx a costT) [ProcDef a costT]
 procDefs = _2
 
-typingCtx :: Lens' (CheckingCtx a) (TypingCtx a)
+typingCtx :: Lens' (CheckingCtx a costT) (TypingCtx a)
 typingCtx = _3
 
-verifyArgs :: (TypeCheckable a) => [Ident] -> [VarType a] -> TypeChecker a ()
+verifyArgs :: (TypeCheckable a) => [Ident] -> [VarType a] -> TypeChecker a costT ()
 verifyArgs args tys = do
   arg_tys <- forM args $ \x -> do
     view $ typingCtx . Ctx.at x . singular _Just
@@ -38,7 +38,7 @@ verifyArgs args tys = do
     throwError $
       "mismatched args: " <> show (arg_tys, tys)
 
-unitarySignature :: (TypeCheckable a) => Unitary a -> TypeChecker a [VarType a]
+unitarySignature :: (TypeCheckable a, Show costT) => Unitary a costT -> TypeChecker a costT [VarType a]
 unitarySignature Toffoli = return [tbool, tbool, tbool]
 unitarySignature CNOT = return [tbool, tbool]
 unitarySignature XGate = return [tbool]
@@ -56,7 +56,7 @@ unitarySignature (RevEmbedU f) = return $ revFunTys f
 unitarySignature (BlackBoxU bb) = throwError $ "cannot find signature for blackbox: " <> show bb
 unitarySignature (Controlled u) = (tbool :) <$> unitarySignature u
 
-typeCheckStmt :: (TypeCheckable a) => Stmt a -> TypeChecker a ()
+typeCheckStmt :: (TypeCheckable a, Show costT) => Stmt a costT -> TypeChecker a costT ()
 -- single statements
 typeCheckStmt SkipS = return ()
 typeCheckStmt UnitaryS{unitary = BlackBoxU _} = return ()
@@ -74,18 +74,18 @@ typeCheckStmt CallS{proc_id, args} = do
 -- compound statements
 typeCheckStmt (SeqS ss) = mapM_ typeCheckStmt' ss
 
-typeCheckStmt' :: (TypeCheckable a) => Stmt a -> TypeChecker a ()
+typeCheckStmt' :: (TypeCheckable a, Show costT) => Stmt a costT -> TypeChecker a costT ()
 typeCheckStmt' s = typeCheckStmt s `throwFrom` ("typecheck failed: " <> show s)
 
-typeCheckProc :: (TypeCheckable a) => ProcDef a -> TypeChecker a ()
+typeCheckProc :: (TypeCheckable a, Show costT) => ProcDef a costT -> TypeChecker a costT ()
 typeCheckProc procdef@ProcDef{proc_params, proc_body} =
-  local (typingCtx .~ Ctx.fromList (map withoutTag proc_params)) $
+  local (typingCtx .~ Ctx.fromList (proc_params & each %~ withoutTag)) $
     typeCheckStmt' proc_body
       `throwFrom` ("typecheck proc failed: " <> show procdef)
  where
   withoutTag (x, _, ty) = (x, ty)
 
-typeCheckProgram :: (TypeCheckable a) => TypingCtx a -> Program a -> Either String ()
+typeCheckProgram :: (TypeCheckable a, Show costT) => TypingCtx a -> Program a costT -> Either String ()
 typeCheckProgram gamma Program{oracle_decl, proc_defs, stmt} = do
   let ctx = (oracle_decl, proc_defs, Ctx.empty)
 
