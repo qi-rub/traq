@@ -34,7 +34,7 @@ concreteEx = do
   putStrLn $ replicate 80 '='
   putStrLn $ toCodeString ex
 
-  let delta = 0.001
+  let delta = 0.001 :: Double
 
   let u_formula_cost = P.unitaryQueryCost cadeEtAlFormulas delta ex
 

@@ -15,6 +15,9 @@ import QCompose.ProtoLang (VarType (..))
 import qualified QCompose.ProtoLang as P
 import qualified QCompose.UnitaryQPL as U
 
+-- TODO remove
+type FailProb = Float
+
 symbolicFormulas :: forall sizeT costT. (Show sizeT, Show costT, Integral sizeT, RealFloat costT) => P.QSearchFormulas (Sym.Sym sizeT) (Sym.Sym costT)
 symbolicFormulas =
   P.QSearchFormulas

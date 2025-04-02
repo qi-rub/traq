@@ -1,5 +1,4 @@
 module QCompose.ProtoLang.Cost (
-  Complexity,
   QSearchFormulas (..),
   unitaryQueryCost,
   quantumQueryCost,
@@ -91,23 +90,25 @@ unitaryQueryCost algs d Program{funCtx, stmt} = cost d stmt
   cost _ _ = error "invalid syntax"
 
 quantumQueryCost ::
+  forall costT.
+  (Floating costT) =>
   -- | Qry formulas
-  QSearchFormulas SizeT Complexity ->
+  QSearchFormulas SizeT costT ->
   -- | failure probability `eps`
-  FailProb ->
+  costT ->
   -- | program `P`
   Program SizeT ->
   -- | oracle `O`
   OracleInterp ->
   -- | state `sigma`
   ProgramState ->
-  Complexity
+  costT
 quantumQueryCost algs a_eps Program{funCtx, stmt} oracleF = cost a_eps stmt
  where
   get :: ProgramState -> Ident -> Value
   get st k = st ^. Ctx.at k . singular _Just
 
-  costE :: FailProb -> Expr SizeT -> ProgramState -> Complexity
+  costE :: costT -> Expr SizeT -> ProgramState -> costT
   costE _ FunCallE{fun_kind = OracleCall} _ = 1
   costE eps FunCallE{fun_kind = FunctionCall f, args} sigma = cost eps body omega
    where
@@ -149,7 +150,7 @@ quantumQueryCost algs a_eps Program{funCtx, stmt} oracleF = cost a_eps stmt
   -- unsupported
   costE _ FunCallE{} _ = error "invalid syntax"
 
-  cost :: FailProb -> Stmt SizeT -> ProgramState -> Complexity
+  cost :: costT -> Stmt SizeT -> ProgramState -> costT
   cost eps ExprS{expr} sigma = costE eps expr sigma
   cost eps IfThenElseS{cond, s_true, s_false} sigma =
     let s = if get sigma cond /= 0 then s_true else s_false

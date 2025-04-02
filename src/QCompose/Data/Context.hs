@@ -5,15 +5,26 @@
 
 module QCompose.Data.Context (
   Context,
+
+  -- * Lenses
   at,
   ins,
+  ix,
+
+  -- * Primary functions
   empty,
   null,
   (\\),
+  trunc,
+  merge,
+
+  -- * Secondary functions
   fromList,
   singleton,
   toList,
   elems,
+
+  -- * Monadic functions
   lookup,
   lookup',
   unsafePut,

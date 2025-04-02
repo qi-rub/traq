@@ -35,7 +35,7 @@ spec = do
     let P.QSearchFormulas _ wcF ucF = cadeEtAlFormulas
 
     it "unitary cost for delta=0.0001" $ do
-      let delta = 0.0001
+      let delta = 0.0001 :: Double
       let cu = P.unitaryQueryCost cadeEtAlFormulas delta ex
       let nu_outer = ucF n (delta / 4)
       let nu_inner = 2 * ucF m (delta / 4 / nu_outer / 8)
@@ -52,9 +52,10 @@ spec = do
       toCodeString ex `shouldSatisfy` (not . null)
 
     describe "lower to UQPL" $ do
+      let delta = 0.001 :: Double
       it "lowers" $ do
-        assertRight $ UQPL.lowerProgram zalkaQSearch Ctx.empty 0.001 ex
+        assertRight $ UQPL.lowerProgram zalkaQSearch Ctx.empty delta ex
 
       it "type checks" $ do
-        (ex_uqpl, gamma) <- expectRight $ UQPL.lowerProgram zalkaQSearch Ctx.empty 0.001 ex
+        (ex_uqpl, gamma) <- expectRight $ UQPL.lowerProgram zalkaQSearch Ctx.empty delta ex
         assertRight $ UQPL.typeCheckProgram gamma ex_uqpl

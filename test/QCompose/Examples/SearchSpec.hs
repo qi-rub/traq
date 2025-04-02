@@ -31,10 +31,11 @@ spec = do
       res `shouldBe` pure (Ctx.singleton "result" 0)
 
     let P.QSearchFormulas ecF _ ucF = cadeEtAlFormulas
-    let eps = 0.0001
+    let eps = 0.0001 :: Double
 
     it "unitary cost for eps=0.0001" $ do
-      P.unitaryQueryCost cadeEtAlFormulas eps ex `shouldBe` 2 * ucF n (eps / 2)
+      let true_cost = 2 * ucF n (eps / 2) :: Double
+      P.unitaryQueryCost cadeEtAlFormulas eps ex `shouldBe` true_cost
 
     it "quantum cost for eps=0.0001" $ do
       P.quantumQueryCost cadeEtAlFormulas eps ex oracleF Ctx.empty `shouldBe` ecF n 0 (eps / 2)
@@ -44,10 +45,10 @@ spec = do
 
     describe "lowers to UQPL" $ do
       it "lowers" $ do
-        assertRight $ UQPL.lowerProgram zalkaQSearch Ctx.empty 0.001 ex
+        assertRight $ UQPL.lowerProgram zalkaQSearch Ctx.empty eps ex
 
       it "typechecks" $ do
-        (ex_uqpl, gamma) <- expectRight $ UQPL.lowerProgram zalkaQSearch Ctx.empty 0.001 ex
+        (ex_uqpl, gamma) <- expectRight $ UQPL.lowerProgram zalkaQSearch Ctx.empty eps ex
         assertRight $ UQPL.typeCheckProgram gamma ex_uqpl
 
   describe "arraySearch (returning solution)" $ do
