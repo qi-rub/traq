@@ -1,5 +1,4 @@
 {-# LANGUAGE FlexibleContexts #-}
-{-# LANGUAGE Rank2Types #-}
 
 module QCompose.Control.MonadHelpers (
   withSandboxOf,

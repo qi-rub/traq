@@ -63,6 +63,7 @@ library
           LambdaCase
           NamedFieldPuns
           ScopedTypeVariables
+          RankNTypes
           Safe
     ghc-options: -Wall
     default-language: Haskell2010
@@ -75,6 +76,7 @@ executable matrixsearch
           LambdaCase
           NamedFieldPuns
           ScopedTypeVariables
+          RankNTypes
           RecordWildCards
     ghc-options: -Wall
     build-depends:
@@ -102,6 +104,7 @@ executable uqplcompile
           LambdaCase
           NamedFieldPuns
           ScopedTypeVariables
+          RankNTypes
           RecordWildCards
     ghc-options: -Wall
     build-depends:
@@ -142,6 +145,7 @@ test-suite spec
           LambdaCase
           NamedFieldPuns
           ScopedTypeVariables
+          RankNTypes
     ghc-options: -Wall
     cpp-options: -DTEST
     build-depends:

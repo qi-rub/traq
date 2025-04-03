@@ -1,7 +1,6 @@
 {-# LANGUAGE DeriveTraversable #-}
 {-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE FlexibleInstances #-}
-{-# LANGUAGE Rank2Types #-}
 
 module QCompose.Data.Context (
   Context,
