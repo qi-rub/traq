@@ -59,3 +59,9 @@ spec = do
       it "type checks" $ do
         (ex_uqpl, gamma) <- expectRight $ UQPL.lowerProgram zalkaQSearch Ctx.empty delta ex
         assertRight $ UQPL.typeCheckProgram gamma ex_uqpl
+
+      it "preserves cost" $ do
+        (ex_uqpl, _) <- expectRight $ UQPL.lowerProgram zalkaQSearch Ctx.empty delta ex
+        let (uqpl_cost, _) = UQPL.programCost ex_uqpl
+        let proto_cost = P.unitaryQueryCost cadeEtAlFormulas delta ex
+        uqpl_cost `shouldBe` proto_cost
