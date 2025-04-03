@@ -58,22 +58,14 @@ subsNM params s = Sym.unSym $ foldr subsOnce s params
   subsOnce :: (Ident, SizeT) -> SymbSize -> SymbSize
   subsOnce (k, v) = Sym.subst k (Sym.con v)
 
-main :: IO ()
-main = do
-  Options{..} <- execParser opts
-
-  -- parse
-  code <- readFile in_file
-  let Right prog = fmap (subsNM params) <$> P.parseProgram code
-
-  -- compile
-  let delta' = maybe (Sym.var "d") Sym.con delta
-  let Right (uqpl_prog, _) = UQPL.lowerProgram zalkaQSearch Ctx.empty delta' prog
+compile :: (RealFloat a, Show a) => P.Program SizeT -> a -> IO String
+compile prog delta = do
+  let Right (uqpl_prog, _) = UQPL.lowerProgram zalkaQSearch Ctx.empty delta prog
   -- get costs
   let (cost, proc_costs) = UQPL.programCost uqpl_prog
 
   -- print the program with the costs
-  out_prog <- execWriterT $ do
+  execWriterT $ do
     forM_ (uqpl_prog ^. to UQPL.proc_defs) $ \p -> do
       tell $ "// Cost: " <> show (proc_costs ^. at (p ^. to UQPL.proc_name) . singular _Just)
       tell "\n"
@@ -85,4 +77,18 @@ main = do
     tell $ toCodeString $ uqpl_prog ^. to UQPL.stmt
     tell "\n"
 
+    tell $ "// Cost from formula: " ++ show (P.unitaryQueryCost cadeEtAlFormulas delta prog)
+
+main :: IO ()
+main = do
+  Options{..} <- execParser opts
+
+  -- parse
+  code <- readFile in_file
+  let Right prog = fmap (subsNM params) <$> P.parseProgram code
+
+  -- compile
+  out_prog <- case delta of
+    Just d -> compile prog d
+    Nothing -> compile prog (Sym.var "d" :: Sym.Sym Float)
   writeFile out_file out_prog

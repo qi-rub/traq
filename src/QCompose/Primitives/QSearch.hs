@@ -53,13 +53,17 @@ cadeEtAlFormulas =
    where
     term = f n t / (9.2 * sqrt (fromIntegral n))
 
-  -- TODO verify for precision instead of fail prob
   zalka :: sizeT -> costT -> costT
-  zalka n eps = 5 * log_fac + pi * sqrt (fromIntegral n * log_fac)
+  zalka n delta = 2 * nq -- for compute-uncompute
    where
+    -- fail prob
+    eps = (delta / 2) ^ (2 :: Int)
+
     -- log_fac = ceiling log_fac
     log_fac :: costT
     log_fac = log (1 / eps) / (2 * log (4 / 3))
+
+    nq = 5 * log_fac + pi * sqrt (fromIntegral n * log_fac)
 
 -- | Ancilla and Cost formulas for the unitary quantum search algorithm \( \textbf{QSearch}_\text{Zalka} \).
 zalkaQSearch :: (RealFloat costT) => U.QSearchUnitaryImpl costT
