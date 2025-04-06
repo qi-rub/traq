@@ -44,12 +44,19 @@ spec = do
       toCodeString ex `shouldSatisfy` (not . null)
 
     describe "lowers to UQPL" $ do
+      let delta = 0.0001 :: Double
       it "lowers" $ do
-        assertRight $ UQPL.lowerProgram zalkaQSearch Ctx.empty eps ex
+        assertRight $ UQPL.lowerProgram zalkaQSearch Ctx.empty delta ex
 
       it "typechecks" $ do
-        (ex_uqpl, gamma) <- expectRight $ UQPL.lowerProgram zalkaQSearch Ctx.empty eps ex
+        (ex_uqpl, gamma) <- expectRight $ UQPL.lowerProgram zalkaQSearch Ctx.empty delta ex
         assertRight $ UQPL.typeCheckProgram gamma ex_uqpl
+
+      it "preserves cost" $ do
+        (ex_uqpl, _) <- expectRight $ UQPL.lowerProgram zalkaQSearch Ctx.empty delta ex
+        let (uqpl_cost, _) = UQPL.programCost ex_uqpl
+        let proto_cost = P.unitaryQueryCost cadeEtAlFormulas delta ex
+        uqpl_cost `shouldBe` proto_cost
 
   describe "arraySearch (returning solution)" $ do
     let n = 10

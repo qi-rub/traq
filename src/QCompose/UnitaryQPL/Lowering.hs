@@ -266,29 +266,30 @@ lowerFunDefWithGarbage ::
   costT ->
   P.FunDef SizeT ->
   CompilerT' costT (LoweredProc SizeT costT)
-lowerFunDefWithGarbage delta P.FunDef{P.fun_name, P.param_binds, P.ret_binds, P.body} = withSandboxOf typingCtx $ do
-  proc_name <- newIdent $ printf "%s[%s]" fun_name (show delta)
+lowerFunDefWithGarbage delta P.FunDef{P.fun_name, P.param_binds, P.ret_binds, P.body} =
+  withSandboxOf typingCtx $ do
+    proc_name <- newIdent $ printf "%s[%s]" fun_name (show delta)
 
-  typingCtx .= Ctx.fromList param_binds
-  proc_body <- lowerStmt delta body
-  let param_names = map fst param_binds
-  let ret_names = map fst ret_binds
-  when (param_names `intersect` ret_names /= []) $
-    throwError "function should not return parameters!"
+    typingCtx .= Ctx.fromList param_binds
+    proc_body <- lowerStmt delta body
+    let param_names = map fst param_binds
+    let ret_names = map fst ret_binds
+    when (param_names `intersect` ret_names /= []) $
+      throwError "function should not return parameters!"
 
-  aux_binds <- use typingCtx <&> Ctx.toList <&> filter (not . (`elem` param_names ++ ret_names) . fst)
-  let all_binds = withTag ParamInp param_binds ++ withTag ParamOut ret_binds ++ withTag ParamAux aux_binds
+    aux_binds <- use typingCtx <&> Ctx.toList <&> filter (not . (`elem` param_names ++ ret_names) . fst)
+    let all_binds = withTag ParamInp param_binds ++ withTag ParamOut ret_binds ++ withTag ParamAux aux_binds
 
-  let procDef = ProcDef{proc_name, proc_params = all_binds, proc_body}
-  addProc procDef
+    let procDef = ProcDef{proc_name, proc_params = all_binds, proc_body}
+    addProc procDef
 
-  return
-    LoweredProc
-      { lowered_def = procDef
-      , inp_tys = map snd param_binds
-      , out_tys = map snd ret_binds
-      , aux_tys = map snd aux_binds
-      }
+    return
+      LoweredProc
+        { lowered_def = procDef
+        , inp_tys = map snd param_binds
+        , out_tys = map snd ret_binds
+        , aux_tys = map snd aux_binds
+        }
 
 withTag :: ParamTag -> [(Ident, P.VarType a)] -> [(Ident, ParamTag, P.VarType a)]
 withTag tag = map $ \(x, ty) -> (x, tag, ty)
