@@ -1,7 +1,9 @@
+{-# LANGUAGE FlexibleContexts #-}
+
 module Main (main) where
 
 import Control.Monad (forM_)
-import Control.Monad.Trans.Writer (execWriterT, tell)
+import Control.Monad.Writer (MonadWriter, execWriterT, tell)
 import qualified Data.Number.Symbolic as Sym
 import Lens.Micro
 import Options.Applicative
@@ -58,6 +60,9 @@ subsNM params s = Sym.unSym $ foldr subsOnce s params
   subsOnce :: (Ident, SizeT) -> SymbSize -> SymbSize
   subsOnce (k, v) = Sym.subst k (Sym.con v)
 
+tellLn :: (MonadWriter String m) => String -> m ()
+tellLn x = tell $ unlines [x]
+
 compile :: (RealFloat a, Show a) => P.Program SizeT -> a -> IO String
 compile prog delta = do
   let Right (uqpl_prog, _) = UQPL.lowerProgram zalkaQSearch Ctx.empty delta prog
@@ -67,17 +72,33 @@ compile prog delta = do
   -- print the program with the costs
   execWriterT $ do
     forM_ (uqpl_prog ^. to UQPL.proc_defs) $ \p -> do
-      tell $ "// Cost: " <> show (proc_costs ^. at (p ^. to UQPL.proc_name) . singular _Just)
-      tell "\n"
-      tell $ toCodeString p
-      tell "\n"
+      let pname = p ^. to UQPL.proc_name
 
-    tell $ "// Cost: " <> show cost
-    tell "\n"
-    tell $ toCodeString $ uqpl_prog ^. to UQPL.stmt
-    tell "\n"
+      let f_cost =
+            maybe "()" id $
+              ( do
+                  let fname = pname & takeWhile (/= '[')
+                  let fdelta_s = pname & dropWhile (/= '[') & tail & takeWhile (/= ']')
+                  fdelta <- readMaybe fdelta_s :: Maybe Double
+                  P.FunDef{body} <- prog ^. to P.funCtx . to P.fun_defs . Ctx.at fname
+                  let cf =
+                        P.unitaryQueryCost
+                          cadeEtAlFormulas
+                          fdelta
+                          P.Program
+                            { stmt = body
+                            , funCtx = prog ^. to P.funCtx
+                            }
+                  return $ show cf
+              )
 
-    tell $ "// Cost from formula: " ++ show (P.unitaryQueryCost cadeEtAlFormulas delta prog)
+      tellLn $ "// Cost         : " <> show (proc_costs ^. at pname . singular _Just)
+      tellLn $ "// Formula Cost : " <> f_cost
+      tellLn $ toCodeString p
+
+    tellLn $ "// Actual Cost : " <> show cost
+    tellLn $ "// Formula Cost: " ++ show (P.unitaryQueryCost cadeEtAlFormulas delta prog)
+    tellLn $ toCodeString $ uqpl_prog ^. to UQPL.stmt
 
 main :: IO ()
 main = do

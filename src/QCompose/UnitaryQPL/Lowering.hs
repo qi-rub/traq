@@ -179,7 +179,7 @@ lowerExpr delta P.FunCallE{P.fun_kind = PrimitiveCall P.Contains, P.args = (pred
   -- precision for each predicate call
   calc_u_cost <- view $ qsearchConfig . to costFormulas . to P.qSearchUnitaryCost
   let n_qry = (calc_u_cost :: SizeT -> costT -> costT) n delta_search
-  let delta_per_pred_call = (delta - delta_search) / (2 * n_qry)
+  let delta_per_pred_call = (delta - delta_search) / n_qry
 
   -- compile the predicate
   LoweredProc
