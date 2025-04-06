@@ -5,7 +5,11 @@ References:
 
  1. [Quantifying Grover speed-ups beyond asymptotic analysis](https://arxiv.org/abs/2203.04975)
 -}
-module QCompose.Primitives.QSearch where
+module QCompose.Primitives.QSearch (
+  symbolicFormulas,
+  cadeEtAlFormulas,
+  zalkaQSearch,
+) where
 
 import qualified Data.Number.Symbolic as Sym
 
@@ -14,9 +18,6 @@ import QCompose.Prelude
 import QCompose.ProtoLang (VarType (..))
 import qualified QCompose.ProtoLang as P
 import qualified QCompose.UnitaryQPL as U
-
--- TODO remove
-type FailProb = Float
 
 symbolicFormulas :: forall sizeT costT. (Show sizeT, Show costT, Integral sizeT, RealFloat costT) => P.QSearchFormulas (Sym.Sym sizeT) (Sym.Sym costT)
 symbolicFormulas =
@@ -102,12 +103,13 @@ zalkaQSearchImpl = undefined
 
 -- | Implementation of the hybrid quantum search algorithm \( \textbf{QSearch} \).
 qSearch ::
+  (RealFloat costT) =>
   -- | search element type
   VarType SizeT ->
   -- | N_{samples} - the number of classical samples to do first
   SizeT ->
   -- | Failure probability \eps > 0
-  FailProb ->
+  costT ->
   CQ.ProcDef SizeT
 qSearch ty n_samples eps =
   CQ.ProcDef

@@ -11,7 +11,7 @@ module QCompose.ProtoLang.TypeCheck (
 
 import Control.Monad (forM_, unless, when, zipWithM_)
 import Control.Monad.Except (throwError)
-import Control.Monad.State (StateT, execStateT, get, put)
+import Control.Monad.State (execStateT, get, put)
 import Data.List (uncons)
 import Lens.Micro
 import Text.Printf (printf)
@@ -21,23 +21,7 @@ import qualified QCompose.Data.Context as Ctx
 import QCompose.Control.MonadHelpers
 import QCompose.Prelude
 import QCompose.ProtoLang.Syntax
-
-type TypingCtx a = Ctx.Context (VarType a)
-
-class (Eq a, Show a) => TypeCheckable a where
-  tbool :: VarType a
-  tmax :: VarType a -> VarType a -> VarType a
-
-instance TypeCheckable Integer where
-  tbool = Fin 2
-  tmax (Fin n) (Fin m) = Fin (max n m)
-
-instance TypeCheckable Int where
-  tbool = Fin 2
-  tmax (Fin n) (Fin m) = Fin (max n m)
-
--- | The TypeChecker monad
-type TypeChecker a = StateT (TypingCtx a) (Either String)
+import QCompose.ProtoLang.Types
 
 lookupFunE :: Ident -> FunCtx a -> TypeChecker a (FunDef a)
 lookupFunE fname funCtx =

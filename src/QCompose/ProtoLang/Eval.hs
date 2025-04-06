@@ -9,8 +9,8 @@ module QCompose.ProtoLang.Eval (
 
 import Control.Monad (filterM, zipWithM_)
 import Control.Monad.Extra (anyM)
-import Control.Monad.Reader (ReaderT, local)
-import Control.Monad.State (StateT, evalStateT)
+import Control.Monad.Reader (local)
+import Control.Monad.State (evalStateT)
 import Control.Monad.Trans (lift)
 import Lens.Micro
 import Lens.Micro.GHC ()
@@ -22,25 +22,14 @@ import qualified QCompose.Data.Tree as Tree
 
 import QCompose.Prelude
 import QCompose.ProtoLang.Syntax
+import QCompose.ProtoLang.Types
 
 -- evaluation
 range :: VarType SizeT -> [Value]
 range (Fin n) = [0 .. fromIntegral n - 1]
 
--- | The deterministic state of the program
-type ProgramState = Ctx.Context Value
-
--- | Type for a function that implements the oracle
-type OracleInterp = [Value] -> [Value]
-
--- | Non-deterministic Evaluation Monad
-type Evaluator = ReaderT ProgramState Tree.Tree
-
 lookupEnv :: Ident -> Evaluator Value
 lookupEnv k = view (Ctx.at k . singular _Just)
-
--- | Non-deterministic Execution Monad
-type Executor = StateT ProgramState Tree.Tree
 
 lookupS :: Ident -> Executor Value
 lookupS k = use (Ctx.at k . singular _Just)

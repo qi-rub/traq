@@ -39,6 +39,7 @@ library
           QCompose.ProtoLang.Rewrites
           QCompose.ProtoLang.Syntax
           QCompose.ProtoLang.TypeCheck
+          QCompose.ProtoLang.Types
           QCompose.ProtoLang.Vars
           QCompose.UnitaryQPL
           QCompose.UnitaryQPL.Cost
@@ -67,6 +68,7 @@ library
           ScopedTypeVariables
           ApplicativeDo
           RankNTypes
+          FlexibleContexts
           Safe
     ghc-options: -Wall
     default-language: Haskell2010
@@ -81,6 +83,7 @@ executable matrixsearch
           ScopedTypeVariables
           ApplicativeDo
           RankNTypes
+          FlexibleContexts
           RecordWildCards
     ghc-options: -Wall
     build-depends:
@@ -110,6 +113,7 @@ executable uqplcompile
           ScopedTypeVariables
           ApplicativeDo
           RankNTypes
+          FlexibleContexts
           RecordWildCards
     ghc-options: -Wall
     build-depends:
@@ -152,6 +156,7 @@ test-suite spec
           ScopedTypeVariables
           ApplicativeDo
           RankNTypes
+          FlexibleContexts
     ghc-options: -Wall
     cpp-options: -DTEST
     build-depends:
