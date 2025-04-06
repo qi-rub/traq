@@ -165,7 +165,7 @@ lowerExpr delta P.FunCallE{P.fun_kind = P.FunctionCall f, P.args} rets = do
       }
 
 -- `any`
-lowerExpr delta P.FunCallE{P.fun_kind = PrimitiveCall P.Contains, P.args = (predicate : args)} rets = do
+lowerExpr delta P.FunCallE{P.fun_kind = PrimitiveCall "any", P.args = (predicate : args)} rets = do
   -- the predicate
   pred_fun@P.FunDef{P.param_binds} <-
     view (protoFunCtx . to P.fun_defs . Ctx.at predicate)

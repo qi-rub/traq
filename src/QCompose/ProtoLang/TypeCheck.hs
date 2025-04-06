@@ -21,7 +21,6 @@ import qualified QCompose.Data.Context as Ctx
 import QCompose.Control.MonadHelpers
 import QCompose.Prelude
 import QCompose.ProtoLang.Syntax
-import QCompose.Utils.Printing
 
 type TypingCtx a = Ctx.Context (VarType a)
 
@@ -50,14 +49,12 @@ checkPrimitive ::
   (TypeCheckable a) =>
   FunCtx a ->
   -- | subroutine tag
-  Primitive ->
+  Ident ->
   -- | arguments
   [Ident] ->
   TypeChecker a [VarType a]
 -- contains
-checkPrimitive funCtx Contains all_args = do
-  let sub_name = "`" <> toCodeString Contains <> "`"
-
+checkPrimitive funCtx sub_name@"any" all_args = do
   (predicate, args) <- uncons all_args & maybe (throwError $ sub_name <> " needs 1 argument (predicate)") pure
   arg_tys <- mapM Ctx.lookup args
 
@@ -72,9 +69,7 @@ checkPrimitive funCtx Contains all_args = do
   return [tbool]
 
 -- search
-checkPrimitive funCtx Search all_args = do
-  let sub_name = toCodeString Search
-
+checkPrimitive funCtx sub_name@"search" all_args = do
   (predicate, args) <- uncons all_args & maybe (throwError $ sub_name <> " needs 1 argument (predicate)") pure
   arg_tys <- mapM Ctx.lookup args
 
@@ -89,7 +84,7 @@ checkPrimitive funCtx Search all_args = do
   return [tbool, snd $ last pred_params]
 
 -- unsupported
--- checkPrimitive _ sub _ _ = throwError $ "unsupported subroutine " <> show sub
+checkPrimitive _ sub _ = throwError $ "unsupported subroutine " <> show sub
 
 -- | Typecheck an expression and return the output types
 checkExpr ::

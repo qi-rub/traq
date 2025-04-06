@@ -46,7 +46,7 @@ matrixExample n m tyBool =
       [(i, tyI)]
       [(ok', tyBool)]
       ( SeqS
-          [ ExprS{rets = [ok], expr = FunCallE{fun_kind = PrimitiveCall Contains, args = ["IsEntryZero", i]}}
+          [ ExprS{rets = [ok], expr = FunCallE{fun_kind = PrimitiveCall "any", args = ["IsEntryZero", i]}}
           , ExprS{rets = [ok'], expr = UnOpE{un_op = NotOp, arg = ok}}
           ]
       )
@@ -61,7 +61,7 @@ matrixExample n m tyBool =
       "HasAllOnesRow"
       []
       [(ok, tyBool)]
-      ExprS{rets = [ok], expr = FunCallE{fun_kind = PrimitiveCall Contains, args = ["IsRowAllOnes"]}}
+      ExprS{rets = [ok], expr = FunCallE{fun_kind = PrimitiveCall "any", args = ["IsRowAllOnes"]}}
    where
     ok = "ok"
 

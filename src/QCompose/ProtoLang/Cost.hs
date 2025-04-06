@@ -67,7 +67,7 @@ unitaryQueryCostE delta FunCallE{fun_kind = FunctionCall fname} = do
   FunDef{body} <- view $ _2 . to (unsafeLookupFun fname)
   (2 *) <$> unitaryQueryCostS (delta / 2) body
 unitaryQueryCostE delta FunCallE{fun_kind = PrimitiveCall c, args = (predicate : args)}
-  | c == Contains || c == Search = do
+  | c == "any" || c == "search" = do
       FunDef{param_binds} <- view $ _2 . to (unsafeLookupFun predicate)
       let Fin n = param_binds & last & snd
 
@@ -157,7 +157,7 @@ quantumQueryCostE eps sigma FunCallE{fun_kind = FunctionCall f, args} = do
 
 -- -- known cost formulas
 quantumQueryCostE eps sigma FunCallE{fun_kind = PrimitiveCall c, args = (predicate : args)}
-  | c == Contains || c == Search = do
+  | c == "any" || c == "search" = do
       let vs = args & map (\x -> sigma ^. Ctx.at x . singular _Just)
 
       funDef@(FunDef _ fn_args _ body) <- view $ _2 . to (unsafeLookupFun predicate)

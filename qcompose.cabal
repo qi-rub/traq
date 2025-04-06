@@ -29,6 +29,8 @@ library
           QCompose.Examples.MatrixSearch
           QCompose.Examples.Search
           QCompose.Prelude
+          QCompose.Primitives
+          QCompose.Primitives.Class
           QCompose.Primitives.QSearch
           QCompose.ProtoLang
           QCompose.ProtoLang.Cost

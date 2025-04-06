@@ -5,4 +5,4 @@ def call_oracle(i : Fin<10>) do
 	return e : Bool
 end
 
-ok, x <- search(call_oracle);
+ok, x <- @search(call_oracle);

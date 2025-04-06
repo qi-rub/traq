@@ -39,7 +39,7 @@ spec = do
               , "  b <- const 0 : Fin<2>;"
               , "  return b : Fin<2>"
               , "end"
-              , "res <- any(f)"
+              , "res <- @any(f)"
               ]
       let c = unitaryQueryCost formulas 0.001 prog
       c `shouldBe` 0
@@ -52,7 +52,7 @@ spec = do
               , "  b <- Oracle(i);"
               , "  return b : Fin<2>"
               , "end"
-              , "res <- any(f)"
+              , "res <- @any(f)"
               ]
       let c = unitaryQueryCost formulas 0.001 prog
       c `shouldBe` 2 * qSearchUnitaryCost formulas 100 (0.001 / 2)

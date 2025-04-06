@@ -12,7 +12,7 @@ module QCompose.ProtoLang.Parser (
 import Data.Either (isRight)
 import Data.Functor (($>))
 import qualified Data.Number.Symbolic as Sym
-import Text.Parsec (ParseError, choice, eof, many, parse, try, (<|>))
+import Text.Parsec (ParseError, char, choice, eof, many, parse, try, (<|>))
 import Text.Parsec.Language (LanguageDef, emptyDef)
 import Text.Parsec.String (Parser)
 import Text.Parsec.Token (
@@ -26,11 +26,6 @@ import Text.Parsec.Token (
 
 import QCompose.Prelude
 import QCompose.ProtoLang.Syntax
-import QCompose.Utils.Printing
-
--- TODO unify
-subroutines :: [(Primitive, Ident)]
-subroutines = [(sub, toCodeString sub) | sub <- [minBound ..]]
 
 protoLangDef :: LanguageDef st
 protoLangDef =
@@ -50,7 +45,6 @@ protoLangDef =
           "Fin"
         , "Bool"
         ]
-          ++ map snd subroutines
     , reservedOpNames = [":", "<-", "->"]
     }
 
@@ -92,11 +86,7 @@ exprP tp@TokenParser{..} =
   funCallKind = oracleCall <|> subroutineCall <|> functionCall
    where
     oracleCall = reserved "Oracle" $> OracleCall
-    subroutineCall =
-      choice
-        [ reserved sname $> PrimitiveCall sub
-        | (sub, sname) <- subroutines
-        ]
+    subroutineCall = PrimitiveCall <$> (char '@' *> identifier)
     functionCall = FunctionCall <$> identifier
 
   funCallE :: Parser (Expr SymbSize)
