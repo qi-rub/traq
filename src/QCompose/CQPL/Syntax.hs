@@ -41,7 +41,7 @@ data FunctionCall
 data Stmt sizeT
   = SkipS
   | AssignS {rets :: [Ident], expr :: Expr sizeT}
-  | RandomS {ret :: Ident, max_val :: Expr sizeT}
+  | RandomS {ret :: Ident, ty :: VarType sizeT}
   | CallS {fun :: FunctionCall, args :: [Ident]}
   | SeqS [Stmt sizeT]
   | IfThenElseS {cond :: Ident, s_true, s_false :: Stmt sizeT}
@@ -91,8 +91,8 @@ instance (Show sizeT) => ToCodeString (Stmt sizeT) where
   toCodeLines SkipS = []
   toCodeLines AssignS{rets, expr} =
     [printf "%s := %s;" (commaList rets) (toCodeString expr)]
-  toCodeLines RandomS{ret, max_val} =
-    [printf "%s :=$ %s;" ret (toCodeString max_val)]
+  toCodeLines RandomS{ret, ty} =
+    [printf "%s :=$ %s;" ret (toCodeString ty)]
   toCodeLines CallS{fun = FunctionCall f, args} =
     [printf "call %s(%s);" f (commaList args)]
   toCodeLines CallS{fun = OracleCall, args} =

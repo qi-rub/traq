@@ -156,7 +156,7 @@ qSearch ty n_samples eps =
   classicalSampling =
     whileKWithExpr n_samples "not_done" (CQ.NotE $ CQ.VarE "ok") $
       CQ.SeqS
-        [ CQ.RandomS "x" (CQ.ConstE (CQ.IntV n))
+        [ CQ.RandomS "x" (Fin n)
         , CQ.CallS CQ.OracleCall ["x", "ok"]
         ]
 
@@ -172,32 +172,34 @@ qSearch ty n_samples eps =
   n_runs = ceiling $ logBase 3 (1 / eps)
   q_max = ceiling $ alpha * sqrt_n
 
+  -- compute the limits for sampling `j` in each iteration.
+  sampling_ranges :: [SizeT]
+  sampling_ranges = go q_max js
+   where
+    go :: SizeT -> [SizeT] -> [SizeT]
+    go _ [] = []
+    go lim (x : _) | x > lim = []
+    go lim (x : xs) = x : go (lim - x) xs
+
+    js :: [SizeT]
+    js = map floor js_f
+
+    js_f :: [Float]
+    js_f = lambda : map nxt js_f
+
+    nxt :: Float -> Float
+    nxt m = min (lambda * m) sqrt_n
+
   quantumSampling, quantumSamplingOneRound :: CQ.Stmt SizeT
   quantumSampling = CQ.RepeatS n_runs quantumSamplingOneRound
   quantumSamplingOneRound =
     CQ.SeqS
-      [ CQ.AssignS ["m"] (CQ.ConstE (CQ.FloatV lambda))
-      , CQ.AssignS ["Q_sum"] (CQ.ConstE (CQ.IntV 0))
-      , CQ.RandomS "j" (CQ.VarE "m")
-      , whileKWithExpr
-          q_max
-          "tot_iters"
-          ( CQ.LEqE
-              (CQ.AddE (CQ.VarE "Q_sum") (CQ.VarE "j"))
-              (CQ.ConstE $ CQ.IntV q_max)
-          )
-          ( CQ.SeqS
-              [ error "TODO grover cycle"
-              , CQ.CallS CQ.OracleCall ["y", "ok"]
-              , CQ.IfThenElseS
-                  "ok"
-                  undefined -- (CQ.ReturnS ["y"])
-                  ( CQ.SeqS
-                      [ CQ.AssignS ["Q_sum"] $ CQ.AddE (CQ.VarE "Q_sum") (CQ.AddE (CQ.VarE "j") (CQ.ConstE $ CQ.IntV 1))
-                      , CQ.AssignS ["m"] $ CQ.MinE (CQ.MulE (CQ.ConstE (CQ.FloatV lambda)) (CQ.VarE "m")) (CQ.ConstE (CQ.FloatV sqrt_n))
-                      , CQ.RandomS "j" (CQ.VarE "m")
-                      ]
-                  )
-              ]
-          )
+      [ CQ.IfThenElseS "ok" CQ.SkipS (quantumGroverOnce j)
+      | j <- sampling_ranges
+      ]
+
+  quantumGroverOnce j =
+    CQ.SeqS
+      [ error $ "TODO call and meas: grover cycle" <> show j
+      , CQ.CallS CQ.OracleCall ["y", "ok"]
       ]
