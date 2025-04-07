@@ -101,6 +101,35 @@ zalkaQSearchImpl ::
   U.Stmt a costT
 zalkaQSearchImpl = undefined
 
+-- | the while loop
+whileK ::
+  -- | iteration limit
+  sizeT ->
+  -- | loop condition
+  Ident ->
+  -- | loop body
+  CQ.Stmt sizeT ->
+  CQ.Stmt sizeT
+whileK k cond body = CQ.RepeatS k $ CQ.IfThenElseS cond body CQ.SkipS
+
+whileKWithExpr ::
+  -- | iteration limit
+  sizeT ->
+  -- | loop condition variable
+  Ident ->
+  -- | loop condition expression
+  CQ.Expr sizeT ->
+  -- | loop body
+  CQ.Stmt sizeT ->
+  CQ.Stmt sizeT
+whileKWithExpr k cond_var cond_expr body =
+  CQ.SeqS
+    [ compute_cond
+    , whileK k cond_var (CQ.SeqS [body, compute_cond])
+    ]
+ where
+  compute_cond = CQ.AssignS [cond_var] cond_expr
+
 -- | Implementation of the hybrid quantum search algorithm \( \textbf{QSearch} \).
 qSearch ::
   (RealFloat costT) =>
@@ -123,16 +152,12 @@ qSearch ty n_samples eps =
           ]
     }
  where
-  classicalSampling :: CQ.Stmt
+  classicalSampling :: CQ.Stmt SizeT
   classicalSampling =
-    CQ.ForS "k" (CQ.ConstE $ CQ.IntV n_samples) $
+    whileKWithExpr n_samples "not_done" (CQ.NotE $ CQ.VarE "ok") $
       CQ.SeqS
         [ CQ.RandomS "x" (CQ.ConstE (CQ.IntV n))
         , CQ.CallS CQ.OracleCall ["x", "ok"]
-        , CQ.IfThenElseS
-            "ok"
-            (CQ.ReturnS ["x"])
-            CQ.SkipS
         ]
 
   Fin n = ty
@@ -147,14 +172,16 @@ qSearch ty n_samples eps =
   n_runs = ceiling $ logBase 3 (1 / eps)
   q_max = ceiling $ alpha * sqrt_n
 
-  quantumSampling, quantumSamplingOneRound :: CQ.Stmt
-  quantumSampling = CQ.ForS "r" (CQ.ConstE $ CQ.IntV n_runs) quantumSamplingOneRound
+  quantumSampling, quantumSamplingOneRound :: CQ.Stmt SizeT
+  quantumSampling = CQ.RepeatS n_runs quantumSamplingOneRound
   quantumSamplingOneRound =
     CQ.SeqS
       [ CQ.AssignS ["m"] (CQ.ConstE (CQ.FloatV lambda))
       , CQ.AssignS ["Q_sum"] (CQ.ConstE (CQ.IntV 0))
       , CQ.RandomS "j" (CQ.VarE "m")
-      , CQ.WhileS
+      , whileKWithExpr
+          q_max
+          "tot_iters"
           ( CQ.LEqE
               (CQ.AddE (CQ.VarE "Q_sum") (CQ.VarE "j"))
               (CQ.ConstE $ CQ.IntV q_max)
@@ -164,7 +191,7 @@ qSearch ty n_samples eps =
               , CQ.CallS CQ.OracleCall ["y", "ok"]
               , CQ.IfThenElseS
                   "ok"
-                  (CQ.ReturnS ["y"])
+                  undefined -- (CQ.ReturnS ["y"])
                   ( CQ.SeqS
                       [ CQ.AssignS ["Q_sum"] $ CQ.AddE (CQ.VarE "Q_sum") (CQ.AddE (CQ.VarE "j") (CQ.ConstE $ CQ.IntV 1))
                       , CQ.AssignS ["m"] $ CQ.MinE (CQ.MulE (CQ.ConstE (CQ.FloatV lambda)) (CQ.VarE "m")) (CQ.ConstE (CQ.FloatV sqrt_n))

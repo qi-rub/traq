@@ -1,5 +1,4 @@
 module QCompose.CQPL.Syntax (
-  VarType (..),
   Value (..),
   Expr (..),
   FunctionCall (..),
@@ -12,11 +11,9 @@ module QCompose.CQPL.Syntax (
 import Text.Printf (printf)
 
 import QCompose.Prelude hiding (Value)
+import QCompose.ProtoLang (VarType)
 import qualified QCompose.UnitaryQPL as UQPL
 import QCompose.Utils.Printing
-
-data VarType = IntT | FloatT
-  deriving (Eq, Show, Read)
 
 data Value
   = IntV Int
@@ -24,15 +21,15 @@ data Value
   | SymV String
   deriving (Eq, Show, Read)
 
-data Expr
+data Expr sizeT
   = ConstE {val :: Value}
   | VarE {var :: Ident}
-  | AddE {lhs, rhs :: Expr}
-  | MulE {lhs, rhs :: Expr}
-  | LEqE {lhs, rhs :: Expr}
-  | AndE {lhs, rhs :: Expr}
-  | NotE {arg :: Expr}
-  | MinE {lhs, rhs :: Expr}
+  | AddE {lhs, rhs :: Expr sizeT}
+  | MulE {lhs, rhs :: Expr sizeT}
+  | LEqE {lhs, rhs :: Expr sizeT}
+  | AndE {lhs, rhs :: Expr sizeT}
+  | NotE {arg :: Expr sizeT}
+  | MinE {lhs, rhs :: Expr sizeT}
   deriving (Eq, Show, Read)
 
 data FunctionCall
@@ -41,42 +38,36 @@ data FunctionCall
   | UProcAndMeas Ident
   deriving (Eq, Show, Read)
 
-data Stmt
+data Stmt sizeT
   = SkipS
-  | AssignS {rets :: [Ident], expr :: Expr}
-  | RandomS {ret :: Ident, max_val :: Expr}
+  | AssignS {rets :: [Ident], expr :: Expr sizeT}
+  | RandomS {ret :: Ident, max_val :: Expr sizeT}
   | CallS {fun :: FunctionCall, args :: [Ident]}
-  | SeqS [Stmt]
-  | IfThenElseS {cond :: Ident, s_true, s_false :: Stmt}
-  | ForS {iter_var :: Ident, iter_lim :: Expr, loop_body :: Stmt}
-  | WhileS {cond_expr :: Expr, loop_body :: Stmt}
-  | ReturnS {rets :: [Ident]}
+  | SeqS [Stmt sizeT]
+  | IfThenElseS {cond :: Ident, s_true, s_false :: Stmt sizeT}
+  | RepeatS {n_iter :: sizeT, loop_body :: Stmt sizeT}
 
-data ProcDef a
+data ProcDef sizeT
   = ProcDef
       { proc_name :: Ident
-      , proc_params :: [(Ident, VarType)]
-      , proc_local_vars :: [(Ident, VarType)]
-      , proc_body :: Stmt
+      , proc_params :: [(Ident, VarType sizeT)]
+      , proc_local_vars :: [(Ident, VarType sizeT)]
+      , proc_body :: Stmt sizeT
       }
-  | UQPLProcDef (UQPL.ProcDef a Float)
+  | UQPLProcDef (UQPL.ProcDef sizeT Float)
 
-newtype OracleDecl = OracleDecl
-  { oracle_param_types :: [VarType]
+newtype OracleDecl sizeT = OracleDecl
+  { oracle_param_types :: [VarType sizeT]
   }
   deriving (Eq, Show, Read)
 
-data Program a = Program
-  { oracle_decl :: OracleDecl
-  , proc_defs :: [ProcDef a]
-  , stmt :: Stmt
+data Program sizeT = Program
+  { oracle_decl :: OracleDecl sizeT
+  , proc_defs :: [ProcDef sizeT]
+  , stmt :: Stmt sizeT
   }
 
-instance ToCodeString VarType where
-  toCodeString IntT = "int"
-  toCodeString FloatT = "float"
-
-parenBinExpr :: String -> Expr -> Expr -> String
+parenBinExpr :: (Show sizeT) => String -> Expr sizeT -> Expr sizeT -> String
 parenBinExpr op_sym lhs rhs =
   "(" ++ unwords [toCodeString lhs, op_sym, toCodeString rhs] ++ ")"
 
@@ -85,7 +76,7 @@ instance ToCodeString Value where
   toCodeString (FloatV v) = show v
   toCodeString (SymV v) = v
 
-instance ToCodeString Expr where
+instance (Show sizeT) => ToCodeString (Expr sizeT) where
   toCodeString ConstE{val} = toCodeString val
   toCodeString VarE{var} = var
   toCodeString AddE{lhs, rhs} = parenBinExpr "+" lhs rhs
@@ -96,7 +87,7 @@ instance ToCodeString Expr where
   toCodeString MinE{lhs, rhs} =
     "min(" ++ toCodeString lhs ++ ", " ++ toCodeString rhs ++ ")"
 
-instance ToCodeString Stmt where
+instance (Show sizeT) => ToCodeString (Stmt sizeT) where
   toCodeLines SkipS = []
   toCodeLines AssignS{rets, expr} =
     [printf "%s := %s;" (commaList rets) (toCodeString expr)]
@@ -115,16 +106,10 @@ instance ToCodeString Stmt where
       ++ ["else"]
       ++ indent (toCodeLines s_false)
       ++ ["end"]
-  toCodeLines ForS{iter_var, iter_lim, loop_body} =
-    [printf "for (%s in range(%s)) do" iter_var (toCodeString iter_lim)]
+  toCodeLines RepeatS{n_iter, loop_body} =
+    [printf "repeat %s do" (show n_iter)]
       ++ indent (toCodeLines loop_body)
       ++ ["end"]
-  toCodeLines WhileS{cond_expr, loop_body} =
-    [printf "while (%s) do" (toCodeString cond_expr)]
-      ++ indent (toCodeLines loop_body)
-      ++ ["end"]
-  toCodeLines ReturnS{rets} =
-    [printf "return %s;" (commaList rets)]
 
 instance (Show a) => ToCodeString (ProcDef a) where
   toCodeLines ProcDef{proc_name, proc_params, proc_body} =
