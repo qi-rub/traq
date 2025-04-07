@@ -23,6 +23,7 @@ import qualified QCompose.Data.Context as Ctx
 
 import QCompose.Prelude
 import QCompose.Utils.Printing
+import Text.Printf (printf)
 
 -- | Types
 newtype VarType sizeT = Fin sizeT -- Fin<N>
@@ -39,7 +40,7 @@ data BinOp = AddOp | LEqOp | AndOp
 data FunctionCallKind
   = OracleCall
   | FunctionCall Ident
-  | PrimitiveCall Ident
+  | PrimitiveCall {prim_name :: Ident, prim_params :: [Ident]}
   deriving (Eq, Show, Read)
 
 {- | An expression in the prototype language.
@@ -133,7 +134,7 @@ instance ToCodeString BinOp where
 instance ToCodeString FunctionCallKind where
   toCodeString OracleCall = "Oracle"
   toCodeString (FunctionCall f) = f
-  toCodeString (PrimitiveCall f) = "@" ++ f
+  toCodeString (PrimitiveCall f ps) = printf "@%s[%s]" f (commaList ps)
 
 instance (Show a) => ToCodeString (Expr a) where
   toCodeString VarE{arg} = arg

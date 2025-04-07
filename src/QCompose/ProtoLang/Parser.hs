@@ -83,10 +83,13 @@ exprP tp@TokenParser{..} =
     return ConstE{val, ty}
 
   funCallKind :: Parser FunctionCallKind
-  funCallKind = oracleCall <|> subroutineCall <|> functionCall
+  funCallKind = oracleCall <|> primitiveCall <|> functionCall
    where
     oracleCall = reserved "Oracle" $> OracleCall
-    subroutineCall = PrimitiveCall <$> (char '@' *> identifier)
+    primitiveCall = do
+      prim_name <- char '@' *> identifier
+      prim_params <- squares (commaSep identifier)
+      return PrimitiveCall{..}
     functionCall = FunctionCall <$> identifier
 
   funCallE :: Parser (Expr SymbSize)

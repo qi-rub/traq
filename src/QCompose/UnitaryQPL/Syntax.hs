@@ -40,7 +40,13 @@ instance HasDagger (Unitary sizeT costT) where
   adjoint (BlackBoxU _) = error "cannot compute adjoint of blackbox"
   adjoint (Unif ty) = UnifDagger ty
   adjoint (UnifDagger ty) = Unif ty
-  adjoint u = u
+  adjoint Toffoli = Toffoli
+  adjoint CNOT = CNOT
+  adjoint HGate = HGate
+  adjoint XGate = XGate
+  adjoint Oracle = Oracle
+  adjoint u@(RevEmbedU _) = u
+  adjoint (Controlled u) = Controlled (adjoint u)
 
 data Stmt sizeT costT
   = SkipS

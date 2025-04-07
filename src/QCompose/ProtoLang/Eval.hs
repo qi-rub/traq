@@ -76,12 +76,12 @@ evalExpr funCtx oracleF FunCallE{fun_kind = FunctionCall fun, args} = do
 
 -- subroutines
 -- `any` / `search`
-evalExpr funCtx oracleF FunCallE{fun_kind = PrimitiveCall sub, args = (predicate : args)}
-  | sub == "any" = do
+evalExpr funCtx oracleF FunCallE{fun_kind = PrimitiveCall prim_name [predicate], args}
+  | prim_name == "any" = do
       has_sol <- anyM evalPredicate search_range
 
       return [boolToValue has_sol]
-  | sub == "search" = do
+  | prim_name == "search" = do
       sols <- filterM evalPredicate search_range
 
       let has_sol = not $ null sols

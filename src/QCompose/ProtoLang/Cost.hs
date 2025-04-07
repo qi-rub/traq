@@ -66,7 +66,7 @@ unitaryQueryCostE _ FunCallE{fun_kind = OracleCall} = return 1
 unitaryQueryCostE delta FunCallE{fun_kind = FunctionCall fname} = do
   FunDef{body} <- view $ _2 . to (unsafeLookupFun fname)
   (2 *) <$> unitaryQueryCostS (delta / 2) body
-unitaryQueryCostE delta FunCallE{fun_kind = PrimitiveCall c, args = (predicate : args)}
+unitaryQueryCostE delta FunCallE{fun_kind = PrimitiveCall c [predicate], args = args}
   | c == "any" || c == "search" = do
       FunDef{param_binds} <- view $ _2 . to (unsafeLookupFun predicate)
       let Fin n = param_binds & last & snd
@@ -85,7 +85,7 @@ unitaryQueryCostE delta FunCallE{fun_kind = PrimitiveCall c, args = (predicate :
       -- cost of each predicate call
       cost_pred <-
         unitaryQueryCostE delta_per_pred_call $
-          FunCallE{fun_kind = FunctionCall predicate, args = args}
+          FunCallE{fun_kind = FunctionCall predicate, args}
 
       return $ qry * cost_pred
 
@@ -156,7 +156,7 @@ quantumQueryCostE eps sigma FunCallE{fun_kind = FunctionCall f, args} = do
   quantumQueryCostS eps omega body
 
 -- -- known cost formulas
-quantumQueryCostE eps sigma FunCallE{fun_kind = PrimitiveCall c, args = (predicate : args)}
+quantumQueryCostE eps sigma FunCallE{fun_kind = PrimitiveCall c [predicate], args}
   | c == "any" || c == "search" = do
       let vs = args & map (\x -> sigma ^. Ctx.at x . singular _Just)
 
@@ -251,7 +251,7 @@ quantumQueryCost algs a_eps Program{funCtx, stmt} oracleF sigma =
 needsEpsS :: Stmt a -> Reader (FunCtx a) Bool
 needsEpsS IfThenElseS{s_true, s_false} = (||) <$> needsEpsS s_true <*> needsEpsS s_false
 needsEpsS (SeqS ss) = or <$> traverse needsEpsS ss
-needsEpsS ExprS{expr = FunCallE{fun_kind = PrimitiveCall _}} = return True
+needsEpsS ExprS{expr = FunCallE{fun_kind = PrimitiveCall _ _}} = return True
 needsEpsS ExprS{expr = FunCallE{fun_kind = FunctionCall f}} =
   view (to (unsafeLookupFun f) . to body) >>= needsEpsS
 needsEpsS _ = return False

@@ -12,7 +12,6 @@ module QCompose.ProtoLang.TypeCheck (
 import Control.Monad (forM_, unless, when, zipWithM_)
 import Control.Monad.Except (throwError)
 import Control.Monad.State (execStateT, get, put)
-import Data.List (uncons)
 import Lens.Micro
 import Text.Printf (printf)
 
@@ -32,14 +31,15 @@ lookupFunE fname funCtx =
 checkPrimitive ::
   (TypeCheckable a) =>
   FunCtx a ->
-  -- | subroutine tag
+  -- | subroutine name
   Ident ->
+  -- | subroutine params
+  [Ident] ->
   -- | arguments
   [Ident] ->
   TypeChecker a [VarType a]
 -- contains
-checkPrimitive funCtx sub_name@"any" all_args = do
-  (predicate, args) <- uncons all_args & maybe (throwError $ sub_name <> " needs 1 argument (predicate)") pure
+checkPrimitive funCtx "any" [predicate] args = do
   arg_tys <- mapM Ctx.lookup args
 
   FunDef{param_binds = pred_params, ret_binds = pred_rets} <- funCtx & lookupFunE predicate
@@ -53,8 +53,7 @@ checkPrimitive funCtx sub_name@"any" all_args = do
   return [tbool]
 
 -- search
-checkPrimitive funCtx sub_name@"search" all_args = do
-  (predicate, args) <- uncons all_args & maybe (throwError $ sub_name <> " needs 1 argument (predicate)") pure
+checkPrimitive funCtx "search" [predicate] args = do
   arg_tys <- mapM Ctx.lookup args
 
   FunDef{param_binds = pred_params, ret_binds = pred_rets} <- funCtx & lookupFunE predicate
@@ -68,7 +67,8 @@ checkPrimitive funCtx sub_name@"search" all_args = do
   return [tbool, snd $ last pred_params]
 
 -- unsupported
-checkPrimitive _ sub _ = throwError $ "unsupported subroutine " <> show sub
+checkPrimitive _ prim_name prim_params _ =
+  throwError $ printf "unsupported subroutine %s[%s]" prim_name (show prim_params)
 
 -- | Typecheck an expression and return the output types
 checkExpr ::
@@ -138,8 +138,8 @@ checkExpr funCtx FunCallE{fun_kind = FunctionCall fun, args} = do
   return $ map snd ret_binds
 
 -- `subroutine`(...)
-checkExpr funCtx FunCallE{fun_kind = PrimitiveCall sub, args} = do
-  checkPrimitive funCtx sub args
+checkExpr funCtx FunCallE{fun_kind = PrimitiveCall prim_name prim_params, args} = do
+  checkPrimitive funCtx prim_name prim_params args
 
 {- | Typecheck a statement, given the current context and function definitions.
  If successful, the typing context is updated.

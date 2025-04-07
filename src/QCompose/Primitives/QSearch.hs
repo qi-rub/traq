@@ -85,8 +85,8 @@ groverIteration ::
   -- | flag register (output of predicate)
   Ident ->
   -- | phase oracle
-  U.Stmt a costT ->
-  U.Stmt a costT
+  U.Stmt sizeT costT ->
+  U.Stmt sizeT costT
 groverIteration xs flag ph_oracle =
   U.SeqS
     [ ph_oracle
