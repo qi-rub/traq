@@ -1,4 +1,14 @@
-module QCompose.UnitaryQPL.Syntax where
+module QCompose.UnitaryQPL.Syntax (
+  ClassicalFun (..),
+  BlackBox (..),
+  Unitary (..),
+  HasDagger (..),
+  Stmt (..),
+  ParamTag (..),
+  ProcDef (..),
+  OracleDecl (..),
+  Program (..),
+) where
 
 import Text.Printf (printf)
 
@@ -28,6 +38,8 @@ data Unitary sizeT costT
   | -- | maps \( |0\rangle \) to \( \frac1{\sqrt{|\Sigma_T|}} \sum_{x \in \Sigma_T} |x\rangle \)
     Unif (P.VarType sizeT)
   | UnifDagger (P.VarType sizeT)
+  | -- | reflect about |0>_T
+    Refl0 (P.VarType sizeT)
   | RevEmbedU (ClassicalFun sizeT)
   | BlackBoxU (BlackBox costT)
   | Controlled (Unitary sizeT costT)
@@ -45,6 +57,7 @@ instance HasDagger (Unitary sizeT costT) where
   adjoint HGate = HGate
   adjoint XGate = XGate
   adjoint Oracle = Oracle
+  adjoint u@(Refl0 _) = u
   adjoint u@(RevEmbedU _) = u
   adjoint (Controlled u) = Controlled (adjoint u)
 
@@ -53,6 +66,7 @@ data Stmt sizeT costT
   | UnitaryS {args :: [Ident], unitary :: Unitary sizeT costT} -- q... *= U
   | CallS {proc_id :: Ident, dagger :: Bool, args :: [Ident]} -- call F(q...)
   | SeqS [Stmt sizeT costT] -- W1; W2; ...
+  | RepeatS sizeT (Stmt sizeT costT) -- repeat k do S;
   deriving (Eq, Show, Read)
 
 instance HasDagger (Stmt sizeT costT) where
@@ -60,6 +74,7 @@ instance HasDagger (Stmt sizeT costT) where
   adjoint s@CallS{dagger} = s{dagger = not dagger}
   adjoint (SeqS ss) = SeqS . reverse $ map adjoint ss
   adjoint s@UnitaryS{unitary} = s{unitary = adjoint unitary}
+  adjoint (RepeatS k s) = RepeatS k (adjoint s)
 
 data ParamTag = ParamInp | ParamOut | ParamAux | ParamUnk deriving (Eq, Show, Read, Enum)
 
@@ -98,6 +113,10 @@ instance (Show a) => ToCodeString (ClassicalFun a) where
 instance (Show a, Show b) => ToCodeString (Unitary a b) where
   toCodeString (RevEmbedU f) = "RevEmbed[" <> toCodeString f <> "]"
   toCodeString (Unif ty) = "Unif[" <> toCodeString ty <> "]"
+  toCodeString (UnifDagger ty) = "Unif†[" <> toCodeString ty <> "]"
+  toCodeString XGate = "X"
+  toCodeString HGate = "H"
+  toCodeString (Refl0 ty) = printf "(2|0><0| - I)[%s]" (toCodeString ty)
   toCodeString u = show u
 
 instance (Show a, Show b) => ToCodeString (Stmt a b) where
@@ -110,6 +129,10 @@ instance (Show a, Show b) => ToCodeString (Stmt a b) where
     qc = commaList args
     dg = if dagger then "†" else ""
   toCodeLines (SeqS ps) = concatMap toCodeLines ps
+  toCodeLines (RepeatS k s) =
+    [printf "repeat %s do" (show k)]
+      ++ indent (toCodeLines s)
+      ++ ["end"]
 
 instance ToCodeString ParamTag where
   toCodeString ParamInp = "IN"

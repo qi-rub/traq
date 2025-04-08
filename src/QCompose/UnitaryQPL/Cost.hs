@@ -1,4 +1,14 @@
-module QCompose.UnitaryQPL.Cost where
+module QCompose.UnitaryQPL.Cost (
+  unitaryCost,
+  stmtCost,
+  procCost,
+  programCost,
+
+  -- * types
+  ProcCtx,
+  CostMap,
+  CostCalculator,
+) where
 
 import Control.Monad.RWS (RWS, runRWS)
 import qualified Data.Map as Map
@@ -10,12 +20,15 @@ import qualified QCompose.Data.Context as Ctx
 import QCompose.Prelude
 import QCompose.UnitaryQPL.Syntax
 
-type ProcCtx a costT = Ctx.Context (ProcDef a costT)
+type ProcCtx sizeT costT = Ctx.Context (ProcDef sizeT costT)
 type CostMap costT = Map.Map Ident costT
 
-type CostCalculator a costT = RWS (ProcCtx a costT) () (CostMap costT)
+type CostCalculator sizeT costT = RWS (ProcCtx sizeT costT) () (CostMap costT)
 
-unitaryCost :: (Show costT, Floating costT) => Unitary a costT -> CostCalculator a costT costT
+unitaryCost ::
+  (Integral sizeT, Show costT, Floating costT) =>
+  Unitary sizeT costT ->
+  CostCalculator sizeT costT costT
 unitaryCost Oracle = return 1
 unitaryCost (BlackBoxU QSearchBB{pred_name, n_pred_calls}) = do
   pred_cost <- procCost pred_name
@@ -23,13 +36,17 @@ unitaryCost (BlackBoxU QSearchBB{pred_name, n_pred_calls}) = do
 unitaryCost (BlackBoxU (BlackBox _)) = error "cannot compute cost of blackbox"
 unitaryCost _ = return 0
 
-stmtCost :: (Show costT, Floating costT) => Stmt a costT -> CostCalculator a costT costT
+stmtCost :: (Integral sizeT, Show costT, Floating costT) => Stmt sizeT costT -> CostCalculator sizeT costT costT
 stmtCost SkipS = return 0
 stmtCost (SeqS ss) = sum <$> mapM stmtCost ss
 stmtCost UnitaryS{unitary} = unitaryCost unitary
 stmtCost CallS{proc_id} = procCost proc_id
+stmtCost (RepeatS k s) = (fromIntegral k *) <$> stmtCost s
 
-procCost :: (Show costT, Floating costT) => Ident -> CostCalculator a costT costT
+procCost ::
+  (Integral sizeT, Show costT, Floating costT) =>
+  Ident ->
+  CostCalculator sizeT costT costT
 procCost name = do
   mCost <- use $ at name
   case mCost of
@@ -40,7 +57,10 @@ procCost name = do
       at name ?= cost
       return cost
 
-programCost :: (Show costT, Floating costT) => Program a costT -> (costT, CostMap costT)
+programCost ::
+  (Integral sizeT, Show costT, Floating costT) =>
+  Program sizeT costT ->
+  (costT, CostMap costT)
 programCost Program{proc_defs, stmt} = (cost, proc_costs)
  where
   (cost, proc_costs, _) = runRWS (stmtCost stmt) proc_map Map.empty

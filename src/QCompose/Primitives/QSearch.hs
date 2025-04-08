@@ -9,6 +9,8 @@ module QCompose.Primitives.QSearch (
   symbolicFormulas,
   cadeEtAlFormulas,
   zalkaQSearch,
+  groverK,
+  zalkaQSearchImpl,
 ) where
 
 import qualified Data.Number.Symbolic as Sym
@@ -77,29 +79,70 @@ zalkaQSearch =
   -- anc n delta = error "TODO"
   anc _ _ = []
 
--- Primitives to implement Grover search and its variants
-groverIteration ::
+-- | Run K grover iterations
+groverK ::
+  forall sizeT costT.
   (RealFloat costT) =>
-  -- | registers to search (reflect) over
-  [Ident] ->
-  -- | flag register (output of predicate)
+  -- | number of rounds
+  sizeT ->
+  -- | the element and type to search for. @x : T@
+  (Ident, VarType sizeT) ->
+  -- | the output bit
   Ident ->
-  -- | phase oracle
-  U.Stmt sizeT costT ->
+  -- | run the predicate
+  (Ident -> Ident -> U.Stmt sizeT costT) ->
   U.Stmt sizeT costT
-groverIteration xs flag ph_oracle =
-  U.SeqS
-    [ ph_oracle
-    , U.UnitaryS xs $ U.Unif undefined
-    , U.UnitaryS (xs ++ [flag]) $ U.BlackBoxU $ U.BlackBox "MCX"
-    , U.UnitaryS xs $ U.UnifDagger undefined
-    ]
+groverK k (x, ty) b mk_pred = U.SeqS [prep, U.RepeatS k grover_iterate]
+ where
+  -- map b to |-> and x to uniform
+  prep :: U.Stmt sizeT costT
+  prep =
+    U.SeqS
+      [ U.UnitaryS [b] U.XGate
+      , U.UnitaryS [b] U.HGate
+      , U.UnitaryS [x] (U.Unif ty)
+      ]
+
+  grover_iterate :: U.Stmt sizeT costT
+  grover_iterate =
+    U.SeqS
+      [ mk_pred x b
+      , U.UnitaryS [x] (U.UnifDagger ty)
+      , U.UnitaryS [x] (U.Refl0 ty)
+      , U.UnitaryS [x] (U.Unif ty)
+      ]
+
+{- | Grover search with fail prob 0
+ when the number of solutions is known
+-}
+groverCertainty ::
+  forall sizeT costT.
+  (RealFloat costT) =>
+  -- | the element and type to search for. @x : T@
+  (Ident, VarType sizeT) ->
+  -- | number of solutions
+  sizeT ->
+  -- | the output bit
+  Ident ->
+  -- | run the predicate
+  (Ident -> Ident -> U.Stmt sizeT costT) ->
+  U.Stmt sizeT costT
+groverCertainty (x, Fin n) m b mk_pred = error "TODO"
 
 zalkaQSearchImpl ::
-  (RealFloat costT) =>
-  U.ProcDef a costT ->
-  U.Stmt a costT
-zalkaQSearchImpl = undefined
+  forall sizeT costT.
+  (Integral sizeT, RealFloat costT) =>
+  -- | type of the element to search over
+  VarType sizeT ->
+  -- | call the predicate on @x, b@
+  (Ident -> Ident -> U.Stmt sizeT costT) ->
+  -- | max. failure probability @\eps@
+  costT ->
+  U.Stmt sizeT costT
+zalkaQSearchImpl ty mk_pred eps = error "TODO"
+ where
+  t0 :: sizeT
+  t0 = ceiling $ logBase (4 / 3) (1 / eps) / 2
 
 -- | the while loop
 whileK ::
