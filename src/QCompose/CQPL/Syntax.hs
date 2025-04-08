@@ -1,4 +1,5 @@
 module QCompose.CQPL.Syntax (
+  -- * Syntax
   Value (..),
   Expr (..),
   FunctionCall (..),
@@ -6,6 +7,10 @@ module QCompose.CQPL.Syntax (
   ProcDef (..),
   OracleDecl (..),
   Program (..),
+
+  -- * Syntax Sugar
+  whileK,
+  whileKWithCondExpr,
 ) where
 
 import Text.Printf (printf)
@@ -15,8 +20,12 @@ import QCompose.ProtoLang (VarType)
 import qualified QCompose.UnitaryQPL as UQPL
 import QCompose.Utils.Printing
 
+-- ================================================================================
+-- Syntax
+-- ================================================================================
+
 data Value
-  = IntV Int
+  = IntV Integer
   | FloatV Float
   | SymV String
   deriving (Eq, Show, Read)
@@ -47,14 +56,12 @@ data Stmt sizeT
   | IfThenElseS {cond :: Ident, s_true, s_false :: Stmt sizeT}
   | RepeatS {n_iter :: sizeT, loop_body :: Stmt sizeT}
 
-data ProcDef sizeT
-  = ProcDef
-      { proc_name :: Ident
-      , proc_params :: [(Ident, VarType sizeT)]
-      , proc_local_vars :: [(Ident, VarType sizeT)]
-      , proc_body :: Stmt sizeT
-      }
-  | UQPLProcDef (UQPL.ProcDef sizeT Float)
+data ProcDef sizeT = ProcDef
+  { proc_name :: Ident
+  , proc_params :: [(Ident, VarType sizeT)]
+  , proc_local_vars :: [(Ident, VarType sizeT)]
+  , proc_body :: Stmt sizeT
+  }
 
 newtype OracleDecl sizeT = OracleDecl
   { oracle_param_types :: [VarType sizeT]
@@ -64,8 +71,47 @@ newtype OracleDecl sizeT = OracleDecl
 data Program sizeT = Program
   { oracle_decl :: OracleDecl sizeT
   , proc_defs :: [ProcDef sizeT]
+  , uproc_defs :: [UQPL.ProcDef sizeT Float]
   , stmt :: Stmt sizeT
   }
+
+-- ================================================================================
+-- Syntax Sugar
+-- ================================================================================
+
+-- | bounded while loop
+whileK ::
+  -- | iteration limit
+  sizeT ->
+  -- | loop condition
+  Ident ->
+  -- | loop body
+  Stmt sizeT ->
+  Stmt sizeT
+whileK k cond body = RepeatS k $ IfThenElseS cond body SkipS
+
+-- | bounded while loop given an expression for the loop condition
+whileKWithCondExpr ::
+  -- | iteration limit
+  sizeT ->
+  -- | loop condition variable
+  Ident ->
+  -- | loop condition expression
+  Expr sizeT ->
+  -- | loop body
+  Stmt sizeT ->
+  Stmt sizeT
+whileKWithCondExpr k cond_var cond_expr body =
+  SeqS
+    [ compute_cond
+    , whileK k cond_var (SeqS [body, compute_cond])
+    ]
+ where
+  compute_cond = AssignS [cond_var] cond_expr
+
+-- ================================================================================
+-- Code printing
+-- ================================================================================
 
 parenBinExpr :: (Show sizeT) => String -> Expr sizeT -> Expr sizeT -> String
 parenBinExpr op_sym lhs rhs =
@@ -116,8 +162,9 @@ instance (Show a) => ToCodeString (ProcDef a) where
     [printf "proc %s(%s)" proc_name (commaList $ map fst proc_params)]
       ++ indent (toCodeLines proc_body)
       ++ ["end"]
-  toCodeLines (UQPLProcDef uproc) = toCodeLines uproc
 
 instance (Show a) => ToCodeString (Program a) where
-  toCodeLines Program{proc_defs, stmt} =
-    map toCodeString proc_defs ++ [toCodeString stmt]
+  toCodeLines Program{proc_defs, uproc_defs, stmt} =
+    map toCodeString uproc_defs
+      ++ map toCodeString proc_defs
+      ++ [toCodeString stmt]

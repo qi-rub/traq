@@ -144,35 +144,6 @@ zalkaQSearchImpl ty mk_pred eps = error "TODO"
   t0 :: sizeT
   t0 = ceiling $ logBase (4 / 3) (1 / eps) / 2
 
--- | the while loop
-whileK ::
-  -- | iteration limit
-  sizeT ->
-  -- | loop condition
-  Ident ->
-  -- | loop body
-  CQ.Stmt sizeT ->
-  CQ.Stmt sizeT
-whileK k cond body = CQ.RepeatS k $ CQ.IfThenElseS cond body CQ.SkipS
-
-whileKWithExpr ::
-  -- | iteration limit
-  sizeT ->
-  -- | loop condition variable
-  Ident ->
-  -- | loop condition expression
-  CQ.Expr sizeT ->
-  -- | loop body
-  CQ.Stmt sizeT ->
-  CQ.Stmt sizeT
-whileKWithExpr k cond_var cond_expr body =
-  CQ.SeqS
-    [ compute_cond
-    , whileK k cond_var (CQ.SeqS [body, compute_cond])
-    ]
- where
-  compute_cond = CQ.AssignS [cond_var] cond_expr
-
 -- | Implementation of the hybrid quantum search algorithm \( \textbf{QSearch} \).
 qSearch ::
   (RealFloat costT) =>
@@ -197,7 +168,7 @@ qSearch ty n_samples eps =
  where
   classicalSampling :: CQ.Stmt SizeT
   classicalSampling =
-    whileKWithExpr n_samples "not_done" (CQ.NotE $ CQ.VarE "ok") $
+    CQ.whileKWithCondExpr n_samples "not_done" (CQ.NotE $ CQ.VarE "ok") $
       CQ.SeqS
         [ CQ.RandomS "x" (Fin n)
         , CQ.CallS CQ.OracleCall ["x", "ok"]
