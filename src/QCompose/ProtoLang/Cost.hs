@@ -3,15 +3,31 @@ module QCompose.ProtoLang.Cost (
   QSearchFormulas (..),
 
   -- * Unitary Cost
-  UnitaryCostEnv,
   unitaryQueryCost,
   unitaryQueryCostE,
   unitaryQueryCostS,
 
   -- * Quantum Cost
+
+  -- ** Expected cost
   quantumQueryCost,
   quantumQueryCostE,
   quantumQueryCostS,
+
+  -- ** Quantum Worst case Cost
+  quantumMaxQueryCost,
+  quantumMaxQueryCostE,
+  quantumMaxQueryCostS,
+
+  -- ** Bound on runtime
+  quantumQueryCostBound,
+
+  -- * Types
+  StaticCostEnv,
+  UnitaryCostCalculator,
+  QuantumMaxCostCalculator,
+  DynamicCostEnv,
+  QuantumCostCalculator,
 
   -- * Analysis
   needsEpsS,
@@ -50,9 +66,9 @@ unsafeLookupFun fname funCtx = funCtx ^. to fun_defs . Ctx.at fname . singular _
 -- Unitary Cost
 
 -- Environment to compute the unitary cost
-type UnitaryCostEnv sizeT costT = (QSearchFormulas sizeT costT, FunCtx sizeT)
+type StaticCostEnv sizeT costT = (QSearchFormulas sizeT costT, FunCtx sizeT)
 
-type UnitaryCostCalculator sizeT costT = Reader (UnitaryCostEnv sizeT costT)
+type UnitaryCostCalculator sizeT costT = Reader (StaticCostEnv sizeT costT)
 
 -- Evaluate the query cost of an expression
 unitaryQueryCostE ::
@@ -134,10 +150,84 @@ unitaryQueryCost algs delta Program{funCtx, stmt} =
 
 -- Quantum Cost
 
--- Environment to compute the unitary cost
-type QuantumCostEnv sizeT costT = (QSearchFormulas sizeT costT, FunCtx sizeT, OracleInterp)
+-- Environment to compute the max quantum cost (input independent)
+type QuantumMaxCostCalculator sizeT costT = Reader (StaticCostEnv sizeT costT)
 
-type QuantumCostCalculator sizeT costT = Reader (QuantumCostEnv sizeT costT)
+quantumMaxQueryCostE ::
+  (Ord costT, Floating costT) =>
+  -- | failure probability \( \varepsilon \)
+  costT ->
+  -- | statement @S@
+  Expr SizeT ->
+  QuantumMaxCostCalculator SizeT costT costT
+quantumMaxQueryCostE _ FunCallE{fun_kind = OracleCall} = return 1
+quantumMaxQueryCostE eps FunCallE{fun_kind = FunctionCall f} = do
+  FunDef{body} <- view $ _2 . to (unsafeLookupFun f)
+  quantumMaxQueryCostS eps body
+
+-- -- known cost formulas
+quantumMaxQueryCostE eps FunCallE{fun_kind = PrimitiveCall c [predicate]}
+  | c == "any" || c == "search" = do
+      FunDef{param_binds = fn_args, body} <- view $ _2 . to (unsafeLookupFun predicate)
+
+      let typ_x = snd $ last fn_args
+      let n = length $ range typ_x
+
+      worst_case_formula <- view $ _1 . to qSearchWorstCaseCost
+
+      let eps_s = eps / 2
+      let n_pred_calls = worst_case_formula n eps_s
+      let eps_per_pred_call = (eps - eps_s) / n_pred_calls
+
+      let delta_per_pred_call = eps_per_pred_call / 2
+      pred_unitary_cost <- unitaryQueryCostS delta_per_pred_call body
+
+      return $ n_pred_calls * pred_unitary_cost
+
+-- -- zero-cost expressions
+quantumMaxQueryCostE _ VarE{} = return 0
+quantumMaxQueryCostE _ ConstE{} = return 0
+quantumMaxQueryCostE _ UnOpE{} = return 0
+quantumMaxQueryCostE _ BinOpE{} = return 0
+quantumMaxQueryCostE _ TernaryE{} = return 0
+-- -- unsupported
+quantumMaxQueryCostE _ FunCallE{} = error "invalid syntax"
+
+quantumMaxQueryCostS ::
+  (Ord costT, Floating costT) =>
+  -- | failure probability \( \varepsilon \)
+  costT ->
+  -- | statement @S@
+  Stmt SizeT ->
+  QuantumMaxCostCalculator SizeT costT costT
+quantumMaxQueryCostS eps ExprS{expr} = quantumMaxQueryCostE eps expr
+quantumMaxQueryCostS eps IfThenElseS{s_true, s_false} =
+  max <$> quantumMaxQueryCostS eps s_true <*> quantumMaxQueryCostS eps s_false
+quantumMaxQueryCostS eps (SeqS [s]) = quantumMaxQueryCostS eps s
+quantumMaxQueryCostS eps (SeqS (s : ss)) = do
+  cost_s <- quantumMaxQueryCostS (eps / 2) s
+  cost_ss <- quantumMaxQueryCostS (eps / 2) (SeqS ss)
+  return $ cost_s + cost_ss
+quantumMaxQueryCostS _ _ = error "INVALID"
+
+quantumMaxQueryCost ::
+  forall costT.
+  (Ord costT, Floating costT) =>
+  -- | Qry formulas
+  QSearchFormulas SizeT costT ->
+  -- | failure probability `eps`
+  costT ->
+  -- | program `P`
+  Program SizeT ->
+  costT
+quantumMaxQueryCost algs a_eps Program{funCtx, stmt} =
+  let env = (algs, funCtx)
+   in quantumMaxQueryCostS a_eps stmt `runReader` env
+
+-- Environment to compute the quantum cost (input dependent)
+type DynamicCostEnv sizeT costT = (QSearchFormulas sizeT costT, FunCtx sizeT, OracleInterp)
+
+type QuantumCostCalculator sizeT costT = Reader (DynamicCostEnv sizeT costT)
 
 quantumQueryCostE ::
   (Floating costT) =>
@@ -200,7 +290,7 @@ quantumQueryCostE _ _ TernaryE{} = return 0
 -- -- unsupported
 quantumQueryCostE _ _ FunCallE{} = error "invalid syntax"
 
-extractUEnv :: Lens' (QuantumCostEnv a b) (UnitaryCostEnv a b)
+extractUEnv :: Lens' (DynamicCostEnv a b) (StaticCostEnv a b)
 extractUEnv focus (a, b, c) = (\(a', b') -> (a', b', c)) <$> focus (a, b)
 
 quantumQueryCostS ::
@@ -246,6 +336,25 @@ quantumQueryCost ::
 quantumQueryCost algs a_eps Program{funCtx, stmt} oracleF sigma =
   let env = (algs, funCtx, oracleF)
    in quantumQueryCostS a_eps sigma stmt `runReader` env
+
+-- | The bound on the true expected runtime which fails with probability <= \eps.
+quantumQueryCostBound ::
+  forall costT.
+  (Ord costT, Floating costT) =>
+  -- | Qry formulas
+  QSearchFormulas SizeT costT ->
+  -- | failure probability `eps`
+  costT ->
+  -- | program `P`
+  Program SizeT ->
+  -- | oracle `O`
+  OracleInterp ->
+  -- | state `sigma`
+  ProgramState ->
+  costT
+quantumQueryCostBound algs a_eps p oracleF sigma =
+  (1 - a_eps) * quantumQueryCost algs a_eps p oracleF sigma
+    + a_eps * quantumMaxQueryCost algs a_eps p
 
 -- | Compute if a statement can fail and therefore needs a failure probability to implement
 needsEpsS :: Stmt a -> Reader (FunCtx a) Bool
