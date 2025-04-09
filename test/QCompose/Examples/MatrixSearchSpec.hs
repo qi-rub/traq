@@ -2,6 +2,7 @@ module QCompose.Examples.MatrixSearchSpec (spec) where
 
 import qualified QCompose.Data.Context as Ctx
 
+import qualified QCompose.CQPL as CQPL
 import qualified QCompose.ProtoLang as P
 import qualified QCompose.UnitaryQPL as UQPL
 import QCompose.Utils.Printing
@@ -63,3 +64,8 @@ spec = do
         let (uqpl_cost, _) = UQPL.programCost ex_uqpl
         let proto_cost = P.unitaryQueryCost cadeEtAlFormulas delta ex
         uqpl_cost `shouldBe` proto_cost
+
+    describe "lower to CQPL" $ do
+      let eps = 0.001 :: Double
+      it "lowers" $ do
+        assertRight $ CQPL.lowerProgram undefined Ctx.empty eps ex

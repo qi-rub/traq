@@ -120,8 +120,8 @@ lowerProgram qsearch_config gamma_in delta prog@P.Program{P.funCtx, P.stmt} = do
   return
     ( Program
         { oracle_decl = funCtx & P.oracle_decl & lowerOracleDecl
-        , proc_defs = outputU ^. loweredProcs
-        , uproc_defs = outputU ^. loweredUProcs
+        , proc_defs = outputU ^. loweredProcs . to (Ctx.fromListWith proc_name)
+        , uproc_defs = outputU ^. loweredUProcs . to (Ctx.fromListWith UQPL.proc_name)
         , stmt = stmtQ
         }
     , lowering_ctx' ^. typingCtx

@@ -15,6 +15,8 @@ module QCompose.CQPL.Syntax (
 
 import Text.Printf (printf)
 
+import qualified QCompose.Data.Context as Ctx
+
 import QCompose.Prelude hiding (Value)
 import QCompose.ProtoLang (VarType)
 import qualified QCompose.UnitaryQPL as UQPL
@@ -24,12 +26,14 @@ import QCompose.Utils.Printing
 -- Syntax
 -- ================================================================================
 
+-- | Compile time constant values
 data Value
   = IntV Integer
   | FloatV Float
   | SymV String
   deriving (Eq, Show, Read)
 
+-- | Expressions (RHS of an assignment operation)
 data Expr sizeT
   = ConstE {val :: Value}
   | VarE {var :: Ident}
@@ -41,12 +45,14 @@ data Expr sizeT
   | MinE {lhs, rhs :: Expr sizeT}
   deriving (Eq, Show, Read)
 
+-- | Type of function call
 data FunctionCall
   = FunctionCall Ident
   | OracleCall
   | UProcAndMeas Ident
   deriving (Eq, Show, Read)
 
+-- | CQ Statement
 data Stmt sizeT
   = SkipS
   | AssignS {rets :: [Ident], expr :: Expr sizeT}
@@ -57,6 +63,7 @@ data Stmt sizeT
   | RepeatS {n_iter :: sizeT, loop_body :: Stmt sizeT}
   deriving (Eq, Show, Read)
 
+-- | CQ Procedure
 data ProcDef sizeT = ProcDef
   { proc_name :: Ident
   , proc_params :: [(Ident, VarType sizeT)]
@@ -65,15 +72,17 @@ data ProcDef sizeT = ProcDef
   }
   deriving (Eq, Show, Read)
 
+-- | CQ Oracle Def
 newtype OracleDecl sizeT = OracleDecl
   { oracle_param_types :: [VarType sizeT]
   }
   deriving (Eq, Show, Read)
 
+-- | CQ Program
 data Program sizeT = Program
   { oracle_decl :: OracleDecl sizeT
-  , proc_defs :: [ProcDef sizeT]
-  , uproc_defs :: [UQPL.ProcDef sizeT Float]
+  , proc_defs :: Ctx.Context (ProcDef sizeT)
+  , uproc_defs :: Ctx.Context (UQPL.ProcDef sizeT Float)
   , stmt :: Stmt sizeT
   }
   deriving (Eq, Show, Read)
@@ -168,6 +177,6 @@ instance (Show a) => ToCodeString (ProcDef a) where
 
 instance (Show a) => ToCodeString (Program a) where
   toCodeLines Program{proc_defs, uproc_defs, stmt} =
-    map toCodeString uproc_defs
-      ++ map toCodeString proc_defs
+    map toCodeString (Ctx.elems uproc_defs)
+      ++ map toCodeString (Ctx.elems proc_defs)
       ++ [toCodeString stmt]
