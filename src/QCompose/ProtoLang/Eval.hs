@@ -9,7 +9,7 @@ module QCompose.ProtoLang.Eval (
 
 import Control.Monad (filterM, zipWithM_)
 import Control.Monad.Extra (anyM)
-import Control.Monad.Reader (local)
+import Control.Monad.Reader (ReaderT (runReaderT), local)
 import Control.Monad.State (evalStateT)
 import Control.Monad.Trans (lift)
 import Lens.Micro
@@ -29,10 +29,10 @@ range :: VarType SizeT -> [Value]
 range (Fin n) = [0 .. fromIntegral n - 1]
 
 lookupEnv :: Ident -> Evaluator Value
-lookupEnv k = view (Ctx.at k . singular _Just)
+lookupEnv k = view $ _3 . Ctx.at k . singular _Just
 
 lookupS :: Ident -> Executor Value
-lookupS k = use (Ctx.at k . singular _Just)
+lookupS k = use $ Ctx.at k . singular _Just
 
 putS :: Ident -> Value -> Executor ()
 putS = Ctx.unsafePut
@@ -50,64 +50,76 @@ evalBinOp AndOp 0 _ = 0
 evalBinOp AndOp _ 0 = 0
 evalBinOp AndOp _ _ = 1
 
-evalExpr :: FunCtx SizeT -> OracleInterp -> Expr SizeT -> Evaluator [Value]
+evalExpr :: Expr SizeT -> Evaluator [Value]
 -- basic expressions
-evalExpr _ _ VarE{arg} = do
+evalExpr VarE{arg} = do
   v <- lookupEnv arg
   return [v]
-evalExpr _ _ ConstE{val} = return [val]
-evalExpr _ _ UnOpE{un_op, arg} = do
+evalExpr ConstE{val} = return [val]
+evalExpr UnOpE{un_op, arg} = do
   arg_val <- lookupEnv arg
   let ret_val = evalUnOp un_op arg_val
   return [ret_val]
-evalExpr _ _ BinOpE{bin_op, lhs, rhs} = do
+evalExpr BinOpE{bin_op, lhs, rhs} = do
   lhs_val <- lookupEnv lhs
   rhs_val <- lookupEnv rhs
   let ret_val = evalBinOp bin_op lhs_val rhs_val
   return [ret_val]
 -- function calls
-evalExpr _ oracleF FunCallE{fun_kind = OracleCall, args} = do
+evalExpr FunCallE{fun_kind = OracleCall, args} = do
   arg_vals <- mapM lookupEnv args
+  oracleF <- view _2
   return $ oracleF arg_vals
-evalExpr funCtx oracleF FunCallE{fun_kind = FunctionCall fun, args} = do
+evalExpr FunCallE{fun_kind = FunctionCall fun, args} = do
   arg_vals <- mapM lookupEnv args
+  funCtx <- view _1
+  oracleF <- view _2
   let fun_def = funCtx ^. to fun_defs . Ctx.at fun . singular _Just
   lift $ evalFun funCtx oracleF arg_vals fun_def
 
 -- subroutines
 -- `any` / `search`
-evalExpr funCtx oracleF FunCallE{fun_kind = PrimitiveCall prim_name [predicate], args}
+evalExpr FunCallE{fun_kind = PrimitiveCall prim_name [predicate], args}
   | prim_name == "any" = do
+      search_range <- get_search_range
       has_sol <- anyM evalPredicate search_range
 
       return [boolToValue has_sol]
   | prim_name == "search" = do
+      search_range <- get_search_range
       sols <- filterM evalPredicate search_range
 
       let has_sol = not $ null sols
       let out_vals = if has_sol then sols else search_range
       lift $ Tree.choice [pure [boolToValue has_sol, v] | v <- out_vals]
  where
-  FunDef{param_binds = pred_param_binds} = funCtx ^. to fun_defs . Ctx.at predicate . singular _Just
-  (_, s_arg_ty) = last pred_param_binds
-  search_range = range s_arg_ty
+  get_search_range :: Evaluator [Value]
+  get_search_range = do
+    FunDef{param_binds = pred_param_binds} <- view $ _1 . to fun_defs . Ctx.at predicate . singular _Just
+    let (_, s_arg_ty) = last pred_param_binds
+    let search_range = range s_arg_ty
+    return search_range
 
   evalPredicate :: Value -> Evaluator Bool
   evalPredicate val = (/= 0) <$> runPredicate "_search_arg" val
 
   runPredicate :: Ident -> Value -> Evaluator Value
-  runPredicate s_arg val = local (Ctx.ins s_arg .~ val) $ do
+  runPredicate s_arg val = local (_3 . Ctx.ins s_arg .~ val) $ do
     head
       <$> evalExpr
-        funCtx
-        oracleF
         FunCallE{fun_kind = FunctionCall predicate, args = args ++ [s_arg]}
 -- unsupported
-evalExpr _ _ _ = error "unsupported"
+evalExpr _ = error "unsupported"
+
+-- | Convert a frozen evaluation to an execution.
+evalToExec :: FunCtx SizeT -> OracleInterp -> Evaluator a -> Executor a
+evalToExec fns o m = do
+  sigma <- use id
+  lift $ runReaderT m (fns, o, sigma)
 
 execStmt :: FunCtx SizeT -> OracleInterp -> Stmt SizeT -> Executor ()
 execStmt funCtx oracleF ExprS{rets, expr} = do
-  vals <- withFrozenState $ evalExpr funCtx oracleF expr
+  vals <- evalToExec funCtx oracleF $ evalExpr expr
   zipWithM_ putS rets vals
 execStmt funCtx oracleF IfThenElseS{cond, s_true, s_false} = do
   cond_val <- lookupS cond

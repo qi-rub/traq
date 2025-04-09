@@ -13,6 +13,7 @@ module QCompose.ProtoLang.Types (
   -- * Cost
 ) where
 
+import Control.Monad.RWS (RWST)
 import Control.Monad.Reader (ReaderT)
 import Control.Monad.State (StateT)
 
@@ -46,8 +47,16 @@ type ProgramState = Ctx.Context Value
 -- | Type for a function that implements the oracle
 type OracleInterp = [Value] -> [Value]
 
+-- | Environment for evaluation
+type EvaluationEnv sizeT = (FunCtx sizeT, OracleInterp, ProgramState)
+
 -- | Non-deterministic Evaluation Monad
-type Evaluator = ReaderT ProgramState Tree.Tree
+type Evaluator = ReaderT (EvaluationEnv SizeT) Tree.Tree
+
+-- | Environment for evaluation
+type ExecutionEnv sizeT = (FunCtx sizeT, OracleInterp)
+
+type ExecutionState sizeT = ProgramState
 
 -- | Non-deterministic Execution Monad
 type Executor = StateT ProgramState Tree.Tree
