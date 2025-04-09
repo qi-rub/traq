@@ -26,4 +26,4 @@ spec = do
               ]
       let ex = Sym.unSym <$> ex_
       (cq, _) <- expectRight $ lowerProgram undefined Ctx.empty eps ex
-      cq ^. to stmt `shouldBe` AssignS ["x"] (ConstE (IntV 0))
+      cq ^. to stmt `shouldBe` AssignS ["x"] (ConstE 0)

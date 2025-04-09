@@ -69,7 +69,7 @@ cadeEtAlFormulas =
     nq = 5 * log_fac + pi * sqrt (fromIntegral n * log_fac)
 
 -- | Ancilla and Cost formulas for the unitary quantum search algorithm \( \textbf{QSearch}_\text{Zalka} \).
-zalkaQSearch :: (RealFloat costT) => U.QSearchUnitaryImpl costT
+zalkaQSearch :: (RealFloat costT) => U.QSearchUnitaryImpl SizeT costT
 zalkaQSearch =
   U.QSearchUnitaryImpl
     { U.ancillaTypes = anc

@@ -1,6 +1,5 @@
 module QCompose.CQPL.Syntax (
   -- * Syntax
-  Value (..),
   Expr (..),
   FunctionCall (..),
   Stmt (..),
@@ -17,7 +16,7 @@ import Text.Printf (printf)
 
 import qualified QCompose.Data.Context as Ctx
 
-import QCompose.Prelude hiding (Value)
+import QCompose.Prelude
 import QCompose.ProtoLang (VarType)
 import qualified QCompose.UnitaryQPL as UQPL
 import QCompose.Utils.Printing
@@ -25,13 +24,6 @@ import QCompose.Utils.Printing
 -- ================================================================================
 -- Syntax
 -- ================================================================================
-
--- | Compile time constant values
-data Value
-  = IntV Integer
-  | FloatV Float
-  | SymV String
-  deriving (Eq, Show, Read)
 
 -- | Expressions (RHS of an assignment operation)
 data Expr sizeT
@@ -79,10 +71,10 @@ newtype OracleDecl sizeT = OracleDecl
   deriving (Eq, Show, Read)
 
 -- | CQ Program
-data Program sizeT = Program
+data Program sizeT costT = Program
   { oracle_decl :: OracleDecl sizeT
   , proc_defs :: Ctx.Context (ProcDef sizeT)
-  , uproc_defs :: Ctx.Context (UQPL.ProcDef sizeT Float)
+  , uproc_defs :: Ctx.Context (UQPL.ProcDef sizeT costT)
   , stmt :: Stmt sizeT
   }
   deriving (Eq, Show, Read)
@@ -129,13 +121,8 @@ parenBinExpr :: (Show sizeT) => String -> Expr sizeT -> Expr sizeT -> String
 parenBinExpr op_sym lhs rhs =
   "(" ++ unwords [toCodeString lhs, op_sym, toCodeString rhs] ++ ")"
 
-instance ToCodeString Value where
-  toCodeString (IntV v) = show v
-  toCodeString (FloatV v) = show v
-  toCodeString (SymV v) = v
-
 instance (Show sizeT) => ToCodeString (Expr sizeT) where
-  toCodeString ConstE{val} = toCodeString val
+  toCodeString ConstE{val} = show val
   toCodeString VarE{var} = var
   toCodeString AddE{lhs, rhs} = parenBinExpr "+" lhs rhs
   toCodeString MulE{lhs, rhs} = parenBinExpr "*" lhs rhs
@@ -169,13 +156,13 @@ instance (Show sizeT) => ToCodeString (Stmt sizeT) where
       ++ indent (toCodeLines loop_body)
       ++ ["end"]
 
-instance (Show a) => ToCodeString (ProcDef a) where
+instance (Show sizeT) => ToCodeString (ProcDef sizeT) where
   toCodeLines ProcDef{proc_name, proc_params, proc_body} =
     [printf "proc %s(%s)" proc_name (commaList $ map fst proc_params)]
       ++ indent (toCodeLines proc_body)
       ++ ["end"]
 
-instance (Show a) => ToCodeString (Program a) where
+instance (Show sizeT, Show costT) => ToCodeString (Program sizeT costT) where
   toCodeLines Program{proc_defs, uproc_defs, stmt} =
     map toCodeString (Ctx.elems uproc_defs)
       ++ map toCodeString (Ctx.elems proc_defs)
