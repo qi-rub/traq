@@ -1,0 +1,174 @@
+uproc IsEntryZero[6.785875e-11](i0 : IN Fin<20>, j0 : IN Fin<10>, e' : OUT Fin<2>, e : AUX Fin<2>) do
+  i0, j0, e *= Oracle;
+  e, e' *= RevEmbed[x : Fin<2> => ~x];
+end
+
+uproc IsEntryZero_clean[1.357175e-10](i0 : IN Fin<20>, j0 : IN Fin<10>, e' : OUT Fin<2>, aux : AUX Fin<2>, aux_1 : AUX Fin<2>) do
+  call IsEntryZero[6.785875e-11](i0, j0, aux, aux_1);
+  aux, e' *= RevEmbed[x : Fin<2> => x];
+  call† IsEntryZero[6.785875e-11](i0, j0, aux, aux_1);
+end
+
+uproc QSearch[10, 9.992682e-8, IsEntryZero_clean[1.357175e-10]](_qs :  Fin<20>, _qs_1 :  Fin<2>, _qs_2 :  Fin<10>, _qs_3 :  Fin<2>, _qs_4 :  Fin<2>) do
+  _qs, _qs_1, _qs_2, _qs_3, _qs_4 *= BlackBoxU (QSearchBB {pred_name = "IsEntryZero_clean[1.357175e-10]", n_pred_calls = 736.2854});
+end
+
+uproc IsRowAllOnes[3.997073e-7](i : IN Fin<20>, okr' : OUT Fin<2>, okr : AUX Fin<2>, aux_2 : AUX Fin<2>, aux_3 : AUX Fin<2>, aux_4 : AUX Fin<10>) do
+  call QSearch[10, 9.992682e-8, IsEntryZero_clean[1.357175e-10]](i, okr, aux_4, aux_2, aux_3);
+  okr, okr' *= RevEmbed[x : Fin<2> => ~x];
+end
+
+uproc IsRowAllOnes_clean[7.994146e-7](i : IN Fin<20>, okr' : OUT Fin<2>, aux_5 : AUX Fin<2>, aux_6 : AUX Fin<2>, aux_7 : AUX Fin<2>, aux_8 : AUX Fin<2>, aux_9 : AUX Fin<10>) do
+  call IsRowAllOnes[3.997073e-7](i, aux_5, aux_6, aux_7, aux_8, aux_9);
+  aux_5, okr' *= RevEmbed[x : Fin<2> => x];
+  call† IsRowAllOnes[3.997073e-7](i, aux_5, aux_6, aux_7, aux_8, aux_9);
+end
+
+proc QSearch[5.0e-4](ok)
+  not_done := !ok;
+  repeat 0 do
+    if (not_done) then
+      x :=$ Fin<20>;
+      HOLE :: classical predicate call;
+      not_done := !ok;
+    else
+      skip;
+    end
+  end
+  repeat 7 do
+    Q_sum := 0;
+    j :=$ Fin<2>;
+    Q_sum := (Q_sum + j);
+    can_run := (Q_sum <= 1);
+    if (can_run) then
+      HOLE :: TODO callandmeas: grover cycle_1;
+    else
+      skip;
+    end
+    HOLE :: classical predicate call;
+    j :=$ Fin<2>;
+    Q_sum := (Q_sum + j);
+    can_run := (Q_sum <= 1);
+    if (can_run) then
+      HOLE :: TODO callandmeas: grover cycle_1;
+    else
+      skip;
+    end
+    HOLE :: classical predicate call;
+    j :=$ Fin<2>;
+    Q_sum := (Q_sum + j);
+    can_run := (Q_sum <= 1);
+    if (can_run) then
+      HOLE :: TODO callandmeas: grover cycle_1;
+    else
+      skip;
+    end
+    HOLE :: classical predicate call;
+    j :=$ Fin<3>;
+    Q_sum := (Q_sum + j);
+    can_run := (Q_sum <= 2);
+    if (can_run) then
+      HOLE :: TODO callandmeas: grover cycle_2;
+    else
+      skip;
+    end
+    HOLE :: classical predicate call;
+    j :=$ Fin<3>;
+    Q_sum := (Q_sum + j);
+    can_run := (Q_sum <= 2);
+    if (can_run) then
+      HOLE :: TODO callandmeas: grover cycle_2;
+    else
+      skip;
+    end
+    HOLE :: classical predicate call;
+    j :=$ Fin<3>;
+    Q_sum := (Q_sum + j);
+    can_run := (Q_sum <= 2);
+    if (can_run) then
+      HOLE :: TODO callandmeas: grover cycle_2;
+    else
+      skip;
+    end
+    HOLE :: classical predicate call;
+    j :=$ Fin<4>;
+    Q_sum := (Q_sum + j);
+    can_run := (Q_sum <= 3);
+    if (can_run) then
+      HOLE :: TODO callandmeas: grover cycle_3;
+    else
+      skip;
+    end
+    HOLE :: classical predicate call;
+    j :=$ Fin<5>;
+    Q_sum := (Q_sum + j);
+    can_run := (Q_sum <= 4);
+    if (can_run) then
+      HOLE :: TODO callandmeas: grover cycle_4;
+    else
+      skip;
+    end
+    HOLE :: classical predicate call;
+    j :=$ Fin<5>;
+    Q_sum := (Q_sum + j);
+    can_run := (Q_sum <= 4);
+    if (can_run) then
+      HOLE :: TODO callandmeas: grover cycle_4;
+    else
+      skip;
+    end
+    HOLE :: classical predicate call;
+    j :=$ Fin<5>;
+    Q_sum := (Q_sum + j);
+    can_run := (Q_sum <= 4);
+    if (can_run) then
+      HOLE :: TODO callandmeas: grover cycle_4;
+    else
+      skip;
+    end
+    HOLE :: classical predicate call;
+    j :=$ Fin<5>;
+    Q_sum := (Q_sum + j);
+    can_run := (Q_sum <= 4);
+    if (can_run) then
+      HOLE :: TODO callandmeas: grover cycle_4;
+    else
+      skip;
+    end
+    HOLE :: classical predicate call;
+    j :=$ Fin<5>;
+    Q_sum := (Q_sum + j);
+    can_run := (Q_sum <= 4);
+    if (can_run) then
+      HOLE :: TODO callandmeas: grover cycle_4;
+    else
+      skip;
+    end
+    HOLE :: classical predicate call;
+    j :=$ Fin<5>;
+    Q_sum := (Q_sum + j);
+    can_run := (Q_sum <= 4);
+    if (can_run) then
+      HOLE :: TODO callandmeas: grover cycle_4;
+    else
+      skip;
+    end
+    HOLE :: classical predicate call;
+    j :=$ Fin<5>;
+    Q_sum := (Q_sum + j);
+    can_run := (Q_sum <= 4);
+    if (can_run) then
+      HOLE :: TODO callandmeas: grover cycle_4;
+    else
+      skip;
+    end
+    HOLE :: classical predicate call;
+  end
+end
+
+proc HasAllOnesRow[1.0e-3](ok)
+  call QSearch[5.0e-4](ok);
+end
+
+call HasAllOnesRow[1.0e-3](result);
+

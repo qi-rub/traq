@@ -214,7 +214,7 @@ lowerExpr eps P.FunCallE{P.fun_kind = P.PrimitiveCall "any" [predicate], P.args}
           (\x b -> error "TODO unitary pred call")
           (\x b -> HoleS "classical predicate call")
           qsearch_params
-  qsearch_proc_name <- newIdent "QSearch"
+  qsearch_proc_name <- newIdent $ printf "QSearch[%s]" (show eps_s)
   addProc $ qsearch_proc{proc_name = qsearch_proc_name}
 
   return
