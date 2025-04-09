@@ -59,4 +59,4 @@ type ExecutionEnv sizeT = (FunCtx sizeT, OracleInterp)
 type ExecutionState sizeT = ProgramState
 
 -- | Non-deterministic Execution Monad
-type Executor = StateT ProgramState Tree.Tree
+type Executor = RWST (ExecutionEnv SizeT) () (ExecutionState SizeT) Tree.Tree

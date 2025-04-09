@@ -1,7 +1,5 @@
 module QCompose.Examples.SearchSpec (spec) where
 
-import Control.Monad.State (execStateT)
-
 import qualified QCompose.Data.Context as Ctx
 import qualified QCompose.Data.Tree as Tree
 
@@ -27,7 +25,7 @@ spec = do
 
     let oracleF = const [0]
     it "evaluates" $ do
-      let res = execStateT (P.execProgram ex oracleF) Ctx.empty
+      let res = P.runProgram ex oracleF Ctx.empty
       res `shouldBe` pure (Ctx.singleton "result" 0)
 
     let P.QSearchFormulas ecF _ ucF = cadeEtAlFormulas
@@ -69,7 +67,7 @@ spec = do
     let oracleF = \[i] -> [if i `elem` planted_sols then 1 else 0]
 
     it "evaluates" $ do
-      let res = execStateT (P.execProgram ex oracleF) Ctx.empty
+      let res = P.runProgram ex oracleF Ctx.empty
       res
         `shouldBe` Tree.choice
           [ pure $ Ctx.fromList [("result", 1), ("solution", i)]

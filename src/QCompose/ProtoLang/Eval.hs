@@ -4,19 +4,18 @@ module QCompose.ProtoLang.Eval (
   OracleInterp,
   execStmt,
   evalFun,
-  execProgram,
+  runProgram,
 ) where
 
 import Control.Monad (filterM, zipWithM_)
 import Control.Monad.Extra (anyM)
+import Control.Monad.RWS (MonadState, runRWST)
 import Control.Monad.Reader (ReaderT (runReaderT), local)
-import Control.Monad.State (evalStateT)
 import Control.Monad.Trans (lift)
 import Lens.Micro
 import Lens.Micro.GHC ()
 import Lens.Micro.Mtl
 
-import QCompose.Control.MonadHelpers
 import qualified QCompose.Data.Context as Ctx
 import qualified QCompose.Data.Tree as Tree
 
@@ -31,10 +30,10 @@ range (Fin n) = [0 .. fromIntegral n - 1]
 lookupEnv :: Ident -> Evaluator Value
 lookupEnv k = view $ _3 . Ctx.at k . singular _Just
 
-lookupS :: Ident -> Executor Value
+lookupS :: (MonadState ProgramState m) => Ident -> m Value
 lookupS k = use $ Ctx.at k . singular _Just
 
-putS :: Ident -> Value -> Executor ()
+putS :: (MonadState ProgramState m) => Ident -> Value -> m ()
 putS = Ctx.unsafePut
 
 evalUnOp :: UnOp -> Value -> Value
@@ -112,30 +111,37 @@ evalExpr FunCallE{fun_kind = PrimitiveCall prim_name [predicate], args}
 evalExpr _ = error "unsupported"
 
 -- | Convert a frozen evaluation to an execution.
-evalToExec :: FunCtx SizeT -> OracleInterp -> Evaluator a -> Executor a
-evalToExec fns o m = do
+evalToExec :: Evaluator a -> Executor a
+evalToExec m = do
+  fns <- view _1
+  o <- view _2
   sigma <- use id
   lift $ runReaderT m (fns, o, sigma)
 
-execStmt :: FunCtx SizeT -> OracleInterp -> Stmt SizeT -> Executor ()
-execStmt funCtx oracleF ExprS{rets, expr} = do
-  vals <- evalToExec funCtx oracleF $ evalExpr expr
+execStmt :: Stmt SizeT -> Executor ()
+execStmt ExprS{rets, expr} = do
+  vals <- evalToExec $ evalExpr expr
   zipWithM_ putS rets vals
-execStmt funCtx oracleF IfThenElseS{cond, s_true, s_false} = do
+execStmt IfThenElseS{cond, s_true, s_false} = do
   cond_val <- lookupS cond
   let s = if cond_val == 0 then s_false else s_true
-  execStmt funCtx oracleF s
-execStmt funCtx oracleF (SeqS ss) = mapM_ (execStmt funCtx oracleF) ss
+  execStmt s
+execStmt (SeqS ss) = mapM_ execStmt ss
 
 evalFun :: FunCtx SizeT -> OracleInterp -> [Value] -> FunDef SizeT -> Tree.Tree [Value]
 evalFun funCtx oracleF vals_in FunDef{param_binds, ret_binds, body} =
-  (`evalStateT` params) $ do
-    execStmt funCtx oracleF body
+  fmap (view _1) . (\m -> runRWST m env st) $ do
+    execStmt body
     mapM lookupS ret_names
  where
   param_names = map fst param_binds
   params = Ctx.fromList $ zip param_names vals_in
   ret_names = map fst ret_binds
 
-execProgram :: Program SizeT -> OracleInterp -> Executor ()
-execProgram Program{funCtx, stmt} oracleF = execStmt funCtx oracleF stmt
+  env = (funCtx, oracleF)
+  st = params
+
+runProgram :: Program SizeT -> OracleInterp -> ProgramState -> Tree.Tree ProgramState
+runProgram Program{funCtx, stmt} oracleF st = view _2 <$> runRWST (execStmt stmt) env st
+ where
+  env = (funCtx, oracleF)

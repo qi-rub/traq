@@ -36,7 +36,6 @@ module QCompose.ProtoLang.Cost (
 
 import Control.Monad (filterM)
 import Control.Monad.Reader (Reader, runReader)
-import Control.Monad.State (execStateT)
 import Data.Foldable (toList)
 import Lens.Micro
 import Lens.Micro.Mtl
@@ -312,8 +311,7 @@ quantumQueryCostS eps sigma (SeqS (s : ss)) = do
 
   funCtx <- view _2
   oracleF <- view _3
-  let runner = execProgram Program{funCtx, stmt = s} oracleF
-  let sigma' = detExtract $ execStateT runner sigma
+  let sigma' = detExtract $ runProgram Program{funCtx, stmt = s} oracleF sigma
 
   cost_ss <- quantumQueryCostS (eps / 2) sigma' (SeqS ss)
   return $ cost_s + cost_ss
