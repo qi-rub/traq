@@ -98,12 +98,12 @@ lowerProgram ::
   -- | the implementation of primitive `any`
   QSearchCQImpl sizeT costT ->
   -- | input bindings to the source program
-  P.TypingCtx SizeT ->
+  P.TypingCtx sizeT ->
   -- | fail prob \( \varepsilon \)
   costT ->
   -- | source program
-  P.Program SizeT ->
-  Either String (Program SizeT, P.TypingCtx SizeT)
+  P.Program sizeT ->
+  Either String (Program sizeT, P.TypingCtx sizeT)
 lowerProgram qsearch_config gamma_in delta prog@P.Program{P.funCtx, P.stmt} = do
   unless (P.checkVarsUnique prog) $
     throwError "program does not have unique variables!"

@@ -55,6 +55,7 @@ data Stmt sizeT
   | SeqS [Stmt sizeT]
   | IfThenElseS {cond :: Ident, s_true, s_false :: Stmt sizeT}
   | RepeatS {n_iter :: sizeT, loop_body :: Stmt sizeT}
+  deriving (Eq, Show, Read)
 
 data ProcDef sizeT = ProcDef
   { proc_name :: Ident
@@ -62,6 +63,7 @@ data ProcDef sizeT = ProcDef
   , proc_local_vars :: [(Ident, VarType sizeT)]
   , proc_body :: Stmt sizeT
   }
+  deriving (Eq, Show, Read)
 
 newtype OracleDecl sizeT = OracleDecl
   { oracle_param_types :: [VarType sizeT]
@@ -74,6 +76,7 @@ data Program sizeT = Program
   , uproc_defs :: [UQPL.ProcDef sizeT Float]
   , stmt :: Stmt sizeT
   }
+  deriving (Eq, Show, Read)
 
 -- ================================================================================
 -- Syntax Sugar
