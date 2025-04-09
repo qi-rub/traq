@@ -68,6 +68,9 @@ executables:
   uqplcompile:
     main: uqplcompile.hs
     <<: *exe_opts
+  cqplcompile:
+    main: cqplcompile.hs
+    <<: *exe_opts
 
 tests:
   spec:

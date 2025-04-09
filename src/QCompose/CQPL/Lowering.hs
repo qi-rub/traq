@@ -211,14 +211,15 @@ lowerExpr eps P.FunCallE{P.fun_kind = P.PrimitiveCall "any" [predicate], P.args}
           s_ty
           0
           eps_s
-          (error "TODO unitary pred call")
-          (error "no classical calls for now")
+          (\x b -> error "TODO unitary pred call")
+          (\x b -> HoleS "classical predicate call")
           qsearch_params
-  addProc qsearch_proc
+  qsearch_proc_name <- newIdent "QSearch"
+  addProc $ qsearch_proc{proc_name = qsearch_proc_name}
 
   return
     CallS
-      { fun = FunctionCall $ qsearch_proc ^. to proc_name
+      { fun = FunctionCall qsearch_proc_name
       , args = args ++ rets
       }
 lowerExpr _ e _ = error $ "TODO implement lowerExpr " <> show e

@@ -200,15 +200,18 @@ qSearch ty n_samples eps upred_caller pred_caller params =
   quantumSampling, quantumSamplingOneRound :: CQ.Stmt SizeT
   quantumSampling = CQ.RepeatS n_runs quantumSamplingOneRound
   quantumSamplingOneRound =
-    CQ.SeqS
-      [ CQ.IfThenElseS "ok" CQ.SkipS (quantumGroverOnce j)
-      | j <- sampling_ranges
-      ]
+    CQ.SeqS $
+      CQ.AssignS ["Q_sum"] (CQ.ConstE 0)
+        : map quantumGroverOnce sampling_ranges
 
-  quantumGroverOnce j =
+  -- one call and meas to grover with j iterations
+  quantumGroverOnce j_lim =
     CQ.SeqS
-      [ error $ "TODO call and meas: grover cycle" <> show j
-      , CQ.CallS CQ.OracleCall ["y", "ok"]
+      [ CQ.RandomS "j" (P.Fin $ j_lim + 1)
+      , CQ.AssignS ["Q_sum"] (CQ.AddE (CQ.VarE "Q_sum") (CQ.VarE "j"))
+      , CQ.AssignS ["can_run"] (CQ.LEqE (CQ.VarE "Q_sum") (CQ.ConstE $ fromIntegral j_lim))
+      , CQ.IfThenElseS "can_run" (CQ.HoleS $ "TODO callandmeas: grover cycle_" <> show j_lim) CQ.SkipS
+      , pred_caller "y" "ok"
       ]
 
 qSearchCQImpl :: (RealFloat costT) => CQ.QSearchCQImpl SizeT costT

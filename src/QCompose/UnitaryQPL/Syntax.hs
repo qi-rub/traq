@@ -67,6 +67,7 @@ data Stmt sizeT costT
   | CallS {proc_id :: Ident, dagger :: Bool, args :: [Ident]} -- call F(q...)
   | SeqS [Stmt sizeT costT] -- W1; W2; ...
   | RepeatS sizeT (Stmt sizeT costT) -- repeat k do S;
+  | HoleS String -- temporary place holder
   deriving (Eq, Show, Read)
 
 instance HasDagger (Stmt sizeT costT) where
@@ -75,6 +76,7 @@ instance HasDagger (Stmt sizeT costT) where
   adjoint (SeqS ss) = SeqS . reverse $ map adjoint ss
   adjoint s@UnitaryS{unitary} = s{unitary = adjoint unitary}
   adjoint (RepeatS k s) = RepeatS k (adjoint s)
+  adjoint (HoleS info) = HoleS $ info ++ " (adjoint)"
 
 data ParamTag = ParamInp | ParamOut | ParamAux | ParamUnk deriving (Eq, Show, Read, Enum)
 
@@ -133,6 +135,7 @@ instance (Show a, Show b) => ToCodeString (Stmt a b) where
     [printf "repeat %s do" (show k)]
       ++ indent (toCodeLines s)
       ++ ["end"]
+  toCodeLines (HoleS info) = [printf "HOLE :: %s;" info]
 
 instance ToCodeString ParamTag where
   toCodeString ParamInp = "IN"

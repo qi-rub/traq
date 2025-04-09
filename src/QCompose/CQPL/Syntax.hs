@@ -53,6 +53,7 @@ data Stmt sizeT
   | SeqS [Stmt sizeT]
   | IfThenElseS {cond :: Ident, s_true, s_false :: Stmt sizeT}
   | RepeatS {n_iter :: sizeT, loop_body :: Stmt sizeT}
+  | HoleS String
   deriving (Eq, Show, Read)
 
 -- | CQ Procedure
@@ -133,7 +134,7 @@ instance (Show sizeT) => ToCodeString (Expr sizeT) where
     "min(" ++ toCodeString lhs ++ ", " ++ toCodeString rhs ++ ")"
 
 instance (Show sizeT) => ToCodeString (Stmt sizeT) where
-  toCodeLines SkipS = []
+  toCodeLines SkipS = ["skip;"]
   toCodeLines AssignS{rets, expr} =
     [printf "%s := %s;" (commaList rets) (toCodeString expr)]
   toCodeLines RandomS{ret, ty} =
@@ -155,6 +156,7 @@ instance (Show sizeT) => ToCodeString (Stmt sizeT) where
     [printf "repeat %s do" (show n_iter)]
       ++ indent (toCodeLines loop_body)
       ++ ["end"]
+  toCodeLines (HoleS info) = [printf "HOLE :: %s;" info]
 
 instance (Show sizeT) => ToCodeString (ProcDef sizeT) where
   toCodeLines ProcDef{proc_name, proc_params, proc_body} =
