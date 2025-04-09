@@ -68,4 +68,4 @@ spec = do
     describe "lower to CQPL" $ do
       let eps = 0.001 :: Double
       it "lowers" $ do
-        assertRight $ CQPL.lowerProgram undefined Ctx.empty eps ex
+        assertRight $ CQPL.lowerProgram qSearchCQImpl Ctx.empty eps ex

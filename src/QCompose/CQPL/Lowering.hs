@@ -4,6 +4,7 @@ module QCompose.CQPL.Lowering (
 
   -- * Primitive implementations
   QSearchCQImpl (..),
+  QSearchAlgorithm,
 ) where
 
 import Control.Monad.Except (throwError)
@@ -22,9 +23,19 @@ import qualified QCompose.UnitaryQPL as UQPL
 
 -- | Shape of a QSearch implementation
 type QSearchAlgorithm sizeT costT =
+  -- | search elem type
   P.VarType sizeT ->
+  -- | number of classical samples
   sizeT ->
+  -- | max fail prob
   costT ->
+  -- | unitary predicate caller
+  (Ident -> Ident -> UQPL.Stmt sizeT costT) ->
+  -- | cqpl predicate caller
+  (Ident -> Ident -> Stmt sizeT) ->
+  -- | arguments to the function
+  [(Ident, P.VarType sizeT)] ->
+  -- | the generated QSearch procedure
   ProcDef sizeT
 
 -- | Formulas for primitives
@@ -181,17 +192,36 @@ lowerExpr eps P.FunCallE{P.fun_kind = P.PrimitiveCall "any" [predicate], P.args}
 
   -- lower the unitary predicate
   let upred_compiler = UQPL.lowerFunDef delta_per_pred_call pred_fun
-  (pred_uproc, _, uprocs) <- lift $ runRWST upred_compiler undefined undefined
+  (pred_uproc, uprocs) <- do
+    uenv <- view id <&> _2 %~ unitaryImpl
+    ust <- use id
+    (a, _, w) <- lift $ runRWST upred_compiler uenv ust
+    return (a, w)
+
   tell $ mempty & loweredUProcs .~ uprocs
   let pred_proc_name = pred_uproc ^. to UQPL.lowered_def . to UQPL.proc_name
 
   -- emit the QSearch algorithm
+  qsearch_builder <- view $ qsearchConfig . to qsearchAlgo
+  qsearch_params <- forM (args ++ rets) $ \x -> do
+    ty <- use $ typingCtx . Ctx.at x . singular _Just
+    return (x, ty)
+  let qsearch_proc =
+        qsearch_builder
+          s_ty
+          0
+          eps_s
+          (error "TODO unitary pred call")
+          (error "no classical calls for now")
+          qsearch_params
+  addProc qsearch_proc
 
-  undefined
+  return
+    CallS
+      { fun = FunctionCall $ qsearch_proc ^. to proc_name
+      , args = args ++ rets
+      }
 lowerExpr _ e _ = error $ "TODO implement lowerExpr " <> show e
-
-convertToUQPLEnv :: Lens' (LoweringEnv sizeT costT) (UQPL.LoweringConfig sizeT costT)
-convertToUQPLEnv = lens (_2 %~ unitaryImpl) undefined
 
 -- | Lower a single statement
 lowerStmt ::
