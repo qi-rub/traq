@@ -35,11 +35,12 @@ module QCompose.ProtoLang.Cost (
 ) where
 
 import Control.Monad (filterM)
-import Control.Monad.Reader (Reader, runReader)
+import Control.Monad.Identity (Identity (runIdentity))
 import Data.Foldable (toList)
 import Lens.Micro
 import Lens.Micro.Mtl
 
+import QCompose.Control.Monad
 import qualified QCompose.Data.Context as Ctx
 import qualified QCompose.Data.Tree as Tree
 
@@ -67,7 +68,7 @@ unsafeLookupFun fname funCtx = funCtx ^. to fun_defs . Ctx.at fname . singular _
 -- Environment to compute the unitary cost
 type StaticCostEnv sizeT costT = (QSearchFormulas sizeT costT, FunCtx sizeT)
 
-type UnitaryCostCalculator sizeT costT = Reader (StaticCostEnv sizeT costT)
+type UnitaryCostCalculator sizeT costT = MyReaderT (StaticCostEnv sizeT costT) Maybe
 
 -- Evaluate the query cost of an expression
 unitaryQueryCostE ::
@@ -145,12 +146,12 @@ unitaryQueryCost ::
   costT
 unitaryQueryCost algs delta Program{funCtx, stmt} =
   let env = (algs, funCtx)
-   in unitaryQueryCostS delta stmt `runReader` env
+   in unitaryQueryCostS delta stmt `runMyReaderT` env ^. singular _Just
 
 -- Quantum Cost
 
 -- Environment to compute the max quantum cost (input independent)
-type QuantumMaxCostCalculator sizeT costT = Reader (StaticCostEnv sizeT costT)
+type QuantumMaxCostCalculator sizeT costT = MyReaderT (StaticCostEnv sizeT costT) Maybe
 
 quantumMaxQueryCostE ::
   (Ord costT, Floating costT) =>
@@ -221,12 +222,12 @@ quantumMaxQueryCost ::
   costT
 quantumMaxQueryCost algs a_eps Program{funCtx, stmt} =
   let env = (algs, funCtx)
-   in quantumMaxQueryCostS a_eps stmt `runReader` env
+   in quantumMaxQueryCostS a_eps stmt `runMyReaderT` env ^. singular _Just
 
 -- Environment to compute the quantum cost (input dependent)
 type DynamicCostEnv sizeT costT = (QSearchFormulas sizeT costT, FunCtx sizeT, OracleInterp)
 
-type QuantumCostCalculator sizeT costT = Reader (DynamicCostEnv sizeT costT)
+type QuantumCostCalculator sizeT costT = MyReaderT (DynamicCostEnv sizeT costT) Maybe
 
 quantumQueryCostE ::
   (Floating costT) =>
@@ -333,7 +334,7 @@ quantumQueryCost ::
   costT
 quantumQueryCost algs a_eps Program{funCtx, stmt} oracleF sigma =
   let env = (algs, funCtx, oracleF)
-   in quantumQueryCostS a_eps sigma stmt `runReader` env
+   in quantumQueryCostS a_eps sigma stmt `runMyReaderT` env ^. singular _Just
 
 -- | The bound on the true expected runtime which fails with probability <= \eps.
 quantumQueryCostBound ::
@@ -355,7 +356,7 @@ quantumQueryCostBound algs a_eps p oracleF sigma =
     + a_eps * quantumMaxQueryCost algs a_eps p
 
 -- | Compute if a statement can fail and therefore needs a failure probability to implement
-needsEpsS :: Stmt a -> Reader (FunCtx a) Bool
+needsEpsS :: Stmt a -> MyReaderT (FunCtx a) Identity Bool
 needsEpsS IfThenElseS{s_true, s_false} = (||) <$> needsEpsS s_true <*> needsEpsS s_false
 needsEpsS (SeqS ss) = or <$> traverse needsEpsS ss
 needsEpsS ExprS{expr = FunCallE{fun_kind = PrimitiveCall _ _}} = return True
@@ -365,4 +366,4 @@ needsEpsS _ = return False
 
 -- | Compute if a program can fail and therefore needs a failure probability to implement
 needsEpsP :: Program a -> Bool
-needsEpsP Program{funCtx, stmt} = runReader (needsEpsS stmt) funCtx
+needsEpsP Program{funCtx, stmt} = runIdentity $ runMyReaderT (needsEpsS stmt) funCtx

@@ -21,7 +21,7 @@ extra-doc-files:
 library
     exposed-modules:
           QCompose
-          QCompose.Control.MonadHelpers
+          QCompose.Control.Monad
           QCompose.CQPL
           QCompose.CQPL.Lowering
           QCompose.CQPL.Syntax

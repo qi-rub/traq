@@ -17,8 +17,6 @@ module QCompose.ProtoLang.Syntax (
   _stmt,
 ) where
 
-import Lens.Micro
-
 import qualified QCompose.Data.Context as Ctx
 
 import QCompose.Prelude

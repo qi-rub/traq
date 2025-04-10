@@ -15,7 +15,7 @@ import Lens.Micro.Mtl
 import Text.Printf (printf)
 
 import QCompose.CQPL.Syntax
-import QCompose.Control.MonadHelpers
+import QCompose.Control.Monad
 import qualified QCompose.Data.Context as Ctx
 import QCompose.Prelude
 import qualified QCompose.ProtoLang as P
@@ -100,7 +100,7 @@ newIdent prefix = do
 
 -- | Add a new procedure.
 addProc :: ProcDef sizeT -> CompilerT sizeT costT ()
-addProc procDef = tell $ mempty & loweredProcs .~ [procDef]
+addProc procDef = tellAt loweredProcs [procDef]
 
 -- ================================================================================
 -- Compilation
@@ -199,7 +199,7 @@ lowerExpr eps P.FunCallE{P.fun_kind = P.PrimitiveCall "any" [predicate], P.args}
     (a, _, w) <- lift $ runRWST upred_compiler uenv ust
     return (a, w)
 
-  tell $ mempty & loweredUProcs .~ uprocs
+  tellAt loweredUProcs uprocs
   let pred_proc_name = pred_uproc ^. to UQPL.lowered_def . to UQPL.proc_name
 
   -- emit the QSearch algorithm
