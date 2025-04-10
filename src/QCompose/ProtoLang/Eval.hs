@@ -20,8 +20,8 @@ import qualified QCompose.Data.Context as Ctx
 import qualified QCompose.Data.Tree as Tree
 
 import QCompose.Prelude
+import QCompose.ProtoLang.Monad
 import QCompose.ProtoLang.Syntax
-import QCompose.ProtoLang.Types
 
 -- evaluation
 range :: VarType SizeT -> [Value]

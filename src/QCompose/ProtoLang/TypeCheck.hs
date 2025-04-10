@@ -19,8 +19,8 @@ import qualified QCompose.Data.Context as Ctx
 
 import QCompose.Control.MonadHelpers
 import QCompose.Prelude
+import QCompose.ProtoLang.Monad
 import QCompose.ProtoLang.Syntax
-import QCompose.ProtoLang.Types
 
 lookupFunE :: Ident -> FunCtx a -> TypeChecker a (FunDef a)
 lookupFunE fname funCtx =

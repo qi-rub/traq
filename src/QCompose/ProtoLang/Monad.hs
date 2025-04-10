@@ -1,4 +1,4 @@
-module QCompose.ProtoLang.Types (
+module QCompose.ProtoLang.Monad (
   -- * Type Checking
   TypingCtx,
   TypeChecker,

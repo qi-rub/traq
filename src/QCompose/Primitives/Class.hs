@@ -8,8 +8,8 @@ import Control.Monad.Reader (MonadReader)
 import Control.Monad.State (MonadState)
 
 import QCompose.Prelude
+import QCompose.ProtoLang.Monad
 import QCompose.ProtoLang.Syntax
-import QCompose.ProtoLang.Types
 
 -- | Environment for type checking
 type TypeCheckEnv sizeT = (FunCtx sizeT, TypingCtx sizeT)

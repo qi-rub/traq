@@ -36,11 +36,11 @@ library
           QCompose.ProtoLang
           QCompose.ProtoLang.Cost
           QCompose.ProtoLang.Eval
+          QCompose.ProtoLang.Monad
           QCompose.ProtoLang.Parser
           QCompose.ProtoLang.Rewrites
           QCompose.ProtoLang.Syntax
           QCompose.ProtoLang.TypeCheck
-          QCompose.ProtoLang.Types
           QCompose.ProtoLang.Vars
           QCompose.UnitaryQPL
           QCompose.UnitaryQPL.Cost
