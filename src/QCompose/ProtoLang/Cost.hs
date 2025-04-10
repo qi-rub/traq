@@ -323,13 +323,13 @@ quantumQueryCost ::
   (Floating costT) =>
   -- | Qry formulas
   QSearchFormulas SizeT costT ->
-  -- | failure probability `eps`
+  -- | failure probability \( \varepsilon \)
   costT ->
-  -- | program `P`
+  -- | program @P@
   Program SizeT ->
-  -- | oracle `O`
+  -- | oracle @O@
   OracleInterp ->
-  -- | state `sigma`
+  -- | state \( \sigma \)
   ProgramState ->
   costT
 quantumQueryCost algs a_eps Program{funCtx, stmt} oracleF sigma =
@@ -342,13 +342,13 @@ quantumQueryCostBound ::
   (Ord costT, Floating costT) =>
   -- | Qry formulas
   QSearchFormulas SizeT costT ->
-  -- | failure probability `eps`
+  -- | failure probability \( \varepsilon \)
   costT ->
-  -- | program `P`
+  -- | program @P@
   Program SizeT ->
-  -- | oracle `O`
+  -- | oracle @O@
   OracleInterp ->
-  -- | state `sigma`
+  -- | state \( \sigma \)
   ProgramState ->
   costT
 quantumQueryCostBound algs a_eps p oracleF sigma =

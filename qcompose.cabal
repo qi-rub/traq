@@ -20,7 +20,6 @@ extra-doc-files:
 
 library
     exposed-modules:
-          QCompose
           QCompose.Control.Monad
           QCompose.CQPL
           QCompose.CQPL.Lowering

@@ -2,6 +2,10 @@ module QCompose.UnitaryQPL.TypeCheck (
   typeCheckStmt,
   typeCheckProc,
   typeCheckProgram,
+
+  -- * Types
+  CheckingCtx,
+  TypeChecker,
 ) where
 
 import Control.Monad (forM, forM_, when)
