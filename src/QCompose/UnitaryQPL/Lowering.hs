@@ -339,9 +339,8 @@ lowerFunDef delta fun@P.FunDef{P.fun_name, P.param_binds, P.ret_binds} = withSan
           { proc_name
           , proc_params =
               withTag ParamInp param_binds
-                ++ zip3 ret_names (repeat ParamOut) g_ret_tys
-                ++ zip3 g_ret_names (repeat ParamAux) g_ret_tys
-                ++ zip3 g_aux_names (repeat ParamAux) g_aux_tys
+                ++ withTag ParamOut (zip ret_names g_ret_tys)
+                ++ withTag ParamAux (zip g_ret_names g_ret_tys ++ zip g_aux_names g_aux_tys)
           , proc_body
           }
   addProc proc_def

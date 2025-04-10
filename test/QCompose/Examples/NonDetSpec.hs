@@ -56,7 +56,7 @@ spec = do
     it "some solutions" $ do
       ex <- load'
       let sols = [1, 4, 6] :: [Value]
-      let oracleF = \[i] -> [boolToValue $ i `elem` sols]
+      let oracleF = \[i] -> [P.boolToValue $ i `elem` sols]
       let out = P.runProgram ex oracleF Ctx.empty
 
       out

@@ -1,10 +1,14 @@
 module QCompose.ProtoLang.Eval (
-  range,
-  ProgramState,
-  OracleInterp,
+  -- * Evaluations
   execStmt,
   evalFun,
   runProgram,
+
+  -- * Values
+  range,
+  ProgramState,
+  OracleInterp,
+  boolToValue,
 ) where
 
 import Control.Monad (filterM, zipWithM_)
@@ -36,6 +40,10 @@ lookupS k = use $ Ctx.at k . singular _Just
 
 putS :: (MonadState ProgramState m) => Ident -> Value -> m ()
 putS = Ctx.unsafePut
+
+boolToValue :: Bool -> Value
+boolToValue True = 1
+boolToValue False = 0
 
 evalUnOp :: UnOp -> Value -> Value
 evalUnOp NotOp 0 = 1
