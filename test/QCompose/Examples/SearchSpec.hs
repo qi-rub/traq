@@ -1,5 +1,6 @@
 module QCompose.Examples.SearchSpec (spec) where
 
+import Lens.Micro
 import qualified QCompose.Data.Context as Ctx
 import qualified QCompose.Data.Tree as Tree
 
@@ -28,15 +29,17 @@ spec = do
       let res = P.runProgram ex oracleF Ctx.empty
       res `shouldBe` pure (Ctx.singleton "result" 0)
 
-    let P.QSearchFormulas ecF _ ucF = cadeEtAlFormulas
+    let qformulas@(P.QSearchFormulas ecF _ ucF) = qsearchCFNW ^. to formulas
+    let ualgo = qsearchCFNW ^. to unitaryAlgo
+
     let eps = 0.0001 :: Double
 
     it "unitary cost for eps=0.0001" $ do
       let true_cost = 2 * ucF n (eps / 2) :: Double
-      P.unitaryQueryCost cadeEtAlFormulas eps ex `shouldBe` true_cost
+      P.unitaryQueryCost qformulas eps ex `shouldBe` true_cost
 
     it "quantum cost for eps=0.0001" $ do
-      P.quantumQueryCost cadeEtAlFormulas eps ex oracleF Ctx.empty `shouldBe` ecF n 0 (eps / 2)
+      P.quantumQueryCost qformulas eps ex oracleF Ctx.empty `shouldBe` ecF n 0 (eps / 2)
 
     it "generate code" $ do
       toCodeString ex `shouldSatisfy` (not . null)
@@ -44,16 +47,16 @@ spec = do
     describe "lowers to UQPL" $ do
       let delta = 0.0001 :: Double
       it "lowers" $ do
-        assertRight $ UQPL.lowerProgram zalkaQSearch Ctx.empty delta ex
+        assertRight $ UQPL.lowerProgram ualgo Ctx.empty delta ex
 
       it "typechecks" $ do
-        (ex_uqpl, gamma) <- expectRight $ UQPL.lowerProgram zalkaQSearch Ctx.empty delta ex
+        (ex_uqpl, gamma) <- expectRight $ UQPL.lowerProgram ualgo Ctx.empty delta ex
         assertRight $ UQPL.typeCheckProgram gamma ex_uqpl
 
       it "preserves cost" $ do
-        (ex_uqpl, _) <- expectRight $ UQPL.lowerProgram zalkaQSearch Ctx.empty delta ex
+        (ex_uqpl, _) <- expectRight $ UQPL.lowerProgram ualgo Ctx.empty delta ex
         let (uqpl_cost, _) = UQPL.programCost ex_uqpl
-        let proto_cost = P.unitaryQueryCost cadeEtAlFormulas delta ex
+        let proto_cost = P.unitaryQueryCost qformulas delta ex
         uqpl_cost `shouldBe` proto_cost
 
   describe "arraySearch (returning solution)" $ do

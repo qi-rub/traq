@@ -1,5 +1,3 @@
-{-# LANGUAGE FlexibleContexts #-}
-
 module Main (main) where
 
 import Control.Monad (forM_)
@@ -11,6 +9,7 @@ import Text.Read (readMaybe)
 
 import qualified QCompose.Data.Context as Ctx
 
+import Data.Maybe (fromMaybe)
 import QCompose.Prelude
 import QCompose.Primitives.QSearch
 import qualified QCompose.ProtoLang as P
@@ -65,7 +64,7 @@ tellLn x = tell $ unlines [x]
 
 compile :: (RealFloat a, Show a) => P.Program SizeT -> a -> IO String
 compile prog delta = do
-  let Right (uqpl_prog, _) = UQPL.lowerProgram zalkaQSearch Ctx.empty delta prog
+  let Right (uqpl_prog, _) = UQPL.lowerProgram (qsearchCFNW ^. to unitaryAlgo) Ctx.empty delta prog
   -- get costs
   let (cost, proc_costs) = UQPL.programCost uqpl_prog
 
@@ -75,7 +74,7 @@ compile prog delta = do
       let pname = p ^. to UQPL.proc_name
 
       let f_cost =
-            maybe "()" id $
+            fromMaybe "()" $
               ( do
                   let fname = pname & takeWhile (/= '[')
                   let fdelta_s = pname & dropWhile (/= '[') & tail & takeWhile (/= ']')
@@ -83,7 +82,7 @@ compile prog delta = do
                   P.FunDef{body} <- prog ^. to P.funCtx . to P.fun_defs . Ctx.at fname
                   let cf =
                         P.unitaryQueryCost
-                          cadeEtAlFormulas
+                          (qsearchCFNW ^. to formulas)
                           fdelta
                           P.Program
                             { stmt = body
@@ -97,7 +96,7 @@ compile prog delta = do
       tellLn $ toCodeString p
 
     tellLn $ "// Actual Cost : " <> show cost
-    tellLn $ "// Formula Cost: " ++ show (P.unitaryQueryCost cadeEtAlFormulas delta prog)
+    tellLn $ "// Formula Cost: " ++ show (P.unitaryQueryCost (qsearchCFNW ^. to formulas) delta prog)
     tellLn $ toCodeString $ uqpl_prog ^. to UQPL.stmt
 
 main :: IO ()

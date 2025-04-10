@@ -6,12 +6,10 @@ References:
  1. [Quantifying Grover speed-ups beyond asymptotic analysis](https://arxiv.org/abs/2203.04975)
 -}
 module QCompose.Primitives.QSearch (
-  symbolicFormulas,
-  cadeEtAlFormulas,
-  zalkaQSearch,
-  groverK,
-  zalkaQSearchImpl,
-  qSearchCQImpl,
+  -- * A full implementation of quantum search.
+  QSearchFullImpl (..),
+  qsearchCFNW,
+  qsearchCFNWSymbolic,
 ) where
 
 import Data.Maybe (catMaybes)
@@ -22,6 +20,7 @@ import QCompose.Prelude
 import QCompose.ProtoLang (VarType (..))
 import qualified QCompose.ProtoLang as P
 import qualified QCompose.UnitaryQPL as U
+import qualified QCompose.UnitaryQPL as UQPL
 
 symbolicFormulas :: forall sizeT costT. (Show sizeT, Show costT, Integral sizeT, RealFloat costT) => P.QSearchFormulas (Sym.Sym sizeT) (Sym.Sym costT)
 symbolicFormulas =
@@ -76,6 +75,7 @@ zalkaQSearch =
   U.QSearchUnitaryImpl
     { U.ancillaTypes = anc
     , U.costFormulas = cadeEtAlFormulas
+    , U.algorithm = zalkaQSearchImpl
     }
  where
   -- anc n delta = error "TODO"
@@ -223,4 +223,30 @@ qSearchCQImpl =
     { CQ.costFormulas = cadeEtAlFormulas
     , CQ.qsearchAlgo = qSearch
     , CQ.unitaryImpl = zalkaQSearch
+    }
+
+-- | Full Implementation
+data QSearchFullImpl sizeT costT = QSearchFullImpl
+  { formulas :: P.QSearchFormulas sizeT costT
+  , unitaryAlgo :: UQPL.QSearchUnitaryImpl sizeT costT
+  , quantumAlgo :: CQ.QSearchCQImpl sizeT costT
+  }
+
+-- | Search Algorithms from https://arxiv.org/abs/2203.04975
+qsearchCFNW :: (RealFloat costT) => QSearchFullImpl SizeT costT
+qsearchCFNW =
+  QSearchFullImpl
+    { formulas = cadeEtAlFormulas
+    , unitaryAlgo = zalkaQSearch
+    , quantumAlgo = qSearchCQImpl
+    }
+
+qsearchCFNWSymbolic ::
+  (Show sizeT, Show costT, Integral sizeT, RealFloat costT) =>
+  QSearchFullImpl (Sym.Sym sizeT) (Sym.Sym costT)
+qsearchCFNWSymbolic =
+  QSearchFullImpl
+    { formulas = symbolicFormulas
+    , unitaryAlgo = error "Cannot compile symbolic"
+    , quantumAlgo = error "Cannot compile symbolic"
     }

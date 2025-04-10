@@ -23,6 +23,7 @@ data QSearchUnitaryImpl sizeT costT = QSearchUnitaryImpl
       costT -> -- precision
       [P.VarType sizeT]
   , costFormulas :: P.QSearchFormulas sizeT costT
+  , algorithm :: P.VarType sizeT -> (Ident -> Ident -> Stmt sizeT costT) -> costT -> Stmt sizeT costT
   }
 
 -- | Configuration for lowering

@@ -2,6 +2,7 @@ module Main where
 
 import Control.Exception (assert)
 import qualified Data.Number.Symbolic as Sym
+import Lens.Micro
 
 import qualified QCompose.Data.Context as Ctx
 
@@ -22,7 +23,7 @@ symbolicEx = do
   let ex = matrixExample n m (P.Fin $ Sym.con 2)
 
   let delta = Sym.var "δ" :: Sym.Sym Double
-  let u_formula_cost = P.unitaryQueryCost symbolicFormulas delta ex
+  let u_formula_cost = (qsearchCFNWSymbolic ^. to formulas . to P.unitaryQueryCost) delta ex
   print u_formula_cost
 
 concreteEx :: IO ()
@@ -36,10 +37,10 @@ concreteEx = do
 
   let delta = 0.001 :: Double
 
-  let u_formula_cost = P.unitaryQueryCost cadeEtAlFormulas delta ex
+  let u_formula_cost = P.unitaryQueryCost (qsearchCFNW ^. to formulas) delta ex
 
   putStrLn $ replicate 80 '='
-  let (Right (exU, _)) = U.lowerProgram zalkaQSearch Ctx.empty delta ex
+  let (Right (exU, _)) = U.lowerProgram (qsearchCFNW ^. to unitaryAlgo) Ctx.empty delta ex
   putStrLn $ toCodeString exU
 
   let (u_true_cost, _) = U.programCost exU

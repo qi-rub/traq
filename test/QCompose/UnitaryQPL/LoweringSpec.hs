@@ -1,5 +1,6 @@
 module QCompose.UnitaryQPL.LoweringSpec (spec) where
 
+import Lens.Micro
 import qualified QCompose.Data.Context as Ctx
 
 import qualified QCompose.ProtoLang as P
@@ -21,7 +22,7 @@ spec = do
         (res, gamma) <-
           expectRight $
             U.lowerProgram
-              zalkaQSearch
+              (qsearchCFNW ^. to unitaryAlgo)
               (Ctx.singleton "x" (P.Fin 10))
               (0 :: Double)
               P.Program

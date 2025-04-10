@@ -1,8 +1,7 @@
-{-# LANGUAGE FlexibleContexts #-}
-
 module Main (main) where
 
 import qualified Data.Number.Symbolic as Sym
+import Lens.Micro
 import Options.Applicative
 import Text.Read (readMaybe)
 
@@ -59,7 +58,7 @@ subsNM params s = Sym.unSym $ foldr subsOnce s params
 
 compile :: (RealFloat costT, Show costT) => P.Program SizeT -> costT -> IO String
 compile prog eps = do
-  let Right (cqpl_prog, _) = CQPL.lowerProgram qSearchCQImpl Ctx.empty eps prog
+  let Right (cqpl_prog, _) = CQPL.lowerProgram (qsearchCFNW ^. to quantumAlgo) Ctx.empty eps prog
 
   return $ toCodeString cqpl_prog
 
