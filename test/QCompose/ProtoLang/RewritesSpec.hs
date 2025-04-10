@@ -1,22 +1,19 @@
 module QCompose.ProtoLang.RewritesSpec (spec) where
 
-import Lens.Micro
 import QCompose.ProtoLang.Rewrites
 import QCompose.ProtoLang.Syntax
-import Test.Hspec
+import QCompose.Utils.ASTRewriting
 
--- | statement rewriter
-rw :: (Stmt a -> Maybe (Stmt a)) -> Stmt a -> Stmt a
-rw = rewriteOf _ast
+import Test.Hspec
 
 spec :: Spec
 spec = do
   describe "flattenSeq" $ do
     it "flattens simple" $ do
       let s = ExprS{rets = ["x"], expr = VarE{arg = "y"}} :: Stmt Int
-      rw flattenSeq s `shouldBe` s
-      rw flattenSeq (SeqS [s]) `shouldBe` s
+      rewriteAST flattenSeq s `shouldBe` s
+      rewriteAST flattenSeq (SeqS [s]) `shouldBe` s
     it "flattens skip" $ do
       let skip = SeqS [] :: Stmt Int
-      rw flattenSeq skip `shouldBe` skip
-      rw flattenSeq (SeqS [skip]) `shouldBe` skip
+      rewriteAST flattenSeq skip `shouldBe` skip
+      rewriteAST flattenSeq (SeqS [skip]) `shouldBe` skip

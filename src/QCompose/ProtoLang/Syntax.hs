@@ -1,5 +1,5 @@
 {-# LANGUAGE DeriveFunctor #-}
-{-# LANGUAGE FlexibleContexts #-}
+{-# LANGUAGE MultiParamTypeClasses #-}
 
 module QCompose.ProtoLang.Syntax (
   VarType (..),
@@ -22,8 +22,13 @@ import Lens.Micro
 import qualified QCompose.Data.Context as Ctx
 
 import QCompose.Prelude
+import QCompose.Utils.ASTRewriting
 import QCompose.Utils.Printing
 import Text.Printf (printf)
+
+-- ================================================================================
+-- Syntax
+-- ================================================================================
 
 -- | Types
 newtype VarType sizeT = Fin sizeT -- Fin<N>
@@ -96,29 +101,30 @@ data Program sizeT = Program
   }
   deriving (Eq, Show, Read, Functor)
 
+-- ================================================================================
 -- Lenses
-
-class HasAst a where
-  _ast :: Traversal' a a
+-- ================================================================================
 
 instance HasAst (Stmt a) where
   _ast f (SeqS ss) = SeqS <$> traverse f ss
   _ast f (IfThenElseS cond s_true s_false) = IfThenElseS cond <$> f s_true <*> f s_false
   _ast _ s = pure s
 
-class HasStmt p where
-  _stmt :: Traversal' (p a) (Stmt a)
+instance HasStmt (Stmt a) (Stmt a) where
+  _stmt = id
 
-instance HasStmt FunDef where
+instance HasStmt (FunDef a) (Stmt a) where
   _stmt f funDef@FunDef{body} = (\body' -> funDef{body = body'}) <$> f body
 
-instance HasStmt FunCtx where
+instance HasStmt (FunCtx a) (Stmt a) where
   _stmt f (FunCtx oracle_decl fun_defs) = FunCtx oracle_decl <$> traverse (_stmt f) fun_defs
 
-instance HasStmt Program where
+instance HasStmt (Program a) (Stmt a) where
   _stmt f (Program funCtx stmt) = Program <$> _stmt f funCtx <*> f stmt
 
+-- ================================================================================
 -- Printing
+-- ================================================================================
 
 instance (Show a) => ToCodeString (VarType a) where
   toCodeString (Fin len) = "Fin<" <> show len <> ">"

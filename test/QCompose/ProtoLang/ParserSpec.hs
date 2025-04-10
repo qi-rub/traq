@@ -1,14 +1,17 @@
 module QCompose.ProtoLang.ParserSpec (spec) where
 
 import qualified Data.Number.Symbolic as Sym
-
 import Lens.Micro
+import Text.Parsec.String
+
 import QCompose.Examples.MatrixSearch (matrixExample)
 import QCompose.ProtoLang.Parser
 import QCompose.ProtoLang.Rewrites
 import QCompose.ProtoLang.Syntax
+import QCompose.Utils.ASTRewriting
+
 import Test.Hspec
-import Text.Parsec.String
+import TestHelpers
 
 spec :: Spec
 spec = do
@@ -58,8 +61,6 @@ spec = do
           )
   describe "parse file" $ do
     it "parses example" $ do
-      e <- parseFromFile programParser "examples/matrix_search/matrix_search.qb"
-      let e' = e <&> _stmt %~ rewriteOf _ast flattenSeq
-      e'
-        `shouldBe` Right
-          (matrixExample (Sym.var "N") (Sym.var "M") (Fin (Sym.con 2)))
+      e <- parseFromFile programParser "examples/matrix_search/matrix_search.qb" >>= expectRight
+      let e' = rewriteAST flattenSeq e
+      e' `shouldBe` matrixExample (Sym.var "N") (Sym.var "M") (Fin (Sym.con 2))

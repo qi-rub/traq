@@ -1,2 +1,2 @@
 :set -DTEST -isrc -itest
-:set -XNamedFieldPuns -XLambdaCase -XScopedTypeVariables -XApplicativeDo -XRankNTypes -XFlexibleContexts
+:set -XNamedFieldPuns -XLambdaCase -XScopedTypeVariables -XApplicativeDo -XRankNTypes -XFlexibleContexts -XFunctionalDependencies

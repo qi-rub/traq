@@ -47,6 +47,7 @@ library
           QCompose.UnitaryQPL.Lowering
           QCompose.UnitaryQPL.Syntax
           QCompose.UnitaryQPL.TypeCheck
+          QCompose.Utils.ASTRewriting
           QCompose.Utils.Printing
     build-depends:
           base >=4.10 && <5
