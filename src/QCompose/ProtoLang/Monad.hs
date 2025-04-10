@@ -13,7 +13,7 @@ module QCompose.ProtoLang.Monad (
   -- * Cost
 ) where
 
-import QCompose.Control.MonadHelpers
+import QCompose.Control.Monad
 import qualified QCompose.Data.Context as Ctx
 import qualified QCompose.Data.Tree as Tree
 import QCompose.Prelude

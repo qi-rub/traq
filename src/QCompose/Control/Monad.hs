@@ -1,10 +1,23 @@
 module QCompose.Control.Monad (
   -- * Monad Types
-  MyReaderT,
-  MyStateT,
-  MyWriterT,
-  MyReaderStateT,
   MyReaderWriterStateT,
+
+  -- ** Reader
+  MyReaderT,
+  runMyReaderT,
+
+  -- ** State
+  MyStateT,
+  runMyStateT,
+  evalMyStateT,
+  execMyStateT,
+
+  -- ** Writer
+  MyWriterT,
+  runMyWriterT,
+
+  -- ** RW
+  MyReaderStateT,
 
   -- * functions
   withSandboxOf,
@@ -19,7 +32,7 @@ module QCompose.Control.Monad (
 ) where
 
 import Control.Monad.Except (MonadError, catchError, throwError)
-import Control.Monad.RWS (MonadState, RWST (..))
+import Control.Monad.RWS (MonadState, RWST (..), evalRWST, runRWST)
 import Control.Monad.Trans (lift)
 import Lens.Micro
 import Lens.Micro.Mtl
@@ -30,11 +43,30 @@ type MyReaderWriterStateT = RWST
 -- | Reader type using RWS
 type MyReaderT r = MyReaderWriterStateT r () ()
 
+runMyReaderT :: (Monad m) => MyReaderT r m a -> r -> m a
+runMyReaderT rws r = do
+  (a, (), ()) <- runRWST rws r ()
+  return a
+
 -- | Writer type using RWS
 type MyWriterT w = MyReaderWriterStateT () w ()
 
+runMyWriterT :: (Monad m, Monoid w) => MyWriterT w m a -> m (a, w)
+runMyWriterT rws = evalRWST rws () ()
+
 -- | State type using RWS
 type MyStateT s = MyReaderWriterStateT () () s
+
+runMyStateT :: (Monad m) => MyStateT s m a -> s -> m (a, s)
+runMyStateT rws s = do
+  (a, s', ()) <- runRWST rws () s
+  return (a, s')
+
+evalMyStateT :: (Monad m) => MyStateT s m a -> s -> m a
+evalMyStateT rws s = fst <$> runMyStateT rws s
+
+execMyStateT :: (Monad m) => MyStateT s m a -> s -> m s
+execMyStateT rws s = snd <$> runMyStateT rws s
 
 -- | Reader+State monad using RWS
 type MyReaderStateT r s = MyReaderWriterStateT r () s

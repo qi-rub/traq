@@ -6,19 +6,19 @@ module QCompose.UnitaryQPL.TypeCheck (
 
 import Control.Monad (forM, forM_, when)
 import Control.Monad.Except (throwError)
-import Control.Monad.Reader (ReaderT, local, runReaderT)
+import Control.Monad.Reader (local)
 import Lens.Micro
 import Lens.Micro.Mtl
 
 import qualified QCompose.Data.Context as Ctx
 
-import QCompose.Control.MonadHelpers
+import QCompose.Control.Monad
 import QCompose.Prelude
 import QCompose.ProtoLang (TypeCheckable (..), TypingCtx, VarType)
 import QCompose.UnitaryQPL.Syntax
 
 type CheckingCtx a costT = (OracleDecl a, [ProcDef a costT], TypingCtx a)
-type TypeChecker a costT = ReaderT (CheckingCtx a costT) (Either String)
+type TypeChecker a costT = MyReaderT (CheckingCtx a costT) (Either String)
 
 oracleDecl :: Lens' (CheckingCtx a costT) (OracleDecl a)
 oracleDecl = _1
@@ -73,7 +73,9 @@ typeCheckStmt CallS{proc_id, args} = do
       <&> map (^. _3)
   verifyArgs args proc_param_tys
 -- compound statements
+typeCheckStmt (RepeatS _ body) = typeCheckStmt body
 typeCheckStmt (SeqS ss) = mapM_ typeCheckStmt' ss
+typeCheckStmt (HoleS _) = throwError "cannot typecheck program with holes"
 
 typeCheckStmt' :: (TypeCheckable a, Show costT) => Stmt a costT -> TypeChecker a costT ()
 typeCheckStmt' s = typeCheckStmt s `throwFrom` ("typecheck failed: " <> show s)
@@ -90,6 +92,6 @@ typeCheckProgram :: (TypeCheckable a, Show costT) => TypingCtx a -> Program a co
 typeCheckProgram gamma Program{oracle_decl, proc_defs, stmt} = do
   let ctx = (oracle_decl, proc_defs, Ctx.empty)
 
-  forM_ proc_defs $ (`runReaderT` ctx) . typeCheckProc
+  forM_ proc_defs $ (`runMyReaderT` ctx) . typeCheckProc
 
-  runReaderT (typeCheckStmt' stmt) $ ctx & typingCtx .~ gamma
+  runMyReaderT (typeCheckStmt' stmt) $ ctx & typingCtx .~ gamma

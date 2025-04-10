@@ -15,7 +15,7 @@ import Lens.Micro.Mtl
 import Text.Printf (printf)
 
 import QCompose.CQPL.Syntax
-import QCompose.Control.MonadHelpers
+import QCompose.Control.Monad
 import qualified QCompose.Data.Context as Ctx
 import QCompose.Prelude
 import qualified QCompose.ProtoLang as P

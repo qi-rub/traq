@@ -10,12 +10,13 @@ module QCompose.ProtoLang.Eval (
 import Control.Monad (filterM, zipWithM_)
 import Control.Monad.Extra (anyM)
 import Control.Monad.RWS (MonadState, runRWST)
-import Control.Monad.Reader (ReaderT (runReaderT), local)
+import Control.Monad.Reader (local)
 import Control.Monad.Trans (lift)
 import Lens.Micro
 import Lens.Micro.GHC ()
 import Lens.Micro.Mtl
 
+import QCompose.Control.Monad
 import qualified QCompose.Data.Context as Ctx
 import qualified QCompose.Data.Tree as Tree
 
@@ -116,7 +117,7 @@ evalToExec m = do
   fns <- view _1
   o <- view _2
   sigma <- use id
-  lift $ runReaderT m (fns, o, sigma)
+  lift $ runMyReaderT m (fns, o, sigma)
 
 execStmt :: Stmt SizeT -> Executor ()
 execStmt ExprS{rets, expr} = do

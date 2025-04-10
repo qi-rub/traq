@@ -11,13 +11,15 @@ module QCompose.ProtoLang.TypeCheck (
 
 import Control.Monad (forM_, unless, when, zipWithM_)
 import Control.Monad.Except (throwError)
-import Control.Monad.State (execStateT, get, put)
-import Lens.Micro
+import Control.Monad.RWS (execRWST)
 import Text.Printf (printf)
+
+import Lens.Micro
+import Lens.Micro.Mtl
 
 import qualified QCompose.Data.Context as Ctx
 
-import QCompose.Control.MonadHelpers
+import QCompose.Control.Monad
 import QCompose.Prelude
 import QCompose.ProtoLang.Monad
 import QCompose.ProtoLang.Syntax
@@ -167,17 +169,17 @@ checkStmt funCtx IfThenElseS{cond, s_true, s_false} = do
     throwError $
       "`if` condition must be a boolean, got " <> show (cond, cond_ty)
 
-  sigma_t <- withSandbox $ checkStmt funCtx s_true >> get
-  sigma_f <- withSandbox $ checkStmt funCtx s_false >> get
+  sigma_t <- withSandbox $ checkStmt funCtx s_true >> use id
+  sigma_f <- withSandbox $ checkStmt funCtx s_false >> use id
   when (sigma_t /= sigma_f) $
     throwError ("if: branches must declare same variables, got " <> show [sigma_t, sigma_f])
-  put sigma_t
+  id .= sigma_t
 
 -- | Type check a single function.
 typeCheckFun :: (TypeCheckable a) => FunCtx a -> FunDef a -> Either String (TypingCtx a)
 typeCheckFun funCtx FunDef{param_binds, ret_binds, body} = do
   let gamma = Ctx.fromList param_binds
-  gamma' <- execStateT (checkStmt funCtx body) gamma
+  (gamma', ()) <- execRWST (checkStmt funCtx body) () gamma
   forM_ ret_binds $ \(x, t) -> do
     when (has _Just (gamma ^. Ctx.at x)) $ do
       throwError $ printf "parameter `%s` cannot be returned, please copy it into a new variable and return that" x
@@ -196,4 +198,4 @@ typeCheckFun funCtx FunDef{param_binds, ret_binds, body} = do
 typeCheckProg :: (TypeCheckable a) => TypingCtx a -> Program a -> Either String (TypingCtx a)
 typeCheckProg gamma Program{funCtx = funCtx@FunCtx{fun_defs}, stmt} = do
   mapM_ (typeCheckFun funCtx) fun_defs
-  execStateT (checkStmt funCtx stmt) gamma
+  execMyStateT (checkStmt funCtx stmt) gamma
