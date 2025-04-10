@@ -151,7 +151,7 @@ qSearch ty n_samples eps upred_caller pred_caller params =
   CQ.ProcDef
     { CQ.proc_name = "qSearch"
     , CQ.proc_params = params
-    , CQ.proc_local_vars = []
+    , CQ.proc_local_vars = [("not_done", P.Fin 2)]
     , CQ.proc_body =
         CQ.SeqS
           [ classicalSampling
@@ -209,8 +209,8 @@ qSearch ty n_samples eps upred_caller pred_caller params =
     CQ.SeqS
       [ CQ.RandomS "j" (P.Fin $ j_lim + 1)
       , CQ.AssignS ["Q_sum"] (CQ.AddE (CQ.VarE "Q_sum") (CQ.VarE "j"))
-      , CQ.AssignS ["can_run"] (CQ.LEqE (CQ.VarE "Q_sum") (CQ.ConstE $ fromIntegral j_lim))
-      , CQ.IfThenElseS "can_run" (CQ.HoleS $ "TODO callandmeas: grover cycle_" <> show j_lim) CQ.SkipS
+      , CQ.AssignS ["not_done"] (CQ.LEqE (CQ.VarE "Q_sum") (CQ.ConstE $ fromIntegral j_lim))
+      , CQ.IfThenElseS "not_done" (CQ.HoleS $ "callandmeas: grover cycle j") CQ.SkipS
       , pred_caller "y" "ok"
       ]
 

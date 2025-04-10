@@ -159,10 +159,17 @@ instance (Show sizeT) => ToCodeString (Stmt sizeT) where
   toCodeLines (HoleS info) = [printf "HOLE :: %s;" info]
 
 instance (Show sizeT) => ToCodeString (ProcDef sizeT) where
-  toCodeLines ProcDef{proc_name, proc_params, proc_body} =
-    [printf "proc %s(%s)" proc_name (commaList $ map fst proc_params)]
+  toCodeLines ProcDef{proc_name, proc_params, proc_local_vars, proc_body} =
+    [ printf
+        "proc %s(%s) { locals: (%s) } do"
+        proc_name
+        (commaList $ map showTypedVar proc_params)
+        (commaList $ map showTypedVar proc_local_vars)
+    ]
       ++ indent (toCodeLines proc_body)
       ++ ["end"]
+   where
+    showTypedVar (x, ty) = printf "%s: %s" x (toCodeString ty)
 
 instance (Show sizeT, Show costT) => ToCodeString (Program sizeT costT) where
   toCodeLines Program{proc_defs, uproc_defs, stmt} =
