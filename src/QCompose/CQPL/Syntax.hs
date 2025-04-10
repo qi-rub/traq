@@ -1,5 +1,8 @@
+{-# LANGUAGE MultiParamTypeClasses #-}
+
 module QCompose.CQPL.Syntax (
   -- * Syntax
+  MetaParam (..),
   Expr (..),
   FunctionCall (..),
   Stmt (..),
@@ -8,8 +11,7 @@ module QCompose.CQPL.Syntax (
   Program (..),
 
   -- * Syntax Sugar
-  whileK,
-  whileKWithCondExpr,
+  desugarS,
 ) where
 
 import Text.Printf (printf)
@@ -19,11 +21,16 @@ import qualified QCompose.Data.Context as Ctx
 import QCompose.Prelude
 import QCompose.ProtoLang (VarType)
 import qualified QCompose.UnitaryQPL as UQPL
+import QCompose.Utils.ASTRewriting
 import QCompose.Utils.Printing
 
 -- ================================================================================
 -- Syntax
 -- ================================================================================
+
+-- | Compile-time constant parameters
+data MetaParam sizeT = NameMeta String | SizeMeta sizeT
+  deriving (Eq, Show, Read)
 
 -- | Expressions (RHS of an assignment operation)
 data Expr sizeT
@@ -49,16 +56,20 @@ data Stmt sizeT
   = SkipS
   | AssignS {rets :: [Ident], expr :: Expr sizeT}
   | RandomS {ret :: Ident, ty :: VarType sizeT}
-  | CallS {fun :: FunctionCall, args :: [Ident]}
+  | CallS {fun :: FunctionCall, meta_params :: [MetaParam sizeT], args :: [Ident]}
   | SeqS [Stmt sizeT]
   | IfThenElseS {cond :: Ident, s_true, s_false :: Stmt sizeT}
   | RepeatS {n_iter :: sizeT, loop_body :: Stmt sizeT}
   | HoleS String
+  | -- syntax sugar
+    WhileK {n_iter :: sizeT, cond :: Ident, loop_body :: Stmt sizeT}
+  | WhileKWithCondExpr {n_iter :: sizeT, cond :: Ident, cond_expr :: Expr sizeT, loop_body :: Stmt sizeT}
   deriving (Eq, Show, Read)
 
 -- | CQ Procedure
 data ProcDef sizeT = ProcDef
   { proc_name :: Ident
+  , proc_meta_params :: [Ident]
   , proc_params :: [(Ident, VarType sizeT)]
   , proc_local_vars :: [(Ident, VarType sizeT)]
   , proc_body :: Stmt sizeT
@@ -79,6 +90,26 @@ data Program sizeT costT = Program
   , stmt :: Stmt sizeT
   }
   deriving (Eq, Show, Read)
+
+-- ================================================================================
+-- Lenses
+-- ================================================================================
+
+instance HasAst (Stmt sizeT) where
+  _ast focus (SeqS ss) = SeqS <$> traverse focus ss
+  _ast focus (IfThenElseS cond s_true s_false) = IfThenElseS cond <$> focus s_true <*> focus s_false
+  _ast focus (RepeatS n_iter loop_body) = RepeatS n_iter <$> focus loop_body
+  _ast _ s = pure s
+
+instance HasStmt (Stmt sizeT) (Stmt sizeT) where
+  _stmt = id
+
+instance HasStmt (ProcDef sizeT) (Stmt sizeT) where
+  _stmt focus (ProcDef proc_name proc_meta_params proc_params proc_local_vars proc_body) =
+    ProcDef proc_name proc_meta_params proc_params proc_local_vars <$> focus proc_body
+
+instance HasStmt (Program sizeT costT) (Stmt sizeT) where
+  _stmt focus (Program o ps ups s) = Program o <$> traverse (_stmt focus) ps <*> pure ups <*> _stmt focus s
 
 -- ================================================================================
 -- Syntax Sugar
@@ -113,6 +144,12 @@ whileKWithCondExpr k cond_var cond_expr body =
     ]
  where
   compute_cond = AssignS [cond_var] cond_expr
+
+-- | Remove syntax sugar. Use with `rewriteAST`.
+desugarS :: Stmt sizeT -> Maybe (Stmt sizeT)
+desugarS WhileK{n_iter, cond, loop_body} = Just $ whileK n_iter cond loop_body
+desugarS WhileKWithCondExpr{n_iter, cond, cond_expr, loop_body} = Just $ whileKWithCondExpr n_iter cond cond_expr loop_body
+desugarS _ = Nothing
 
 -- ================================================================================
 -- Code printing
@@ -156,13 +193,24 @@ instance (Show sizeT) => ToCodeString (Stmt sizeT) where
     [printf "repeat %s do" (show n_iter)]
       ++ indent (toCodeLines loop_body)
       ++ ["end"]
+  -- hole
   toCodeLines (HoleS info) = [printf "HOLE :: %s;" info]
+  -- syntax sugar
+  toCodeLines WhileK{n_iter, cond, loop_body} =
+    printf "while[%s] (%s) do" (show n_iter) cond
+      : indent (toCodeLines loop_body)
+      ++ ["end"]
+  toCodeLines WhileKWithCondExpr{n_iter, cond, cond_expr, loop_body} =
+    printf "while[%s] (%s := %s) do" (show n_iter) cond (toCodeString cond_expr)
+      : indent (toCodeLines loop_body)
+      ++ ["end"]
 
 instance (Show sizeT) => ToCodeString (ProcDef sizeT) where
-  toCodeLines ProcDef{proc_name, proc_params, proc_local_vars, proc_body} =
+  toCodeLines ProcDef{proc_name, proc_meta_params, proc_params, proc_local_vars, proc_body} =
     [ printf
-        "proc %s(%s) { locals: (%s) } do"
+        "proc %s[%s](%s) { locals: (%s) } do"
         proc_name
+        (commaList proc_meta_params)
         (commaList $ map showTypedVar proc_params)
         (commaList $ map showTypedVar proc_local_vars)
     ]

@@ -24,17 +24,7 @@ uproc IsRowAllOnes_clean[7.994146e-7](i : IN Fin<20>, okr' : OUT Fin<2>, aux_5 :
   call† IsRowAllOnes[3.997073e-7](i, aux_5, aux_6, aux_7, aux_8, aux_9);
 end
 
-proc QSearch[5.0e-4](ok: Fin<2>) { locals: (not_done: Fin<2>) } do
-  not_done := !ok;
-  repeat 0 do
-    if (not_done) then
-      x :=$ Fin<20>;
-      HOLE :: classical predicate call;
-      not_done := !ok;
-    else
-      skip;
-    end
-  end
+proc QSearch[5.0e-4][](ok: Fin<2>) { locals: (not_done: Fin<2>) } do
   repeat 7 do
     Q_sum := 0;
     j :=$ Fin<2>;
@@ -166,7 +156,7 @@ proc QSearch[5.0e-4](ok: Fin<2>) { locals: (not_done: Fin<2>) } do
   end
 end
 
-proc HasAllOnesRow[1.0e-3](ok: Fin<2>) { locals: () } do
+proc HasAllOnesRow[1.0e-3][](ok: Fin<2>) { locals: () } do
   call QSearch[5.0e-4](ok);
 end
 

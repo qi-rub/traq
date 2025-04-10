@@ -134,7 +134,8 @@ lowerFunDef eps P.FunDef{P.fun_name, P.param_binds, P.ret_binds, P.body} = do
         proc_typing_ctx
           & Ctx.toList
           & filter ((`notElem` param_names) . fst)
-  addProc ProcDef{proc_name, proc_params, proc_local_vars, proc_body}
+  let proc_meta_params = []
+  addProc ProcDef{proc_name, proc_meta_params, proc_params, proc_local_vars, proc_body}
 
   return proc_name
 

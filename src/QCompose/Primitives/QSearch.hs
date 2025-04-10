@@ -14,6 +14,7 @@ module QCompose.Primitives.QSearch (
   qSearchCQImpl,
 ) where
 
+import Data.Maybe (catMaybes)
 import qualified Data.Number.Symbolic as Sym
 
 import qualified QCompose.CQPL as CQ
@@ -150,18 +151,20 @@ qSearch :: (RealFloat costT) => CQ.QSearchAlgorithm SizeT costT
 qSearch ty n_samples eps upred_caller pred_caller params =
   CQ.ProcDef
     { CQ.proc_name = "qSearch"
+    , CQ.proc_meta_params = []
     , CQ.proc_params = params
     , CQ.proc_local_vars = [("not_done", P.Fin 2)]
     , CQ.proc_body =
-        CQ.SeqS
-          [ classicalSampling
-          , quantumSampling
-          ]
+        CQ.SeqS $
+          catMaybes
+            [ if n_samples /= 0 then Just classicalSampling else Nothing
+            , Just quantumSampling
+            ]
     }
  where
   classicalSampling :: CQ.Stmt SizeT
   classicalSampling =
-    CQ.whileKWithCondExpr n_samples "not_done" (CQ.NotE $ CQ.VarE "ok") $
+    CQ.WhileKWithCondExpr n_samples "not_done" (CQ.NotE $ CQ.VarE "ok") $
       CQ.SeqS
         [ CQ.RandomS "x" (Fin n)
         , pred_caller "x" "ok"
