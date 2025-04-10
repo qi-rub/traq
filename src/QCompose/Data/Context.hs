@@ -45,7 +45,7 @@ import Lens.Micro hiding (at, ix)
 import Lens.Micro.GHC ()
 import Lens.Micro.Mtl
 
-import QCompose.Control.MonadHelpers
+import QCompose.Control.Monad (maybeWithError)
 
 type Ident = String
 
