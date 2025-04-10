@@ -15,6 +15,7 @@ module QCompose.Control.Monad (
   -- ** Writer
   MyWriterT,
   runMyWriterT,
+  tellAt,
 
   -- ** RW
   MyReaderStateT,
@@ -32,7 +33,7 @@ module QCompose.Control.Monad (
 ) where
 
 import Control.Monad.Except (MonadError, catchError, throwError)
-import Control.Monad.RWS (MonadState, RWST (..), evalRWST, runRWST)
+import Control.Monad.RWS (MonadState, MonadWriter, RWST (..), evalRWST, runRWST, tell)
 import Control.Monad.Trans (lift)
 import Lens.Micro
 import Lens.Micro.Mtl
@@ -53,6 +54,11 @@ type MyWriterT w = MyReaderWriterStateT () w ()
 
 runMyWriterT :: (Monad m, Monoid w) => MyWriterT w m a -> m (a, w)
 runMyWriterT rws = evalRWST rws () ()
+
+tellAt :: (MonadWriter w m) => Lens' w w' -> w' -> m ()
+tellAt focus w' =
+  let w = mempty & focus .~ w'
+   in tell w
 
 -- | State type using RWS
 type MyStateT s = MyReaderWriterStateT () () s
