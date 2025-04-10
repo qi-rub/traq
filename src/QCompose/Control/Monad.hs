@@ -1,6 +1,12 @@
-{-# LANGUAGE FlexibleContexts #-}
+module QCompose.Control.Monad (
+  -- * Monad Types
+  MyReaderT,
+  MyStateT,
+  MyWriterT,
+  MyReaderStateT,
+  MyReaderWriterStateT,
 
-module QCompose.Control.MonadHelpers (
+  -- * functions
   withSandboxOf,
   withSandbox,
   withFrozenStateOf,
@@ -13,13 +19,25 @@ module QCompose.Control.MonadHelpers (
 ) where
 
 import Control.Monad.Except (MonadError, catchError, throwError)
-import Control.Monad.RWS (RWST (..))
-import Control.Monad.Reader (ReaderT (..), runReaderT)
-import Control.Monad.State (MonadState, StateT, runStateT)
+import Control.Monad.RWS (MonadState, RWST (..))
 import Control.Monad.Trans (lift)
-import Control.Monad.Writer (WriterT (..))
 import Lens.Micro
 import Lens.Micro.Mtl
+
+-- | Overly descriptive alias for RWS
+type MyReaderWriterStateT = RWST
+
+-- | Reader type using RWS
+type MyReaderT r = MyReaderWriterStateT r () ()
+
+-- | Writer type using RWS
+type MyWriterT w = MyReaderWriterStateT () w ()
+
+-- | State type using RWS
+type MyStateT s = MyReaderWriterStateT () () s
+
+-- | Reader+State monad using RWS
+type MyReaderStateT r s = MyReaderWriterStateT r () s
 
 -- | Save the current state, run a computation and restore the saved state.
 withSandboxOf :: (MonadState s m) => Lens' s s' -> m a -> m a
@@ -34,31 +52,32 @@ withSandbox :: (MonadState s m) => m a -> m a
 withSandbox = withSandboxOf id
 
 -- | Run a computation with the current state as a read-only environment.
-withFrozenStateOf :: (Monad m) => Lens' s s' -> ReaderT s' m a -> StateT s m a
+withFrozenStateOf :: (Monad m) => Lens' s s' -> MyReaderT s' m a -> MyStateT s m a
 withFrozenStateOf part m = do
   s <- use part
-  lift $ runReaderT m s
+  (a, (), ()) <- lift $ runRWST m s ()
+  return a
 
 -- | Run a computation with the current state as a read-only environment.
-withFrozenState :: (Monad m) => ReaderT s m a -> StateT s m a
+withFrozenState :: (Monad m) => MyReaderT s m a -> MyStateT s m a
 withFrozenState = withFrozenStateOf id
 
 -- | Embed a state computation into an RWS monad.
-embedStateT :: (Monad m, Monoid w) => StateT s m a -> RWST r w s m a
+embedStateT :: (Monad m, Monoid w) => MyStateT s m a -> MyReaderWriterStateT r w s m a
 embedStateT m = RWST $ \_ s -> do
-  (a, s') <- runStateT m s
+  (a, s', ()) <- runRWST m () s
   return (a, s', mempty)
 
 -- | Embed a reader computation into an RWS monad.
-embedReaderT :: (Monad m, Monoid w) => ReaderT r m a -> RWST r w s m a
+embedReaderT :: (Monad m, Monoid w) => MyReaderT r m a -> MyReaderWriterStateT r w s m a
 embedReaderT m = RWST $ \r s -> do
-  a <- runReaderT m r
+  (a, (), ()) <- runRWST m r ()
   return (a, s, mempty)
 
 -- | Embed a writer computation into an RWS monad.
-embedWriterT :: (Monad m, Monoid w) => WriterT w m a -> RWST r w s m a
+embedWriterT :: (Monad m, Monoid w) => MyWriterT w m a -> MyReaderWriterStateT r w s m a
 embedWriterT m = RWST $ \_ s -> do
-  (a, w) <- runWriterT m
+  (a, (), w) <- runRWST m () ()
   return (a, s, w)
 
 -- | try-catch block that prepends a message to the existing error

@@ -13,10 +13,7 @@ module QCompose.ProtoLang.Monad (
   -- * Cost
 ) where
 
-import Control.Monad.RWS (RWST)
-import Control.Monad.Reader (ReaderT)
-import Control.Monad.State (StateT)
-
+import QCompose.Control.MonadHelpers
 import qualified QCompose.Data.Context as Ctx
 import qualified QCompose.Data.Tree as Tree
 import QCompose.Prelude
@@ -27,7 +24,7 @@ import QCompose.ProtoLang.Syntax
 type TypingCtx a = Ctx.Context (VarType a)
 
 -- | The TypeChecker monad
-type TypeChecker a = StateT (TypingCtx a) (Either String)
+type TypeChecker a = MyStateT (TypingCtx a) (Either String)
 
 class (Eq a, Show a, Num a) => TypeCheckable a where
   tbool :: VarType a
@@ -51,7 +48,7 @@ type OracleInterp = [Value] -> [Value]
 type EvaluationEnv sizeT = (FunCtx sizeT, OracleInterp, ProgramState)
 
 -- | Non-deterministic Evaluation Monad
-type Evaluator = ReaderT (EvaluationEnv SizeT) Tree.Tree
+type Evaluator = MyReaderT (EvaluationEnv SizeT) Tree.Tree
 
 -- | Environment for evaluation
 type ExecutionEnv sizeT = (FunCtx sizeT, OracleInterp)
@@ -59,4 +56,4 @@ type ExecutionEnv sizeT = (FunCtx sizeT, OracleInterp)
 type ExecutionState sizeT = ProgramState
 
 -- | Non-deterministic Execution Monad
-type Executor = RWST (ExecutionEnv SizeT) () (ExecutionState SizeT) Tree.Tree
+type Executor = MyReaderStateT (ExecutionEnv SizeT) (ExecutionState SizeT) Tree.Tree
