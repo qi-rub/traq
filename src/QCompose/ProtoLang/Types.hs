@@ -29,7 +29,7 @@ type TypingCtx a = Ctx.Context (VarType a)
 -- | The TypeChecker monad
 type TypeChecker a = StateT (TypingCtx a) (Either String)
 
-class (Eq a, Show a) => TypeCheckable a where
+class (Eq a, Show a, Num a) => TypeCheckable a where
   tbool :: VarType a
   tmax :: VarType a -> VarType a -> VarType a
 

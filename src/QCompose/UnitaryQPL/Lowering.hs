@@ -17,21 +17,21 @@ import QCompose.ProtoLang.Syntax (FunctionCallKind (PrimitiveCall))
 import QCompose.UnitaryQPL.Syntax
 
 -- | Formulas for primitives
-data QSearchUnitaryImpl costT = QSearchUnitaryImpl
+data QSearchUnitaryImpl sizeT costT = QSearchUnitaryImpl
   { ancillaTypes ::
-      SizeT -> -- size of search space
+      sizeT -> -- size of search space
       costT -> -- precision
-      [P.VarType SizeT]
-  , costFormulas :: P.QSearchFormulas SizeT costT
+      [P.VarType sizeT]
+  , costFormulas :: P.QSearchFormulas sizeT costT
   }
 
 -- | Configuration for lowering
-type LoweringConfig sizeT costT = (P.FunCtx sizeT, QSearchUnitaryImpl costT)
+type LoweringConfig sizeT costT = (P.FunCtx sizeT, QSearchUnitaryImpl sizeT costT)
 
 protoFunCtx :: Lens' (LoweringConfig sizeT costT) (P.FunCtx sizeT)
 protoFunCtx = _1
 
-qsearchConfig :: Lens' (LoweringConfig sizeT costT) (QSearchUnitaryImpl costT)
+qsearchConfig :: Lens' (LoweringConfig sizeT costT) (QSearchUnitaryImpl sizeT costT)
 qsearchConfig = _2
 
 {- | A global lowering context storing the source functions and generated procedures
@@ -102,18 +102,15 @@ data LoweredProc sizeT costT = LoweredProc
   -- ^ all other registers
   }
 
--- Compiler for concrete size type @Int@
-type CompilerT' costT = CompilerT SizeT costT
-
 -- | Compile a single expression statement
 lowerExpr ::
-  forall costT.
-  (Show costT, Floating costT) =>
+  forall sizeT costT.
+  (P.TypeCheckable sizeT, Show costT, Floating costT) =>
   costT ->
-  P.Expr SizeT ->
+  P.Expr sizeT ->
   -- | returns
   [Ident] ->
-  CompilerT' costT (Stmt SizeT costT)
+  CompilerT sizeT costT (Stmt sizeT costT)
 -- basic expressions
 lowerExpr _ P.VarE{P.arg} [ret] = do
   ty <- zoom typingCtx $ Ctx.lookup arg
@@ -178,7 +175,7 @@ lowerExpr delta P.FunCallE{P.fun_kind = PrimitiveCall "any" [predicate], P.args}
   let delta_search = delta / 2
   -- precision for each predicate call
   calc_u_cost <- view $ qsearchConfig . to costFormulas . to P.qSearchUnitaryCost
-  let n_qry = (calc_u_cost :: SizeT -> costT -> costT) n delta_search
+  let n_qry = (calc_u_cost :: sizeT -> costT -> costT) n delta_search
   let delta_per_pred_call = (delta - delta_search) / n_qry
 
   -- compile the predicate
@@ -197,7 +194,7 @@ lowerExpr delta P.FunCallE{P.fun_kind = PrimitiveCall "any" [predicate], P.args}
   -- TODO maybe this can be somehow "parametrized" so we don't have to generate each time.
   qsearch_proc_name <-
     newIdent $
-      printf "QSearch[%d, %s, %s]" n (show delta_search) (proc_name pred_proc)
+      printf "QSearch[%s, %s, %s]" (show n) (show delta_search) (proc_name pred_proc)
   qsearch_ancilla_tys <- view (qsearchConfig . to ancillaTypes) <&> (\f -> f n delta_search)
   let qsearch_param_tys =
         init pred_inp_tys
@@ -232,10 +229,10 @@ lowerExpr _ e rets = throwError $ "cannot compile unsupported expression: " <> s
 
 -- | Compile a statement (simple or compound)
 lowerStmt ::
-  (Show costT, Floating costT) =>
+  (P.TypeCheckable sizeT, Show costT, Floating costT) =>
   costT ->
-  P.Stmt SizeT ->
-  CompilerT' costT (Stmt SizeT costT)
+  P.Stmt sizeT ->
+  CompilerT sizeT costT (Stmt sizeT costT)
 -- single statement
 lowerStmt delta s@P.ExprS{P.rets, P.expr} = do
   checker <- P.checkStmt <$> view protoFunCtx <*> pure s
@@ -261,11 +258,11 @@ lowerStmt _ _ = error "lowering: unsupported"
  TODO try to cache compiled procs by key (funDefName, Precision).
 -}
 lowerFunDefWithGarbage ::
-  (Show costT, Floating costT) =>
+  (P.TypeCheckable sizeT, Show costT, Floating costT) =>
   -- | precision \delta
   costT ->
-  P.FunDef SizeT ->
-  CompilerT' costT (LoweredProc SizeT costT)
+  P.FunDef sizeT ->
+  CompilerT sizeT costT (LoweredProc sizeT costT)
 lowerFunDefWithGarbage delta P.FunDef{P.fun_name, P.param_binds, P.ret_binds, P.body} =
   withSandboxOf typingCtx $ do
     proc_name <- newIdent $ printf "%s[%s]" fun_name (show delta)
@@ -302,11 +299,11 @@ withTag tag = map $ \(x, ty) -> (x, tag, ty)
  TODO try to cache compiled procs by key (funDefName, Precision).
 -}
 lowerFunDef ::
-  (Show costT, Floating costT) =>
+  (P.TypeCheckable sizeT, Show costT, Floating costT) =>
   -- | precision \delta
   costT ->
-  P.FunDef SizeT ->
-  CompilerT' costT (LoweredProc SizeT costT)
+  P.FunDef sizeT ->
+  CompilerT sizeT costT (LoweredProc sizeT costT)
 lowerFunDef delta fun@P.FunDef{P.fun_name, P.param_binds, P.ret_binds} = withSandboxOf typingCtx $ do
   -- get the proc call that computes with garbage
   LoweredProc{lowered_def, aux_tys = g_aux_tys, out_tys = g_ret_tys} <- lowerFunDefWithGarbage (delta / 2) fun
@@ -358,7 +355,7 @@ lowerFunDef delta fun@P.FunDef{P.fun_name, P.param_binds, P.ret_binds} = withSan
 -- | Lower a full program into a UQPL program.
 lowerProgram ::
   (Show costT, Floating costT) =>
-  QSearchUnitaryImpl costT ->
+  QSearchUnitaryImpl SizeT costT ->
   P.TypingCtx SizeT ->
   -- | precision \delta
   costT ->

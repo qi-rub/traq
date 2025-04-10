@@ -19,6 +19,7 @@ module QCompose.Data.Context (
 
   -- * Secondary functions
   fromList,
+  fromListWith,
   singleton,
   toList,
   elems,
@@ -111,6 +112,9 @@ merge (Context m) (Context m') = Context (m' ++ m)
 
 fromList :: [(Ident, a)] -> Context a
 fromList = Context . map (uncurry Binding) . reverse
+
+fromListWith :: (a -> Ident) -> [a] -> Context a
+fromListWith f = fromList . map (\a -> (f a, a))
 
 toList :: Context a -> [(Ident, a)]
 toList c = reverse $ c ^.. _binds . _binding

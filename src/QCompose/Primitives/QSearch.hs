@@ -11,6 +11,7 @@ module QCompose.Primitives.QSearch (
   zalkaQSearch,
   groverK,
   zalkaQSearchImpl,
+  qSearchCQImpl,
 ) where
 
 import qualified Data.Number.Symbolic as Sym
@@ -69,7 +70,7 @@ cadeEtAlFormulas =
     nq = 5 * log_fac + pi * sqrt (fromIntegral n * log_fac)
 
 -- | Ancilla and Cost formulas for the unitary quantum search algorithm \( \textbf{QSearch}_\text{Zalka} \).
-zalkaQSearch :: (RealFloat costT) => U.QSearchUnitaryImpl costT
+zalkaQSearch :: (RealFloat costT) => U.QSearchUnitaryImpl SizeT costT
 zalkaQSearch =
   U.QSearchUnitaryImpl
     { U.ancillaTypes = anc
@@ -145,20 +146,12 @@ zalkaQSearchImpl ty mk_pred eps = error "TODO"
   t0 = ceiling $ logBase (4 / 3) (1 / eps) / 2
 
 -- | Implementation of the hybrid quantum search algorithm \( \textbf{QSearch} \).
-qSearch ::
-  (RealFloat costT) =>
-  -- | search element type
-  VarType SizeT ->
-  -- | N_{samples} - the number of classical samples to do first
-  SizeT ->
-  -- | Failure probability \eps > 0
-  costT ->
-  CQ.ProcDef SizeT
-qSearch ty n_samples eps =
+qSearch :: (RealFloat costT) => CQ.QSearchAlgorithm SizeT costT
+qSearch ty n_samples eps upred_caller pred_caller params =
   CQ.ProcDef
     { CQ.proc_name = "qSearch"
-    , CQ.proc_params = []
-    , CQ.proc_local_vars = []
+    , CQ.proc_params = params
+    , CQ.proc_local_vars = [("not_done", P.Fin 2)]
     , CQ.proc_body =
         CQ.SeqS
           [ classicalSampling
@@ -171,7 +164,7 @@ qSearch ty n_samples eps =
     CQ.whileKWithCondExpr n_samples "not_done" (CQ.NotE $ CQ.VarE "ok") $
       CQ.SeqS
         [ CQ.RandomS "x" (Fin n)
-        , CQ.CallS CQ.OracleCall ["x", "ok"]
+        , pred_caller "x" "ok"
         ]
 
   Fin n = ty
@@ -207,13 +200,24 @@ qSearch ty n_samples eps =
   quantumSampling, quantumSamplingOneRound :: CQ.Stmt SizeT
   quantumSampling = CQ.RepeatS n_runs quantumSamplingOneRound
   quantumSamplingOneRound =
+    CQ.SeqS $
+      CQ.AssignS ["Q_sum"] (CQ.ConstE 0)
+        : map quantumGroverOnce sampling_ranges
+
+  -- one call and meas to grover with j iterations
+  quantumGroverOnce j_lim =
     CQ.SeqS
-      [ CQ.IfThenElseS "ok" CQ.SkipS (quantumGroverOnce j)
-      | j <- sampling_ranges
+      [ CQ.RandomS "j" (P.Fin $ j_lim + 1)
+      , CQ.AssignS ["Q_sum"] (CQ.AddE (CQ.VarE "Q_sum") (CQ.VarE "j"))
+      , CQ.AssignS ["not_done"] (CQ.LEqE (CQ.VarE "Q_sum") (CQ.ConstE $ fromIntegral j_lim))
+      , CQ.IfThenElseS "not_done" (CQ.HoleS $ "callandmeas: grover cycle j") CQ.SkipS
+      , pred_caller "y" "ok"
       ]
 
-  quantumGroverOnce j =
-    CQ.SeqS
-      [ error $ "TODO call and meas: grover cycle" <> show j
-      , CQ.CallS CQ.OracleCall ["y", "ok"]
-      ]
+qSearchCQImpl :: (RealFloat costT) => CQ.QSearchCQImpl SizeT costT
+qSearchCQImpl =
+  CQ.QSearchCQImpl
+    { CQ.costFormulas = cadeEtAlFormulas
+    , CQ.qsearchAlgo = qSearch
+    , CQ.unitaryImpl = zalkaQSearch
+    }

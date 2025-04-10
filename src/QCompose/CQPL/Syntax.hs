@@ -1,6 +1,5 @@
 module QCompose.CQPL.Syntax (
   -- * Syntax
-  Value (..),
   Expr (..),
   FunctionCall (..),
   Stmt (..),
@@ -15,7 +14,9 @@ module QCompose.CQPL.Syntax (
 
 import Text.Printf (printf)
 
-import QCompose.Prelude hiding (Value)
+import qualified QCompose.Data.Context as Ctx
+
+import QCompose.Prelude
 import QCompose.ProtoLang (VarType)
 import qualified QCompose.UnitaryQPL as UQPL
 import QCompose.Utils.Printing
@@ -24,12 +25,7 @@ import QCompose.Utils.Printing
 -- Syntax
 -- ================================================================================
 
-data Value
-  = IntV Integer
-  | FloatV Float
-  | SymV String
-  deriving (Eq, Show, Read)
-
+-- | Expressions (RHS of an assignment operation)
 data Expr sizeT
   = ConstE {val :: Value}
   | VarE {var :: Ident}
@@ -41,12 +37,14 @@ data Expr sizeT
   | MinE {lhs, rhs :: Expr sizeT}
   deriving (Eq, Show, Read)
 
+-- | Type of function call
 data FunctionCall
   = FunctionCall Ident
   | OracleCall
   | UProcAndMeas Ident
   deriving (Eq, Show, Read)
 
+-- | CQ Statement
 data Stmt sizeT
   = SkipS
   | AssignS {rets :: [Ident], expr :: Expr sizeT}
@@ -55,25 +53,32 @@ data Stmt sizeT
   | SeqS [Stmt sizeT]
   | IfThenElseS {cond :: Ident, s_true, s_false :: Stmt sizeT}
   | RepeatS {n_iter :: sizeT, loop_body :: Stmt sizeT}
+  | HoleS String
+  deriving (Eq, Show, Read)
 
+-- | CQ Procedure
 data ProcDef sizeT = ProcDef
   { proc_name :: Ident
   , proc_params :: [(Ident, VarType sizeT)]
   , proc_local_vars :: [(Ident, VarType sizeT)]
   , proc_body :: Stmt sizeT
   }
+  deriving (Eq, Show, Read)
 
+-- | CQ Oracle Def
 newtype OracleDecl sizeT = OracleDecl
   { oracle_param_types :: [VarType sizeT]
   }
   deriving (Eq, Show, Read)
 
-data Program sizeT = Program
+-- | CQ Program
+data Program sizeT costT = Program
   { oracle_decl :: OracleDecl sizeT
-  , proc_defs :: [ProcDef sizeT]
-  , uproc_defs :: [UQPL.ProcDef sizeT Float]
+  , proc_defs :: Ctx.Context (ProcDef sizeT)
+  , uproc_defs :: Ctx.Context (UQPL.ProcDef sizeT costT)
   , stmt :: Stmt sizeT
   }
+  deriving (Eq, Show, Read)
 
 -- ================================================================================
 -- Syntax Sugar
@@ -117,13 +122,8 @@ parenBinExpr :: (Show sizeT) => String -> Expr sizeT -> Expr sizeT -> String
 parenBinExpr op_sym lhs rhs =
   "(" ++ unwords [toCodeString lhs, op_sym, toCodeString rhs] ++ ")"
 
-instance ToCodeString Value where
-  toCodeString (IntV v) = show v
-  toCodeString (FloatV v) = show v
-  toCodeString (SymV v) = v
-
 instance (Show sizeT) => ToCodeString (Expr sizeT) where
-  toCodeString ConstE{val} = toCodeString val
+  toCodeString ConstE{val} = show val
   toCodeString VarE{var} = var
   toCodeString AddE{lhs, rhs} = parenBinExpr "+" lhs rhs
   toCodeString MulE{lhs, rhs} = parenBinExpr "*" lhs rhs
@@ -134,7 +134,7 @@ instance (Show sizeT) => ToCodeString (Expr sizeT) where
     "min(" ++ toCodeString lhs ++ ", " ++ toCodeString rhs ++ ")"
 
 instance (Show sizeT) => ToCodeString (Stmt sizeT) where
-  toCodeLines SkipS = []
+  toCodeLines SkipS = ["skip;"]
   toCodeLines AssignS{rets, expr} =
     [printf "%s := %s;" (commaList rets) (toCodeString expr)]
   toCodeLines RandomS{ret, ty} =
@@ -156,15 +156,23 @@ instance (Show sizeT) => ToCodeString (Stmt sizeT) where
     [printf "repeat %s do" (show n_iter)]
       ++ indent (toCodeLines loop_body)
       ++ ["end"]
+  toCodeLines (HoleS info) = [printf "HOLE :: %s;" info]
 
-instance (Show a) => ToCodeString (ProcDef a) where
-  toCodeLines ProcDef{proc_name, proc_params, proc_body} =
-    [printf "proc %s(%s)" proc_name (commaList $ map fst proc_params)]
+instance (Show sizeT) => ToCodeString (ProcDef sizeT) where
+  toCodeLines ProcDef{proc_name, proc_params, proc_local_vars, proc_body} =
+    [ printf
+        "proc %s(%s) { locals: (%s) } do"
+        proc_name
+        (commaList $ map showTypedVar proc_params)
+        (commaList $ map showTypedVar proc_local_vars)
+    ]
       ++ indent (toCodeLines proc_body)
       ++ ["end"]
+   where
+    showTypedVar (x, ty) = printf "%s: %s" x (toCodeString ty)
 
-instance (Show a) => ToCodeString (Program a) where
+instance (Show sizeT, Show costT) => ToCodeString (Program sizeT costT) where
   toCodeLines Program{proc_defs, uproc_defs, stmt} =
-    map toCodeString uproc_defs
-      ++ map toCodeString proc_defs
+    map toCodeString (Ctx.elems uproc_defs)
+      ++ map toCodeString (Ctx.elems proc_defs)
       ++ [toCodeString stmt]
