@@ -11,7 +11,6 @@ module QCompose.ProtoLang.TypeCheck (
 
 import Control.Monad (forM_, unless, when, zipWithM_)
 import Control.Monad.Except (throwError)
-import Control.Monad.RWS (execRWST)
 import Text.Printf (printf)
 
 import Lens.Micro
@@ -27,7 +26,7 @@ import QCompose.ProtoLang.Syntax
 lookupFunE :: Ident -> FunCtx a -> TypeChecker a (FunDef a)
 lookupFunE fname funCtx =
   maybeWithError (printf "cannot find function `%s`" fname) $
-    funCtx ^. to fun_defs . Ctx.at fname
+    funCtx ^. Ctx.at fname
 
 -- | Typecheck a subroutine call
 checkPrimitive ::
@@ -44,12 +43,12 @@ checkPrimitive ::
 checkPrimitive funCtx "any" [predicate] args = do
   arg_tys <- mapM Ctx.lookup args
 
-  FunDef{param_binds = pred_params, ret_binds = pred_rets} <- funCtx & lookupFunE predicate
+  FunDef{param_types, ret_types} <- funCtx & lookupFunE predicate
 
-  when (map snd pred_rets /= [tbool]) $
+  when (ret_types /= [tbool]) $
     throwError "predicate must return a single Bool"
 
-  when (map snd (init pred_params) /= arg_tys) $
+  when (init param_types /= arg_tys) $
     throwError "Invalid arguments to bind to predicate"
 
   return [tbool]
@@ -58,15 +57,15 @@ checkPrimitive funCtx "any" [predicate] args = do
 checkPrimitive funCtx "search" [predicate] args = do
   arg_tys <- mapM Ctx.lookup args
 
-  FunDef{param_binds = pred_params, ret_binds = pred_rets} <- funCtx & lookupFunE predicate
+  FunDef{param_types, ret_types} <- funCtx & lookupFunE predicate
 
-  when (map snd pred_rets /= [tbool]) $
+  when (ret_types /= [tbool]) $
     throwError "predicate must return a single Bool"
 
-  when (map snd (init pred_params) /= arg_tys) $
+  when (init param_types /= arg_tys) $
     throwError "Invalid arguments to bind to predicate"
 
-  return [tbool, snd $ last pred_params]
+  return [tbool, last param_types]
 
 -- unsupported
 checkPrimitive _ prim_name prim_params _ =
@@ -118,26 +117,15 @@ checkExpr _ TernaryE{branch, lhs, rhs} = do
 
   return [ty_lhs]
 
--- Oracle(x, ...)
-checkExpr FunCtx{oracle_decl} FunCallE{fun_kind = OracleCall, args} = do
-  let OracleDecl{param_types, ret_types} = oracle_decl
+-- f(x, ...)
+checkExpr funCtx FunCallE{fun_kind = FunctionCall fun, args} = do
+  FunDef{param_types, ret_types} <- funCtx & lookupFunE fun
 
   arg_tys <- mapM Ctx.lookup args
   unless (arg_tys == param_types) $
-    throwError ("oracle expects " <> show param_types <> ", got " <> show args)
+    throwError (fun <> " expects " <> show param_types <> ", got " <> show (zip args arg_tys))
 
   return ret_types
-
--- f(x, ...)
-checkExpr funCtx FunCallE{fun_kind = FunctionCall fun, args} = do
-  FunDef{param_binds, ret_binds} <- funCtx & lookupFunE fun
-
-  arg_tys <- mapM Ctx.lookup args
-  let param_tys = map snd param_binds
-  unless (arg_tys == param_tys) $
-    throwError (fun <> " expects " <> show param_tys <> ", got " <> show (zip args arg_tys))
-
-  return $ map snd ret_binds
 
 -- `subroutine`(...)
 checkExpr funCtx FunCallE{fun_kind = PrimitiveCall prim_name prim_params, args} = do
@@ -176,26 +164,36 @@ checkStmt funCtx IfThenElseS{cond, s_true, s_false} = do
   id .= sigma_t
 
 -- | Type check a single function.
-typeCheckFun :: (TypeCheckable a) => FunCtx a -> FunDef a -> Either String (TypingCtx a)
-typeCheckFun funCtx FunDef{param_binds, ret_binds, body} = do
-  let gamma = Ctx.fromList param_binds
-  (gamma', ()) <- execRWST (checkStmt funCtx body) () gamma
-  forM_ ret_binds $ \(x, t) -> do
-    when (has _Just (gamma ^. Ctx.at x)) $ do
-      throwError $ printf "parameter `%s` cannot be returned, please copy it into a new variable and return that" x
-    t' <- gamma' ^. Ctx.at x & maybe (throwError $ printf "missing in returns: %s" x) pure
-    when (t /= t') $
-      throwError $
-        printf
-          "return term %s: expected type %s, got type %s"
-          x
-          (show t)
-          (show t')
+typeCheckFun :: (TypeCheckable a) => FunCtx a -> FunDef a -> Either String ()
+typeCheckFun
+  funCtx
+  FunDef
+    { param_types
+    , ret_types
+    , mbody = Just FunBody{param_names, ret_names, body_stmt}
+    } = do
+    when (length param_types /= length param_names) $
+      throwError "number of parameters must match the types"
+    when (length ret_types /= length ret_names) $
+      throwError "number of returns must match the types"
 
-  return gamma'
+    let gamma = Ctx.fromList $ zip param_names param_types
+    gamma' <- execMyStateT (checkStmt funCtx body_stmt) gamma
+    forM_ (zip ret_names ret_types) $ \(x, t) -> do
+      when (has _Just (gamma ^. Ctx.at x)) $ do
+        throwError $ printf "parameter `%s` cannot be returned, please copy it into a new variable and return that" x
+      t' <- gamma' ^. Ctx.at x & maybe (throwError $ printf "missing in returns: %s" x) pure
+      when (t /= t') $
+        throwError $
+          printf
+            "return term %s: expected type %s, got type %s"
+            x
+            (show t)
+            (show t')
+typeCheckFun _ FunDef{mbody = Nothing} = return ()
 
 -- | Type check a full program (i.e. list of functions).
 typeCheckProg :: (TypeCheckable a) => TypingCtx a -> Program a -> Either String (TypingCtx a)
-typeCheckProg gamma Program{funCtx = funCtx@FunCtx{fun_defs}, stmt} = do
-  mapM_ (typeCheckFun funCtx) fun_defs
+typeCheckProg gamma Program{funCtx, stmt} = do
+  mapM_ (typeCheckFun funCtx) funCtx
   execMyStateT (checkStmt funCtx stmt) gamma

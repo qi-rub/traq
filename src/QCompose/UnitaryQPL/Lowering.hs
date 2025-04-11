@@ -87,11 +87,6 @@ allocAncilla ty = do
 addProc :: ProcDef sizeT costT -> CompilerT sizeT costT ()
 addProc procDef = tell [procDef]
 
--- | lower an oracle declaration to a uqpl oracle decl
-lowerOracleDecl :: P.OracleDecl sizeT -> OracleDecl sizeT
-lowerOracleDecl P.OracleDecl{P.param_types, P.ret_types} =
-  OracleDecl{param_types = param_types ++ ret_types}
-
 -- | A procDef generated from a funDef, along with the partitioned register spaces.
 data LoweredProc sizeT costT = LoweredProc
   { lowered_def :: ProcDef sizeT costT

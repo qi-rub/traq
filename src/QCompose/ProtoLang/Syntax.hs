@@ -2,19 +2,20 @@
 {-# LANGUAGE MultiParamTypeClasses #-}
 
 module QCompose.ProtoLang.Syntax (
+  -- * Syntax
   VarType (..),
   UnOp (..),
   BinOp (..),
   FunctionCallKind (..),
   Expr (..),
   Stmt (..),
+  FunBody (..),
   FunDef (..),
-  OracleDecl (..),
+  FunCtx,
   Program (..),
-  FunCtx (..),
+
+  -- * Helpers
   mkFunDefCtx,
-  _ast,
-  _stmt,
 ) where
 
 import qualified QCompose.Data.Context as Ctx
@@ -40,9 +41,9 @@ data UnOp = NotOp
 data BinOp = AddOp | LEqOp | AndOp
   deriving (Eq, Show, Read)
 
+-- | Either call an existing function, or an existing primitive.
 data FunctionCallKind
-  = OracleCall
-  | FunctionCall Ident
+  = FunctionCall Ident
   | PrimitiveCall {prim_name :: Ident, prim_params :: [Ident]}
   deriving (Eq, Show, Read)
 
@@ -66,27 +67,21 @@ data Stmt sizeT
   deriving (Eq, Show, Read, Functor)
 
 -- | A function definition in the prototype language.
+data FunBody sizeT = FunBody
+  { param_names, ret_names :: [Ident]
+  , body_stmt :: Stmt sizeT
+  }
+  deriving (Eq, Show, Read, Functor)
+
 data FunDef sizeT = FunDef
   { fun_name :: Ident
-  , param_binds :: [(Ident, VarType sizeT)]
-  , ret_binds :: [(Ident, VarType sizeT)]
-  , body :: Stmt sizeT
+  , param_types, ret_types :: [VarType sizeT]
+  , mbody :: Maybe (FunBody sizeT)
   }
   deriving (Eq, Show, Read, Functor)
 
--- | A declaration of the oracle's type
-data OracleDecl sizeT = OracleDecl
-  { param_types :: [VarType sizeT]
-  , ret_types :: [VarType sizeT]
-  }
-  deriving (Eq, Show, Read, Functor)
-
--- | A function context contains the oracle declaration, and a list of functions
-data FunCtx sizeT = FunCtx
-  { oracle_decl :: OracleDecl sizeT
-  , fun_defs :: Ctx.Context (FunDef sizeT)
-  }
-  deriving (Eq, Show, Read, Functor)
+-- | A function context contains a list of functions
+type FunCtx sizeT = Ctx.Context (FunDef sizeT)
 
 -- | Create a mapping of function names to function defs.
 mkFunDefCtx :: [FunDef a] -> Ctx.Context (FunDef a)
@@ -104,21 +99,22 @@ data Program sizeT = Program
 -- ================================================================================
 
 instance HasAst (Stmt a) where
-  _ast f (SeqS ss) = SeqS <$> traverse f ss
-  _ast f (IfThenElseS cond s_true s_false) = IfThenElseS cond <$> f s_true <*> f s_false
+  _ast focus (SeqS ss) = SeqS <$> traverse focus ss
+  _ast focus (IfThenElseS cond s_true s_false) = IfThenElseS cond <$> focus s_true <*> focus s_false
   _ast _ s = pure s
 
 instance HasStmt (Stmt a) (Stmt a) where
   _stmt = id
 
-instance HasStmt (FunDef a) (Stmt a) where
-  _stmt f funDef@FunDef{body} = (\body' -> funDef{body = body'}) <$> f body
+instance HasStmt (FunBody a) (Stmt a) where
+  _stmt focus fbody@FunBody{body_stmt} = (\body_stmt' -> fbody{body_stmt = body_stmt'}) <$> focus body_stmt
 
-instance HasStmt (FunCtx a) (Stmt a) where
-  _stmt f (FunCtx oracle_decl fun_defs) = FunCtx oracle_decl <$> traverse (_stmt f) fun_defs
+instance HasStmt (FunDef a) (Stmt a) where
+  _stmt focus funDef@FunDef{mbody = Just body} = (\body' -> funDef{mbody = Just body'}) <$> _stmt focus body
+  _stmt _ f = pure f
 
 instance HasStmt (Program a) (Stmt a) where
-  _stmt f (Program funCtx stmt) = Program <$> _stmt f funCtx <*> f stmt
+  _stmt focus (Program funCtx stmt) = Program <$> traverse (_stmt focus) funCtx <*> focus stmt
 
 -- ================================================================================
 -- Printing
@@ -136,7 +132,6 @@ instance ToCodeString BinOp where
   toCodeString AndOp = "/\\"
 
 instance ToCodeString FunctionCallKind where
-  toCodeString OracleCall = "Oracle"
   toCodeString (FunctionCall f) = f
   toCodeString (PrimitiveCall f ps) = printf "@%s[%s]" f (commaList ps)
 
@@ -162,28 +157,33 @@ instance (Show a) => ToCodeString (Stmt a) where
   toCodeLines (SeqS ss) = concatMap toCodeLines ss
 
 instance (Show a) => ToCodeString (FunDef a) where
-  toCodeLines FunDef{fun_name, param_binds, ret_binds, body} =
-    [unwords ["def", fun_name, "(" <> commaList (showTypedVar <$> param_binds) <> ")", "do"]]
-      <> indent
-        ( toCodeLines body
-            <> [unwords ["return", commaList (showTypedVar <$> ret_binds)]]
-        )
-      <> ["end"]
-   where
-    -- showTypedVar :: (Ident, VarType a) -> String
-    showTypedVar (x, ty) = unwords [x, ":", toCodeString ty]
-
-instance (Show a) => ToCodeString (OracleDecl a) where
-  toCodeString OracleDecl{param_types, ret_types} =
-    unwords
-      [ "declare"
-      , "Oracle" <> "(" <> commaList (toCodeString <$> param_types) <> ")"
-      , "->"
-      , commaList (toCodeString <$> ret_types)
-      ]
+  -- def
+  toCodeLines
+    FunDef
+      { fun_name
+      , param_types
+      , ret_types
+      , mbody = Just FunBody{body_stmt, param_names, ret_names}
+      } =
+      [printf "def %s(%s) do" fun_name (commaList $ zipWith showTypedVar param_names param_types)]
+        <> indent
+          ( toCodeLines body_stmt
+              <> [unwords ["return", commaList $ zipWith showTypedVar ret_names ret_types]]
+          )
+        <> ["end"]
+     where
+      showTypedVar :: Ident -> VarType a -> String
+      showTypedVar x ty = unwords [x, ":", toCodeString ty]
+  -- declare
+  toCodeLines FunDef{fun_name, param_types, ret_types, mbody = Nothing} =
+    [ printf
+        "declare %s(%s) -> %s"
+        fun_name
+        (commaList $ map toCodeString param_types)
+        (commaList $ map toCodeString ret_types)
+    ]
 
 instance (Show a) => ToCodeString (Program a) where
-  toCodeLines Program{funCtx = FunCtx{oracle_decl, fun_defs}, stmt} =
-    [toCodeString oracle_decl, ""]
-      <> map toCodeString (Ctx.elems fun_defs)
+  toCodeLines Program{funCtx, stmt} =
+    map toCodeString (Ctx.elems funCtx)
       <> toCodeLines stmt
