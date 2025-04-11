@@ -37,7 +37,6 @@ dependencies:
   - microlens-ghc ^>= 0.4 
   - microlens-mtl ^>= 0.2
   - parsec ^>= 3.1.17
-  - quipper == 0.9.0.0
   - probability ^>= 0.2
 
 default-extensions:
@@ -71,6 +70,13 @@ executables:
   cqplcompile:
     main: cqplcompile.hs
     <<: *exe_opts
+  uqpltoquipper:
+    main: uqpltoquipper.hs
+    <<: *exe_opts
+    dependencies:
+      - qcompose 
+      - optparse-applicative ^>= 0.18
+      - quipper-language == 0.9.0.0
 
 tests:
   spec:
