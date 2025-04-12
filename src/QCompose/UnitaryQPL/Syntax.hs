@@ -1,16 +1,29 @@
 module QCompose.UnitaryQPL.Syntax (
+  -- * Syntax
+
+  -- ** Inbuilt functions and unitaries
   ClassicalFun (..),
   BlackBox (..),
   Unitary (..),
-  HasDagger (..),
+
+  -- ** Statements
   Stmt (..),
+
+  -- ** Procedures
   ParamTag (..),
   ProcDef (..),
-  OracleDecl (..),
+  ProcCtx,
+
+  -- ** Program
   Program (..),
+
+  -- * Helpers
+  HasDagger (..),
 ) where
 
 import Text.Printf (printf)
+
+import qualified QCompose.Data.Context as Ctx
 
 import QCompose.Prelude
 import qualified QCompose.ProtoLang as P
@@ -34,7 +47,7 @@ data Unitary sizeT costT
   | CNOT
   | XGate
   | HGate
-  | Oracle
+  | LoadData Ident
   | -- | maps \( |0\rangle \) to \( \frac1{\sqrt{|\Sigma_T|}} \sum_{x \in \Sigma_T} |x\rangle \)
     Unif (P.VarType sizeT)
   | UnifDagger (P.VarType sizeT)
@@ -56,7 +69,7 @@ instance HasDagger (Unitary sizeT costT) where
   adjoint CNOT = CNOT
   adjoint HGate = HGate
   adjoint XGate = XGate
-  adjoint Oracle = Oracle
+  adjoint (LoadData f) = LoadData f
   adjoint u@(Refl0 _) = u
   adjoint u@(RevEmbedU _) = u
   adjoint (Controlled u) = Controlled (adjoint u)
@@ -83,18 +96,16 @@ data ParamTag = ParamInp | ParamOut | ParamAux | ParamUnk deriving (Eq, Show, Re
 data ProcDef sizeT costT = ProcDef
   { proc_name :: Ident
   , proc_params :: [(Ident, ParamTag, P.VarType sizeT)]
-  , proc_body :: Stmt sizeT costT
+  , mproc_body :: Maybe (Stmt sizeT costT)
   }
   deriving (Eq, Show, Read)
 
-newtype OracleDecl a = OracleDecl
-  { param_types :: [P.VarType a]
-  }
-  deriving (Eq, Show, Read)
+-- | A procedure context
+type ProcCtx sizeT costT = Ctx.Context (ProcDef sizeT costT)
 
+-- | A full program
 data Program sizeT costT = Program
-  { oracle_decl :: OracleDecl sizeT
-  , proc_defs :: [ProcDef sizeT costT]
+  { proc_defs :: ProcCtx sizeT costT
   , stmt :: Stmt sizeT costT
   }
   deriving (Eq, Show, Read)
@@ -119,6 +130,7 @@ instance (Show a, Show b) => ToCodeString (Unitary a b) where
   toCodeString XGate = "X"
   toCodeString HGate = "H"
   toCodeString (Refl0 ty) = printf "(2|0><0| - I)[%s]" (toCodeString ty)
+  toCodeString (LoadData f) = f
   toCodeString u = show u
 
 instance (Show a, Show b) => ToCodeString (Stmt a b) where
@@ -143,20 +155,21 @@ instance ToCodeString ParamTag where
   toCodeString ParamAux = "AUX"
   toCodeString ParamUnk = ""
 
-instance (Show a, Show b) => ToCodeString (ProcDef a b) where
-  toCodeLines ProcDef{proc_name, proc_params, proc_body} =
-    ["uproc " <> proc_name <> "(" <> plist <> ") do"]
-      <> indent (toCodeLines proc_body)
-      <> ["end"]
-   where
-    plist = commaList $ map showParam proc_params
-    showParam (x, tag, ty) = printf "%s : %s %s" x (toCodeString tag) (toCodeString ty)
+showParamWithTag :: (Show sizeT) => (Ident, ParamTag, P.VarType sizeT) -> String
+showParamWithTag (x, tag, ty) = printf "%s : %s%s" x tag_s (toCodeString ty)
+ where
+  tag_s = case toCodeString tag of "" -> ""; s -> s ++ " "
 
-instance (Show a) => ToCodeString (OracleDecl a) where
-  toCodeString OracleDecl{param_types} =
-    printf "uproc Oracle(%s)" plist
+instance (Show sizeT, Show costT) => ToCodeString (ProcDef sizeT costT) where
+  toCodeLines ProcDef{proc_name, proc_params, mproc_body} =
+    case mproc_body of
+      Nothing -> [printf "uproc %s(%s);" proc_name plist]
+      Just proc_body ->
+        [printf "uproc %s(%s) do" proc_name plist]
+          <> indent (toCodeLines proc_body)
+          <> ["end"]
    where
-    plist = commaList $ map toCodeString param_types
+    plist = commaList $ map showParamWithTag proc_params
 
 instance (Show a, Show b) => ToCodeString (Program a b) where
-  toCodeLines Program{oracle_decl, proc_defs, stmt} = toCodeString oracle_decl : "" : map toCodeString proc_defs <> [toCodeString stmt]
+  toCodeLines Program{proc_defs, stmt} = foldMap toCodeLines proc_defs <> [toCodeString stmt]

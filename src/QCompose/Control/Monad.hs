@@ -26,6 +26,9 @@ module QCompose.Control.Monad (
 
   -- ** RS
   MyReaderStateT,
+  runMyReaderStateT,
+  evalMyReaderStateT,
+  execMyReaderStateT,
 
   -- * MonadError
   throwFrom,
@@ -132,6 +135,17 @@ withSandbox = withSandboxOf id
 
 -- | Reader+State monad using RWS
 type MyReaderStateT r s = MyReaderWriterStateT r () s
+
+runMyReaderStateT :: (Monad m) => MyReaderStateT r s m a -> r -> s -> m (a, s)
+runMyReaderStateT m r s = do
+  (a, s', ()) <- runRWST m r s
+  return (a, s')
+
+evalMyReaderStateT :: (Monad m) => MyReaderStateT r s m a -> r -> s -> m a
+evalMyReaderStateT = ((fmap fst .) .) . runMyReaderStateT
+
+execMyReaderStateT :: (Monad m) => MyReaderStateT r s m a -> r -> s -> m s
+execMyReaderStateT = ((fmap snd .) .) . runMyReaderStateT
 
 -- | Run a computation with the current state as a read-only environment.
 withFrozenStateOf :: (Monad m) => Lens' s s' -> MyReaderT s' m a -> MyStateT s m a
