@@ -1,7 +1,6 @@
 module QCompose.UnitaryQPL.Lowering where
 
 import Control.Monad.Except (throwError)
-import Control.Monad.RWS
 import Data.List (intersect)
 import qualified Data.Set as Set
 import Lens.Micro

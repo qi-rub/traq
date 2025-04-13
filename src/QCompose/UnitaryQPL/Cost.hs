@@ -10,9 +10,11 @@ module QCompose.UnitaryQPL.Cost (
   CostCalculator,
 ) where
 
-import Control.Monad.RWS (runRWS)
+import Control.Applicative ((<|>))
+import Control.Monad.Trans (lift)
 import qualified Data.Map as Map
 import Lens.Micro
+import Lens.Micro.GHC ()
 import Lens.Micro.Mtl
 
 import QCompose.Control.Monad
@@ -47,10 +49,11 @@ procCost ::
   (Integral sizeT, Show costT, Floating costT) =>
   Ident ->
   CostCalculator sizeT costT costT
-procCost name = use (at name) <|> calc_cost
+procCost name = (use (at name) >>= lift) <|> calc_cost
  where
   calc_cost = do
     ProcDef{mproc_body} <- view $ Ctx.at name . singular _Just
+    proc_body <- lift mproc_body
     cost <- stmtCost proc_body
     at name ?= cost
     return cost
@@ -59,7 +62,5 @@ programCost ::
   (Integral sizeT, Show costT, Floating costT) =>
   Program sizeT costT ->
   (costT, CostMap costT)
-programCost Program{proc_defs, stmt} = (cost, proc_costs)
- where
-  (cost, proc_costs) = view _Just $ runMyReaderStateT (stmtCost stmt) proc_map Map.empty
-  proc_map = Ctx.fromList $ [(proc_name p, p) | p <- proc_defs]
+programCost Program{proc_defs, stmt} =
+  runMyReaderStateT (stmtCost stmt) proc_defs Map.empty ^. singular _Just
