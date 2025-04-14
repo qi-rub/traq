@@ -32,13 +32,16 @@ data QSearchBlackBoxes costT
 symbolicFormulas :: forall sizeT costT. (Show sizeT, Show costT, Integral sizeT, RealFloat costT) => P.QSearchFormulas (Sym.Sym sizeT) (Sym.Sym costT)
 symbolicFormulas =
   P.QSearchFormulas
-    { P.qSearchExpectedCost = error "no symbolic support"
-    , P.qSearchWorstCaseCost = error "no symbolic support"
+    { P.qSearchExpectedCost = error "no symbolic support for expected quantum cost"
+    , P.qSearchWorstCaseCost = wcF
     , P.qSearchUnitaryCost = ucF
     }
  where
   ucF :: Sym.Sym sizeT -> Sym.Sym costT -> Sym.Sym costT
-  ucF n eps = Sym.var $ "Qry(" <> show n <> ", " <> show eps <> ")"
+  ucF n eps = Sym.var $ "QryU(" <> show n <> ", " <> show eps <> ")"
+
+  wcF :: Sym.Sym sizeT -> Sym.Sym costT -> Sym.Sym costT
+  wcF n eps = Sym.var $ "QryQ(" <> show n <> ", " <> show eps <> ")"
 
 -- | Cost formulas for quantum search algorithms \( \textbf{QSearch} \) and \( \textbf{QSearch}_\text{Zalka} \).
 cadeEtAlFormulas :: forall sizeT costT. (Integral sizeT, RealFloat costT) => P.QSearchFormulas sizeT costT

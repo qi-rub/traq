@@ -7,7 +7,7 @@ import Lens.Micro
 import qualified QCompose.Data.Context as Ctx
 
 import qualified QCompose.ProtoLang as P
-import qualified QCompose.UnitaryQPL as U
+import qualified QCompose.UnitaryQPL as UQPL
 
 import QCompose.Examples.MatrixSearch
 import QCompose.Prelude
@@ -23,7 +23,7 @@ symbolicEx = do
   let ex = matrixExample n m (P.Fin $ Sym.con 2)
 
   let delta = Sym.var "δ" :: Sym.Sym Double
-  let u_formula_cost = (qsearchCFNWSymbolic ^. to formulas . to P.unitaryQueryCost) delta ex
+  let u_formula_cost = (qsearchCFNWSymbolic ^. to formulas . to P.unitaryQueryCost) delta ex "Oracle"
   print u_formula_cost
 
 concreteEx :: IO ()
@@ -37,13 +37,13 @@ concreteEx = do
 
   let delta = 0.001 :: Double
 
-  let u_formula_cost = P.unitaryQueryCost (qsearchCFNW ^. to formulas) delta ex
+  let u_formula_cost = P.unitaryQueryCost (qsearchCFNW ^. to formulas) delta ex "Oracle"
 
   putStrLn $ replicate 80 '='
-  let (Right (exU, _)) = U.lowerProgram (qsearchCFNW ^. to unitaryAlgo) Ctx.empty delta ex
+  let (Right (exU, _)) = UQPL.lowerProgram (qsearchCFNW ^. to unitaryAlgo) Ctx.empty "Oracle" delta ex
   putStrLn $ toCodeString exU
 
-  let (u_true_cost, _) = U.programCost exU
+  let (u_true_cost, _) = UQPL.programCost (\hole -> error "TODO") exU
 
   putStrLn "Unitary Cost:"
   putStrLn $ " - Abstract cost: " <> show u_formula_cost
