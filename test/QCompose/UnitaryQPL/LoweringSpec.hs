@@ -15,7 +15,6 @@ import TestHelpers
 spec :: Spec
 spec = do
   describe "lowerStmt" $ do
-    let dummy_oracle = P.OracleDecl{P.param_types = [], P.ret_types = [P.Fin 2]}
     it "assign" $
       do
         let s = P.ExprS{P.rets = ["y"], P.expr = P.VarE{P.arg = "x"}} :: P.Stmt Int
@@ -24,15 +23,15 @@ spec = do
             U.lowerProgram
               (qsearchCFNW ^. to unitaryAlgo)
               (Ctx.singleton "x" (P.Fin 10))
+              "Oracle"
               (0 :: Double)
               P.Program
-                { P.funCtx = P.FunCtx{P.oracle_decl = dummy_oracle, P.fun_defs = Ctx.empty}
+                { P.funCtx = Ctx.empty
                 , P.stmt = s
                 }
         res
           `shouldBe` U.Program
-            { U.oracle_decl = U.lowerOracleDecl dummy_oracle
-            , U.proc_defs = []
+            { U.proc_defs = Ctx.empty
             , U.stmt = U.UnitaryS ["x", "y"] $ U.RevEmbedU (U.IdF (P.Fin 10))
             }
 

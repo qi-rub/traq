@@ -243,6 +243,7 @@ lowerExpr eps P.FunCallE{P.fun_kind = P.PrimitiveCall "any" [predicate], P.args}
     CallS
       { fun = FunctionCall qsearch_proc_name
       , args = args ++ rets
+      , meta_params = []
       }
 lowerExpr _ e _ = error $ "TODO implement lowerExpr " <> show e
 

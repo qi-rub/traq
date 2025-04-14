@@ -25,8 +25,10 @@ spec = do
       assertRight $ P.typeCheckProg Ctx.empty ex
 
     let oracleF = const [0]
+    let interpCtx = Ctx.singleton "Oracle" oracleF
+
     it "evaluates" $ do
-      let res = P.runProgram ex oracleF Ctx.empty
+      let res = P.runProgram ex interpCtx Ctx.empty
       res `shouldBe` pure (Ctx.singleton "result" 0)
 
     let qformulas@(P.QSearchFormulas ecF _ ucF) = qsearchCFNW ^. to formulas
@@ -36,10 +38,10 @@ spec = do
 
     it "unitary cost for eps=0.0001" $ do
       let true_cost = 2 * ucF n (eps / 2) :: Double
-      P.unitaryQueryCost qformulas eps ex `shouldBe` true_cost
+      P.unitaryQueryCost qformulas eps ex "Oracle" `shouldBe` true_cost
 
     it "quantum cost for eps=0.0001" $ do
-      P.quantumQueryCost qformulas eps ex oracleF Ctx.empty `shouldBe` ecF n 0 (eps / 2)
+      P.quantumQueryCost qformulas eps ex "Oracle" interpCtx Ctx.empty `shouldBe` ecF n 0 (eps / 2)
 
     it "generate code" $ do
       toCodeString ex `shouldSatisfy` (not . null)
@@ -47,16 +49,16 @@ spec = do
     describe "lowers to UQPL" $ do
       let delta = 0.0001 :: Double
       it "lowers" $ do
-        assertRight $ UQPL.lowerProgram ualgo Ctx.empty delta ex
+        assertRight $ UQPL.lowerProgram ualgo Ctx.empty "Oracle" delta ex
 
       it "typechecks" $ do
-        (ex_uqpl, gamma) <- expectRight $ UQPL.lowerProgram ualgo Ctx.empty delta ex
+        (ex_uqpl, gamma) <- expectRight $ UQPL.lowerProgram ualgo Ctx.empty "Oracle" delta ex
         assertRight $ UQPL.typeCheckProgram gamma ex_uqpl
 
       it "preserves cost" $ do
-        (ex_uqpl, _) <- expectRight $ UQPL.lowerProgram ualgo Ctx.empty delta ex
+        (ex_uqpl, _) <- expectRight $ UQPL.lowerProgram ualgo Ctx.empty "Oracle" delta ex
         let (uqpl_cost, _) = UQPL.programCost ex_uqpl
-        let proto_cost = P.unitaryQueryCost qformulas delta ex
+        let proto_cost = P.unitaryQueryCost qformulas delta ex "Oracle"
         uqpl_cost `shouldBe` proto_cost
 
   describe "arraySearch (returning solution)" $ do
@@ -68,9 +70,10 @@ spec = do
 
     let planted_sols = [2, 4, 5] :: [Value]
     let oracleF = \[i] -> [if i `elem` planted_sols then 1 else 0]
+    let interpCtx = Ctx.singleton "Oracle" oracleF
 
     it "evaluates" $ do
-      let res = P.runProgram ex oracleF Ctx.empty
+      let res = P.runProgram ex interpCtx Ctx.empty
       res
         `shouldBe` Tree.choice
           [ pure $ Ctx.fromList [("result", 1), ("solution", i)]

@@ -9,6 +9,7 @@ module QCompose.CQPL.Syntax (
   ProcBody (..),
   ProcDef (..),
   Program (..),
+  Program',
 
   -- * Syntax Sugar
   desugarS,
@@ -18,6 +19,7 @@ import Text.Printf (printf)
 
 import qualified QCompose.Data.Context as Ctx
 
+import Data.Void (Void)
 import QCompose.Prelude
 import QCompose.ProtoLang (VarType)
 import qualified QCompose.UnitaryQPL as UQPL
@@ -92,6 +94,9 @@ data Program holeT sizeT = Program
   , stmt :: Stmt sizeT
   }
   deriving (Eq, Show, Read)
+
+-- | Alias without holes.
+type Program' = Program Void
 
 -- ================================================================================
 -- Lenses
