@@ -23,7 +23,7 @@ symbolicEx = do
   let ex = matrixExample n m (P.Fin $ Sym.con 2)
 
   let delta = Sym.var "δ" :: Sym.Sym Double
-  let u_formula_cost = (qsearchCFNWSymbolic ^. to formulas . to P.unitaryQueryCost) delta ex "Oracle"
+  let u_formula_cost = (qsearchSymbolic ^. to formulas . to P.unitaryQueryCost) delta ex "Oracle"
   print u_formula_cost
 
 concreteEx :: IO ()
