@@ -194,7 +194,6 @@ lowerExpr delta P.FunCallE{P.fun_kind = PrimitiveCall "any" [predicate], P.args}
   let qsearch_param_tys =
         init pred_inp_tys
           ++ pred_out_tys
-          ++ [s_ty]
           ++ pred_aux_tys
           ++ qsearch_ancilla_tys
 

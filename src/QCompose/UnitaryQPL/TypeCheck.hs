@@ -20,6 +20,7 @@ import QCompose.Control.Monad
 import QCompose.Prelude
 import QCompose.ProtoLang (TypeCheckable (..), TypingCtx, VarType)
 import QCompose.UnitaryQPL.Syntax
+import Text.Printf (printf)
 
 type CheckingCtx holeT sizeT = (ProcCtx holeT sizeT, TypingCtx sizeT)
 type TypeChecker holeT sizeT = MyReaderT (CheckingCtx holeT sizeT) (Either String)
@@ -37,7 +38,7 @@ verifyArgs args tys = do
 
   when (arg_tys /= tys) $
     throwError $
-      "mismatched args: " <> show (arg_tys, tys)
+      printf "mismatched args: expected %s, got %s" (show tys) (show arg_tys)
 
 unitarySignature :: (TypeCheckable sizeT) => Unitary sizeT -> TypeChecker holeT sizeT [VarType sizeT]
 unitarySignature Toffoli = return [tbool, tbool, tbool]
