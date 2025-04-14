@@ -32,6 +32,7 @@ module QCompose.Control.Monad (
   runMyReaderStateT,
   evalMyReaderStateT,
   execMyReaderStateT,
+  withInjectedState,
 
   -- * MonadError
   throwFrom,
@@ -169,6 +170,13 @@ withFrozenStateOf part m = do
 -- | Run a computation with the current state as a read-only environment.
 withFrozenState :: (Monad m) => MyReaderT s m a -> MyStateT s m a
 withFrozenState = withFrozenStateOf id
+
+withInjectedState :: forall r w s s' m a. (Monad m, Monoid w) => s -> MyReaderWriterStateT r w s m a -> MyReaderWriterStateT r w s' m a
+withInjectedState s = zoom _s_lens
+ where
+  -- simply gets `s`, and ignores while setting.
+  _s_lens :: Lens' s' s
+  _s_lens = lens (const s) const
 
 -- ================================================================================
 -- MonadError

@@ -141,6 +141,7 @@ funDef tp@TokenParser{..} = do
   reserved "def"
   fun_name <- identifier
   (param_names, param_types) <- unzip <$> parens (commaSep (typedTerm tp identifier))
+  reserved "do"
   body_stmt <- stmtP tp
   _ <- semi
   reserved "return"

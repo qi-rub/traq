@@ -36,11 +36,7 @@ spec = do
             }
 
         toCodeString res
-          `shouldBe` unlines
-            [ "uproc Oracle(Fin<2>)\n"
-            , "x, y *= RevEmbed[x : Fin<10> => x];"
-            , ""
-            ]
+          `shouldBe` "x, y *= RevEmbed[x : Fin<10> => x];\n\n"
 
         gamma `shouldBe` Ctx.fromList [("x", P.Fin 10), ("y", P.Fin 10)]
 

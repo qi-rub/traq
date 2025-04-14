@@ -120,13 +120,10 @@ execStmt IfThenElseS{cond, s_true, s_false} = do
   execStmt s
 execStmt (SeqS ss) = mapM_ execStmt ss
 
-evalWithState :: ExecutionState SizeT -> Executor a -> Evaluator a
-evalWithState st = zoom (error "How do I zoom to change the state???")
-
 evalFun :: [Value] -> FunDef SizeT -> Evaluator [Value]
 evalFun vals_in FunDef{mbody = Just FunBody{param_names, ret_names, body_stmt}} =
   let params = Ctx.fromList $ zip param_names vals_in
-   in evalWithState params $ do
+   in withInjectedState params $ do
         execStmt body_stmt
         mapM lookupS ret_names
 evalFun vals_in FunDef{fun_name, mbody = Nothing} = do
