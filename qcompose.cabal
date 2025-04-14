@@ -25,6 +25,7 @@ library
           QCompose.CQPL.Lowering
           QCompose.CQPL.Syntax
           QCompose.Data.Context
+          QCompose.Data.Symbolic
           QCompose.Data.Tree
           QCompose.Examples.MatrixSearch
           QCompose.Examples.Search
@@ -194,6 +195,7 @@ test-suite spec
     main-is: Spec.hs
     other-modules:
           QCompose.CQPL.LoweringSpec
+          QCompose.Data.SymbolicSpec
           QCompose.Data.TreeSpec
           QCompose.Examples.MatrixSearchSpec
           QCompose.Examples.NonDetSpec
