@@ -1,8 +1,16 @@
-module QCompose.ProtoLang.Vars where
+module QCompose.ProtoLang.Vars (
+  VarSet,
+  freeVars,
+  -- outVars,
+  -- allVars,
+  checkVarsUnique,
+  allNamesP,
+) where
 
 import Control.Monad (foldM, guard)
-import Data.Maybe (isJust)
+import Data.Maybe (isJust, mapMaybe)
 import qualified Data.Set as Set
+import Lens.Micro
 
 import qualified QCompose.Data.Context as Ctx
 
@@ -36,22 +44,22 @@ outVars ExprS{rets} = Set.fromList rets
 allVars :: Stmt a -> VarSet
 allVars s = freeVars s `Set.union` outVars s
 
+allNamesF :: FunBody a -> VarSet
+allNamesF FunBody{param_names, ret_names, body_stmt} =
+  Set.unions [allVars body_stmt, Set.fromList param_names, Set.fromList ret_names]
+
 -- | Get all the variables of a program
 allNamesP :: Program a -> VarSet
-allNamesP Program{funCtx = FunCtx{fun_defs}, stmt} =
-  foldr Set.union Set.empty $ allVars stmt : map allNamesF (Ctx.elems fun_defs)
- where
-  allNamesF :: FunDef a -> VarSet
-  allNamesF FunDef{param_binds, body} =
-    Set.unions [allVars body, Set.fromList $ map fst param_binds]
+allNamesP Program{funCtx, stmt} =
+  foldr Set.union (allVars stmt) $
+    funCtx & Ctx.elems & mapMaybe mbody & map allNamesF
 
 -- | Check if a program has unique variable names
 checkVarsUnique :: Program a -> Bool
-checkVarsUnique Program{funCtx = FunCtx{fun_defs}, stmt} =
-  isJust . foldM combine Set.empty $ allVars stmt : map allFunVars (Ctx.elems fun_defs)
+checkVarsUnique Program{funCtx, stmt} =
+  isJust . foldM combine Set.empty $ allVars stmt : all_fun_names
  where
-  allFunVars :: FunDef a -> VarSet
-  allFunVars FunDef{param_binds, body} = Set.union (allVars body) (Set.fromList $ map fst param_binds)
+  all_fun_names = funCtx & Ctx.elems & mapMaybe mbody & map allNamesF
 
   combine :: VarSet -> VarSet -> Maybe VarSet
   combine u v = do

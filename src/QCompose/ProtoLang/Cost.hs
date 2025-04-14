@@ -1,6 +1,7 @@
 module QCompose.ProtoLang.Cost (
   -- * Abstract Formulas
   QSearchFormulas (..),
+  OracleName,
 
   -- * Unitary Cost
   unitaryQueryCost,
@@ -46,6 +47,7 @@ import qualified QCompose.Data.Tree as Tree
 
 import QCompose.Prelude
 import QCompose.ProtoLang.Eval
+import QCompose.ProtoLang.Monad
 import QCompose.ProtoLang.Syntax
 
 -- | Computed cost functions (quantum, unitary) of a given set of algorithms implementing quantum search
@@ -61,16 +63,22 @@ detExtract xs = case toList xs of
   _ -> error "unexpected non-determinism"
 
 unsafeLookupFun :: Ident -> FunCtx sizeT -> FunDef sizeT
-unsafeLookupFun fname funCtx = funCtx ^. to fun_defs . Ctx.at fname . singular _Just
+unsafeLookupFun fname funCtx = funCtx ^. Ctx.at fname . singular _Just
 
+-- ================================================================================
 -- Unitary Cost
+-- ================================================================================
 
--- Environment to compute the unitary cost
-type StaticCostEnv sizeT costT = (QSearchFormulas sizeT costT, FunCtx sizeT)
+-- | Name of the oracle to compute the number of queries to.
+type OracleName = Ident
 
+-- | Environment to compute the unitary cost
+type StaticCostEnv sizeT costT = (QSearchFormulas sizeT costT, FunCtx sizeT, OracleName)
+
+-- | Monad to compute unitary cost.
 type UnitaryCostCalculator sizeT costT = MyReaderT (StaticCostEnv sizeT costT) Maybe
 
--- Evaluate the query cost of an expression
+-- | Evaluate the query cost of an expression
 unitaryQueryCostE ::
   (Num sizeT, Floating costT) =>
   -- | precision
@@ -78,14 +86,19 @@ unitaryQueryCostE ::
   -- | expression @E@
   Expr sizeT ->
   UnitaryCostCalculator sizeT costT costT
-unitaryQueryCostE _ FunCallE{fun_kind = OracleCall} = return 1
 unitaryQueryCostE delta FunCallE{fun_kind = FunctionCall fname} = do
-  FunDef{body} <- view $ _2 . to (unsafeLookupFun fname)
-  (2 *) <$> unitaryQueryCostS (delta / 2) body
-unitaryQueryCostE delta FunCallE{fun_kind = PrimitiveCall c [predicate], args = args}
+  is_oracle_call <- view $ _3 . to (== fname)
+  if is_oracle_call
+    then return 1.0
+    else do
+      FunDef{mbody} <- view $ _2 . to (unsafeLookupFun fname)
+      case mbody of
+        Nothing -> return 0 -- no cost for injected data
+        Just FunBody{body_stmt} -> (2 *) <$> unitaryQueryCostS (delta / 2) body_stmt
+unitaryQueryCostE delta FunCallE{fun_kind = PrimitiveCall c [predicate]}
   | c == "any" || c == "search" = do
-      FunDef{param_binds} <- view $ _2 . to (unsafeLookupFun predicate)
-      let Fin n = param_binds & last & snd
+      FunDef{param_types} <- view $ _2 . to (unsafeLookupFun predicate)
+      let Fin n = param_types & last
 
       -- split the precision
       let delta_search = delta / 2
@@ -101,7 +114,7 @@ unitaryQueryCostE delta FunCallE{fun_kind = PrimitiveCall c [predicate], args = 
       -- cost of each predicate call
       cost_pred <-
         unitaryQueryCostE delta_per_pred_call $
-          FunCallE{fun_kind = FunctionCall predicate, args}
+          FunCallE{fun_kind = FunctionCall predicate, args = undefined}
 
       return $ qry * cost_pred
 
@@ -143,35 +156,43 @@ unitaryQueryCost ::
   costT ->
   -- | program @P@
   Program sizeT ->
+  -- | oracle name @O@
+  OracleName ->
   costT
-unitaryQueryCost algs delta Program{funCtx, stmt} =
-  let env = (algs, funCtx)
+unitaryQueryCost algs delta Program{funCtx, stmt} oracle_name =
+  let env = (algs, funCtx, oracle_name)
    in unitaryQueryCostS delta stmt `runMyReaderT` env ^. singular _Just
 
--- Quantum Cost
+-- ================================================================================
+-- Quantum Max Cost
+-- ================================================================================
 
 -- Environment to compute the max quantum cost (input independent)
 type QuantumMaxCostCalculator sizeT costT = MyReaderT (StaticCostEnv sizeT costT) Maybe
 
 quantumMaxQueryCostE ::
-  (Ord costT, Floating costT) =>
+  (Num sizeT, Ord costT, Floating costT) =>
   -- | failure probability \( \varepsilon \)
   costT ->
   -- | statement @S@
-  Expr SizeT ->
-  QuantumMaxCostCalculator SizeT costT costT
-quantumMaxQueryCostE _ FunCallE{fun_kind = OracleCall} = return 1
-quantumMaxQueryCostE eps FunCallE{fun_kind = FunctionCall f} = do
-  FunDef{body} <- view $ _2 . to (unsafeLookupFun f)
-  quantumMaxQueryCostS eps body
+  Expr sizeT ->
+  QuantumMaxCostCalculator sizeT costT costT
+quantumMaxQueryCostE eps FunCallE{fun_kind = FunctionCall fname} = do
+  is_oracle_call <- view $ _3 . to (== fname)
+  if is_oracle_call
+    then return 1
+    else do
+      FunDef{mbody} <- view $ _2 . to (unsafeLookupFun fname)
+      case mbody of
+        Nothing -> return 0 -- no cost for injected data
+        Just FunBody{body_stmt} -> quantumMaxQueryCostS eps body_stmt
 
 -- -- known cost formulas
 quantumMaxQueryCostE eps FunCallE{fun_kind = PrimitiveCall c [predicate]}
   | c == "any" || c == "search" = do
-      FunDef{param_binds = fn_args, body} <- view $ _2 . to (unsafeLookupFun predicate)
+      FunDef{param_types} <- view $ _2 . to (unsafeLookupFun predicate)
 
-      let typ_x = snd $ last fn_args
-      let n = length $ range typ_x
+      let Fin n = last param_types
 
       worst_case_formula <- view $ _1 . to qSearchWorstCaseCost
 
@@ -180,7 +201,9 @@ quantumMaxQueryCostE eps FunCallE{fun_kind = PrimitiveCall c [predicate]}
       let eps_per_pred_call = (eps - eps_s) / n_pred_calls
 
       let delta_per_pred_call = eps_per_pred_call / 2
-      pred_unitary_cost <- unitaryQueryCostS delta_per_pred_call body
+      pred_unitary_cost <-
+        unitaryQueryCostE delta_per_pred_call $
+          FunCallE{fun_kind = FunctionCall predicate, args = undefined}
 
       return $ n_pred_calls * pred_unitary_cost
 
@@ -194,12 +217,12 @@ quantumMaxQueryCostE _ TernaryE{} = return 0
 quantumMaxQueryCostE _ FunCallE{} = error "invalid syntax"
 
 quantumMaxQueryCostS ::
-  (Ord costT, Floating costT) =>
+  (Num sizeT, Ord costT, Floating costT) =>
   -- | failure probability \( \varepsilon \)
   costT ->
   -- | statement @S@
-  Stmt SizeT ->
-  QuantumMaxCostCalculator SizeT costT costT
+  Stmt sizeT ->
+  QuantumMaxCostCalculator sizeT costT costT
 quantumMaxQueryCostS eps ExprS{expr} = quantumMaxQueryCostE eps expr
 quantumMaxQueryCostS eps IfThenElseS{s_true, s_false} =
   max <$> quantumMaxQueryCostS eps s_true <*> quantumMaxQueryCostS eps s_false
@@ -211,21 +234,27 @@ quantumMaxQueryCostS eps (SeqS (s : ss)) = do
 quantumMaxQueryCostS _ _ = error "INVALID"
 
 quantumMaxQueryCost ::
-  forall costT.
-  (Ord costT, Floating costT) =>
+  forall sizeT costT.
+  (Num sizeT, Ord costT, Floating costT) =>
   -- | Qry formulas
-  QSearchFormulas SizeT costT ->
+  QSearchFormulas sizeT costT ->
   -- | failure probability `eps`
   costT ->
   -- | program `P`
-  Program SizeT ->
+  Program sizeT ->
+  -- | oracle @O@
+  OracleName ->
   costT
-quantumMaxQueryCost algs a_eps Program{funCtx, stmt} =
-  let env = (algs, funCtx)
+quantumMaxQueryCost algs a_eps Program{funCtx, stmt} oracle_name =
+  let env = (algs, funCtx, oracle_name)
    in quantumMaxQueryCostS a_eps stmt `runMyReaderT` env ^. singular _Just
 
+-- ================================================================================
+-- Quantum Cost
+-- ================================================================================
+
 -- Environment to compute the quantum cost (input dependent)
-type DynamicCostEnv sizeT costT = (QSearchFormulas sizeT costT, FunCtx sizeT, OracleInterp)
+type DynamicCostEnv sizeT costT = (QSearchFormulas sizeT costT, FunCtx sizeT, FunInterpCtx, OracleName)
 
 type QuantumCostCalculator sizeT costT = MyReaderT (DynamicCostEnv sizeT costT) Maybe
 
@@ -238,29 +267,36 @@ quantumQueryCostE ::
   -- | statement @S@
   Expr SizeT ->
   QuantumCostCalculator SizeT costT costT
-quantumQueryCostE _ _ FunCallE{fun_kind = OracleCall} = return 1
 quantumQueryCostE eps sigma FunCallE{fun_kind = FunctionCall f, args} = do
-  let vs = args & map (\x -> sigma ^. Ctx.at x . singular _Just)
-  FunDef _ fn_args _ body <- view $ _2 . to (unsafeLookupFun f)
-  let omega = Ctx.fromList $ zip (map fst fn_args) vs
-  quantumQueryCostS eps omega body
+  is_oracle <- (f ==) <$> view _4
+  if is_oracle
+    then return 1
+    else
+      view (_2 . to (unsafeLookupFun f) . to mbody) >>= \case
+        Nothing -> return 0 -- no cost for injected data
+        Just FunBody{param_names, body_stmt} -> do
+          let vs = args & map (\x -> sigma ^. Ctx.at x . singular _Just)
+          -- bind the arguments to the parameter names
+          let omega = Ctx.fromList $ zip param_names vs
+          quantumQueryCostS eps omega body_stmt
 
 -- -- known cost formulas
 quantumQueryCostE eps sigma FunCallE{fun_kind = PrimitiveCall c [predicate], args}
   | c == "any" || c == "search" = do
       let vs = args & map (\x -> sigma ^. Ctx.at x . singular _Just)
 
-      funDef@(FunDef _ fn_args _ body) <- view $ _2 . to (unsafeLookupFun predicate)
-      let typ_x = snd $ last fn_args
-
-      funCtx <- view _2
-      oracleF <- view _3
+      predDef@FunDef{param_types} <- view $ _2 . to (unsafeLookupFun predicate)
+      let typ_x = last param_types
 
       let space = range typ_x
-      let sols =
+      sols <- do
+        env <- (,) <$> view _2 <*> view _3
+        -- TODO this is too convoluted...
+        return $
+          (`runMyReaderT` env) $
             (`filterM` space)
               ( \v -> do
-                  result <- evalFun funCtx oracleF (vs ++ [v]) funDef
+                  result <- evalFun (vs ++ [v]) predDef
                   let [b] = result
                   return $ b /= 0
               )
@@ -268,17 +304,20 @@ quantumQueryCostE eps sigma FunCallE{fun_kind = PrimitiveCall c [predicate], arg
       let n = length space
       let t = minimum $ fmap length sols
 
+      let eps_search = eps / 2
+      let eps_pred = eps - eps_search
+
       exp_case_formula <- view $ _1 . to qSearchExpectedCost
-      let n_pred_calls = exp_case_formula n t (eps / 2)
+      let n_pred_calls = exp_case_formula n t eps_search
 
       worst_case_formula <- view $ _1 . to qSearchWorstCaseCost
-      let q_worst = worst_case_formula n (eps / 2)
-      let eps_per_pred_call = (eps / 2) / q_worst
+      let q_worst = worst_case_formula n eps_search
+      let eps_per_pred_call = eps_pred / q_worst
       let delta_per_pred_call = eps_per_pred_call / 2
 
       pred_unitary_cost <-
         magnify extractUEnv $
-          unitaryQueryCostS delta_per_pred_call body
+          unitaryQueryCostE delta_per_pred_call FunCallE{fun_kind = FunctionCall predicate, args = undefined}
       return $ n_pred_calls * pred_unitary_cost
 
 -- -- zero-cost expressions
@@ -290,8 +329,9 @@ quantumQueryCostE _ _ TernaryE{} = return 0
 -- -- unsupported
 quantumQueryCostE _ _ FunCallE{} = error "invalid syntax"
 
+-- TODO use proper argument names
 extractUEnv :: Lens' (DynamicCostEnv a b) (StaticCostEnv a b)
-extractUEnv focus (a, b, c) = (\(a', b') -> (a', b', c)) <$> focus (a, b)
+extractUEnv focus (a, b, c, d) = (\(a', b', d') -> (a', b', c, d')) <$> focus (a, b, d)
 
 quantumQueryCostS ::
   (Floating costT) =>
@@ -311,8 +351,8 @@ quantumQueryCostS eps sigma (SeqS (s : ss)) = do
   cost_s <- quantumQueryCostS (eps / 2) sigma s
 
   funCtx <- view _2
-  oracleF <- view _3
-  let sigma' = detExtract $ runProgram Program{funCtx, stmt = s} oracleF sigma
+  interpCtx <- view _3
+  let sigma' = detExtract $ runProgram Program{funCtx, stmt = s} interpCtx sigma
 
   cost_ss <- quantumQueryCostS (eps / 2) sigma' (SeqS ss)
   return $ cost_s + cost_ss
@@ -328,12 +368,14 @@ quantumQueryCost ::
   -- | program @P@
   Program SizeT ->
   -- | oracle @O@
-  OracleInterp ->
+  OracleName ->
+  -- | data injections
+  FunInterpCtx ->
   -- | state \( \sigma \)
   ProgramState ->
   costT
-quantumQueryCost algs a_eps Program{funCtx, stmt} oracleF sigma =
-  let env = (algs, funCtx, oracleF)
+quantumQueryCost algs a_eps Program{funCtx, stmt} oracle_name interpCtx sigma =
+  let env = (algs, funCtx, interpCtx, oracle_name)
    in quantumQueryCostS a_eps sigma stmt `runMyReaderT` env ^. singular _Just
 
 -- | The bound on the true expected runtime which fails with probability <= \eps.
@@ -347,21 +389,25 @@ quantumQueryCostBound ::
   -- | program @P@
   Program SizeT ->
   -- | oracle @O@
-  OracleInterp ->
+  OracleName ->
+  -- | data injections
+  FunInterpCtx ->
   -- | state \( \sigma \)
   ProgramState ->
   costT
-quantumQueryCostBound algs a_eps p oracleF sigma =
-  (1 - a_eps) * quantumQueryCost algs a_eps p oracleF sigma
-    + a_eps * quantumMaxQueryCost algs a_eps p
+quantumQueryCostBound algs a_eps p oracle_name interp_ctx sigma =
+  (1 - a_eps) * quantumQueryCost algs a_eps p oracle_name interp_ctx sigma
+    + a_eps * quantumMaxQueryCost algs a_eps p oracle_name
 
 -- | Compute if a statement can fail and therefore needs a failure probability to implement
 needsEpsS :: Stmt a -> MyReaderT (FunCtx a) Identity Bool
 needsEpsS IfThenElseS{s_true, s_false} = (||) <$> needsEpsS s_true <*> needsEpsS s_false
 needsEpsS (SeqS ss) = or <$> traverse needsEpsS ss
 needsEpsS ExprS{expr = FunCallE{fun_kind = PrimitiveCall _ _}} = return True
-needsEpsS ExprS{expr = FunCallE{fun_kind = FunctionCall f}} =
-  view (to (unsafeLookupFun f) . to body) >>= needsEpsS
+needsEpsS ExprS{expr = FunCallE{fun_kind = FunctionCall f}} = do
+  view (to (unsafeLookupFun f) . to mbody) >>= \case
+    Just FunBody{body_stmt} -> needsEpsS body_stmt
+    Nothing -> return False
 needsEpsS _ = return False
 
 -- | Compute if a program can fail and therefore needs a failure probability to implement

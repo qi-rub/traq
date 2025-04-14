@@ -20,36 +20,33 @@ import QCompose.Control.Monad
 import QCompose.Prelude
 import QCompose.ProtoLang (TypeCheckable (..), TypingCtx, VarType)
 import QCompose.UnitaryQPL.Syntax
+import Text.Printf (printf)
 
-type CheckingCtx a costT = (OracleDecl a, [ProcDef a costT], TypingCtx a)
-type TypeChecker a costT = MyReaderT (CheckingCtx a costT) (Either String)
+type CheckingCtx holeT sizeT = (ProcCtx holeT sizeT, TypingCtx sizeT)
+type TypeChecker holeT sizeT = MyReaderT (CheckingCtx holeT sizeT) (Either String)
 
-oracleDecl :: Lens' (CheckingCtx a costT) (OracleDecl a)
-oracleDecl = _1
+procDefs :: Lens' (CheckingCtx holeT sizeT) (ProcCtx holeT sizeT)
+procDefs = _1
 
-procDefs :: Lens' (CheckingCtx a costT) [ProcDef a costT]
-procDefs = _2
+typingCtx :: Lens' (CheckingCtx holeT sizeT) (TypingCtx sizeT)
+typingCtx = _2
 
-typingCtx :: Lens' (CheckingCtx a costT) (TypingCtx a)
-typingCtx = _3
-
-verifyArgs :: (TypeCheckable a) => [Ident] -> [VarType a] -> TypeChecker a costT ()
+verifyArgs :: (TypeCheckable sizeT) => [Ident] -> [VarType sizeT] -> TypeChecker holeT sizeT ()
 verifyArgs args tys = do
   arg_tys <- forM args $ \x -> do
     view $ typingCtx . Ctx.at x . singular _Just
 
   when (arg_tys /= tys) $
     throwError $
-      "mismatched args: " <> show (arg_tys, tys)
+      printf "mismatched args: expected %s, got %s" (show tys) (show arg_tys)
 
-unitarySignature :: (TypeCheckable a, Show costT) => Unitary a costT -> TypeChecker a costT [VarType a]
+unitarySignature :: (TypeCheckable sizeT) => Unitary sizeT -> TypeChecker holeT sizeT [VarType sizeT]
 unitarySignature Toffoli = return [tbool, tbool, tbool]
 unitarySignature CNOT = return [tbool, tbool]
 unitarySignature XGate = return [tbool]
 unitarySignature HGate = return [tbool]
 unitarySignature (Unif ty) = return [ty]
 unitarySignature (UnifDagger ty) = return [ty]
-unitarySignature Oracle = view (oracleDecl . to param_types)
 unitarySignature (RevEmbedU f) = return $ revFunTys f
  where
   revFunTys ConstF{ty} = [ty]
@@ -57,44 +54,47 @@ unitarySignature (RevEmbedU f) = return $ revFunTys f
   revFunTys IdF{ty} = [ty, ty]
   revFunTys AddF{ty} = [ty, ty, ty]
   revFunTys LEqF{ty} = [ty, ty, tbool]
-unitarySignature (BlackBoxU bb) = throwError $ "cannot find signature for blackbox: " <> show bb
 unitarySignature (Controlled u) = (tbool :) <$> unitarySignature u
 unitarySignature (Refl0 ty) = return [ty]
+unitarySignature (LoadData f) = do
+  proc_def <- view (procDefs . Ctx.at f) >>= maybeWithError "cannot find function"
+  return $ proc_def ^.. to proc_params . traverse . _3
 
-typeCheckStmt :: (TypeCheckable a, Show costT) => Stmt a costT -> TypeChecker a costT ()
+typeCheckStmt :: (Show holeT, TypeCheckable sizeT) => Stmt holeT sizeT -> TypeChecker holeT sizeT ()
 -- single statements
 typeCheckStmt SkipS = return ()
-typeCheckStmt UnitaryS{unitary = BlackBoxU _} = return ()
 typeCheckStmt UnitaryS{unitary, args} = do
   tys <- unitarySignature unitary
   verifyArgs args tys
 typeCheckStmt CallS{proc_id, args} = do
   proc_param_tys <-
-    view procDefs
-      <&> filter ((proc_id ==) . proc_name)
-      <&> head
-      <&> proc_params
-      <&> map (^. _3)
+    view $
+      procDefs
+        . Ctx.at proc_id
+        . singular _Just
+        . to proc_params
+        . to (map $ view _3)
   verifyArgs args proc_param_tys
 -- compound statements
 typeCheckStmt (RepeatS _ body) = typeCheckStmt body
 typeCheckStmt (SeqS ss) = mapM_ typeCheckStmt' ss
-typeCheckStmt (HoleS _) = throwError "cannot typecheck program with holes"
+typeCheckStmt HoleS{} = return ()
 
-typeCheckStmt' :: (TypeCheckable a, Show costT) => Stmt a costT -> TypeChecker a costT ()
+typeCheckStmt' :: (Show holeT, TypeCheckable sizeT) => Stmt holeT sizeT -> TypeChecker holeT sizeT ()
 typeCheckStmt' s = typeCheckStmt s `throwFrom` ("typecheck failed: " <> show s)
 
-typeCheckProc :: (TypeCheckable a, Show costT) => ProcDef a costT -> TypeChecker a costT ()
-typeCheckProc procdef@ProcDef{proc_params, proc_body} =
+typeCheckProc :: (Show holeT, TypeCheckable sizeT) => ProcDef holeT sizeT -> TypeChecker holeT sizeT ()
+typeCheckProc procdef@ProcDef{proc_params, mproc_body = Just proc_body} =
   local (typingCtx .~ Ctx.fromList (proc_params & each %~ withoutTag)) $
     typeCheckStmt' proc_body
       `throwFrom` ("typecheck proc failed: " <> show procdef)
  where
   withoutTag (x, _, ty) = (x, ty)
+typeCheckProc ProcDef{mproc_body = Nothing} = return ()
 
-typeCheckProgram :: (TypeCheckable a, Show costT) => TypingCtx a -> Program a costT -> Either String ()
-typeCheckProgram gamma Program{oracle_decl, proc_defs, stmt} = do
-  let ctx = (oracle_decl, proc_defs, Ctx.empty)
+typeCheckProgram :: (Show holeT, TypeCheckable sizeT) => TypingCtx sizeT -> Program holeT sizeT -> Either String ()
+typeCheckProgram gamma Program{proc_defs, stmt} = do
+  let ctx = (proc_defs, Ctx.empty)
 
   forM_ proc_defs $ (`runMyReaderT` ctx) . typeCheckProc
 

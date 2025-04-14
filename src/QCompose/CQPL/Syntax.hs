@@ -6,9 +6,10 @@ module QCompose.CQPL.Syntax (
   Expr (..),
   FunctionCall (..),
   Stmt (..),
+  ProcBody (..),
   ProcDef (..),
-  OracleDecl (..),
   Program (..),
+  Program',
 
   -- * Syntax Sugar
   desugarS,
@@ -18,6 +19,7 @@ import Text.Printf (printf)
 
 import qualified QCompose.Data.Context as Ctx
 
+import Data.Void (Void)
 import QCompose.Prelude
 import QCompose.ProtoLang (VarType)
 import qualified QCompose.UnitaryQPL as UQPL
@@ -66,30 +68,35 @@ data Stmt sizeT
   | WhileKWithCondExpr {n_iter :: sizeT, cond :: Ident, cond_expr :: Expr sizeT, loop_body :: Stmt sizeT}
   deriving (Eq, Show, Read)
 
+-- | CQ Procedure body: binds the parameters to names, and optionally uses local variables.
+data ProcBody sizeT = ProcBody
+  { proc_param_names :: [Ident]
+  , proc_local_vars :: [(Ident, VarType sizeT)]
+  , proc_body_stmt :: Stmt sizeT
+  }
+  deriving (Eq, Show, Read)
+
 -- | CQ Procedure
 data ProcDef sizeT = ProcDef
   { proc_name :: Ident
   , proc_meta_params :: [Ident]
-  , proc_params :: [(Ident, VarType sizeT)]
-  , proc_local_vars :: [(Ident, VarType sizeT)]
-  , proc_body :: Stmt sizeT
-  }
-  deriving (Eq, Show, Read)
-
--- | CQ Oracle Def
-newtype OracleDecl sizeT = OracleDecl
-  { oracle_param_types :: [VarType sizeT]
+  , proc_param_types :: [VarType sizeT]
+  , mproc_body :: Maybe (ProcBody sizeT)
+  -- ^ load directly from data if omitted
+  , is_oracle :: Bool
   }
   deriving (Eq, Show, Read)
 
 -- | CQ Program
-data Program sizeT costT = Program
-  { oracle_decl :: OracleDecl sizeT
-  , proc_defs :: Ctx.Context (ProcDef sizeT)
-  , uproc_defs :: Ctx.Context (UQPL.ProcDef sizeT costT)
+data Program holeT sizeT = Program
+  { proc_defs :: Ctx.Context (ProcDef sizeT)
+  , uproc_defs :: Ctx.Context (UQPL.ProcDef holeT sizeT)
   , stmt :: Stmt sizeT
   }
   deriving (Eq, Show, Read)
+
+-- | Alias without holes.
+type Program' = Program Void
 
 -- ================================================================================
 -- Lenses
@@ -104,12 +111,15 @@ instance HasAst (Stmt sizeT) where
 instance HasStmt (Stmt sizeT) (Stmt sizeT) where
   _stmt = id
 
-instance HasStmt (ProcDef sizeT) (Stmt sizeT) where
-  _stmt focus (ProcDef proc_name proc_meta_params proc_params proc_local_vars proc_body) =
-    ProcDef proc_name proc_meta_params proc_params proc_local_vars <$> focus proc_body
+instance HasStmt (ProcBody sizeT) (Stmt sizeT) where
+  _stmt focus proc_body = (\s' -> proc_body{proc_body_stmt = s'}) <$> focus (proc_body_stmt proc_body)
 
-instance HasStmt (Program sizeT costT) (Stmt sizeT) where
-  _stmt focus (Program o ps ups s) = Program o <$> traverse (_stmt focus) ps <*> pure ups <*> _stmt focus s
+instance HasStmt (ProcDef sizeT) (Stmt sizeT) where
+  _stmt focus proc_def@ProcDef{mproc_body = Just proc_body} = (\proc_body' -> proc_def{mproc_body = Just proc_body'}) <$> _stmt focus proc_body
+  _stmt _ proc_def = pure proc_def
+
+instance HasStmt (Program holeT sizeT) (Stmt sizeT) where
+  _stmt focus (Program proc_defs uproc_defs stmt) = Program <$> traverse (_stmt focus) proc_defs <*> pure uproc_defs <*> _stmt focus stmt
 
 -- ================================================================================
 -- Syntax Sugar
@@ -206,20 +216,29 @@ instance (Show sizeT) => ToCodeString (Stmt sizeT) where
       ++ ["end"]
 
 instance (Show sizeT) => ToCodeString (ProcDef sizeT) where
-  toCodeLines ProcDef{proc_name, proc_meta_params, proc_params, proc_local_vars, proc_body} =
+  toCodeLines ProcDef{proc_name, proc_meta_params, proc_param_types, mproc_body = Nothing} =
+    [ printf
+        "proc %s[%s](%s);"
+        proc_name
+        (commaList proc_meta_params)
+        (commaList $ zipWith showTypedIxVar [1 :: Int ..] proc_param_types)
+    ]
+   where
+    showTypedIxVar i ty = printf "x_%d: %s" i (toCodeString ty)
+  toCodeLines ProcDef{proc_name, proc_meta_params, proc_param_types, mproc_body = Just ProcBody{proc_param_names, proc_local_vars, proc_body_stmt}} =
     [ printf
         "proc %s[%s](%s) { locals: (%s) } do"
         proc_name
         (commaList proc_meta_params)
-        (commaList $ map showTypedVar proc_params)
-        (commaList $ map showTypedVar proc_local_vars)
+        (commaList $ zipWith showTypedVar proc_param_names proc_param_types)
+        (commaList $ map (uncurry showTypedVar) proc_local_vars)
     ]
-      ++ indent (toCodeLines proc_body)
+      ++ indent (toCodeLines proc_body_stmt)
       ++ ["end"]
    where
-    showTypedVar (x, ty) = printf "%s: %s" x (toCodeString ty)
+    showTypedVar x ty = printf "%s: %s" x (toCodeString ty)
 
-instance (Show sizeT, Show costT) => ToCodeString (Program sizeT costT) where
+instance (Show holeT, Show sizeT) => ToCodeString (Program holeT sizeT) where
   toCodeLines Program{proc_defs, uproc_defs, stmt} =
     map toCodeString (Ctx.elems uproc_defs)
       ++ map toCodeString (Ctx.elems proc_defs)

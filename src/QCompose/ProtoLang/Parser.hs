@@ -33,14 +33,13 @@ protoLangDef =
     { commentLine = "//"
     , reservedNames =
         [ -- statements
-          "Oracle"
-        , "const"
+          "const"
         , -- functions
           "def"
-        , "do"
-        , "return"
-        , "end"
         , "declare"
+        , "do"
+        , "end"
+        , "return"
         , -- types
           "Fin"
         , "Bool"
@@ -83,9 +82,8 @@ exprP tp@TokenParser{..} =
     return ConstE{val, ty}
 
   funCallKind :: Parser FunctionCallKind
-  funCallKind = oracleCall <|> primitiveCall <|> functionCall
+  funCallKind = primitiveCall <|> functionCall
    where
-    oracleCall = reserved "Oracle" $> OracleCall
     primitiveCall = do
       prim_name <- char '@' *> identifier
       prim_params <- squares (commaSep identifier)
@@ -142,30 +140,31 @@ funDef :: TokenParser () -> Parser (FunDef SymbSize)
 funDef tp@TokenParser{..} = do
   reserved "def"
   fun_name <- identifier
-  param_binds <- parens $ commaSep $ typedTerm tp identifier
+  (param_names, param_types) <- unzip <$> parens (commaSep (typedTerm tp identifier))
   reserved "do"
-  body <- stmtP tp
+  body_stmt <- stmtP tp
   _ <- semi
   reserved "return"
-  ret_binds <- commaSep $ typedTerm tp identifier
+  (ret_names, ret_types) <- unzip <$> commaSep (typedTerm tp identifier)
   reserved "end"
-  return FunDef{fun_name, param_binds, ret_binds, body}
+  let mbody = Just FunBody{..}
+  return FunDef{..}
 
-oracleDecl :: TokenParser () -> Parser (OracleDecl SymbSize)
-oracleDecl tp@TokenParser{..} = do
+funDecl :: TokenParser () -> Parser (FunDef SymbSize)
+funDecl tp@TokenParser{..} = do
   reserved "declare"
-  reserved "Oracle"
+  fun_name <- identifier
   param_types <- parens (commaSep (varType tp))
   reservedOp "->"
-  ret_types <- commaSep (varType tp)
-  return OracleDecl{param_types, ret_types}
+  -- single type as is, or multiple as a tuple
+  ret_types <- ((: []) <$> varType tp) <|> parens (commaSep (varType tp))
+  return FunDef{mbody = Nothing, ..}
 
 program :: TokenParser () -> Parser (Program SymbSize)
 program tp@TokenParser{..} = do
-  oracle_decl <- oracleDecl tp
-  fun_defs <- mkFunDefCtx <$> many (funDef tp)
+  funCtx <- mkFunDefCtx <$> many (funDef tp <|> funDecl tp)
   stmt <- stmtP tp
-  return Program{funCtx = FunCtx{oracle_decl, fun_defs}, stmt}
+  return Program{..}
 
 programParser :: Parser (Program SymbSize)
 programParser = program protoLangTokenParser

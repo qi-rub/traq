@@ -1,5 +1,6 @@
+{-# LANGUAGE MultiParamTypeClasses #-}
+
 module QCompose.UnitaryQPL.Cost (
-  unitaryCost,
   stmtCost,
   procCost,
   programCost,
@@ -8,60 +9,72 @@ module QCompose.UnitaryQPL.Cost (
   ProcCtx,
   CostMap,
   CostCalculator,
+
+  -- * Holes
+  HoleCost (..),
 ) where
 
-import Control.Monad.RWS (RWS, runRWS)
+import Control.Applicative ((<|>))
+import Control.Monad.Trans (lift)
 import qualified Data.Map as Map
-import Lens.Micro
+import Lens.Micro.GHC
 import Lens.Micro.Mtl
 
+import QCompose.Control.Monad
 import qualified QCompose.Data.Context as Ctx
 
 import QCompose.Prelude
 import QCompose.UnitaryQPL.Syntax
 
-type ProcCtx sizeT costT = Ctx.Context (ProcDef sizeT costT)
+-- | Cache the costs of each procedure
 type CostMap costT = Map.Map Ident costT
 
-type CostCalculator sizeT costT = RWS (ProcCtx sizeT costT) () (CostMap costT)
+-- | Environment: the list of procedures, and a mapping from holes to cost.
+type CostEnv holeT sizeT costT = ProcCtx holeT sizeT
 
-unitaryCost ::
-  (Integral sizeT, Show costT, Floating costT) =>
-  Unitary sizeT costT ->
-  CostCalculator sizeT costT costT
-unitaryCost Oracle = return 1
-unitaryCost (BlackBoxU QSearchBB{pred_name, n_pred_calls}) = do
-  pred_cost <- procCost pred_name
-  return $ n_pred_calls * pred_cost
-unitaryCost (BlackBoxU (BlackBox _)) = error "cannot compute cost of blackbox"
-unitaryCost _ = return 0
+procCtx :: Lens' (CostEnv holeT sizeT costT) (ProcCtx holeT sizeT)
+procCtx = id
 
-stmtCost :: (Integral sizeT, Show costT, Floating costT) => Stmt sizeT costT -> CostCalculator sizeT costT costT
+-- | Monad to compute unitary cost.
+type CostCalculator holeT sizeT costT = MyReaderStateT (CostEnv holeT sizeT costT) (CostMap costT) Maybe
+
+-- | Compute the cost of a placeholder (hole) program.
+class HoleCost holeT costT where
+  holeCost :: forall sizeT. (Integral sizeT, Floating costT) => holeT -> CostCalculator holeT sizeT costT costT
+
+stmtCost :: (Integral sizeT, Floating costT, HoleCost holeT costT) => Stmt holeT sizeT -> CostCalculator holeT sizeT costT costT
 stmtCost SkipS = return 0
-stmtCost (SeqS ss) = sum <$> mapM stmtCost ss
-stmtCost UnitaryS{unitary} = unitaryCost unitary
+stmtCost UnitaryS{} = return 0
 stmtCost CallS{proc_id} = procCost proc_id
+stmtCost (SeqS ss) = sum <$> mapM stmtCost ss
 stmtCost (RepeatS k s) = (fromIntegral k *) <$> stmtCost s
+stmtCost HoleS{hole} = holeCost hole
 
 procCost ::
-  (Integral sizeT, Show costT, Floating costT) =>
+  (Integral sizeT, Floating costT, HoleCost holeT costT) =>
   Ident ->
-  CostCalculator sizeT costT costT
-procCost name = do
-  mCost <- use $ at name
-  case mCost of
-    Just cost -> return cost
-    Nothing -> do
-      ProcDef{proc_body} <- view $ Ctx.at name . singular _Just
-      cost <- stmtCost proc_body
-      at name ?= cost
-      return cost
+  CostCalculator holeT sizeT costT costT
+procCost name = (use (at name) >>= lift) <|> calc_cost_of_oracle <|> calc_cost
+ where
+  calc_cost_of_oracle = do
+    ProcDef{is_oracle} <- view $ procCtx . Ctx.at name . singular _Just
+    cost <- lift $ if is_oracle then Just 1 else Nothing
+    at name ?= cost
+    return cost
+  calc_cost = do
+    ProcDef{mproc_body} <- view $ procCtx . Ctx.at name . singular _Just
+    proc_body <- lift mproc_body
+    cost <- stmtCost proc_body
+    at name ?= cost
+    return cost
 
 programCost ::
-  (Integral sizeT, Show costT, Floating costT) =>
-  Program sizeT costT ->
+  (Integral sizeT, Floating costT, HoleCost holeT costT) =>
+  Program holeT sizeT ->
   (costT, CostMap costT)
-programCost Program{proc_defs, stmt} = (cost, proc_costs)
- where
-  (cost, proc_costs, _) = runRWS (stmtCost stmt) proc_map Map.empty
-  proc_map = Ctx.fromList $ [(proc_name p, p) | p <- proc_defs]
+programCost Program{proc_defs, stmt} =
+  let env = proc_defs
+      mres = runMyReaderStateT (stmtCost stmt) env Map.empty
+   in case mres of
+        Nothing -> error "could not compute cost!"
+        Just res -> res

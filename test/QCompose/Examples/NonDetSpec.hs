@@ -34,7 +34,7 @@ spec = do
     it "all solutions" $ do
       ex <- load'
       let oracleF = const [1]
-      let out = P.runProgram ex oracleF Ctx.empty
+      let out = P.runProgram ex (Ctx.singleton "Oracle" oracleF) Ctx.empty
 
       out
         `shouldBe` Tree.choice
@@ -45,7 +45,7 @@ spec = do
     it "no solutions" $ do
       ex <- load'
       let oracleF = const [0]
-      let out = P.runProgram ex oracleF Ctx.empty
+      let out = P.runProgram ex (Ctx.singleton "Oracle" oracleF) Ctx.empty
 
       out
         `shouldBe` Tree.choice
@@ -57,7 +57,7 @@ spec = do
       ex <- load'
       let sols = [1, 4, 6] :: [Value]
       let oracleF = \[i] -> [P.boolToValue $ i `elem` sols]
-      let out = P.runProgram ex oracleF Ctx.empty
+      let out = P.runProgram ex (Ctx.singleton "Oracle" oracleF) Ctx.empty
 
       out
         `shouldBe` Tree.choice

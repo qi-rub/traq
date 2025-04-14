@@ -5,8 +5,11 @@ module QCompose.ProtoLang.Monad (
   TypeCheckable (..),
 
   -- * Evaluation
+  FunInterp,
+  FunInterpCtx,
   ProgramState,
-  OracleInterp,
+  ExecutionEnv,
+  ExecutionState,
   Evaluator,
   Executor,
 
@@ -41,19 +44,19 @@ instance TypeCheckable Int where
 -- | The deterministic state of the program
 type ProgramState = Ctx.Context Value
 
--- | Type for a function that implements the oracle
-type OracleInterp = [Value] -> [Value]
+-- | Inject runtime data into a program
+type FunInterp = [Value] -> [Value]
+
+-- | A mapping of data injections
+type FunInterpCtx = Ctx.Context FunInterp
 
 -- | Environment for evaluation
-type EvaluationEnv sizeT = (FunCtx sizeT, OracleInterp, ProgramState)
-
--- | Non-deterministic Evaluation Monad
-type Evaluator = MyReaderT (EvaluationEnv SizeT) Tree.Tree
-
--- | Environment for evaluation
-type ExecutionEnv sizeT = (FunCtx sizeT, OracleInterp)
+type ExecutionEnv sizeT = (FunCtx sizeT, FunInterpCtx)
 
 type ExecutionState sizeT = ProgramState
+
+-- | Non-deterministic Execution Monad (i.e. no state)
+type Evaluator = MyReaderT (ExecutionEnv SizeT) Tree.Tree
 
 -- | Non-deterministic Execution Monad
 type Executor = MyReaderStateT (ExecutionEnv SizeT) (ExecutionState SizeT) Tree.Tree

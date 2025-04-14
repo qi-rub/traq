@@ -25,5 +25,5 @@ spec = do
               , "x <- const 0 : Fin<10>"
               ]
       let ex = Sym.unSym <$> ex_
-      (cq, _) <- expectRight $ lowerProgram undefined Ctx.empty eps ex
+      (cq :: Program' SizeT, _) <- expectRight $ lowerProgram undefined Ctx.empty "Oracle" eps ex
       cq ^. to stmt `shouldBe` AssignS ["x"] (ConstE 0)

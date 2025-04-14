@@ -1,16 +1,14 @@
 module QCompose.Examples.MatrixSearch where
 
+import qualified QCompose.Data.Context as Ctx
+
 import QCompose.Prelude
 import QCompose.ProtoLang.Syntax
 
-matrixExample :: forall a. a -> a -> VarType a -> Program a
+matrixExample :: forall sizeT. sizeT -> sizeT -> VarType sizeT -> Program sizeT
 matrixExample n m tyBool =
   Program
-    { funCtx =
-        FunCtx
-          { oracle_decl = OracleDecl [tyI, tyJ] [tyBool]
-          , fun_defs = mkFunDefCtx [check_entry, check_row, check_matrix]
-          }
+    { funCtx = Ctx.fromListWith fun_name [oracle_decl, check_entry, check_row, check_matrix]
     , stmt =
         ExprS
           { expr = FunCallE{fun_kind = FunctionCall "HasAllOnesRow", args = []}
@@ -18,50 +16,74 @@ matrixExample n m tyBool =
           }
     }
  where
-  tyI, tyJ :: VarType a
+  tyI, tyJ :: VarType sizeT
   tyI = Fin n
   tyJ = Fin m
 
-  -- check_entry :: FunDef a
+  oracle_decl :: FunDef sizeT
+  oracle_decl = FunDef{fun_name = "Oracle", param_types = [tyI, tyJ], ret_types = [tyBool], mbody = Nothing}
+
+  check_entry :: FunDef sizeT
   check_entry =
     FunDef
-      "IsEntryZero"
-      [(i, tyI), (j, tyJ)]
-      [(e', tyBool)]
-      ( SeqS
-          [ ExprS{rets = [e], expr = FunCallE{fun_kind = OracleCall, args = [i, j]}}
-          , ExprS{rets = [e'], expr = UnOpE{un_op = NotOp, arg = e}}
-          ]
-      )
+      { fun_name = "IsEntryZero"
+      , param_types = [tyI, tyJ]
+      , mbody =
+          Just
+            FunBody
+              { param_names = [i, j]
+              , body_stmt =
+                  SeqS
+                    [ ExprS{rets = [e], expr = FunCallE{fun_kind = FunctionCall "Oracle", args = [i, j]}}
+                    , ExprS{rets = [e'], expr = UnOpE{un_op = NotOp, arg = e}}
+                    ]
+              , ret_names = [e']
+              }
+      , ret_types = [tyBool]
+      }
    where
     i = "i0"
     j = "j0"
     e = "e"
     e' = "e'"
 
-  -- check_row :: FunDef a
+  check_row :: FunDef sizeT
   check_row =
     FunDef
-      "IsRowAllOnes"
-      [(i, tyI)]
-      [(ok', tyBool)]
-      ( SeqS
-          [ ExprS{rets = [ok], expr = FunCallE{fun_kind = PrimitiveCall "any" ["IsEntryZero"], args = [i]}}
-          , ExprS{rets = [ok'], expr = UnOpE{un_op = NotOp, arg = ok}}
-          ]
-      )
+      { fun_name = "IsRowAllOnes"
+      , param_types = [tyI]
+      , mbody =
+          Just
+            FunBody
+              { param_names = [i]
+              , body_stmt =
+                  SeqS
+                    [ ExprS{rets = [ok], expr = FunCallE{fun_kind = PrimitiveCall "any" ["IsEntryZero"], args = [i]}}
+                    , ExprS{rets = [ok'], expr = UnOpE{un_op = NotOp, arg = ok}}
+                    ]
+              , ret_names = [ok']
+              }
+      , ret_types = [tyBool]
+      }
    where
     i = "i"
     ok = "okr"
     ok' = "okr'"
 
-  -- check_matrix :: FunDef a
+  check_matrix :: FunDef sizeT
   check_matrix =
     FunDef
-      "HasAllOnesRow"
-      []
-      [(ok, tyBool)]
-      ExprS{rets = [ok], expr = FunCallE{fun_kind = PrimitiveCall "any" ["IsRowAllOnes"], args = []}}
+      { fun_name = "HasAllOnesRow"
+      , param_types = []
+      , mbody =
+          Just
+            FunBody
+              { param_names = []
+              , body_stmt = ExprS{rets = [ok], expr = FunCallE{fun_kind = PrimitiveCall "any" ["IsRowAllOnes"], args = []}}
+              , ret_names = [ok]
+              }
+      , ret_types = [tyBool]
+      }
    where
     ok = "ok"
 

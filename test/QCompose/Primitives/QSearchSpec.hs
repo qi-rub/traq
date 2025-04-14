@@ -26,6 +26,6 @@ spec = do
         let n = 10 :: Int
         let eps = 0.001 :: Float
         let zalkaQSearchImpl = qsearchCFNW ^. to unitaryAlgo . to UQPL.algorithm
-        let pred_caller x b = UQPL.UnitaryS{UQPL.unitary = UQPL.Oracle, UQPL.args = [x, b]}
+        let pred_caller x b = UQPL.CallS{UQPL.proc_id = "Oracle", UQPL.dagger = False, UQPL.args = [x, b]}
         let circ = zalkaQSearchImpl (Fin n) pred_caller eps
         toCodeString circ `shouldSatisfy` (not . null)

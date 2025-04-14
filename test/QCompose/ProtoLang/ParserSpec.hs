@@ -41,24 +41,30 @@ spec = do
       parseFunDef
         ( unlines
             [ "def check_entry(i: Fin<N>, j: Fin<M>) do"
-            , "e <- Oracle(i, j);"
-            , "e' <- !e;"
-            , "return e' : Bool"
+            , "  e <- Oracle(i, j);"
+            , "  e' <- !e;"
+            , "  return e' : Bool"
             , "end"
             ]
         )
         `shouldBe` Right
-          ( FunDef
-              { fun_name = "check_entry"
-              , param_binds = [("i", Fin (Sym.var "N")), ("j", Fin (Sym.var "M"))]
-              , ret_binds = [("e'", Fin (Sym.con 2))]
-              , body =
-                  SeqS
-                    [ ExprS{rets = ["e"], expr = FunCallE{fun_kind = OracleCall, args = ["i", "j"]}}
-                    , ExprS{rets = ["e'"], expr = UnOpE{un_op = NotOp, arg = "e"}}
-                    ]
-              }
-          )
+          FunDef
+            { fun_name = "check_entry"
+            , param_types = [Fin (Sym.var "N"), Fin (Sym.var "M")]
+            , mbody =
+                Just
+                  FunBody
+                    { param_names = ["i", "j"]
+                    , body_stmt =
+                        SeqS
+                          [ ExprS{rets = ["e"], expr = FunCallE{fun_kind = FunctionCall "Oracle", args = ["i", "j"]}}
+                          , ExprS{rets = ["e'"], expr = UnOpE{un_op = NotOp, arg = "e"}}
+                          ]
+                    , ret_names = ["e'"]
+                    }
+            , ret_types = [Fin (Sym.con 2)]
+            }
+
   describe "parse file" $ do
     it "parses example" $ do
       e <- parseFromFile programParser "examples/matrix_search/matrix_search.qb" >>= expectRight

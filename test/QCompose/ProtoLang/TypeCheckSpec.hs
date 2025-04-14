@@ -11,26 +11,23 @@ import QCompose.ProtoLang.TypeCheck
 import Test.Hspec
 import TestHelpers
 
-emptyFunCtx :: FunCtx a
-emptyFunCtx = FunCtx{oracle_decl = undefined, fun_defs = Ctx.empty}
-
 spec :: Spec
 spec = do
   describe "typecheck" $ do
     it "fun cannot return param" $ do
       let bad_fun =
             FunDef
-              { fun_name = ""
-              , param_binds = [("x", Fin 5)]
-              , ret_binds = [("x", Fin 5)]
-              , body = SeqS []
+              { fun_name = "my_fun"
+              , param_types = [Fin 5]
+              , ret_types = [Fin 5]
+              , mbody = Just FunBody{param_names = ["x"], ret_names = ["x"], body_stmt = SeqS []}
               } ::
               FunDef Int
       typeCheckFun undefined bad_fun `shouldSatisfy` isLeft
     it "assign" $ do
       let prog =
             Program
-              { funCtx = emptyFunCtx
+              { funCtx = Ctx.empty
               , stmt = ExprS{rets = ["y"], expr = VarE "x"}
               } ::
               Program Int

@@ -1,6 +1,9 @@
 module QCompose.Control.Monad (
   -- * Monad Types
   MyReaderWriterStateT,
+  runMyReaderWriterStateT,
+  evalMyReaderWriterStateT,
+  execMyReaderWriterStateT,
 
   -- ** Reader
   MyReaderT,
@@ -26,6 +29,10 @@ module QCompose.Control.Monad (
 
   -- ** RS
   MyReaderStateT,
+  runMyReaderStateT,
+  evalMyReaderStateT,
+  execMyReaderStateT,
+  withInjectedState,
 
   -- * MonadError
   throwFrom,
@@ -33,7 +40,7 @@ module QCompose.Control.Monad (
 ) where
 
 import Control.Monad.Except (MonadError, catchError, throwError)
-import Control.Monad.RWS (MonadState, MonadWriter, RWST (..), evalRWST, runRWST, tell)
+import Control.Monad.RWS (MonadState, MonadWriter, RWST (..), evalRWST, execRWST, runRWST, tell)
 import Control.Monad.Trans (lift)
 import Lens.Micro
 import Lens.Micro.Mtl
@@ -44,6 +51,15 @@ import Lens.Micro.Mtl
 
 -- | Overly descriptive alias for RWS
 type MyReaderWriterStateT = RWST
+
+runMyReaderWriterStateT :: (Monad m) => MyReaderWriterStateT r w s m a -> r -> s -> m (a, s, w)
+runMyReaderWriterStateT = runRWST
+
+evalMyReaderWriterStateT :: (Monad m) => MyReaderWriterStateT r w s m a -> r -> s -> m (a, w)
+evalMyReaderWriterStateT = evalRWST
+
+execMyReaderWriterStateT :: (Monad m) => MyReaderWriterStateT r w s m a -> r -> s -> m (s, w)
+execMyReaderWriterStateT = execRWST
 
 -- ================================================================================
 -- Reader
@@ -60,8 +76,8 @@ runMyReaderT rws r = do
 
 -- | Embed a reader computation into an RWS monad.
 embedReaderT :: (Monad m, Monoid w) => MyReaderT r m a -> MyReaderWriterStateT r w s m a
-embedReaderT m = RWST $ \r s -> do
-  (a, (), ()) <- runRWST m r ()
+embedReaderT rws = RWST $ \r s -> do
+  (a, (), ()) <- runRWST rws r ()
   return (a, s, mempty)
 
 -- ================================================================================
@@ -83,8 +99,8 @@ tellAt focus w' =
 
 -- | Embed a writer computation into an RWS monad.
 embedWriterT :: (Monad m, Monoid w) => MyWriterT w m a -> MyReaderWriterStateT r w s m a
-embedWriterT m = RWST $ \_ s -> do
-  (a, (), w) <- runRWST m () ()
+embedWriterT rws = RWST $ \_ s -> do
+  (a, (), w) <- runRWST rws () ()
   return (a, s, w)
 
 -- ================================================================================
@@ -133,6 +149,17 @@ withSandbox = withSandboxOf id
 -- | Reader+State monad using RWS
 type MyReaderStateT r s = MyReaderWriterStateT r () s
 
+runMyReaderStateT :: (Monad m) => MyReaderStateT r s m a -> r -> s -> m (a, s)
+runMyReaderStateT m r s = do
+  (a, s', ()) <- runRWST m r s
+  return (a, s')
+
+evalMyReaderStateT :: (Monad m) => MyReaderStateT r s m a -> r -> s -> m a
+evalMyReaderStateT = ((fmap fst .) .) . runMyReaderStateT
+
+execMyReaderStateT :: (Monad m) => MyReaderStateT r s m a -> r -> s -> m s
+execMyReaderStateT = ((fmap snd .) .) . runMyReaderStateT
+
 -- | Run a computation with the current state as a read-only environment.
 withFrozenStateOf :: (Monad m) => Lens' s s' -> MyReaderT s' m a -> MyStateT s m a
 withFrozenStateOf part m = do
@@ -143,6 +170,13 @@ withFrozenStateOf part m = do
 -- | Run a computation with the current state as a read-only environment.
 withFrozenState :: (Monad m) => MyReaderT s m a -> MyStateT s m a
 withFrozenState = withFrozenStateOf id
+
+withInjectedState :: forall r w s s' m a. (Monad m, Monoid w) => s -> MyReaderWriterStateT r w s m a -> MyReaderWriterStateT r w s' m a
+withInjectedState s = zoom _s_lens
+ where
+  -- simply gets `s`, and ignores while setting.
+  _s_lens :: Lens' s' s
+  _s_lens = lens (const s) const
 
 -- ================================================================================
 -- MonadError
