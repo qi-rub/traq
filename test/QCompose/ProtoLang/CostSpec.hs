@@ -31,7 +31,7 @@ spec = do
               , "i <- const 10 : Fin<100>;"
               , "res <- f(i)"
               ]
-      let c = ucProg 0.001 prog
+      let c = ucProg 0.001 prog "Oracle"
       c `shouldBe` (2 :: Double)
 
     it "search with no oracle" $ do
@@ -44,7 +44,7 @@ spec = do
               , "end"
               , "res <- @any[f]()"
               ]
-      let c = ucProg 0.001 prog
+      let c = ucProg 0.001 prog "Oracle"
       c `shouldBe` (0 :: Double)
 
     it "search with 1x oracle" $ do
@@ -57,5 +57,5 @@ spec = do
               , "end"
               , "res <- @any[f]()"
               ]
-      let c = ucProg 0.001 prog
+      let c = ucProg 0.001 prog "Oracle"
       (c :: Double) `shouldBe` 2 * ucFormula 100 (0.001 / 2)
