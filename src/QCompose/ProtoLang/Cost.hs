@@ -89,7 +89,7 @@ unitaryQueryCostE ::
 unitaryQueryCostE delta FunCallE{fun_kind = FunctionCall fname} = do
   is_oracle_call <- view $ _3 . to (== fname)
   if is_oracle_call
-    then return 1
+    then return 1.0
     else do
       FunDef{mbody} <- view $ _2 . to (unsafeLookupFun fname)
       case mbody of
@@ -164,19 +164,19 @@ unitaryQueryCost algs delta Program{funCtx, stmt} oracle_name =
    in unitaryQueryCostS delta stmt `runMyReaderT` env ^. singular _Just
 
 -- ================================================================================
--- Quantum Cost
+-- Quantum Max Cost
 -- ================================================================================
 
 -- Environment to compute the max quantum cost (input independent)
 type QuantumMaxCostCalculator sizeT costT = MyReaderT (StaticCostEnv sizeT costT) Maybe
 
 quantumMaxQueryCostE ::
-  (Ord costT, Floating costT) =>
+  (Num sizeT, Ord costT, Floating costT) =>
   -- | failure probability \( \varepsilon \)
   costT ->
   -- | statement @S@
-  Expr SizeT ->
-  QuantumMaxCostCalculator SizeT costT costT
+  Expr sizeT ->
+  QuantumMaxCostCalculator sizeT costT costT
 quantumMaxQueryCostE eps FunCallE{fun_kind = FunctionCall fname} = do
   is_oracle_call <- view $ _3 . to (== fname)
   if is_oracle_call
@@ -192,8 +192,7 @@ quantumMaxQueryCostE eps FunCallE{fun_kind = PrimitiveCall c [predicate]}
   | c == "any" || c == "search" = do
       FunDef{param_types} <- view $ _2 . to (unsafeLookupFun predicate)
 
-      let typ_x = last param_types
-      let n = length $ range typ_x
+      let Fin n = last param_types
 
       worst_case_formula <- view $ _1 . to qSearchWorstCaseCost
 
@@ -218,12 +217,12 @@ quantumMaxQueryCostE _ TernaryE{} = return 0
 quantumMaxQueryCostE _ FunCallE{} = error "invalid syntax"
 
 quantumMaxQueryCostS ::
-  (Ord costT, Floating costT) =>
+  (Num sizeT, Ord costT, Floating costT) =>
   -- | failure probability \( \varepsilon \)
   costT ->
   -- | statement @S@
-  Stmt SizeT ->
-  QuantumMaxCostCalculator SizeT costT costT
+  Stmt sizeT ->
+  QuantumMaxCostCalculator sizeT costT costT
 quantumMaxQueryCostS eps ExprS{expr} = quantumMaxQueryCostE eps expr
 quantumMaxQueryCostS eps IfThenElseS{s_true, s_false} =
   max <$> quantumMaxQueryCostS eps s_true <*> quantumMaxQueryCostS eps s_false
@@ -235,20 +234,24 @@ quantumMaxQueryCostS eps (SeqS (s : ss)) = do
 quantumMaxQueryCostS _ _ = error "INVALID"
 
 quantumMaxQueryCost ::
-  forall costT.
-  (Ord costT, Floating costT) =>
+  forall sizeT costT.
+  (Num sizeT, Ord costT, Floating costT) =>
   -- | Qry formulas
-  QSearchFormulas SizeT costT ->
+  QSearchFormulas sizeT costT ->
   -- | failure probability `eps`
   costT ->
   -- | program `P`
-  Program SizeT ->
+  Program sizeT ->
   -- | oracle @O@
   OracleName ->
   costT
 quantumMaxQueryCost algs a_eps Program{funCtx, stmt} oracle_name =
   let env = (algs, funCtx, oracle_name)
    in quantumMaxQueryCostS a_eps stmt `runMyReaderT` env ^. singular _Just
+
+-- ================================================================================
+-- Quantum Cost
+-- ================================================================================
 
 -- Environment to compute the quantum cost (input dependent)
 type DynamicCostEnv sizeT costT = (QSearchFormulas sizeT costT, FunCtx sizeT, FunInterpCtx, OracleName)
@@ -264,14 +267,18 @@ quantumQueryCostE ::
   -- | statement @S@
   Expr SizeT ->
   QuantumCostCalculator SizeT costT costT
-quantumQueryCostE eps sigma FunCallE{fun_kind = FunctionCall f, args} =
-  view (_2 . to (unsafeLookupFun f) . to mbody) >>= \case
-    Nothing -> return 0 -- no cost for injected data
-    Just FunBody{param_names, body_stmt} -> do
-      let vs = args & map (\x -> sigma ^. Ctx.at x . singular _Just)
-      -- bind the arguments to the parameter names
-      let omega = Ctx.fromList $ zip param_names vs
-      quantumQueryCostS eps omega body_stmt
+quantumQueryCostE eps sigma FunCallE{fun_kind = FunctionCall f, args} = do
+  is_oracle <- (f ==) <$> view _4
+  if is_oracle
+    then return 1
+    else
+      view (_2 . to (unsafeLookupFun f) . to mbody) >>= \case
+        Nothing -> return 0 -- no cost for injected data
+        Just FunBody{param_names, body_stmt} -> do
+          let vs = args & map (\x -> sigma ^. Ctx.at x . singular _Just)
+          -- bind the arguments to the parameter names
+          let omega = Ctx.fromList $ zip param_names vs
+          quantumQueryCostS eps omega body_stmt
 
 -- -- known cost formulas
 quantumQueryCostE eps sigma FunCallE{fun_kind = PrimitiveCall c [predicate], args}
@@ -297,12 +304,15 @@ quantumQueryCostE eps sigma FunCallE{fun_kind = PrimitiveCall c [predicate], arg
       let n = length space
       let t = minimum $ fmap length sols
 
+      let eps_search = eps / 2
+      let eps_pred = eps - eps_search
+
       exp_case_formula <- view $ _1 . to qSearchExpectedCost
-      let n_pred_calls = exp_case_formula n t (eps / 2)
+      let n_pred_calls = exp_case_formula n t eps_search
 
       worst_case_formula <- view $ _1 . to qSearchWorstCaseCost
-      let q_worst = worst_case_formula n (eps / 2)
-      let eps_per_pred_call = (eps / 2) / q_worst
+      let q_worst = worst_case_formula n eps_search
+      let eps_per_pred_call = eps_pred / q_worst
       let delta_per_pred_call = eps_per_pred_call / 2
 
       pred_unitary_cost <-
@@ -319,6 +329,7 @@ quantumQueryCostE _ _ TernaryE{} = return 0
 -- -- unsupported
 quantumQueryCostE _ _ FunCallE{} = error "invalid syntax"
 
+-- TODO use proper argument names
 extractUEnv :: Lens' (DynamicCostEnv a b) (StaticCostEnv a b)
 extractUEnv focus (a, b, c, d) = (\(a', b', d') -> (a', b', c, d')) <$> focus (a, b, d)
 
@@ -340,8 +351,8 @@ quantumQueryCostS eps sigma (SeqS (s : ss)) = do
   cost_s <- quantumQueryCostS (eps / 2) sigma s
 
   funCtx <- view _2
-  oracleF <- view _3
-  let sigma' = detExtract $ runProgram Program{funCtx, stmt = s} oracleF sigma
+  interpCtx <- view _3
+  let sigma' = detExtract $ runProgram Program{funCtx, stmt = s} interpCtx sigma
 
   cost_ss <- quantumQueryCostS (eps / 2) sigma' (SeqS ss)
   return $ cost_s + cost_ss

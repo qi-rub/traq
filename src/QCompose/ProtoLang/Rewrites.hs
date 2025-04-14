@@ -25,6 +25,7 @@ flattenSeq _ = Nothing
 {- | Convert all 'SeqS' into a list of size at most 2.
   For example, @SeqS [a, b, c]@ becomes @SeqS [a, SeqS [b, c]]@
 -}
-pairSeq :: Stmt a -> Stmt a
-pairSeq (SeqS ss) | not (null ss) = foldr1 (\a b -> SeqS [a, b]) ss
-pairSeq s = s
+pairSeq :: Stmt a -> Maybe (Stmt a)
+pairSeq (SeqS [s]) = Just s
+pairSeq (SeqS ss@(_ : _ : _)) = Just $ foldr1 (\a b -> SeqS [a, b]) ss
+pairSeq _ = Nothing

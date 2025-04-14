@@ -37,11 +37,12 @@ spec = do
     let eps = 0.0001 :: Double
 
     it "unitary cost for eps=0.0001" $ do
-      let true_cost = 2 * ucF n (eps / 2) :: Double
+      let true_cost = ucF n (eps / 2) :: Double
       P.unitaryQueryCost qformulas eps ex "Oracle" `shouldBe` true_cost
 
     it "quantum cost for eps=0.0001" $ do
-      P.quantumQueryCost qformulas eps ex "Oracle" interpCtx Ctx.empty `shouldBe` ecF n 0 (eps / 2)
+      let true_cost = ecF n 0 (eps / 2)
+      P.quantumQueryCost qformulas eps ex "Oracle" interpCtx Ctx.empty `shouldBe` true_cost
 
     it "generate code" $ do
       toCodeString ex `shouldSatisfy` (not . null)

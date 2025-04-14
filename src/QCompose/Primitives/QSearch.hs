@@ -15,7 +15,7 @@ module QCompose.Primitives.QSearch (
   -- * A full implementation of quantum search.
   QSearchFullImpl (..),
   qsearchCFNW,
-  qsearchCFNWSymbolic,
+  qsearchSymbolic,
 ) where
 
 import Data.Maybe (catMaybes)
@@ -280,10 +280,10 @@ qsearchCFNW =
     , quantumAlgo = qSearchCQImpl
     }
 
-qsearchCFNWSymbolic ::
+qsearchSymbolic ::
   (Show sizeT, Show costT, Integral sizeT, RealFloat costT) =>
   QSearchFullImpl (QSearchBlackBoxes costT) (Sym.Sym sizeT) (Sym.Sym costT)
-qsearchCFNWSymbolic =
+qsearchSymbolic =
   QSearchFullImpl
     { formulas = symbolicFormulas
     , unitaryAlgo = error "Cannot compile unitary with symbolic formulas"
