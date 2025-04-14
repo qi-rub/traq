@@ -1,5 +1,6 @@
 module QCompose.UnitaryQPL.Lowering where
 
+import Control.Monad (forM, msum, replicateM, unless, when)
 import Control.Monad.Except (throwError)
 import Data.List (intersect)
 import qualified Data.Set as Set
@@ -16,23 +17,26 @@ import QCompose.ProtoLang.Syntax (FunctionCallKind (PrimitiveCall))
 import QCompose.UnitaryQPL.Syntax
 
 -- | Formulas for primitives
-data QSearchUnitaryImpl sizeT costT = QSearchUnitaryImpl
+data QSearchUnitaryImpl holeT sizeT costT = QSearchUnitaryImpl
   { ancillaTypes ::
       sizeT -> -- size of search space
       costT -> -- precision
       [P.VarType sizeT]
   , costFormulas :: P.QSearchFormulas sizeT costT
-  , algorithm :: P.VarType sizeT -> (Ident -> Ident -> Stmt sizeT costT) -> costT -> Stmt sizeT costT
+  , algorithm :: P.VarType sizeT -> (Ident -> Ident -> Stmt holeT sizeT costT) -> costT -> Stmt holeT sizeT costT
   }
 
 -- | Configuration for lowering
-type LoweringConfig sizeT costT = (P.FunCtx sizeT, QSearchUnitaryImpl sizeT costT)
+type LoweringConfig holeT sizeT costT = (P.FunCtx sizeT, P.OracleName, QSearchUnitaryImpl holeT sizeT costT)
 
-protoFunCtx :: Lens' (LoweringConfig sizeT costT) (P.FunCtx sizeT)
+protoFunCtx :: Lens' (LoweringConfig holeT sizeT costT) (P.FunCtx sizeT)
 protoFunCtx = _1
 
-qsearchConfig :: Lens' (LoweringConfig sizeT costT) (QSearchUnitaryImpl sizeT costT)
-qsearchConfig = _2
+oracleName :: Lens' (LoweringConfig holeT sizeT costT) P.OracleName
+oracleName = _2
+
+qsearchConfig :: Lens' (LoweringConfig holeT sizeT costT) (QSearchUnitaryImpl holeT sizeT costT)
+qsearchConfig = _3
 
 {- | A global lowering context storing the source functions and generated procedures
  along with info to generate unique ancilla and variable/procedure names
@@ -49,18 +53,18 @@ typingCtx :: Lens' (LoweringCtx sizeT) (P.TypingCtx sizeT)
 typingCtx = _2
 
 -- | The outputs of lowering
-type LoweringOutput sizeT costT = [ProcDef sizeT costT]
+type LoweringOutput holeT sizeT costT = [ProcDef holeT sizeT costT]
 
-loweredProcs :: Lens' (LoweringOutput sizeT costT) [ProcDef sizeT costT]
+loweredProcs :: Lens' (LoweringOutput holeT sizeT costT) [ProcDef holeT sizeT costT]
 loweredProcs = id
 
 {- | Monad to compile ProtoQB to UQPL programs.
 This should contain the _final_ typing context for the input program,
 that is, contains both the inputs and outputs of each statement.
 -}
-type CompilerT sizeT costT = RWST (LoweringConfig sizeT costT) (LoweringOutput sizeT costT) (LoweringCtx sizeT) (Either String)
+type CompilerT holeT sizeT costT = MyReaderWriterStateT (LoweringConfig holeT sizeT costT) (LoweringOutput holeT sizeT costT) (LoweringCtx sizeT) (Either String)
 
-newIdent :: Ident -> CompilerT sizeT costT Ident
+newIdent :: Ident -> CompilerT holeT sizeT costT Ident
 newIdent prefix = do
   ident <-
     msum . map checked $
@@ -68,7 +72,7 @@ newIdent prefix = do
   uniqNames . at ident ?= ()
   return ident
  where
-  checked :: Ident -> CompilerT sizeT costT Ident
+  checked :: Ident -> CompilerT holeT sizeT costT Ident
   checked name = do
     already_exists <- use (uniqNames . at name)
     case already_exists of
@@ -76,19 +80,19 @@ newIdent prefix = do
       Just () -> throwError "next ident please!"
 
 -- | Allocate an ancilla register, and update the typing context.
-allocAncilla :: P.VarType sizeT -> CompilerT sizeT costT Ident
+allocAncilla :: P.VarType sizeT -> CompilerT holeT sizeT costT Ident
 allocAncilla ty = do
   name <- newIdent "aux"
   zoom typingCtx $ Ctx.put name ty
   return name
 
 -- | Add a new procedure.
-addProc :: ProcDef sizeT costT -> CompilerT sizeT costT ()
-addProc procDef = tell [procDef]
+addProc :: ProcDef holeT sizeT costT -> CompilerT holeT sizeT costT ()
+addProc procDef = tellAt loweredProcs [procDef]
 
 -- | A procDef generated from a funDef, along with the partitioned register spaces.
-data LoweredProc sizeT costT = LoweredProc
-  { lowered_def :: ProcDef sizeT costT
+data LoweredProc holeT sizeT costT = LoweredProc
+  { lowered_def :: ProcDef holeT sizeT costT
   , inp_tys :: [P.VarType sizeT]
   -- ^ the inputs to the original fun
   , out_tys :: [P.VarType sizeT]
@@ -99,13 +103,13 @@ data LoweredProc sizeT costT = LoweredProc
 
 -- | Compile a single expression statement
 lowerExpr ::
-  forall sizeT costT.
+  forall holeT sizeT costT.
   (P.TypeCheckable sizeT, Show costT, Floating costT) =>
   costT ->
   P.Expr sizeT ->
   -- | returns
   [Ident] ->
-  CompilerT sizeT costT (Stmt sizeT costT)
+  CompilerT holeT sizeT costT (Stmt holeT sizeT costT)
 -- basic expressions
 lowerExpr _ P.VarE{P.arg} [ret] = do
   ty <- zoom typingCtx $ Ctx.lookup arg
@@ -132,14 +136,10 @@ lowerExpr _ P.TernaryE{P.branch, P.lhs, P.rhs} [ret] = do
     , UnitaryS [branch, rhs, ret] c_copy
     ]
 
--- oracle call
-lowerExpr _ P.FunCallE{P.fun_kind = P.OracleCall, P.args} rets = do
-  return $ UnitaryS (args ++ rets) Oracle
-
 -- function call
 lowerExpr delta P.FunCallE{P.fun_kind = P.FunctionCall f, P.args} rets = do
   fun <-
-    view (protoFunCtx . to P.fun_defs . Ctx.at f)
+    view (protoFunCtx . Ctx.at f)
       >>= maybeWithError ("cannot find function " <> f)
   LoweredProc{lowered_def, inp_tys, out_tys, aux_tys} <- lowerFunDef delta fun
 
@@ -159,12 +159,12 @@ lowerExpr delta P.FunCallE{P.fun_kind = P.FunctionCall f, P.args} rets = do
 -- `any`
 lowerExpr delta P.FunCallE{P.fun_kind = PrimitiveCall "any" [predicate], P.args} rets = do
   -- the predicate
-  pred_fun@P.FunDef{P.param_binds} <-
-    view (protoFunCtx . to P.fun_defs . Ctx.at predicate)
+  pred_fun@P.FunDef{P.param_types} <-
+    view (protoFunCtx . Ctx.at predicate)
       >>= maybeWithError ("cannot find predicate " <> predicate)
 
   -- size of the search space
-  let s_ty@(P.Fin n) = param_binds & last & snd
+  let s_ty@(P.Fin n) = last param_types
 
   -- precision for the search
   let delta_search = delta / 2
@@ -198,24 +198,28 @@ lowerExpr delta P.FunCallE{P.fun_kind = PrimitiveCall "any" [predicate], P.args}
           ++ pred_aux_tys
           ++ qsearch_ancilla_tys
 
+  qsearch_ancilla <- mapM allocAncilla qsearch_ancilla_tys
+  pred_ancilla <- mapM allocAncilla pred_aux_tys
+
   qsearch_param_names <- replicateM (length qsearch_param_tys) $ newIdent "_qs"
+  mk_proc_body <- view $ qsearchConfig . to algorithm
+  let proc_body =
+        mk_proc_body
+          s_ty
+          (\x b -> CallS{proc_id = proc_name pred_proc, dagger = False, args = args ++ [x, b] ++ pred_ancilla})
+          delta_search
   addProc
     ProcDef
       { proc_name = qsearch_proc_name
       , proc_params = withTag ParamUnk $ zip qsearch_param_names qsearch_param_tys
-      , proc_body =
-          UnitaryS qsearch_param_names $
-            BlackBoxU $
-              QSearchBB (proc_name pred_proc) n_qry
+      , mproc_body = Just proc_body
+      , is_oracle = False
       }
 
-  qsearch_ancilla <- mapM allocAncilla qsearch_ancilla_tys
-  pred_ancilla <- mapM allocAncilla pred_aux_tys
-  search_elem <- allocAncilla s_ty
   return
     CallS
       { proc_id = qsearch_proc_name
-      , args = args ++ rets ++ [search_elem] ++ pred_ancilla ++ qsearch_ancilla
+      , args = args ++ rets ++ pred_ancilla ++ qsearch_ancilla
       , dagger = False
       }
 
@@ -227,7 +231,7 @@ lowerStmt ::
   (P.TypeCheckable sizeT, Show costT, Floating costT) =>
   costT ->
   P.Stmt sizeT ->
-  CompilerT sizeT costT (Stmt sizeT costT)
+  CompilerT holeT sizeT costT (Stmt holeT sizeT costT)
 -- single statement
 lowerStmt delta s@P.ExprS{P.rets, P.expr} = do
   checker <- P.checkStmt <$> view protoFunCtx <*> pure s
@@ -257,31 +261,41 @@ lowerFunDefWithGarbage ::
   -- | precision \delta
   costT ->
   P.FunDef sizeT ->
-  CompilerT sizeT costT (LoweredProc sizeT costT)
-lowerFunDefWithGarbage delta P.FunDef{P.fun_name, P.param_binds, P.ret_binds, P.body} =
-  withSandboxOf typingCtx $ do
-    proc_name <- newIdent $ printf "%s[%s]" fun_name (show delta)
+  CompilerT holeT sizeT costT (LoweredProc holeT sizeT costT)
+lowerFunDefWithGarbage _ P.FunDef{P.mbody = Nothing} = error "TODO"
+lowerFunDefWithGarbage
+  delta
+  P.FunDef
+    { P.fun_name
+    , P.param_types
+    , P.ret_types
+    , P.mbody =
+      Just P.FunBody{P.param_names, P.ret_names, P.body_stmt}
+    } =
+    withSandboxOf typingCtx $ do
+      proc_name <- newIdent $ printf "%s[%s]" fun_name (show delta)
 
-    typingCtx .= Ctx.fromList param_binds
-    proc_body <- lowerStmt delta body
-    let param_names = map fst param_binds
-    let ret_names = map fst ret_binds
-    when (param_names `intersect` ret_names /= []) $
-      throwError "function should not return parameters!"
+      let param_binds = zip param_names param_types
+      let ret_binds = zip ret_names ret_types
 
-    aux_binds <- use typingCtx <&> Ctx.toList <&> filter (not . (`elem` param_names ++ ret_names) . fst)
-    let all_binds = withTag ParamInp param_binds ++ withTag ParamOut ret_binds ++ withTag ParamAux aux_binds
+      typingCtx .= Ctx.fromList param_binds
+      proc_body <- lowerStmt delta body_stmt
+      when (param_names `intersect` ret_names /= []) $
+        throwError "function should not return parameters!"
 
-    let procDef = ProcDef{proc_name, proc_params = all_binds, proc_body}
-    addProc procDef
+      aux_binds <- use typingCtx <&> Ctx.toList <&> filter (not . (`elem` param_names ++ ret_names) . fst)
+      let all_binds = withTag ParamInp param_binds ++ withTag ParamOut ret_binds ++ withTag ParamAux aux_binds
 
-    return
-      LoweredProc
-        { lowered_def = procDef
-        , inp_tys = map snd param_binds
-        , out_tys = map snd ret_binds
-        , aux_tys = map snd aux_binds
-        }
+      let procDef = ProcDef{proc_name, proc_params = all_binds, mproc_body = Just proc_body, is_oracle = False}
+      addProc procDef
+
+      return
+        LoweredProc
+          { lowered_def = procDef
+          , inp_tys = map snd param_binds
+          , out_tys = map snd ret_binds
+          , aux_tys = map snd aux_binds
+          }
 
 withTag :: ParamTag -> [(Ident, P.VarType a)] -> [(Ident, ParamTag, P.VarType a)]
 withTag tag = map $ \(x, ty) -> (x, tag, ty)
@@ -298,77 +312,112 @@ lowerFunDef ::
   -- | precision \delta
   costT ->
   P.FunDef sizeT ->
-  CompilerT sizeT costT (LoweredProc sizeT costT)
-lowerFunDef delta fun@P.FunDef{P.fun_name, P.param_binds, P.ret_binds} = withSandboxOf typingCtx $ do
-  -- get the proc call that computes with garbage
-  LoweredProc{lowered_def, aux_tys = g_aux_tys, out_tys = g_ret_tys} <- lowerFunDefWithGarbage (delta / 2) fun
-  let g_dirty_name = lowered_def ^. to proc_name
-
-  typingCtx .= Ctx.fromList (param_binds ++ ret_binds)
-
-  proc_name <- newIdent $ printf "%s_clean[%s]" fun_name (show delta)
-
-  let g_params_names = map fst param_binds
-  let ret_names = map fst ret_binds
-
-  g_ret_names <- mapM allocAncilla g_ret_tys
-
-  g_aux_names <- mapM allocAncilla g_aux_tys
-
-  let g_args = g_params_names ++ g_ret_names ++ g_aux_names
-
-  -- call g, copy and uncompute g
-  let proc_body =
-        SeqS
-          [ CallS{proc_id = g_dirty_name, dagger = False, args = g_args}
-          , SeqS -- copy all the return values
-              [ UnitaryS [x, x'] (RevEmbedU $ IdF ty)
-              | (x, x', ty) <- zip3 g_ret_names ret_names g_ret_tys
-              ]
-          , CallS{proc_id = g_dirty_name, dagger = True, args = g_args}
-          ]
-
+  CompilerT holeT sizeT costT (LoweredProc holeT sizeT costT)
+-- lower a declaration as-is, we treat all declarations as perfect data oracles (so delta is ignored).
+lowerFunDef _ P.FunDef{P.fun_name, P.param_types, P.ret_types, P.mbody = Nothing} = do
+  let param_names = map (printf "in_%d") [0 .. length param_types]
+  let ret_names = map (printf "out_%d") [0 .. length ret_types]
+  is_oracle <- (fun_name ==) <$> view oracleName
   let proc_def =
         ProcDef
-          { proc_name
+          { proc_name = fun_name
           , proc_params =
-              withTag ParamInp param_binds
-                ++ withTag ParamOut (zip ret_names g_ret_tys)
-                ++ withTag ParamAux (zip g_ret_names g_ret_tys ++ zip g_aux_names g_aux_tys)
-          , proc_body
+              withTag ParamInp (zip param_names param_types)
+                ++ withTag ParamOut (zip ret_names ret_types)
+          , mproc_body = Nothing
+          , is_oracle
           }
+
   addProc proc_def
   return
     LoweredProc
       { lowered_def = proc_def
-      , inp_tys = map snd param_binds
-      , out_tys = g_ret_tys
-      , aux_tys = g_ret_tys ++ g_aux_tys
+      , inp_tys = param_types
+      , out_tys = ret_types
+      , aux_tys = []
       }
+lowerFunDef
+  delta
+  fun@P.FunDef
+    { P.fun_name
+    , P.param_types
+    , P.ret_types
+    , P.mbody = Just P.FunBody{P.param_names, P.ret_names}
+    } = withSandboxOf typingCtx $ do
+    -- get the proc call that computes with garbage
+    LoweredProc{lowered_def, aux_tys = g_aux_tys, out_tys = g_ret_tys} <- lowerFunDefWithGarbage (delta / 2) fun
+    let g_dirty_name = lowered_def ^. to proc_name
+
+    let param_binds = zip param_names param_types
+    let ret_binds = zip ret_names ret_types
+
+    typingCtx .= Ctx.fromList (param_binds ++ ret_binds)
+
+    proc_name <- newIdent $ printf "%s_clean[%s]" fun_name (show delta)
+
+    g_ret_names <- mapM allocAncilla g_ret_tys
+
+    g_aux_names <- mapM allocAncilla g_aux_tys
+
+    let g_args = param_names ++ g_ret_names ++ g_aux_names
+
+    -- call g, copy and uncompute g
+    let proc_body =
+          SeqS
+            [ CallS{proc_id = g_dirty_name, dagger = False, args = g_args}
+            , SeqS -- copy all the return values
+                [ UnitaryS [x, x'] (RevEmbedU $ IdF ty)
+                | (x, x', ty) <- zip3 g_ret_names ret_names g_ret_tys
+                ]
+            , CallS{proc_id = g_dirty_name, dagger = True, args = g_args}
+            ]
+
+    is_oracle <- (fun_name ==) <$> view oracleName
+    let proc_def =
+          ProcDef
+            { proc_name
+            , proc_params =
+                withTag ParamInp param_binds
+                  ++ withTag ParamOut (zip ret_names g_ret_tys)
+                  ++ withTag ParamAux (zip g_ret_names g_ret_tys ++ zip g_aux_names g_aux_tys)
+            , mproc_body = Just proc_body
+            , is_oracle
+            }
+    addProc proc_def
+    return
+      LoweredProc
+        { lowered_def = proc_def
+        , inp_tys = map snd param_binds
+        , out_tys = g_ret_tys
+        , aux_tys = g_ret_tys ++ g_aux_tys
+        }
 
 -- | Lower a full program into a UQPL program.
 lowerProgram ::
   (Show costT, Floating costT) =>
-  QSearchUnitaryImpl SizeT costT ->
+  -- | A unitary implementation for QSearch (`any`)
+  QSearchUnitaryImpl holeT SizeT costT ->
+  -- | All variable bindings
   P.TypingCtx SizeT ->
+  -- | the name of the oracle
+  P.OracleName ->
   -- | precision \delta
   costT ->
   P.Program SizeT ->
-  Either String (Program SizeT costT, P.TypingCtx SizeT)
-lowerProgram qsearch_config gamma_in delta prog@P.Program{P.funCtx, P.stmt} = do
+  Either String (Program holeT SizeT costT, P.TypingCtx SizeT)
+lowerProgram qsearch_config gamma_in oracle_name delta prog@P.Program{P.funCtx, P.stmt} = do
   unless (P.checkVarsUnique prog) $
     throwError "program does not have unique variables!"
-  (stmtU, ctx', outputU) <- runRWST compiler config ctx
+  (stmtU, ctx', outputU) <- runMyReaderWriterStateT compiler config ctx
   return
     ( Program
-        { oracle_decl = funCtx & P.oracle_decl & lowerOracleDecl
-        , proc_defs = outputU ^. loweredProcs
+        { proc_defs = outputU ^. loweredProcs . to (Ctx.fromListWith proc_name)
         , stmt = stmtU
         }
     , ctx' ^. typingCtx
     )
  where
-  config = (funCtx, qsearch_config)
+  config = (funCtx, oracle_name, qsearch_config)
   ctx =
     emptyLoweringCtx
       & typingCtx .~ gamma_in

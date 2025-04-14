@@ -3,19 +3,22 @@ module QCompose.UnitaryQPL.Syntax (
 
   -- ** Inbuilt functions and unitaries
   ClassicalFun (..),
-  BlackBox (..),
   Unitary (..),
 
   -- ** Statements
   Stmt (..),
+  Stmt',
 
   -- ** Procedures
   ParamTag (..),
   ProcDef (..),
+  ProcDef',
   ProcCtx,
+  ProcCtx',
 
   -- ** Program
   Program (..),
+  Program',
 
   -- * Helpers
   HasDagger (..),
@@ -25,6 +28,7 @@ import Text.Printf (printf)
 
 import qualified QCompose.Data.Context as Ctx
 
+import Data.Void (Void)
 import QCompose.Prelude
 import qualified QCompose.ProtoLang as P
 import QCompose.Utils.Printing
@@ -35,11 +39,6 @@ data ClassicalFun sizeT
   | IdF {ty :: P.VarType sizeT} -- x -> x
   | AddF {ty :: P.VarType sizeT} -- x, y -> x + y
   | LEqF {ty :: P.VarType sizeT} -- x, y -> x <= y
-  deriving (Eq, Show, Read)
-
-data BlackBox costT
-  = BlackBox Ident
-  | QSearchBB {pred_name :: Ident, n_pred_calls :: costT}
   deriving (Eq, Show, Read)
 
 data Unitary sizeT costT
@@ -54,7 +53,6 @@ data Unitary sizeT costT
   | -- | reflect about |0>_T
     Refl0 (P.VarType sizeT)
   | RevEmbedU (ClassicalFun sizeT)
-  | BlackBoxU (BlackBox costT)
   | Controlled (Unitary sizeT costT)
   deriving (Eq, Show, Read)
 
@@ -62,7 +60,6 @@ class HasDagger a where
   adjoint :: a -> a
 
 instance HasDagger (Unitary sizeT costT) where
-  adjoint (BlackBoxU _) = error "cannot compute adjoint of blackbox"
   adjoint (Unif ty) = UnifDagger ty
   adjoint (UnifDagger ty) = Unif ty
   adjoint Toffoli = Toffoli
@@ -74,41 +71,58 @@ instance HasDagger (Unitary sizeT costT) where
   adjoint u@(RevEmbedU _) = u
   adjoint (Controlled u) = Controlled (adjoint u)
 
-data Stmt sizeT costT
+data Stmt holeT sizeT costT
   = SkipS
   | UnitaryS {args :: [Ident], unitary :: Unitary sizeT costT} -- q... *= U
   | CallS {proc_id :: Ident, dagger :: Bool, args :: [Ident]} -- call F(q...)
-  | SeqS [Stmt sizeT costT] -- W1; W2; ...
-  | RepeatS sizeT (Stmt sizeT costT) -- repeat k do S;
-  | HoleS String -- temporary place holder
+  | SeqS [Stmt holeT sizeT costT] -- W1; W2; ...
+  | RepeatS sizeT (Stmt holeT sizeT costT) -- repeat k do S;
+  | HoleS {hole :: holeT, dagger :: Bool} -- temporary place holder
   deriving (Eq, Show, Read)
 
-instance HasDagger (Stmt sizeT costT) where
+-- | Alias for statement without holes
+type Stmt' = Stmt Void
+
+instance HasDagger (Stmt holeT sizeT costT) where
   adjoint SkipS = SkipS
   adjoint s@CallS{dagger} = s{dagger = not dagger}
   adjoint (SeqS ss) = SeqS . reverse $ map adjoint ss
   adjoint s@UnitaryS{unitary} = s{unitary = adjoint unitary}
   adjoint (RepeatS k s) = RepeatS k (adjoint s)
-  adjoint (HoleS info) = HoleS $ info ++ " (adjoint)"
+  adjoint (HoleS info dagger) = HoleS info (not dagger)
 
 data ParamTag = ParamInp | ParamOut | ParamAux | ParamUnk deriving (Eq, Show, Read, Enum)
 
-data ProcDef sizeT costT = ProcDef
+data ProcDef holeT sizeT costT = ProcDef
   { proc_name :: Ident
   , proc_params :: [(Ident, ParamTag, P.VarType sizeT)]
-  , mproc_body :: Maybe (Stmt sizeT costT)
+  , mproc_body :: Maybe (Stmt holeT sizeT costT)
+  , is_oracle :: Bool
   }
   deriving (Eq, Show, Read)
 
 -- | A procedure context
-type ProcCtx sizeT costT = Ctx.Context (ProcDef sizeT costT)
+type ProcCtx holeT sizeT costT = Ctx.Context (ProcDef holeT sizeT costT)
+
+-- | Alias without holes
+type ProcDef' = ProcDef Void
+
+-- | Alias without holes
+type ProcCtx' sizeT costT = ProcCtx Void sizeT costT
 
 -- | A full program
-data Program sizeT costT = Program
-  { proc_defs :: ProcCtx sizeT costT
-  , stmt :: Stmt sizeT costT
+data Program holeT sizeT costT = Program
+  { proc_defs :: ProcCtx holeT sizeT costT
+  , stmt :: Stmt holeT sizeT costT
   }
   deriving (Eq, Show, Read)
+
+-- | Alias without holes
+type Program' = Program Void
+
+-- ================================================================================
+-- Printing
+-- ================================================================================
 
 showTypedIdent :: (Show a) => (String, P.VarType a) -> String
 showTypedIdent (ident, ty) = ident <> " : " <> toCodeString ty
@@ -133,21 +147,24 @@ instance (Show a, Show b) => ToCodeString (Unitary a b) where
   toCodeString (LoadData f) = f
   toCodeString u = show u
 
-instance (Show a, Show b) => ToCodeString (Stmt a b) where
+showDagger :: Bool -> String
+showDagger True = "†"
+showDagger False = ""
+
+instance (Show holeT, Show sizeT, Show costT) => ToCodeString (Stmt holeT sizeT costT) where
   toCodeLines SkipS = ["skip;"]
   toCodeLines UnitaryS{args, unitary} = [qc <> " *= " <> toCodeString unitary <> ";"]
    where
     qc = commaList args
-  toCodeLines CallS{proc_id, dagger, args} = ["call" <> dg <> " " <> proc_id <> "(" <> qc <> ");"]
+  toCodeLines CallS{proc_id, dagger, args} = [printf "call%s %s(%s);" (showDagger dagger) proc_id qc]
    where
     qc = commaList args
-    dg = if dagger then "†" else ""
   toCodeLines (SeqS ps) = concatMap toCodeLines ps
   toCodeLines (RepeatS k s) =
     [printf "repeat %s do" (show k)]
       ++ indent (toCodeLines s)
       ++ ["end"]
-  toCodeLines (HoleS info) = [printf "HOLE :: %s;" info]
+  toCodeLines (HoleS info dagger) = [printf "HOLE :: %s%s;" (show info) (showDagger dagger)]
 
 instance ToCodeString ParamTag where
   toCodeString ParamInp = "IN"
@@ -158,18 +175,21 @@ instance ToCodeString ParamTag where
 showParamWithTag :: (Show sizeT) => (Ident, ParamTag, P.VarType sizeT) -> String
 showParamWithTag (x, tag, ty) = printf "%s : %s%s" x tag_s (toCodeString ty)
  where
-  tag_s = case toCodeString tag of "" -> ""; s -> s ++ " "
+  tag_s = case toCodeString tag of
+    "" -> ""
+    s -> s ++ " "
 
-instance (Show sizeT, Show costT) => ToCodeString (ProcDef sizeT costT) where
-  toCodeLines ProcDef{proc_name, proc_params, mproc_body} =
-    case mproc_body of
-      Nothing -> [printf "uproc %s(%s);" proc_name plist]
-      Just proc_body ->
-        [printf "uproc %s(%s) do" proc_name plist]
-          <> indent (toCodeLines proc_body)
-          <> ["end"]
+instance (Show holeT, Show sizeT, Show costT) => ToCodeString (ProcDef holeT sizeT costT) where
+  toCodeLines ProcDef{proc_name, proc_params, mproc_body, is_oracle} =
+    ["@Oracle" | is_oracle]
+      ++ case mproc_body of
+        Nothing -> [printf "uproc %s(%s);" proc_name plist]
+        Just proc_body ->
+          [printf "uproc %s(%s) do" proc_name plist]
+            <> indent (toCodeLines proc_body)
+            <> ["end"]
    where
     plist = commaList $ map showParamWithTag proc_params
 
-instance (Show a, Show b) => ToCodeString (Program a b) where
+instance (Show holeT, Show sizeT, Show costT) => ToCodeString (Program holeT sizeT costT) where
   toCodeLines Program{proc_defs, stmt} = foldMap toCodeLines proc_defs <> [toCodeString stmt]

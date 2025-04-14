@@ -1,6 +1,7 @@
 module QCompose.ProtoLang.Cost (
   -- * Abstract Formulas
   QSearchFormulas (..),
+  OracleName,
 
   -- * Unitary Cost
   unitaryQueryCost,
@@ -68,13 +69,16 @@ unsafeLookupFun fname funCtx = funCtx ^. Ctx.at fname . singular _Just
 -- Unitary Cost
 -- ================================================================================
 
--- Environment to compute the unitary cost
+-- | Name of the oracle to compute the number of queries to.
 type OracleName = Ident
+
+-- | Environment to compute the unitary cost
 type StaticCostEnv sizeT costT = (QSearchFormulas sizeT costT, FunCtx sizeT, OracleName)
 
+-- | Monad to compute unitary cost.
 type UnitaryCostCalculator sizeT costT = MyReaderT (StaticCostEnv sizeT costT) Maybe
 
--- Evaluate the query cost of an expression
+-- | Evaluate the query cost of an expression
 unitaryQueryCostE ::
   (Num sizeT, Floating costT) =>
   -- | precision

@@ -4,6 +4,7 @@ module QCompose.ProtoLang.Vars (
   -- outVars,
   -- allVars,
   checkVarsUnique,
+  allNamesP,
 ) where
 
 import Control.Monad (foldM, guard)
@@ -47,11 +48,11 @@ allNamesF :: FunBody a -> VarSet
 allNamesF FunBody{param_names, ret_names, body_stmt} =
   Set.unions [allVars body_stmt, Set.fromList param_names, Set.fromList ret_names]
 
--- -- | Get all the variables of a program
--- allNamesP :: Program a -> VarSet
--- allNamesP Program{funCtx, stmt} =
---   foldr Set.union (allVars stmt) $
---     funCtx & Ctx.elems & map mbody & catMaybes & map allNamesF
+-- | Get all the variables of a program
+allNamesP :: Program a -> VarSet
+allNamesP Program{funCtx, stmt} =
+  foldr Set.union (allVars stmt) $
+    funCtx & Ctx.elems & mapMaybe mbody & map allNamesF
 
 -- | Check if a program has unique variable names
 checkVarsUnique :: Program a -> Bool

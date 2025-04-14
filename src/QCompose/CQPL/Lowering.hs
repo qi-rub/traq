@@ -8,7 +8,6 @@ module QCompose.CQPL.Lowering (
 ) where
 
 import Control.Monad.Except (throwError)
-import Control.Monad.RWS
 import qualified Data.Set as Set
 import Lens.Micro
 import Lens.Micro.Mtl
@@ -81,7 +80,7 @@ loweredUProcs = _2
 This should contain the _final_ typing context for the input program,
 that is, contains both the inputs and outputs of each statement.
 -}
-type CompilerT sizeT costT = RWST (LoweringEnv sizeT costT) (LoweringOutput sizeT costT) (LoweringCtx sizeT) (Either String)
+type CompilerT sizeT costT = MyReaderWriterStateT (LoweringEnv sizeT costT) (LoweringOutput sizeT costT) (LoweringCtx sizeT) (Either String)
 
 newIdent :: forall sizeT costT. Ident -> CompilerT sizeT costT Ident
 newIdent prefix = do
@@ -105,11 +104,6 @@ addProc procDef = tellAt loweredProcs [procDef]
 -- ================================================================================
 -- Compilation
 -- ================================================================================
-
--- | lower an oracle declaration to a uqpl oracle decl
-lowerOracleDecl :: P.OracleDecl sizeT -> OracleDecl sizeT
-lowerOracleDecl P.OracleDecl{P.param_types, P.ret_types} =
-  OracleDecl{oracle_param_types = param_types ++ ret_types}
 
 -- | Lower a source function to a procedure call.
 lowerFunDef ::
@@ -148,7 +142,7 @@ lowerFunDefByName ::
   Ident ->
   CompilerT sizeT costT Ident
 lowerFunDefByName eps f = do
-  fun_def <- view $ protoFunCtx . to P.fun_defs . Ctx.at f . singular _Just
+  fun_def <- view $ protoFunCtx . Ctx.at f . singular _Just
   lowerFunDef eps fun_def
 
 -- | Lower a source expression to a statement.
@@ -175,7 +169,7 @@ lowerExpr eps P.FunCallE{P.fun_kind = P.FunctionCall f, P.args} rets = do
 lowerExpr eps P.FunCallE{P.fun_kind = P.PrimitiveCall "any" [predicate], P.args} rets = do
   -- the predicate
   pred_fun@P.FunDef{P.param_binds} <-
-    view (protoFunCtx . to P.fun_defs . Ctx.at predicate)
+    view (protoFunCtx . Ctx.at predicate)
       >>= maybeWithError ("cannot find predicate " <> predicate)
 
   -- size of the search space

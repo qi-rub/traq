@@ -83,10 +83,10 @@ newtype OracleDecl sizeT = OracleDecl
   deriving (Eq, Show, Read)
 
 -- | CQ Program
-data Program sizeT costT = Program
+data Program holeT sizeT costT = Program
   { oracle_decl :: OracleDecl sizeT
   , proc_defs :: Ctx.Context (ProcDef sizeT)
-  , uproc_defs :: Ctx.Context (UQPL.ProcDef sizeT costT)
+  , uproc_defs :: Ctx.Context (UQPL.ProcDef holeT sizeT costT)
   , stmt :: Stmt sizeT
   }
   deriving (Eq, Show, Read)
@@ -108,7 +108,7 @@ instance HasStmt (ProcDef sizeT) (Stmt sizeT) where
   _stmt focus (ProcDef proc_name proc_meta_params proc_params proc_local_vars proc_body) =
     ProcDef proc_name proc_meta_params proc_params proc_local_vars <$> focus proc_body
 
-instance HasStmt (Program sizeT costT) (Stmt sizeT) where
+instance HasStmt (Program holeT sizeT costT) (Stmt sizeT) where
   _stmt focus (Program o ps ups s) = Program o <$> traverse (_stmt focus) ps <*> pure ups <*> _stmt focus s
 
 -- ================================================================================
@@ -219,7 +219,7 @@ instance (Show sizeT) => ToCodeString (ProcDef sizeT) where
    where
     showTypedVar (x, ty) = printf "%s: %s" x (toCodeString ty)
 
-instance (Show sizeT, Show costT) => ToCodeString (Program sizeT costT) where
+instance (Show holeT, Show sizeT, Show costT) => ToCodeString (Program holeT sizeT costT) where
   toCodeLines Program{proc_defs, uproc_defs, stmt} =
     map toCodeString (Ctx.elems uproc_defs)
       ++ map toCodeString (Ctx.elems proc_defs)
