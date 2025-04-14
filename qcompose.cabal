@@ -30,12 +30,10 @@ library
           QCompose.Examples.Search
           QCompose.Prelude
           QCompose.Primitives
-          QCompose.Primitives.Class
           QCompose.Primitives.QSearch
           QCompose.ProtoLang
           QCompose.ProtoLang.Cost
           QCompose.ProtoLang.Eval
-          QCompose.ProtoLang.Monad
           QCompose.ProtoLang.Parser
           QCompose.ProtoLang.Rewrites
           QCompose.ProtoLang.Syntax

@@ -1,7 +1,10 @@
 module QCompose.ProtoLang.TypeCheck (
+  -- * Types
   TypingCtx,
   TypeCheckable (..),
   TypeChecker,
+
+  -- * Checkers
   checkPrimitive,
   checkExpr,
   checkStmt,
@@ -20,8 +23,25 @@ import qualified QCompose.Data.Context as Ctx
 
 import QCompose.Control.Monad
 import QCompose.Prelude
-import QCompose.ProtoLang.Monad
 import QCompose.ProtoLang.Syntax
+
+-- | A context mapping variables to their types.
+type TypingCtx a = Ctx.Context (VarType a)
+
+-- | The TypeChecker monad
+type TypeChecker a = MyStateT (TypingCtx a) (Either String)
+
+class (Eq a, Show a, Num a) => TypeCheckable a where
+  tbool :: VarType a
+  tmax :: VarType a -> VarType a -> VarType a
+
+instance TypeCheckable Integer where
+  tbool = Fin 2
+  tmax (Fin n) (Fin m) = Fin (max n m)
+
+instance TypeCheckable Int where
+  tbool = Fin 2
+  tmax (Fin n) (Fin m) = Fin (max n m)
 
 lookupFunE :: Ident -> FunCtx a -> TypeChecker a (FunDef a)
 lookupFunE fname funCtx =

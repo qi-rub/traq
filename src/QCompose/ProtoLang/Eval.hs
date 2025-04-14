@@ -8,6 +8,14 @@ module QCompose.ProtoLang.Eval (
   range,
   ProgramState,
   boolToValue,
+
+  -- * Types and Monad
+  FunInterp,
+  FunInterpCtx,
+  ExecutionEnv,
+  ExecutionState,
+  Evaluator,
+  Executor,
 ) where
 
 import Control.Monad (filterM, zipWithM_)
@@ -23,8 +31,27 @@ import qualified QCompose.Data.Context as Ctx
 import qualified QCompose.Data.Tree as Tree
 
 import QCompose.Prelude
-import QCompose.ProtoLang.Monad
 import QCompose.ProtoLang.Syntax
+
+-- | The deterministic state of the program
+type ProgramState = Ctx.Context Value
+
+-- | Inject runtime data into a program
+type FunInterp = [Value] -> [Value]
+
+-- | A mapping of data injections
+type FunInterpCtx = Ctx.Context FunInterp
+
+-- | Environment for evaluation
+type ExecutionEnv sizeT = (FunCtx sizeT, FunInterpCtx)
+
+type ExecutionState sizeT = ProgramState
+
+-- | Non-deterministic Execution Monad (i.e. no state)
+type Evaluator = MyReaderT (ExecutionEnv SizeT) Tree.Tree
+
+-- | Non-deterministic Execution Monad
+type Executor = MyReaderStateT (ExecutionEnv SizeT) (ExecutionState SizeT) Tree.Tree
 
 -- evaluation
 range :: VarType SizeT -> [Value]

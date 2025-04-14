@@ -1,7 +1,6 @@
 module QCompose.ProtoLang.ParserSpec (spec) where
 
 import qualified Data.Number.Symbolic as Sym
-import Lens.Micro
 import Text.Parsec.String
 
 import QCompose.Examples.MatrixSearch (matrixExample)

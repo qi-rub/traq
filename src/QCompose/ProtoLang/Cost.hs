@@ -1,7 +1,6 @@
 module QCompose.ProtoLang.Cost (
   -- * Abstract Formulas
   QSearchFormulas (..),
-  OracleName,
 
   -- * Unitary Cost
   unitaryQueryCost,
@@ -23,10 +22,15 @@ module QCompose.ProtoLang.Cost (
   -- ** Bound on runtime
   quantumQueryCostBound,
 
-  -- * Types
+  -- * Types and Monad
+  OracleName,
+
+  -- ** Static
   StaticCostEnv,
   UnitaryCostCalculator,
   QuantumMaxCostCalculator,
+
+  -- ** Dynamic
   DynamicCostEnv,
   QuantumCostCalculator,
 
@@ -47,7 +51,6 @@ import qualified QCompose.Data.Tree as Tree
 
 import QCompose.Prelude
 import QCompose.ProtoLang.Eval
-import QCompose.ProtoLang.Monad
 import QCompose.ProtoLang.Syntax
 
 -- | Computed cost functions (quantum, unitary) of a given set of algorithms implementing quantum search

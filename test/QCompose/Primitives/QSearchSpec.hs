@@ -4,7 +4,6 @@ import Lens.Micro
 
 import QCompose.Primitives.QSearch
 import QCompose.ProtoLang (VarType (..))
-import qualified QCompose.ProtoLang as P
 import qualified QCompose.UnitaryQPL as UQPL
 import QCompose.Utils.Printing
 
