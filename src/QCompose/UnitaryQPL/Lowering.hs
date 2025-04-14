@@ -23,7 +23,7 @@ data QSearchUnitaryImpl holeT sizeT costT = QSearchUnitaryImpl
       costT -> -- precision
       [P.VarType sizeT]
   , costFormulas :: P.QSearchFormulas sizeT costT
-  , algorithm :: P.VarType sizeT -> (Ident -> Ident -> Stmt holeT sizeT costT) -> costT -> Stmt holeT sizeT costT
+  , algorithm :: P.VarType sizeT -> (Ident -> Ident -> Stmt holeT sizeT) -> costT -> Stmt holeT sizeT
   }
 
 -- | Configuration for lowering
@@ -53,16 +53,16 @@ typingCtx :: Lens' (LoweringCtx sizeT) (P.TypingCtx sizeT)
 typingCtx = _2
 
 -- | The outputs of lowering
-type LoweringOutput holeT sizeT costT = [ProcDef holeT sizeT costT]
+type LoweringOutput holeT sizeT = [ProcDef holeT sizeT]
 
-loweredProcs :: Lens' (LoweringOutput holeT sizeT costT) [ProcDef holeT sizeT costT]
+loweredProcs :: Lens' (LoweringOutput holeT sizeT) [ProcDef holeT sizeT]
 loweredProcs = id
 
 {- | Monad to compile ProtoQB to UQPL programs.
 This should contain the _final_ typing context for the input program,
 that is, contains both the inputs and outputs of each statement.
 -}
-type CompilerT holeT sizeT costT = MyReaderWriterStateT (LoweringConfig holeT sizeT costT) (LoweringOutput holeT sizeT costT) (LoweringCtx sizeT) (Either String)
+type CompilerT holeT sizeT costT = MyReaderWriterStateT (LoweringConfig holeT sizeT costT) (LoweringOutput holeT sizeT) (LoweringCtx sizeT) (Either String)
 
 newIdent :: Ident -> CompilerT holeT sizeT costT Ident
 newIdent prefix = do
@@ -87,12 +87,12 @@ allocAncilla ty = do
   return name
 
 -- | Add a new procedure.
-addProc :: ProcDef holeT sizeT costT -> CompilerT holeT sizeT costT ()
+addProc :: ProcDef holeT sizeT -> CompilerT holeT sizeT costT ()
 addProc procDef = tellAt loweredProcs [procDef]
 
 -- | A procDef generated from a funDef, along with the partitioned register spaces.
 data LoweredProc holeT sizeT costT = LoweredProc
-  { lowered_def :: ProcDef holeT sizeT costT
+  { lowered_def :: ProcDef holeT sizeT
   , inp_tys :: [P.VarType sizeT]
   -- ^ the inputs to the original fun
   , out_tys :: [P.VarType sizeT]
@@ -109,7 +109,7 @@ lowerExpr ::
   P.Expr sizeT ->
   -- | returns
   [Ident] ->
-  CompilerT holeT sizeT costT (Stmt holeT sizeT costT)
+  CompilerT holeT sizeT costT (Stmt holeT sizeT)
 -- basic expressions
 lowerExpr _ P.VarE{P.arg} [ret] = do
   ty <- zoom typingCtx $ Ctx.lookup arg
@@ -231,7 +231,7 @@ lowerStmt ::
   (P.TypeCheckable sizeT, Show costT, Floating costT) =>
   costT ->
   P.Stmt sizeT ->
-  CompilerT holeT sizeT costT (Stmt holeT sizeT costT)
+  CompilerT holeT sizeT costT (Stmt holeT sizeT)
 -- single statement
 lowerStmt delta s@P.ExprS{P.rets, P.expr} = do
   checker <- P.checkStmt <$> view protoFunCtx <*> pure s
@@ -404,7 +404,7 @@ lowerProgram ::
   -- | precision \delta
   costT ->
   P.Program SizeT ->
-  Either String (Program holeT SizeT costT, P.TypingCtx SizeT)
+  Either String (Program holeT SizeT, P.TypingCtx SizeT)
 lowerProgram qsearch_config gamma_in oracle_name delta prog@P.Program{P.funCtx, P.stmt} = do
   unless (P.checkVarsUnique prog) $
     throwError "program does not have unique variables!"

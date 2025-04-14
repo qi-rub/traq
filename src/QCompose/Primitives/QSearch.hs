@@ -1,3 +1,6 @@
+{-# LANGUAGE FlexibleInstances #-}
+{-# LANGUAGE MultiParamTypeClasses #-}
+
 {- |
 Cost formulas and implementations of the quantum search algorithms in Ref [1].
 
@@ -27,6 +30,12 @@ data QSearchBlackBoxes costT
   = QSearchBlackBox {q_pred_name :: Ident, n_pred_calls :: costT}
   | TODOHole String
   deriving (Eq, Show)
+
+instance UQPL.HoleCost (QSearchBlackBoxes costT) costT where
+  holeCost QSearchBlackBox{q_pred_name, n_pred_calls} = do
+    pred_cost <- UQPL.procCost q_pred_name
+    return $ n_pred_calls * pred_cost
+  holeCost (TODOHole s) = error $ "no cost of unknown hole: " <> s
 
 -- | Symbolic worst case formulas.
 symbolicFormulas :: forall sizeT costT. (Show sizeT, Show costT, Integral sizeT, RealFloat costT) => P.QSearchFormulas (Sym.Sym sizeT) (Sym.Sym costT)
@@ -80,7 +89,7 @@ cadeEtAlFormulas =
     nq = 5 * log_fac + pi * sqrt (fromIntegral n * log_fac)
 
 -- | Ancilla and Cost formulas for the unitary quantum search algorithm \( \textbf{QSearch}_\text{Zalka} \).
-zalkaQSearch :: (RealFloat costT) => U.QSearchUnitaryImpl holeT SizeT costT
+zalkaQSearch :: (RealFloat costT) => U.QSearchUnitaryImpl (QSearchBlackBoxes costT) SizeT costT
 zalkaQSearch =
   U.QSearchUnitaryImpl
     { U.ancillaTypes = anc
@@ -93,8 +102,7 @@ zalkaQSearch =
 
 -- | Run K grover iterations
 groverK ::
-  forall holeT sizeT costT.
-  (RealFloat costT) =>
+  forall holeT sizeT.
   -- | number of rounds
   sizeT ->
   -- | the element and type to search for. @x : T@
@@ -102,12 +110,12 @@ groverK ::
   -- | the output bit
   Ident ->
   -- | run the predicate
-  (Ident -> Ident -> U.Stmt holeT sizeT costT) ->
-  U.Stmt holeT sizeT costT
+  (Ident -> Ident -> U.Stmt holeT sizeT) ->
+  U.Stmt holeT sizeT
 groverK k (x, ty) b mk_pred = U.SeqS [prep, U.RepeatS k grover_iterate]
  where
   -- map b to |-> and x to uniform
-  prep :: U.Stmt holeT sizeT costT
+  prep :: U.Stmt holeT sizeT
   prep =
     U.SeqS
       [ U.UnitaryS [b] U.XGate
@@ -115,7 +123,7 @@ groverK k (x, ty) b mk_pred = U.SeqS [prep, U.RepeatS k grover_iterate]
       , U.UnitaryS [x] (U.Unif ty)
       ]
 
-  grover_iterate :: U.Stmt holeT sizeT costT
+  grover_iterate :: U.Stmt holeT sizeT
   grover_iterate =
     U.SeqS
       [ mk_pred x b
@@ -128,8 +136,7 @@ groverK k (x, ty) b mk_pred = U.SeqS [prep, U.RepeatS k grover_iterate]
  when the number of solutions is known
 -}
 groverCertainty ::
-  forall holeT sizeT costT.
-  (RealFloat costT) =>
+  forall holeT sizeT.
   -- | the element and type to search for. @x : T@
   (Ident, VarType sizeT) ->
   -- | number of solutions
@@ -137,22 +144,35 @@ groverCertainty ::
   -- | the output bit
   Ident ->
   -- | run the predicate
-  (Ident -> Ident -> U.Stmt holeT sizeT costT) ->
-  U.Stmt holeT sizeT costT
-groverCertainty (x, Fin n) m b mk_pred = error "TODO"
+  (Ident -> Ident -> U.Stmt holeT sizeT) ->
+  U.Stmt holeT sizeT
+groverCertainty (x, Fin n) m b mk_pred = error "TODO GroverCertainty circuit"
 
 zalkaQSearchImpl ::
-  forall holeT sizeT costT.
+  forall sizeT costT.
   (Integral sizeT, RealFloat costT) =>
   -- | type of the element to search over
   VarType sizeT ->
   -- | call the predicate on @x, b@
-  (Ident -> Ident -> U.Stmt holeT sizeT costT) ->
+  (Ident -> Ident -> U.Stmt (QSearchBlackBoxes costT) sizeT) ->
   -- | max. failure probability @\eps@
   costT ->
-  U.Stmt holeT sizeT costT
-zalkaQSearchImpl ty mk_pred eps = error "TODO"
+  U.Stmt (QSearchBlackBoxes costT) sizeT
+zalkaQSearchImpl ty mk_pred eps =
+  U.HoleS
+    { U.hole =
+        QSearchBlackBox
+          { q_pred_name
+          , n_pred_calls = P.qSearchUnitaryCost cadeEtAlFormulas n eps
+          }
+    , U.dagger = False
+    }
  where
+  q_pred_name = case mk_pred "pred_arg" "pred_res" of
+    UQPL.CallS{UQPL.proc_id} -> proc_id
+    _ -> error "predicate is not a call!"
+  Fin n = ty
+
   t0 :: sizeT
   t0 = ceiling $ logBase (4 / 3) (1 / eps) / 2
 
@@ -233,7 +253,7 @@ qSearch ty n_samples eps upred_caller pred_caller params =
       , pred_caller "y" "ok"
       ]
 
-qSearchCQImpl :: (RealFloat costT) => CQ.QSearchCQImpl holeT SizeT costT
+qSearchCQImpl :: (RealFloat costT) => CQ.QSearchCQImpl (QSearchBlackBoxes costT) SizeT costT
 qSearchCQImpl =
   CQ.QSearchCQImpl
     { CQ.costFormulas = cadeEtAlFormulas
@@ -263,6 +283,6 @@ qsearchCFNWSymbolic ::
 qsearchCFNWSymbolic =
   QSearchFullImpl
     { formulas = symbolicFormulas
-    , unitaryAlgo = error "Cannot compile symbolic"
-    , quantumAlgo = error "Cannot compile symbolic"
+    , unitaryAlgo = error "Cannot compile unitary with symbolic formulas"
+    , quantumAlgo = error "Cannot compile quantum with symbolic formulas"
     }

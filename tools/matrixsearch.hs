@@ -43,7 +43,7 @@ concreteEx = do
   let (Right (exU, _)) = UQPL.lowerProgram (qsearchCFNW ^. to unitaryAlgo) Ctx.empty "Oracle" delta ex
   putStrLn $ toCodeString exU
 
-  let (u_true_cost, _) = UQPL.programCost (\hole -> error "TODO") exU
+  let (u_true_cost, _) = UQPL.programCost exU
 
   putStrLn "Unitary Cost:"
   putStrLn $ " - Abstract cost: " <> show u_formula_cost

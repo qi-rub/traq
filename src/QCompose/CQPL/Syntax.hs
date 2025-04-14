@@ -86,9 +86,9 @@ data ProcDef sizeT = ProcDef
   deriving (Eq, Show, Read)
 
 -- | CQ Program
-data Program holeT sizeT costT = Program
+data Program holeT sizeT = Program
   { proc_defs :: Ctx.Context (ProcDef sizeT)
-  , uproc_defs :: Ctx.Context (UQPL.ProcDef holeT sizeT costT)
+  , uproc_defs :: Ctx.Context (UQPL.ProcDef holeT sizeT)
   , stmt :: Stmt sizeT
   }
   deriving (Eq, Show, Read)
@@ -113,7 +113,7 @@ instance HasStmt (ProcDef sizeT) (Stmt sizeT) where
   _stmt focus proc_def@ProcDef{mproc_body = Just proc_body} = (\proc_body' -> proc_def{mproc_body = Just proc_body'}) <$> _stmt focus proc_body
   _stmt _ proc_def = pure proc_def
 
-instance HasStmt (Program holeT sizeT costT) (Stmt sizeT) where
+instance HasStmt (Program holeT sizeT) (Stmt sizeT) where
   _stmt focus (Program proc_defs uproc_defs stmt) = Program <$> traverse (_stmt focus) proc_defs <*> pure uproc_defs <*> _stmt focus stmt
 
 -- ================================================================================
@@ -233,7 +233,7 @@ instance (Show sizeT) => ToCodeString (ProcDef sizeT) where
    where
     showTypedVar x ty = printf "%s: %s" x (toCodeString ty)
 
-instance (Show holeT, Show sizeT, Show costT) => ToCodeString (Program holeT sizeT costT) where
+instance (Show holeT, Show sizeT) => ToCodeString (Program holeT sizeT) where
   toCodeLines Program{proc_defs, uproc_defs, stmt} =
     map toCodeString (Ctx.elems uproc_defs)
       ++ map toCodeString (Ctx.elems proc_defs)

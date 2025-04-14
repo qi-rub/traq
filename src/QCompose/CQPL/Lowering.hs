@@ -32,7 +32,7 @@ type QSearchAlgorithm holeT sizeT costT =
   -- | max fail prob
   costT ->
   -- | unitary predicate caller
-  (Ident -> Ident -> UQPL.Stmt holeT sizeT costT) ->
+  (Ident -> Ident -> UQPL.Stmt holeT sizeT) ->
   -- | cqpl predicate caller
   (Ident -> Ident -> Stmt sizeT) ->
   -- | arguments to the function
@@ -74,19 +74,19 @@ typingCtx :: Lens' (LoweringCtx sizeT) (P.TypingCtx sizeT)
 typingCtx = _2
 
 -- | The outputs of lowering
-type LoweringOutput holeT sizeT costT = ([ProcDef sizeT], [UQPL.ProcDef holeT sizeT costT])
+type LoweringOutput holeT sizeT = ([ProcDef sizeT], [UQPL.ProcDef holeT sizeT])
 
-loweredProcs :: Lens' (LoweringOutput holeT sizeT costT) [ProcDef sizeT]
+loweredProcs :: Lens' (LoweringOutput holeT sizeT) [ProcDef sizeT]
 loweredProcs = _1
 
-loweredUProcs :: Lens' (LoweringOutput holeT sizeT costT) [UQPL.ProcDef holeT sizeT costT]
+loweredUProcs :: Lens' (LoweringOutput holeT sizeT) [UQPL.ProcDef holeT sizeT]
 loweredUProcs = _2
 
 {- | Monad to compile ProtoQB to CQPL programs.
 This should contain the _final_ typing context for the input program,
 that is, contains both the inputs and outputs of each statement.
 -}
-type CompilerT holeT sizeT costT = MyReaderWriterStateT (LoweringEnv holeT sizeT costT) (LoweringOutput holeT sizeT costT) (LoweringCtx sizeT) (Either String)
+type CompilerT holeT sizeT costT = MyReaderWriterStateT (LoweringEnv holeT sizeT costT) (LoweringOutput holeT sizeT) (LoweringCtx sizeT) (Either String)
 
 -- | Generate a new identifier with the given prefix.
 newIdent :: forall holeT sizeT costT. Ident -> CompilerT holeT sizeT costT Ident
@@ -283,7 +283,7 @@ lowerProgram ::
   costT ->
   -- | source program
   P.Program sizeT ->
-  Either String (Program holeT sizeT costT, P.TypingCtx sizeT)
+  Either String (Program holeT sizeT, P.TypingCtx sizeT)
 lowerProgram qsearch_config gamma_in oracle_name eps prog@P.Program{P.funCtx, P.stmt} = do
   unless (P.checkVarsUnique prog) $
     throwError "program does not have unique variables!"
