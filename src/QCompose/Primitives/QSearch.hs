@@ -180,7 +180,10 @@ zalkaQSearchImpl ty mk_pred eps =
   t0 = ceiling $ logBase (4 / 3) (1 / eps) / 2
 
 -- | Implementation of the hybrid quantum search algorithm \( \textbf{QSearch} \).
-qSearch :: (RealFloat costT) => CQ.QSearchAlgorithm holeT SizeT costT
+qSearch ::
+  forall costT.
+  (RealFloat costT) =>
+  CQ.QSearchAlgorithm (QSearchBlackBoxes costT) SizeT costT
 qSearch ty n_samples eps upred_caller pred_caller params =
   CQ.ProcDef
     { CQ.proc_name = "qSearch"
@@ -201,7 +204,7 @@ qSearch ty n_samples eps upred_caller pred_caller params =
     , CQ.is_oracle = False
     }
  where
-  classicalSampling :: CQ.Stmt SizeT
+  classicalSampling :: CQ.Stmt (QSearchBlackBoxes costT) SizeT
   classicalSampling =
     CQ.WhileKWithCondExpr n_samples "not_done" (CQ.NotE $ CQ.VarE "ok") $
       CQ.SeqS
@@ -239,7 +242,7 @@ qSearch ty n_samples eps upred_caller pred_caller params =
     nxt :: Float -> Float
     nxt m = min (lambda * m) sqrt_n
 
-  quantumSampling, quantumSamplingOneRound :: CQ.Stmt SizeT
+  quantumSampling, quantumSamplingOneRound :: CQ.Stmt (QSearchBlackBoxes costT) SizeT
   quantumSampling = CQ.RepeatS n_runs quantumSamplingOneRound
   quantumSamplingOneRound =
     CQ.SeqS $

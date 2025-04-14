@@ -54,34 +54,34 @@ data FunctionCall
   deriving (Eq, Show, Read)
 
 -- | CQ Statement
-data Stmt sizeT
+data Stmt holeT sizeT
   = SkipS
   | AssignS {rets :: [Ident], expr :: Expr sizeT}
   | RandomS {ret :: Ident, ty :: VarType sizeT}
   | CallS {fun :: FunctionCall, meta_params :: [MetaParam sizeT], args :: [Ident]}
-  | SeqS [Stmt sizeT]
-  | IfThenElseS {cond :: Ident, s_true, s_false :: Stmt sizeT}
-  | RepeatS {n_iter :: sizeT, loop_body :: Stmt sizeT}
+  | SeqS [Stmt holeT sizeT]
+  | IfThenElseS {cond :: Ident, s_true, s_false :: Stmt holeT sizeT}
+  | RepeatS {n_iter :: sizeT, loop_body :: Stmt holeT sizeT}
   | HoleS String
   | -- syntax sugar
-    WhileK {n_iter :: sizeT, cond :: Ident, loop_body :: Stmt sizeT}
-  | WhileKWithCondExpr {n_iter :: sizeT, cond :: Ident, cond_expr :: Expr sizeT, loop_body :: Stmt sizeT}
+    WhileK {n_iter :: sizeT, cond :: Ident, loop_body :: Stmt holeT sizeT}
+  | WhileKWithCondExpr {n_iter :: sizeT, cond :: Ident, cond_expr :: Expr sizeT, loop_body :: Stmt holeT sizeT}
   deriving (Eq, Show, Read)
 
 -- | CQ Procedure body: binds the parameters to names, and optionally uses local variables.
-data ProcBody sizeT = ProcBody
+data ProcBody holeT sizeT = ProcBody
   { proc_param_names :: [Ident]
   , proc_local_vars :: [(Ident, VarType sizeT)]
-  , proc_body_stmt :: Stmt sizeT
+  , proc_body_stmt :: Stmt holeT sizeT
   }
   deriving (Eq, Show, Read)
 
 -- | CQ Procedure
-data ProcDef sizeT = ProcDef
+data ProcDef holeT sizeT = ProcDef
   { proc_name :: Ident
   , proc_meta_params :: [Ident]
   , proc_param_types :: [VarType sizeT]
-  , mproc_body :: Maybe (ProcBody sizeT)
+  , mproc_body :: Maybe (ProcBody holeT sizeT)
   -- ^ load directly from data if omitted
   , is_oracle :: Bool
   }
@@ -89,9 +89,9 @@ data ProcDef sizeT = ProcDef
 
 -- | CQ Program
 data Program holeT sizeT = Program
-  { proc_defs :: Ctx.Context (ProcDef sizeT)
+  { proc_defs :: Ctx.Context (ProcDef holeT sizeT)
   , uproc_defs :: Ctx.Context (UQPL.ProcDef holeT sizeT)
-  , stmt :: Stmt sizeT
+  , stmt :: Stmt holeT sizeT
   }
   deriving (Eq, Show, Read)
 
@@ -102,23 +102,23 @@ type Program' = Program Void
 -- Lenses
 -- ================================================================================
 
-instance HasAst (Stmt sizeT) where
+instance HasAst (Stmt holeT sizeT) where
   _ast focus (SeqS ss) = SeqS <$> traverse focus ss
   _ast focus (IfThenElseS cond s_true s_false) = IfThenElseS cond <$> focus s_true <*> focus s_false
   _ast focus (RepeatS n_iter loop_body) = RepeatS n_iter <$> focus loop_body
   _ast _ s = pure s
 
-instance HasStmt (Stmt sizeT) (Stmt sizeT) where
+instance HasStmt (Stmt holeT sizeT) (Stmt holeT sizeT) where
   _stmt = id
 
-instance HasStmt (ProcBody sizeT) (Stmt sizeT) where
+instance HasStmt (ProcBody holeT sizeT) (Stmt holeT sizeT) where
   _stmt focus proc_body = (\s' -> proc_body{proc_body_stmt = s'}) <$> focus (proc_body_stmt proc_body)
 
-instance HasStmt (ProcDef sizeT) (Stmt sizeT) where
+instance HasStmt (ProcDef holeT sizeT) (Stmt holeT sizeT) where
   _stmt focus proc_def@ProcDef{mproc_body = Just proc_body} = (\proc_body' -> proc_def{mproc_body = Just proc_body'}) <$> _stmt focus proc_body
   _stmt _ proc_def = pure proc_def
 
-instance HasStmt (Program holeT sizeT) (Stmt sizeT) where
+instance HasStmt (Program holeT sizeT) (Stmt holeT sizeT) where
   _stmt focus (Program proc_defs uproc_defs stmt) = Program <$> traverse (_stmt focus) proc_defs <*> pure uproc_defs <*> _stmt focus stmt
 
 -- ================================================================================
@@ -132,8 +132,8 @@ whileK ::
   -- | loop condition
   Ident ->
   -- | loop body
-  Stmt sizeT ->
-  Stmt sizeT
+  Stmt holeT sizeT ->
+  Stmt holeT sizeT
 whileK k cond body = RepeatS k $ IfThenElseS cond body SkipS
 
 -- | bounded while loop given an expression for the loop condition
@@ -145,8 +145,8 @@ whileKWithCondExpr ::
   -- | loop condition expression
   Expr sizeT ->
   -- | loop body
-  Stmt sizeT ->
-  Stmt sizeT
+  Stmt holeT sizeT ->
+  Stmt holeT sizeT
 whileKWithCondExpr k cond_var cond_expr body =
   SeqS
     [ compute_cond
@@ -156,7 +156,7 @@ whileKWithCondExpr k cond_var cond_expr body =
   compute_cond = AssignS [cond_var] cond_expr
 
 -- | Remove syntax sugar. Use with `rewriteAST`.
-desugarS :: Stmt sizeT -> Maybe (Stmt sizeT)
+desugarS :: Stmt holeT sizeT -> Maybe (Stmt holeT sizeT)
 desugarS WhileK{n_iter, cond, loop_body} = Just $ whileK n_iter cond loop_body
 desugarS WhileKWithCondExpr{n_iter, cond, cond_expr, loop_body} = Just $ whileKWithCondExpr n_iter cond cond_expr loop_body
 desugarS _ = Nothing
@@ -180,7 +180,7 @@ instance (Show sizeT) => ToCodeString (Expr sizeT) where
   toCodeString MinE{lhs, rhs} =
     "min(" ++ toCodeString lhs ++ ", " ++ toCodeString rhs ++ ")"
 
-instance (Show sizeT) => ToCodeString (Stmt sizeT) where
+instance (Show sizeT) => ToCodeString (Stmt holeT sizeT) where
   toCodeLines SkipS = ["skip;"]
   toCodeLines AssignS{rets, expr} =
     [printf "%s := %s;" (commaList rets) (toCodeString expr)]
@@ -215,7 +215,7 @@ instance (Show sizeT) => ToCodeString (Stmt sizeT) where
       : indent (toCodeLines loop_body)
       ++ ["end"]
 
-instance (Show sizeT) => ToCodeString (ProcDef sizeT) where
+instance (Show sizeT) => ToCodeString (ProcDef holeT sizeT) where
   toCodeLines ProcDef{proc_name, proc_meta_params, proc_param_types, mproc_body = Nothing} =
     [ printf
         "proc %s[%s](%s);"

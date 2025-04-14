@@ -34,11 +34,11 @@ type QSearchAlgorithm holeT sizeT costT =
   -- | unitary predicate caller
   (Ident -> Ident -> UQPL.Stmt holeT sizeT) ->
   -- | cqpl predicate caller
-  (Ident -> Ident -> Stmt sizeT) ->
+  (Ident -> Ident -> Stmt holeT sizeT) ->
   -- | arguments to the function
   [(Ident, P.VarType sizeT)] ->
   -- | the generated QSearch procedure
-  ProcDef sizeT
+  ProcDef holeT sizeT
 
 -- | Formulas for primitives
 data QSearchCQImpl holeT sizeT costT = QSearchCQImpl
@@ -74,9 +74,9 @@ typingCtx :: Lens' (LoweringCtx sizeT) (P.TypingCtx sizeT)
 typingCtx = _2
 
 -- | The outputs of lowering
-type LoweringOutput holeT sizeT = ([ProcDef sizeT], [UQPL.ProcDef holeT sizeT])
+type LoweringOutput holeT sizeT = ([ProcDef holeT sizeT], [UQPL.ProcDef holeT sizeT])
 
-loweredProcs :: Lens' (LoweringOutput holeT sizeT) [ProcDef sizeT]
+loweredProcs :: Lens' (LoweringOutput holeT sizeT) [ProcDef holeT sizeT]
 loweredProcs = _1
 
 loweredUProcs :: Lens' (LoweringOutput holeT sizeT) [UQPL.ProcDef holeT sizeT]
@@ -105,7 +105,7 @@ newIdent prefix = do
       Just () -> throwError "next ident please!"
 
 -- | Add a new procedure.
-addProc :: ProcDef sizeT -> CompilerT holeT sizeT costT ()
+addProc :: ProcDef holeT sizeT -> CompilerT holeT sizeT costT ()
 addProc procDef = tellAt loweredProcs [procDef]
 
 -- ================================================================================
@@ -183,7 +183,7 @@ lowerExpr ::
   P.Expr sizeT ->
   -- return variables
   [Ident] ->
-  CompilerT holeT sizeT costT (Stmt sizeT)
+  CompilerT holeT sizeT costT (Stmt holeT sizeT)
 lowerExpr _ P.VarE{P.arg} [ret] = return $ AssignS [ret] $ VarE arg
 lowerExpr _ P.ConstE{P.val} [ret] = return $ AssignS [ret] $ ConstE val
 lowerExpr _ P.UnOpE{P.un_op, P.arg} [ret] =
@@ -252,7 +252,7 @@ lowerStmt ::
   (P.TypeCheckable sizeT, Show costT, Floating costT) =>
   costT ->
   P.Stmt sizeT ->
-  CompilerT holeT sizeT costT (Stmt sizeT)
+  CompilerT holeT sizeT costT (Stmt holeT sizeT)
 -- single statement
 lowerStmt eps s@P.ExprS{P.rets, P.expr} = do
   checker <- P.checkStmt <$> view protoFunCtx <*> pure s
