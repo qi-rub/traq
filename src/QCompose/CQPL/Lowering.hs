@@ -7,7 +7,9 @@ module QCompose.CQPL.Lowering (
   QSearchAlgorithm,
 ) where
 
+import Control.Monad (forM, msum, unless)
 import Control.Monad.Except (throwError)
+import Control.Monad.Trans (lift)
 import qualified Data.Set as Set
 import Lens.Micro
 import Lens.Micro.Mtl
@@ -22,7 +24,7 @@ import qualified QCompose.ProtoLang as P
 import qualified QCompose.UnitaryQPL as UQPL
 
 -- | Shape of a QSearch implementation
-type QSearchAlgorithm sizeT costT =
+type QSearchAlgorithm holeT sizeT costT =
   -- | search elem type
   P.VarType sizeT ->
   -- | number of classical samples
@@ -30,7 +32,7 @@ type QSearchAlgorithm sizeT costT =
   -- | max fail prob
   costT ->
   -- | unitary predicate caller
-  (Ident -> Ident -> UQPL.Stmt sizeT costT) ->
+  (Ident -> Ident -> UQPL.Stmt holeT sizeT costT) ->
   -- | cqpl predicate caller
   (Ident -> Ident -> Stmt sizeT) ->
   -- | arguments to the function
@@ -39,22 +41,22 @@ type QSearchAlgorithm sizeT costT =
   ProcDef sizeT
 
 -- | Formulas for primitives
-data QSearchCQImpl sizeT costT = QSearchCQImpl
+data QSearchCQImpl holeT sizeT costT = QSearchCQImpl
   { costFormulas :: P.QSearchFormulas sizeT costT
-  , qsearchAlgo :: QSearchAlgorithm sizeT costT
-  , unitaryImpl :: UQPL.QSearchUnitaryImpl sizeT costT
+  , qsearchAlgo :: QSearchAlgorithm holeT sizeT costT
+  , unitaryImpl :: UQPL.QSearchUnitaryImpl holeT sizeT costT
   }
 
 -- | Configuration for lowering
-type LoweringEnv sizeT costT = (P.FunCtx sizeT, P.OracleName, QSearchCQImpl sizeT costT)
+type LoweringEnv holeT sizeT costT = (P.FunCtx sizeT, P.OracleName, QSearchCQImpl holeT sizeT costT)
 
-protoFunCtx :: Lens' (LoweringEnv sizeT costT) (P.FunCtx sizeT)
+protoFunCtx :: Lens' (LoweringEnv holeT sizeT costT) (P.FunCtx sizeT)
 protoFunCtx = _1
 
-oracleName :: Lens' (LoweringEnv sizeT costT) P.OracleName
+oracleName :: Lens' (LoweringEnv holeT sizeT costT) P.OracleName
 oracleName = _2
 
-qsearchConfig :: Lens' (LoweringEnv sizeT costT) (QSearchCQImpl sizeT costT)
+qsearchConfig :: Lens' (LoweringEnv holeT sizeT costT) (QSearchCQImpl holeT sizeT costT)
 qsearchConfig = _3
 
 {- | A global lowering context storing the source functions and generated procedures
@@ -72,22 +74,22 @@ typingCtx :: Lens' (LoweringCtx sizeT) (P.TypingCtx sizeT)
 typingCtx = _2
 
 -- | The outputs of lowering
-type LoweringOutput sizeT costT = ([ProcDef sizeT], [UQPL.ProcDef sizeT costT])
+type LoweringOutput holeT sizeT costT = ([ProcDef sizeT], [UQPL.ProcDef holeT sizeT costT])
 
-loweredProcs :: Lens' (LoweringOutput sizeT costT) [ProcDef sizeT]
+loweredProcs :: Lens' (LoweringOutput holeT sizeT costT) [ProcDef sizeT]
 loweredProcs = _1
 
-loweredUProcs :: Lens' (LoweringOutput sizeT costT) [UQPL.ProcDef sizeT costT]
+loweredUProcs :: Lens' (LoweringOutput holeT sizeT costT) [UQPL.ProcDef holeT sizeT costT]
 loweredUProcs = _2
 
 {- | Monad to compile ProtoQB to CQPL programs.
 This should contain the _final_ typing context for the input program,
 that is, contains both the inputs and outputs of each statement.
 -}
-type CompilerT sizeT costT = MyReaderWriterStateT (LoweringEnv sizeT costT) (LoweringOutput sizeT costT) (LoweringCtx sizeT) (Either String)
+type CompilerT holeT sizeT costT = MyReaderWriterStateT (LoweringEnv holeT sizeT costT) (LoweringOutput holeT sizeT costT) (LoweringCtx sizeT) (Either String)
 
 -- | Generate a new identifier with the given prefix.
-newIdent :: forall sizeT costT. Ident -> CompilerT sizeT costT Ident
+newIdent :: forall holeT sizeT costT. Ident -> CompilerT holeT sizeT costT Ident
 newIdent prefix = do
   ident <-
     msum . map checked $
@@ -95,7 +97,7 @@ newIdent prefix = do
   uniqNames . at ident ?= ()
   return ident
  where
-  checked :: Ident -> CompilerT sizeT cosT Ident
+  checked :: Ident -> CompilerT holeT sizeT costT Ident
   checked name = do
     already_exists <- use (uniqNames . at name)
     case already_exists of
@@ -103,7 +105,7 @@ newIdent prefix = do
       Just () -> throwError "next ident please!"
 
 -- | Add a new procedure.
-addProc :: ProcDef sizeT -> CompilerT sizeT costT ()
+addProc :: ProcDef sizeT -> CompilerT holeT sizeT costT ()
 addProc procDef = tellAt loweredProcs [procDef]
 
 -- ================================================================================
@@ -117,37 +119,47 @@ lowerFunDef ::
   costT ->
   -- | source function
   P.FunDef sizeT ->
-  CompilerT sizeT costT Ident
+  CompilerT holeT sizeT costT Ident
 -- lower declarations as-is, ignoring fail prob
 lowerFunDef _ P.FunDef{P.fun_name, P.param_types, P.ret_types, P.mbody = Nothing} = do
   is_oracle <- (fun_name ==) <$> view oracleName
   let proc_def =
         ProcDef
           { proc_name = fun_name
+          , proc_meta_params = []
           , proc_param_types = param_types ++ ret_types
           , mproc_body = Nothing
           , is_oracle
           }
   addProc proc_def
   return fun_name
-lowerFunDef eps P.FunDef{P.fun_name, P.param_binds, P.ret_binds, P.mbody = Just _} = do
+lowerFunDef eps P.FunDef{P.fun_name, P.param_types, P.mbody = Just body} = do
+  is_oracle <- (fun_name ==) <$> view oracleName
+
   proc_name <- newIdent $ printf "%s[%s]" fun_name (show eps)
 
-  (proc_body, proc_typing_ctx) <- withSandbox $ do
-    typingCtx .= Ctx.fromList param_binds
-    b <- lowerStmt eps body
+  let P.FunBody{P.param_names, P.ret_names, P.body_stmt} = body
+
+  (proc_body_stmt, proc_typing_ctx) <- withSandbox $ do
+    typingCtx .= Ctx.fromList (zip param_names param_types)
+    b <- lowerStmt eps body_stmt
     c <- use typingCtx
     return (b, c)
 
-  let proc_params = param_binds ++ ret_binds
-  let param_names = map fst proc_params
+  let proc_param_names = param_names ++ ret_names
   let proc_local_vars =
         proc_typing_ctx
           & Ctx.toList
-          & filter ((`notElem` param_names) . fst)
-  let proc_meta_params = []
-  addProc ProcDef{proc_name, proc_meta_params, proc_params, proc_local_vars, proc_body}
+          & filter ((`notElem` proc_param_names) . fst)
 
+  addProc
+    ProcDef
+      { proc_name
+      , proc_meta_params = []
+      , proc_param_types = map (\x -> proc_typing_ctx ^?! Ctx.at x . _Just) proc_param_names
+      , mproc_body = Just ProcBody{proc_param_names, proc_local_vars, proc_body_stmt}
+      , is_oracle
+      }
   return proc_name
 
 -- | Lookup a source function by name, and lower it to a procedure call.
@@ -157,7 +169,7 @@ lowerFunDefByName ::
   costT ->
   -- | source function name
   Ident ->
-  CompilerT sizeT costT Ident
+  CompilerT holeT sizeT costT Ident
 lowerFunDefByName eps f = do
   fun_def <- view $ protoFunCtx . Ctx.at f . singular _Just
   lowerFunDef eps fun_def
@@ -171,7 +183,7 @@ lowerExpr ::
   P.Expr sizeT ->
   -- return variables
   [Ident] ->
-  CompilerT sizeT costT (Stmt sizeT)
+  CompilerT holeT sizeT costT (Stmt sizeT)
 lowerExpr _ P.VarE{P.arg} [ret] = return $ AssignS [ret] $ VarE arg
 lowerExpr _ P.ConstE{P.val} [ret] = return $ AssignS [ret] $ ConstE val
 lowerExpr _ P.UnOpE{P.un_op, P.arg} [ret] =
@@ -180,15 +192,15 @@ lowerExpr _ P.UnOpE{P.un_op, P.arg} [ret] =
    in return $ AssignS{rets = [ret], expr}
 lowerExpr eps P.FunCallE{P.fun_kind = P.FunctionCall f, P.args} rets = do
   proc_name <- lowerFunDefByName eps f
-  return $ CallS{fun = FunctionCall proc_name, args = args ++ rets}
+  return $ CallS{fun = FunctionCall proc_name, args = args ++ rets, meta_params = []}
 lowerExpr eps P.FunCallE{P.fun_kind = P.PrimitiveCall "any" [predicate], P.args} rets = do
   -- the predicate
-  pred_fun@P.FunDef{P.param_binds} <-
+  pred_fun@P.FunDef{P.param_types} <-
     view (protoFunCtx . Ctx.at predicate)
       >>= maybeWithError ("cannot find predicate " <> predicate)
 
   -- size of the search space
-  let s_ty@(P.Fin n) = snd $ last param_binds
+  let s_ty@(P.Fin n) = last param_types
 
   -- fail prob of search
   let eps_s = eps / 2
@@ -203,9 +215,9 @@ lowerExpr eps P.FunCallE{P.fun_kind = P.PrimitiveCall "any" [predicate], P.args}
   -- lower the unitary predicate
   let upred_compiler = UQPL.lowerFunDef delta_per_pred_call pred_fun
   (pred_uproc, uprocs) <- do
-    uenv <- view id <&> _2 %~ unitaryImpl
+    uenv <- view id <&> _3 %~ unitaryImpl
     ust <- use id
-    (a, _, w) <- lift $ runRWST upred_compiler uenv ust
+    (a, _, w) <- lift $ runMyReaderWriterStateT upred_compiler uenv ust
     return (a, w)
 
   tellAt loweredUProcs uprocs
@@ -239,7 +251,7 @@ lowerStmt ::
   (P.TypeCheckable sizeT, Show costT, Floating costT) =>
   costT ->
   P.Stmt sizeT ->
-  CompilerT sizeT costT (Stmt sizeT)
+  CompilerT holeT sizeT costT (Stmt sizeT)
 -- single statement
 lowerStmt eps s@P.ExprS{P.rets, P.expr} = do
   checker <- P.checkStmt <$> view protoFunCtx <*> pure s
@@ -259,29 +271,31 @@ lowerStmt _ _ = throwError "lowering: unsupported"
 
 -- | Lower a full program into a CQPL program.
 lowerProgram ::
-  forall sizeT costT.
+  forall holeT sizeT costT.
   (P.TypeCheckable sizeT, Show costT, Floating costT) =>
   -- | the implementation of primitive `any`
-  QSearchCQImpl sizeT costT ->
+  QSearchCQImpl holeT sizeT costT ->
   -- | input bindings to the source program
   P.TypingCtx sizeT ->
+  -- | name of the oracle
+  P.OracleName ->
   -- | fail prob \( \varepsilon \)
   costT ->
   -- | source program
   P.Program sizeT ->
-  Either String (Program sizeT costT, P.TypingCtx sizeT)
-lowerProgram qsearch_config gamma_in eps prog@P.Program{P.funCtx, P.stmt} = do
+  Either String (Program holeT sizeT costT, P.TypingCtx sizeT)
+lowerProgram qsearch_config gamma_in oracle_name eps prog@P.Program{P.funCtx, P.stmt} = do
   unless (P.checkVarsUnique prog) $
     throwError "program does not have unique variables!"
 
-  let config = (funCtx, qsearch_config)
+  let config = (funCtx, oracle_name, qsearch_config)
   let lowering_ctx =
         emptyLoweringCtx
           & typingCtx .~ gamma_in
           & uniqNames .~ P.allNamesP prog
 
   let compiler = lowerStmt eps stmt
-  (stmtQ, lowering_ctx', outputU) <- runRWST compiler config lowering_ctx
+  (stmtQ, lowering_ctx', outputU) <- runMyReaderWriterStateT compiler config lowering_ctx
 
   return
     ( Program

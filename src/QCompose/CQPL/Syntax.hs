@@ -6,6 +6,7 @@ module QCompose.CQPL.Syntax (
   Expr (..),
   FunctionCall (..),
   Stmt (..),
+  ProcBody (..),
   ProcDef (..),
   Program (..),
 
