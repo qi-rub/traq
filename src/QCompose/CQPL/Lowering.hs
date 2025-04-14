@@ -13,9 +13,10 @@ import Lens.Micro
 import Lens.Micro.Mtl
 import Text.Printf (printf)
 
-import QCompose.CQPL.Syntax
 import QCompose.Control.Monad
 import qualified QCompose.Data.Context as Ctx
+
+import QCompose.CQPL.Syntax
 import QCompose.Prelude
 import qualified QCompose.ProtoLang as P
 import qualified QCompose.UnitaryQPL as UQPL
@@ -45,13 +46,16 @@ data QSearchCQImpl sizeT costT = QSearchCQImpl
   }
 
 -- | Configuration for lowering
-type LoweringEnv sizeT costT = (P.FunCtx sizeT, QSearchCQImpl sizeT costT)
+type LoweringEnv sizeT costT = (P.FunCtx sizeT, P.OracleName, QSearchCQImpl sizeT costT)
 
 protoFunCtx :: Lens' (LoweringEnv sizeT costT) (P.FunCtx sizeT)
 protoFunCtx = _1
 
+oracleName :: Lens' (LoweringEnv sizeT costT) P.OracleName
+oracleName = _2
+
 qsearchConfig :: Lens' (LoweringEnv sizeT costT) (QSearchCQImpl sizeT costT)
-qsearchConfig = _2
+qsearchConfig = _3
 
 {- | A global lowering context storing the source functions and generated procedures
  along with info to generate unique ancilla and variable/procedure names
@@ -82,6 +86,7 @@ that is, contains both the inputs and outputs of each statement.
 -}
 type CompilerT sizeT costT = MyReaderWriterStateT (LoweringEnv sizeT costT) (LoweringOutput sizeT costT) (LoweringCtx sizeT) (Either String)
 
+-- | Generate a new identifier with the given prefix.
 newIdent :: forall sizeT costT. Ident -> CompilerT sizeT costT Ident
 newIdent prefix = do
   ident <-
@@ -113,7 +118,19 @@ lowerFunDef ::
   -- | source function
   P.FunDef sizeT ->
   CompilerT sizeT costT Ident
-lowerFunDef eps P.FunDef{P.fun_name, P.param_binds, P.ret_binds, P.body} = do
+-- lower declarations as-is, ignoring fail prob
+lowerFunDef _ P.FunDef{P.fun_name, P.param_types, P.ret_types, P.mbody = Nothing} = do
+  is_oracle <- (fun_name ==) <$> view oracleName
+  let proc_def =
+        ProcDef
+          { proc_name = fun_name
+          , proc_param_types = param_types ++ ret_types
+          , mproc_body = Nothing
+          , is_oracle
+          }
+  addProc proc_def
+  return fun_name
+lowerFunDef eps P.FunDef{P.fun_name, P.param_binds, P.ret_binds, P.mbody = Just _} = do
   proc_name <- newIdent $ printf "%s[%s]" fun_name (show eps)
 
   (proc_body, proc_typing_ctx) <- withSandbox $ do
@@ -161,8 +178,6 @@ lowerExpr _ P.UnOpE{P.un_op, P.arg} [ret] =
   let expr = case un_op of
         P.NotOp -> NotE (VarE arg)
    in return $ AssignS{rets = [ret], expr}
-lowerExpr _ P.FunCallE{P.fun_kind = P.OracleCall, P.args} rets =
-  return $ CallS{fun = OracleCall, args = args ++ rets}
 lowerExpr eps P.FunCallE{P.fun_kind = P.FunctionCall f, P.args} rets = do
   proc_name <- lowerFunDefByName eps f
   return $ CallS{fun = FunctionCall proc_name, args = args ++ rets}
@@ -270,8 +285,7 @@ lowerProgram qsearch_config gamma_in eps prog@P.Program{P.funCtx, P.stmt} = do
 
   return
     ( Program
-        { oracle_decl = funCtx & P.oracle_decl & lowerOracleDecl
-        , proc_defs = outputU ^. loweredProcs . to (Ctx.fromListWith proc_name)
+        { proc_defs = outputU ^. loweredProcs . to (Ctx.fromListWith proc_name)
         , uproc_defs = outputU ^. loweredUProcs . to (Ctx.fromListWith UQPL.proc_name)
         , stmt = stmtQ
         }
