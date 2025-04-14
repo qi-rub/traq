@@ -42,7 +42,7 @@ opts =
                 <> help "The max. failure probability of the whole lowered the whole program"
             )
         )
-      <*> many (option (maybeReader parseKeyValue) (long "arg" <> help "paramters..." <> metavar "NAME=VALUE"))
+      <*> many (option (maybeReader parseKeyValue) (long "arg" <> help "parameters..." <> metavar "NAME=VALUE"))
 
   parseKeyValue s = do
     let key = takeWhile (/= '=') s
@@ -58,7 +58,7 @@ subsNM params s = Sym.unSym $ foldr subsOnce s params
 
 compile :: (RealFloat costT, Show costT) => P.Program SizeT -> costT -> IO String
 compile prog eps = do
-  let Right (cqpl_prog, _) = CQPL.lowerProgram (qsearchCFNW ^. to quantumAlgo) Ctx.empty eps prog
+  let Right (cqpl_prog, _) = CQPL.lowerProgram (qsearchCFNW ^. to quantumAlgo) Ctx.empty "Oracle" eps prog
 
   return $ toCodeString cqpl_prog
 

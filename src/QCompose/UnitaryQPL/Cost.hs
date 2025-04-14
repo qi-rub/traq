@@ -58,7 +58,9 @@ procCost name = (use (at name) >>= lift) <|> calc_cost_of_oracle <|> calc_cost
  where
   calc_cost_of_oracle = do
     ProcDef{is_oracle} <- view $ procCtx . Ctx.at name . singular _Just
-    lift $ if is_oracle then Just 1 else Nothing
+    cost <- lift $ if is_oracle then Just 1 else Nothing
+    at name ?= cost
+    return cost
   calc_cost = do
     ProcDef{mproc_body} <- view $ procCtx . Ctx.at name . singular _Just
     proc_body <- lift mproc_body
