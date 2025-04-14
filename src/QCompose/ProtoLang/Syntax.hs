@@ -13,9 +13,6 @@ module QCompose.ProtoLang.Syntax (
   FunDef (..),
   FunCtx,
   Program (..),
-
-  -- * Helpers
-  mkFunDefCtx,
 ) where
 
 import qualified QCompose.Data.Context as Ctx
@@ -82,10 +79,6 @@ data FunDef sizeT = FunDef
 
 -- | A function context contains a list of functions
 type FunCtx sizeT = Ctx.Context (FunDef sizeT)
-
--- | Create a mapping of function names to function defs.
-mkFunDefCtx :: [FunDef a] -> Ctx.Context (FunDef a)
-mkFunDefCtx fs = Ctx.fromList [(fun_name f, f) | f <- fs]
 
 -- | A program is a function context with a statement (which acts like the `main`)
 data Program sizeT = Program

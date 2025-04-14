@@ -24,6 +24,8 @@ import Text.Parsec.Token (
   reservedOpNames,
  )
 
+import qualified QCompose.Data.Context as Ctx
+
 import QCompose.Prelude
 import QCompose.ProtoLang.Syntax
 
@@ -162,7 +164,7 @@ funDecl tp@TokenParser{..} = do
 
 program :: TokenParser () -> Parser (Program SymbSize)
 program tp@TokenParser{..} = do
-  funCtx <- mkFunDefCtx <$> many (funDef tp <|> funDecl tp)
+  funCtx <- Ctx.fromListWith fun_name <$> many (funDef tp <|> funDecl tp)
   stmt <- stmtP tp
   return Program{..}
 
