@@ -64,7 +64,6 @@ spec = do
 
       it "type checks" $ do
         (ex_uqpl, gamma) <- expectRight $ UQPL.lowerProgram ualgo Ctx.empty "Oracle" delta ex
-        case UQPL.typeCheckProgram gamma ex_uqpl of Left e -> putStrLn e; _ -> return ()
         assertRight $ UQPL.typeCheckProgram gamma ex_uqpl
 
       it "preserves cost" $ do
@@ -78,6 +77,11 @@ spec = do
       let eps = 0.001 :: Double
       it "lowers" $ do
         assertRight $ CQPL.lowerProgram qalgo Ctx.empty "Oracle" eps ex
+
+      it "type checks" $ do
+        (ex_cqpl, gamma) <- expectRight $ CQPL.lowerProgram qalgo Ctx.empty "Oracle" eps ex
+        -- case CQPL.typeCheckProgram gamma ex_uqpl of Left e -> putStrLn e; _ -> return ()
+        assertRight $ CQPL.typeCheckProgram gamma ex_cqpl
 
   describe "matrix search symbolic" $ do
     let n = Sym.var "n" :: Sym.Sym Int

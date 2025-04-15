@@ -184,8 +184,8 @@ lowerExpr ::
   -- return variables
   [Ident] ->
   CompilerT holeT sizeT costT (Stmt holeT sizeT)
-lowerExpr _ P.VarE{P.arg} [ret] = return $ AssignS [ret] $ VarE arg
-lowerExpr _ P.ConstE{P.val} [ret] = return $ AssignS [ret] $ ConstE val
+lowerExpr _ P.VarE{P.arg} [ret] = return $ AssignS [ret] VarE{var = arg}
+lowerExpr _ P.ConstE{P.val, P.ty} [ret] = return $ AssignS [ret] ConstE{val, val_ty = ty}
 lowerExpr _ P.UnOpE{P.un_op, P.arg} [ret] =
   let expr = case un_op of
         P.NotOp -> NotE (VarE arg)

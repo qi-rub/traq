@@ -8,6 +8,7 @@ module QCompose.CQPL.Syntax (
   Stmt (..),
   ProcBody (..),
   ProcDef (..),
+  ProcCtx,
   Program (..),
   Program',
 
@@ -36,7 +37,7 @@ data MetaParam sizeT = NameMeta String | SizeMeta sizeT
 
 -- | Expressions (RHS of an assignment operation)
 data Expr sizeT
-  = ConstE {val :: Value}
+  = ConstE {val :: Value, val_ty :: VarType sizeT}
   | VarE {var :: Ident}
   | AddE {lhs, rhs :: Expr sizeT}
   | MulE {lhs, rhs :: Expr sizeT}
@@ -49,7 +50,6 @@ data Expr sizeT
 -- | Type of function call
 data FunctionCall
   = FunctionCall Ident
-  | OracleCall
   | UProcAndMeas Ident
   deriving (Eq, Show, Read)
 
@@ -87,10 +87,13 @@ data ProcDef holeT sizeT = ProcDef
   }
   deriving (Eq, Show, Read)
 
+-- | CQ procedures
+type ProcCtx holeT sizeT = Ctx.Context (ProcDef holeT sizeT)
+
 -- | CQ Program
 data Program holeT sizeT = Program
-  { proc_defs :: Ctx.Context (ProcDef holeT sizeT)
-  , uproc_defs :: Ctx.Context (UQPL.ProcDef holeT sizeT)
+  { proc_defs :: ProcCtx holeT sizeT
+  , uproc_defs :: UQPL.ProcCtx holeT sizeT
   , stmt :: Stmt holeT sizeT
   }
   deriving (Eq, Show, Read)
@@ -170,7 +173,7 @@ parenBinExpr op_sym lhs rhs =
   "(" ++ unwords [toCodeString lhs, op_sym, toCodeString rhs] ++ ")"
 
 instance (Show sizeT) => ToCodeString (Expr sizeT) where
-  toCodeString ConstE{val} = show val
+  toCodeString ConstE{val, val_ty} = show val <> " : " <> toCodeString val_ty
   toCodeString VarE{var} = var
   toCodeString AddE{lhs, rhs} = parenBinExpr "+" lhs rhs
   toCodeString MulE{lhs, rhs} = parenBinExpr "*" lhs rhs
@@ -188,8 +191,6 @@ instance (Show sizeT) => ToCodeString (Stmt holeT sizeT) where
     [printf "%s :=$ %s;" ret (toCodeString ty)]
   toCodeLines CallS{fun = FunctionCall f, args} =
     [printf "call %s(%s);" f (commaList args)]
-  toCodeLines CallS{fun = OracleCall, args} =
-    [printf "Oracle(%s);" (commaList args)]
   toCodeLines CallS{fun = UProcAndMeas uproc_id, args} =
     [printf "call_uproc_and_meas %s(%s);" uproc_id (commaList args)]
   toCodeLines (SeqS ss) = concatMap toCodeLines ss

@@ -193,7 +193,11 @@ qSearch ty n_samples eps upred_caller pred_caller params =
         Just
           CQ.ProcBody
             { CQ.proc_param_names = map fst params
-            , CQ.proc_local_vars = [("not_done", P.Fin 2)]
+            , CQ.proc_local_vars =
+                [ ("not_done", P.Fin 2)
+                , ("Q_sum", j_type)
+                , ("j", j_type)
+                ]
             , CQ.proc_body_stmt =
                 CQ.SeqS $
                   catMaybes
@@ -224,6 +228,9 @@ qSearch ty n_samples eps upred_caller pred_caller params =
   n_runs = ceiling $ logBase 3 (1 / eps)
   q_max = ceiling $ alpha * sqrt_n
 
+  -- type for j and Q_sum
+  j_type = P.Fin q_max
+
   -- compute the limits for sampling `j` in each iteration.
   sampling_ranges :: [SizeT]
   sampling_ranges = go q_max js
@@ -246,7 +253,7 @@ qSearch ty n_samples eps upred_caller pred_caller params =
   quantumSampling = CQ.RepeatS n_runs quantumSamplingOneRound
   quantumSamplingOneRound =
     CQ.SeqS $
-      CQ.AssignS ["Q_sum"] (CQ.ConstE 0)
+      CQ.AssignS ["Q_sum"] (CQ.ConstE{CQ.val = 0, CQ.val_ty = j_type})
         : map quantumGroverOnce sampling_ranges
 
   -- one call and meas to grover with j iterations
@@ -254,7 +261,7 @@ qSearch ty n_samples eps upred_caller pred_caller params =
     CQ.SeqS
       [ CQ.RandomS "j" (P.Fin $ j_lim + 1)
       , CQ.AssignS ["Q_sum"] (CQ.AddE (CQ.VarE "Q_sum") (CQ.VarE "j"))
-      , CQ.AssignS ["not_done"] (CQ.LEqE (CQ.VarE "Q_sum") (CQ.ConstE $ fromIntegral j_lim))
+      , CQ.AssignS ["not_done"] (CQ.LEqE (CQ.VarE "Q_sum") (CQ.ConstE{CQ.val = fromIntegral j_lim, CQ.val_ty = j_type}))
       , CQ.IfThenElseS "not_done" (CQ.HoleS "callandmeas: grover cycle j") CQ.SkipS
       , pred_caller "y" "ok"
       ]
