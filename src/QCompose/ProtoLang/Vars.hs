@@ -20,7 +20,7 @@ import QCompose.ProtoLang.Syntax
 type VarSet = Set.Set Ident
 
 -- | The set of free (unbound) variables in an expression
-freeVarsE :: Expr a -> VarSet
+freeVarsE :: Expr primT sizeT -> VarSet
 freeVarsE VarE{arg} = Set.singleton arg
 freeVarsE ConstE{} = Set.empty
 freeVarsE UnOpE{arg} = Set.singleton arg
@@ -29,33 +29,33 @@ freeVarsE TernaryE{branch, lhs, rhs} = Set.fromList [branch, lhs, rhs]
 freeVarsE FunCallE{args} = Set.fromList args
 
 -- | The set of free (unbound) variables
-freeVars :: Stmt a -> VarSet
+freeVars :: Stmt primT sizeT -> VarSet
 freeVars IfThenElseS{cond, s_true, s_false} = Set.unions [Set.singleton cond, freeVars s_true, freeVars s_false]
 freeVars (SeqS ss) = Set.unions (map freeVars ss) Set.\\ outVars (SeqS ss)
 freeVars ExprS{expr} = freeVarsE expr
 
 -- | The set of generated output variables
-outVars :: Stmt a -> VarSet
+outVars :: Stmt primT sizeT -> VarSet
 outVars IfThenElseS{s_true, s_false} = Set.unions [outVars s_true, outVars s_false]
 outVars (SeqS ss) = Set.unions $ map outVars ss
 outVars ExprS{rets} = Set.fromList rets
 
 -- | All variables in a statement
-allVars :: Stmt a -> VarSet
+allVars :: Stmt primT sizeT -> VarSet
 allVars s = freeVars s `Set.union` outVars s
 
-allNamesF :: FunBody a -> VarSet
+allNamesF :: FunBody primT sizeT -> VarSet
 allNamesF FunBody{param_names, ret_names, body_stmt} =
   Set.unions [allVars body_stmt, Set.fromList param_names, Set.fromList ret_names]
 
 -- | Get all the variables of a program
-allNamesP :: Program a -> VarSet
+allNamesP :: Program primT sizeT -> VarSet
 allNamesP Program{funCtx, stmt} =
   foldr Set.union (allVars stmt) $
     funCtx & Ctx.elems & mapMaybe mbody & map allNamesF
 
 -- | Check if a program has unique variable names
-checkVarsUnique :: Program a -> Bool
+checkVarsUnique :: Program primT sizeT -> Bool
 checkVarsUnique Program{funCtx, stmt} =
   isJust . foldM combine Set.empty $ allVars stmt : all_fun_names
  where
@@ -66,6 +66,7 @@ checkVarsUnique Program{funCtx, stmt} =
     guard $ Set.disjoint u v
     return $ Set.union u v
 
--- | Make all variable names in the program unique
-makeVarsUnique :: Program a -> Program a
-makeVarsUnique = error "TODO"
+{- | Make all variable names in the program unique
+ makeVarsUnique :: Program primT sizeT -> Program primT sizeT
+ makeVarsUnique = error "TODO"
+-}

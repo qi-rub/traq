@@ -1,17 +1,22 @@
 {-# LANGUAGE RecordWildCards #-}
 
 module QCompose.ProtoLang.Parser (
+  -- * Parsers
+  CanParsePrimitive (..),
   programParser,
   parseCode,
   parseProgram,
   parseFunDef,
   parseStmt,
+
+  -- * Helpers
   isValidIdentifier,
 ) where
 
 import Data.Either (isRight)
 import Data.Functor (($>))
 import qualified Data.Number.Symbolic as Sym
+import Data.Void (Void)
 import Text.Parsec (ParseError, char, choice, eof, many, parse, try, (<|>))
 import Text.Parsec.Language (LanguageDef, emptyDef)
 import Text.Parsec.String (Parser)
@@ -52,6 +57,13 @@ protoLangDef =
 protoLangTokenParser :: TokenParser st
 protoLangTokenParser = makeTokenParser protoLangDef
 
+-- | Support for parsing arbitrary primitives.
+class CanParsePrimitive primT where
+  primitiveParser :: TokenParser () -> Parser primT
+
+instance CanParsePrimitive Void where
+  primitiveParser _ = fail "no parse"
+
 symbSize :: TokenParser () -> Parser SymbSize
 symbSize TokenParser{..} = (Sym.con . fromIntegral <$> integer) <|> (Sym.var <$> identifier)
 
@@ -64,7 +76,7 @@ varType tp@TokenParser{..} = boolType <|> finType
 typedTerm :: TokenParser () -> Parser a -> Parser (a, VarType SymbSize)
 typedTerm tp@TokenParser{..} pa = (,) <$> pa <*> (reservedOp ":" *> varType tp)
 
-exprP :: TokenParser () -> Parser (Expr SymbSize)
+exprP :: forall primT. (CanParsePrimitive primT) => TokenParser () -> Parser (Expr primT SymbSize)
 exprP tp@TokenParser{..} =
   choice . map try $
     [ funCallE
@@ -74,25 +86,26 @@ exprP tp@TokenParser{..} =
     , varE
     ]
  where
-  varE :: Parser (Expr SymbSize)
+  varE :: Parser (Expr primT SymbSize)
   varE = VarE <$> identifier
 
-  constE :: Parser (Expr SymbSize)
+  constE :: Parser (Expr primT SymbSize)
   constE = do
     reserved "const"
     (val, ty) <- typedTerm tp integer
     return ConstE{val, ty}
 
-  funCallKind :: Parser FunctionCallKind
-  funCallKind = primitiveCall <|> functionCall
+  funCallKind :: Parser (FunctionCallKind primT)
+  funCallKind = primitiveCall <|> primitiveCallOld <|> functionCall
    where
-    primitiveCall = do
+    primitiveCall = PrimitiveCall' <$> primitiveParser tp
+    primitiveCallOld = do
       prim_name <- char '@' *> identifier
       prim_params <- squares (commaSep identifier)
       return PrimitiveCall{..}
     functionCall = FunctionCall <$> identifier
 
-  funCallE :: Parser (Expr SymbSize)
+  funCallE :: Parser (Expr primT SymbSize)
   funCallE = do
     fun_kind <- funCallKind
     args <- parens $ commaSep identifier
@@ -104,7 +117,7 @@ exprP tp@TokenParser{..} =
       "!" -> return NotOp
       _ -> fail "invalid unary operator"
 
-  unOpE :: Parser (Expr SymbSize)
+  unOpE :: Parser (Expr primT SymbSize)
   unOpE = do
     un_op <- unOp
     arg <- identifier
@@ -118,27 +131,27 @@ exprP tp@TokenParser{..} =
       "&&" -> return AndOp
       _ -> fail "invalid binary operator"
 
-  binOpE :: Parser (Expr SymbSize)
+  binOpE :: Parser (Expr primT SymbSize)
   binOpE = do
     lhs <- identifier
     bin_op <- binOp
     rhs <- identifier
     return BinOpE{bin_op, lhs, rhs}
 
-stmtP :: TokenParser () -> Parser (Stmt SymbSize)
+stmtP :: forall primT. (CanParsePrimitive primT) => TokenParser () -> Parser (Stmt primT SymbSize)
 stmtP tp@TokenParser{..} = SeqS <$> (someStmt <|> return [])
  where
-  someStmt :: Parser [Stmt SymbSize]
+  someStmt :: Parser [Stmt primT SymbSize]
   someStmt = (:) <$> exprS <*> many (try (semi *> exprS))
 
-  exprS :: Parser (Stmt SymbSize)
+  exprS :: Parser (Stmt primT SymbSize)
   exprS = do
     rets <- commaSep1 identifier
     reservedOp "<-"
     expr <- exprP tp
     return ExprS{rets, expr}
 
-funDef :: TokenParser () -> Parser (FunDef SymbSize)
+funDef :: (CanParsePrimitive primT) => TokenParser () -> Parser (FunDef primT SymbSize)
 funDef tp@TokenParser{..} = do
   reserved "def"
   fun_name <- identifier
@@ -152,7 +165,7 @@ funDef tp@TokenParser{..} = do
   let mbody = Just FunBody{..}
   return FunDef{..}
 
-funDecl :: TokenParser () -> Parser (FunDef SymbSize)
+funDecl :: TokenParser () -> Parser (FunDef primT SymbSize)
 funDecl tp@TokenParser{..} = do
   reserved "declare"
   fun_name <- identifier
@@ -162,13 +175,13 @@ funDecl tp@TokenParser{..} = do
   ret_types <- ((: []) <$> varType tp) <|> parens (commaSep (varType tp))
   return FunDef{mbody = Nothing, ..}
 
-program :: TokenParser () -> Parser (Program SymbSize)
+program :: (CanParsePrimitive primT) => TokenParser () -> Parser (Program primT SymbSize)
 program tp@TokenParser{..} = do
   funCtx <- Ctx.fromListWith fun_name <$> many (funDef tp <|> funDecl tp)
   stmt <- stmtP tp
   return Program{..}
 
-programParser :: Parser (Program SymbSize)
+programParser :: (CanParsePrimitive primT) => Parser (Program primT SymbSize)
 programParser = program protoLangTokenParser
 
 parseCode :: (TokenParser () -> Parser a) -> String -> Either ParseError a
@@ -176,13 +189,13 @@ parseCode parser = parse (whiteSpace p *> parser p <* eof) ""
  where
   p = protoLangTokenParser
 
-parseProgram :: String -> Either ParseError (Program SymbSize)
+parseProgram :: (CanParsePrimitive primT) => String -> Either ParseError (Program primT SymbSize)
 parseProgram = parseCode program
 
-parseFunDef :: String -> Either ParseError (FunDef SymbSize)
+parseFunDef :: (CanParsePrimitive primT) => String -> Either ParseError (FunDef primT SymbSize)
 parseFunDef = parseCode funDef
 
-parseStmt :: String -> Either ParseError (Stmt SymbSize)
+parseStmt :: (CanParsePrimitive primT) => String -> Either ParseError (Stmt primT SymbSize)
 parseStmt = parseCode stmtP
 
 isValidIdentifier :: String -> Bool

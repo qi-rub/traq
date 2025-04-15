@@ -1,6 +1,7 @@
 module Main (main) where
 
 import qualified Data.Number.Symbolic as Sym
+import Data.Void (Void)
 import Lens.Micro
 import Options.Applicative
 import Text.Read (readMaybe)
@@ -56,7 +57,7 @@ subsNM params s = Sym.unSym $ foldr subsOnce s params
   subsOnce :: (Ident, SizeT) -> SymbSize -> SymbSize
   subsOnce (k, v) = Sym.subst k (Sym.con v)
 
-compile :: (RealFloat costT, Show costT) => P.Program SizeT -> costT -> IO String
+compile :: (RealFloat costT, Show costT) => P.Program Void SizeT -> costT -> IO String
 compile prog eps = do
   let Right (cqpl_prog, _) = CQPL.lowerProgram (qsearchCFNW ^. to quantumAlgo) Ctx.empty "Oracle" eps prog
 

@@ -1,6 +1,9 @@
+{-# LANGUAGE TypeApplications #-}
+
 module QCompose.ProtoLang.ParserSpec (spec) where
 
 import qualified Data.Number.Symbolic as Sym
+import Data.Void (Void)
 import Text.Parsec.String
 
 import QCompose.Examples.MatrixSearch (matrixExample)
@@ -16,9 +19,9 @@ spec :: Spec
 spec = do
   describe "parse statement" $ do
     it "parses assign" $ do
-      parseStmt "x' <- x" `shouldBe` Right (SeqS [ExprS{rets = ["x'"], expr = VarE{arg = "x"}}])
+      (parseStmt @Void) "x' <- x" `shouldBe` Right (SeqS [ExprS{rets = ["x'"], expr = VarE{arg = "x"}}])
     it "parses seq assign" $ do
-      parseStmt "x' <- x; y' <- const 3 : Fin<4>"
+      parseStmt @Void "x' <- x; y' <- const 3 : Fin<4>"
         `shouldBe` Right
           ( SeqS
               [ ExprS{rets = ["x'"], expr = VarE{arg = "x"}}
@@ -26,7 +29,7 @@ spec = do
               ]
           )
     it "parses function call" $ do
-      parseStmt "a, b <- f(x, y, z)"
+      parseStmt @Void "a, b <- f(x, y, z)"
         `shouldBe` Right
           ( SeqS
               [ ExprS
@@ -37,7 +40,7 @@ spec = do
           )
   describe "parse function def" $ do
     it "parses function" $ do
-      parseFunDef
+      parseFunDef @Void
         ( unlines
             [ "def check_entry(i: Fin<N>, j: Fin<M>) do"
             , "  e <- Oracle(i, j);"

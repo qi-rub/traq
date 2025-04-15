@@ -1,18 +1,19 @@
 module QCompose.Examples.Search where
 
+import Data.Void (Void)
 import qualified QCompose.Data.Context as Ctx
 
 import QCompose.Prelude
 import QCompose.ProtoLang.Syntax
 
-arraySearch :: SizeT -> Program SizeT
+arraySearch :: SizeT -> Program Void SizeT
 arraySearch n =
   Program
     { funCtx = Ctx.fromListWith fun_name [oracle_decl]
     , stmt
     }
  where
-  oracle_decl :: FunDef SizeT
+  oracle_decl :: FunDef Void SizeT
   oracle_decl = FunDef{fun_name = "Oracle", param_types = [Fin n], ret_types = [Fin 2], mbody = Nothing}
 
   stmt =
@@ -25,17 +26,17 @@ arraySearch n =
       , rets = ["result"]
       }
 
-arraySearchIx :: SizeT -> Program SizeT
+arraySearchIx :: SizeT -> Program Void SizeT
 arraySearchIx n =
   Program
     { funCtx = Ctx.fromListWith fun_name [oracle_decl, check]
     , stmt
     }
  where
-  oracle_decl :: FunDef SizeT
+  oracle_decl :: FunDef Void SizeT
   oracle_decl = FunDef{fun_name = "Oracle", param_types = [Fin n], ret_types = [Fin 2], mbody = Nothing}
 
-  check :: FunDef SizeT
+  check :: FunDef Void SizeT
   check =
     FunDef
       { fun_name = "check"

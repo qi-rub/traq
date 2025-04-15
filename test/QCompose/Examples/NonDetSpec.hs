@@ -1,7 +1,10 @@
+{-# LANGUAGE TypeApplications #-}
+
 module QCompose.Examples.NonDetSpec (spec) where
 
 import Data.Either (fromRight, isRight)
 import qualified Data.Number.Symbolic as Sym
+import Data.Void (Void)
 import Lens.Micro
 import Text.Parsec.String (parseFromFile)
 
@@ -13,14 +16,15 @@ import qualified QCompose.ProtoLang as P
 import qualified QCompose.ProtoLang.Parser as PP
 
 import Test.Hspec
+import TestHelpers
 
 spec :: Spec
 spec = do
   describe "SimpleExample" $ do
-    let load = parseFromFile PP.programParser "examples/nondet.qb"
+    let load = parseFromFile (PP.programParser @Void) "examples/nondet.qb"
     it "parses" $ do
       mEx <- load
-      mEx `shouldSatisfy` isRight
+      assertRight mEx
 
     let load' =
           load

@@ -1,5 +1,6 @@
 module QCompose.UnitaryQPL.LoweringSpec (spec) where
 
+import Data.Void (Void)
 import Lens.Micro
 import qualified QCompose.Data.Context as Ctx
 
@@ -17,7 +18,7 @@ spec = do
   describe "lowerStmt" $ do
     it "assign" $
       do
-        let s = P.ExprS{P.rets = ["y"], P.expr = P.VarE{P.arg = "x"}} :: P.Stmt Int
+        let s = P.ExprS{P.rets = ["y"], P.expr = P.VarE{P.arg = "x"}} :: P.Stmt Void Int
         (res, gamma) <-
           expectRight $
             U.lowerProgram

@@ -43,15 +43,15 @@ type FunInterp = [Value] -> [Value]
 type FunInterpCtx = Ctx.Context FunInterp
 
 -- | Environment for evaluation
-type ExecutionEnv sizeT = (FunCtx sizeT, FunInterpCtx)
+type ExecutionEnv primT sizeT = (FunCtx primT sizeT, FunInterpCtx)
 
 type ExecutionState sizeT = ProgramState
 
 -- | Non-deterministic Execution Monad (i.e. no state)
-type Evaluator = MyReaderT (ExecutionEnv SizeT) Tree.Tree
+type Evaluator primT = MyReaderT (ExecutionEnv primT SizeT) Tree.Tree
 
 -- | Non-deterministic Execution Monad
-type Executor = MyReaderStateT (ExecutionEnv SizeT) (ExecutionState SizeT) Tree.Tree
+type Executor primT = MyReaderStateT (ExecutionEnv primT SizeT) (ExecutionState SizeT) Tree.Tree
 
 -- evaluation
 range :: VarType SizeT -> [Value]
@@ -80,7 +80,7 @@ evalBinOp AndOp 0 _ = 0
 evalBinOp AndOp _ 0 = 0
 evalBinOp AndOp _ _ = 1
 
-evalExpr :: Expr SizeT -> Executor [Value]
+evalExpr :: Expr primT SizeT -> Executor primT [Value]
 -- basic expressions
 evalExpr VarE{arg} = do
   v <- lookupS arg
@@ -118,17 +118,17 @@ evalExpr FunCallE{fun_kind = PrimitiveCall prim_name [predicate], args}
       let out_vals = if has_sol then sols else search_range
       lift $ Tree.choice [pure [boolToValue has_sol, v] | v <- out_vals]
  where
-  get_search_range :: Executor [Value]
+  get_search_range :: Executor primT [Value]
   get_search_range = do
     FunDef{param_types = pred_param_types} <- view $ _1 . Ctx.at predicate . singular _Just
     let s_arg_ty = last pred_param_types
     let search_range = range s_arg_ty
     return search_range
 
-  evalPredicate :: Value -> Executor Bool
+  evalPredicate :: Value -> Executor primT Bool
   evalPredicate val = (/= 0) <$> runPredicate "_search_arg" val
 
-  runPredicate :: Ident -> Value -> Executor Value
+  runPredicate :: Ident -> Value -> Executor primT Value
   runPredicate s_arg val = withSandbox $ do
     Ctx.ins s_arg .= val
     head
@@ -137,7 +137,7 @@ evalExpr FunCallE{fun_kind = PrimitiveCall prim_name [predicate], args}
 -- unsupported
 evalExpr _ = error "unsupported"
 
-execStmt :: Stmt SizeT -> Executor ()
+execStmt :: Stmt primT SizeT -> Executor primT ()
 execStmt ExprS{rets, expr} = do
   vals <- withSandbox $ evalExpr expr
   zipWithM_ putS rets vals
@@ -147,7 +147,7 @@ execStmt IfThenElseS{cond, s_true, s_false} = do
   execStmt s
 execStmt (SeqS ss) = mapM_ execStmt ss
 
-evalFun :: [Value] -> FunDef SizeT -> Evaluator [Value]
+evalFun :: [Value] -> FunDef primT SizeT -> Evaluator primT [Value]
 evalFun vals_in FunDef{mbody = Just FunBody{param_names, ret_names, body_stmt}} =
   let params = Ctx.fromList $ zip param_names vals_in
    in withInjectedState params $ do
@@ -157,7 +157,7 @@ evalFun vals_in FunDef{fun_name, mbody = Nothing} = do
   interp <- view $ _2 . Ctx.at fun_name . singular _Just
   return $ interp vals_in
 
-runProgram :: Program SizeT -> FunInterpCtx -> ProgramState -> Tree.Tree ProgramState
+runProgram :: Program primT SizeT -> FunInterpCtx -> ProgramState -> Tree.Tree ProgramState
 runProgram Program{funCtx, stmt} oracleF st = view _2 <$> runRWST (execStmt stmt) env st
  where
   env = (funCtx, oracleF)

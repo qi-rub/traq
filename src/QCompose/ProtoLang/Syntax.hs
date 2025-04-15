@@ -39,51 +39,52 @@ data BinOp = AddOp | LEqOp | AndOp
   deriving (Eq, Show, Read)
 
 -- | Either call an existing function, or an existing primitive.
-data FunctionCallKind
+data FunctionCallKind primT
   = FunctionCall Ident
   | PrimitiveCall {prim_name :: Ident, prim_params :: [Ident]}
+  | PrimitiveCall' {prim :: primT}
   deriving (Eq, Show, Read)
 
 {- | An expression in the prototype language.
  It appears as the RHS of an assignment statement.
 -}
-data Expr sizeT
+data Expr primT sizeT
   = VarE {arg :: Ident}
   | ConstE {val :: Value, ty :: VarType sizeT}
   | UnOpE {un_op :: UnOp, arg :: Ident}
   | BinOpE {bin_op :: BinOp, lhs :: Ident, rhs :: Ident}
   | TernaryE {branch, lhs, rhs :: Ident}
-  | FunCallE {fun_kind :: FunctionCallKind, args :: [Ident]}
+  | FunCallE {fun_kind :: FunctionCallKind primT, args :: [Ident]}
   deriving (Eq, Show, Read, Functor)
 
 -- | A statement in the prototype language.
-data Stmt sizeT
-  = ExprS {rets :: [Ident], expr :: Expr sizeT}
-  | IfThenElseS {cond :: Ident, s_true :: Stmt sizeT, s_false :: Stmt sizeT}
-  | SeqS [Stmt sizeT]
+data Stmt primT sizeT
+  = ExprS {rets :: [Ident], expr :: Expr primT sizeT}
+  | IfThenElseS {cond :: Ident, s_true :: Stmt primT sizeT, s_false :: Stmt primT sizeT}
+  | SeqS [Stmt primT sizeT]
   deriving (Eq, Show, Read, Functor)
 
 -- | A function definition in the prototype language.
-data FunBody sizeT = FunBody
+data FunBody primT sizeT = FunBody
   { param_names, ret_names :: [Ident]
-  , body_stmt :: Stmt sizeT
+  , body_stmt :: Stmt primT sizeT
   }
   deriving (Eq, Show, Read, Functor)
 
-data FunDef sizeT = FunDef
+data FunDef primT sizeT = FunDef
   { fun_name :: Ident
   , param_types, ret_types :: [VarType sizeT]
-  , mbody :: Maybe (FunBody sizeT)
+  , mbody :: Maybe (FunBody primT sizeT)
   }
   deriving (Eq, Show, Read, Functor)
 
 -- | A function context contains a list of functions
-type FunCtx sizeT = Ctx.Context (FunDef sizeT)
+type FunCtx primT sizeT = Ctx.Context (FunDef primT sizeT)
 
 -- | A program is a function context with a statement (which acts like the `main`)
-data Program sizeT = Program
-  { funCtx :: FunCtx sizeT
-  , stmt :: Stmt sizeT
+data Program primT sizeT = Program
+  { funCtx :: FunCtx primT sizeT
+  , stmt :: Stmt primT sizeT
   }
   deriving (Eq, Show, Read, Functor)
 
@@ -91,22 +92,22 @@ data Program sizeT = Program
 -- Lenses
 -- ================================================================================
 
-instance HasAst (Stmt a) where
+instance HasAst (Stmt primT sizeT) where
   _ast focus (SeqS ss) = SeqS <$> traverse focus ss
   _ast focus (IfThenElseS cond s_true s_false) = IfThenElseS cond <$> focus s_true <*> focus s_false
   _ast _ s = pure s
 
-instance HasStmt (Stmt a) (Stmt a) where
+instance HasStmt (Stmt primT sizeT) (Stmt primT sizeT) where
   _stmt = id
 
-instance HasStmt (FunBody a) (Stmt a) where
+instance HasStmt (FunBody primT sizeT) (Stmt primT sizeT) where
   _stmt focus fbody@FunBody{body_stmt} = (\body_stmt' -> fbody{body_stmt = body_stmt'}) <$> focus body_stmt
 
-instance HasStmt (FunDef a) (Stmt a) where
+instance HasStmt (FunDef primT sizeT) (Stmt primT sizeT) where
   _stmt focus funDef@FunDef{mbody = Just body} = (\body' -> funDef{mbody = Just body'}) <$> _stmt focus body
   _stmt _ f = pure f
 
-instance HasStmt (Program a) (Stmt a) where
+instance HasStmt (Program primT sizeT) (Stmt primT sizeT) where
   _stmt focus (Program funCtx stmt) = Program <$> traverse (_stmt focus) funCtx <*> focus stmt
 
 -- ================================================================================
@@ -124,11 +125,12 @@ instance ToCodeString BinOp where
   toCodeString LEqOp = "<="
   toCodeString AndOp = "/\\"
 
-instance ToCodeString FunctionCallKind where
+instance (ToCodeString primT) => ToCodeString (FunctionCallKind primT) where
   toCodeString (FunctionCall f) = f
   toCodeString (PrimitiveCall f ps) = printf "@%s[%s]" f (commaList ps)
+  toCodeString (PrimitiveCall' prim) = printf "@%s" (toCodeString prim)
 
-instance (Show a) => ToCodeString (Expr a) where
+instance (Show sizeT, ToCodeString primT) => ToCodeString (Expr primT sizeT) where
   toCodeString VarE{arg} = arg
   toCodeString ConstE{val, ty} = unwords [show val, ":", toCodeString ty]
   toCodeString UnOpE{un_op, arg} = toCodeString un_op <> arg
@@ -139,7 +141,7 @@ instance (Show a) => ToCodeString (Expr a) where
   toCodeString FunCallE{fun_kind, args} =
     unwords [toCodeString fun_kind <> "(" <> commaList args <> ")"]
 
-instance (Show a) => ToCodeString (Stmt a) where
+instance (Show sizeT, ToCodeString primT) => ToCodeString (Stmt primT sizeT) where
   toCodeLines ExprS{rets, expr} = [unwords [commaList rets, "<-", toCodeString expr]]
   toCodeLines IfThenElseS{cond, s_true, s_false} =
     [unwords ["if", cond, "then"]]
@@ -149,7 +151,7 @@ instance (Show a) => ToCodeString (Stmt a) where
       <> ["end"]
   toCodeLines (SeqS ss) = concatMap toCodeLines ss
 
-instance (Show a) => ToCodeString (FunDef a) where
+instance (Show sizeT, ToCodeString primT) => ToCodeString (FunDef primT sizeT) where
   -- def
   toCodeLines
     FunDef
@@ -165,7 +167,7 @@ instance (Show a) => ToCodeString (FunDef a) where
           )
         <> ["end"]
      where
-      showTypedVar :: Ident -> VarType a -> String
+      showTypedVar :: Ident -> VarType sizeT -> String
       showTypedVar x ty = unwords [x, ":", toCodeString ty]
   -- declare
   toCodeLines FunDef{fun_name, param_types, ret_types, mbody = Nothing} =
@@ -176,7 +178,7 @@ instance (Show a) => ToCodeString (FunDef a) where
         (commaList $ map toCodeString ret_types)
     ]
 
-instance (Show a) => ToCodeString (Program a) where
+instance (Show sizeT, ToCodeString primT) => ToCodeString (Program primT sizeT) where
   toCodeLines Program{funCtx, stmt} =
     map toCodeString (Ctx.elems funCtx)
       <> toCodeLines stmt

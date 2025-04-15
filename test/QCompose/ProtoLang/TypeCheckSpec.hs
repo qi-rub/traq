@@ -1,6 +1,7 @@
 module QCompose.ProtoLang.TypeCheckSpec (spec) where
 
 import Data.Either (isLeft)
+import Data.Void (Void)
 
 import qualified QCompose.Data.Context as Ctx
 
@@ -22,7 +23,7 @@ spec = do
               , ret_types = [Fin 5]
               , mbody = Just FunBody{param_names = ["x"], ret_names = ["x"], body_stmt = SeqS []}
               } ::
-              FunDef Int
+              FunDef Void Int
       typeCheckFun undefined bad_fun `shouldSatisfy` isLeft
     it "assign" $ do
       let prog =
@@ -30,7 +31,7 @@ spec = do
               { funCtx = Ctx.empty
               , stmt = ExprS{rets = ["y"], expr = VarE "x"}
               } ::
-              Program Int
+              Program Void Int
       let gamma = Ctx.fromList [("x", Fin 2)]
       assertRight $ typeCheckProg gamma prog
     it "matrix example" $ do
