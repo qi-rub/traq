@@ -26,6 +26,7 @@ module QCompose.Control.Monad (
   runMyWriterT,
   tellAt,
   embedWriterT,
+  censored,
 
   -- ** RS
   MyReaderStateT,
@@ -40,9 +41,18 @@ module QCompose.Control.Monad (
 ) where
 
 import Control.Monad.Except (MonadError, catchError, throwError)
-import Control.Monad.RWS (MonadState, MonadWriter, RWST (..), evalRWST, execRWST, runRWST, tell)
+import Control.Monad.RWS (
+  MonadState,
+  MonadWriter,
+  RWST (..),
+  evalRWST,
+  execRWST,
+  mapRWST,
+  runRWST,
+  tell,
+ )
 import Control.Monad.Trans (lift)
-import Lens.Micro
+import Lens.Micro.GHC
 import Lens.Micro.Mtl
 
 -- ================================================================================
@@ -102,6 +112,10 @@ embedWriterT :: (Monad m, Monoid w) => MyWriterT w m a -> MyReaderWriterStateT r
 embedWriterT rws = RWST $ \_ s -> do
   (a, (), w) <- runRWST rws () ()
   return (a, s, w)
+
+-- | Ignore the writer output
+censored :: (Monad m, Monoid w) => RWST r () s m a -> RWST r w s m a
+censored = mapRWST $ fmap (_3 .~ mempty)
 
 -- ================================================================================
 -- State

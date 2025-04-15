@@ -1,5 +1,6 @@
 module QCompose.ProtoLang.TypeCheck (
   -- * Types
+  TypingEnv,
   TypingCtx,
   TypeCheckable (..),
   TypeChecker,
@@ -13,7 +14,8 @@ module QCompose.ProtoLang.TypeCheck (
 ) where
 
 import Control.Monad (forM_, unless, when, zipWithM_)
-import Control.Monad.Except (throwError)
+import Control.Monad.Except (MonadError, throwError)
+import Control.Monad.RWS (MonadReader)
 import Text.Printf (printf)
 
 import Lens.Micro
@@ -39,45 +41,50 @@ instance TypeCheckable Int where
   tbool = Fin 2
   tmax (Fin n) (Fin m) = Fin (max n m)
 
+-- | Environment for type checking
+type TypingEnv primT sizeT = FunCtx primT sizeT
+
 -- | A context mapping variables to their types.
 type TypingCtx sizeT = Ctx.Context (VarType sizeT)
 
 -- | The TypeChecker monad
-type TypeChecker sizeT = MyStateT (TypingCtx sizeT) (Either String)
+type TypeChecker primT sizeT = MyReaderStateT (TypingEnv primT sizeT) (TypingCtx sizeT) (Either String)
 
-lookupFunE :: Ident -> FunCtx primT sizeT -> TypeChecker sizeT (FunDef primT sizeT)
-lookupFunE fname funCtx =
-  maybeWithError (printf "cannot find function `%s`" fname) $
-    funCtx ^. Ctx.at fname
+lookupFunE ::
+  (MonadReader (FunCtx primT sizeT) m, MonadError String m) =>
+  Ident ->
+  m (FunDef primT sizeT)
+lookupFunE fname =
+  view (Ctx.at fname)
+    >>= maybeWithError (printf "cannot find function `%s`" fname)
 
 class TypeCheckablePrimitive primT where
   typeCheckPrimitive ::
-    (TypeCheckable a) =>
+    (TypeCheckable sizeT) =>
     -- | primitive
     primT ->
     -- | arguments
     [Ident] ->
-    TypeChecker a [VarType a]
+    TypeChecker primT sizeT [VarType sizeT]
 
 instance TypeCheckablePrimitive Void where
   typeCheckPrimitive prim _ = absurd prim
 
 -- | Typecheck a subroutine call
 checkPrimitive ::
-  (TypeCheckable a) =>
-  FunCtx primT a ->
+  (TypeCheckable sizeT) =>
   -- | subroutine name
   Ident ->
   -- | subroutine params
   [Ident] ->
   -- | arguments
   [Ident] ->
-  TypeChecker a [VarType a]
+  TypeChecker primT sizeT [VarType sizeT]
 -- contains
-checkPrimitive funCtx "any" [predicate] args = do
+checkPrimitive "any" [predicate] args = do
   arg_tys <- mapM Ctx.lookup args
 
-  FunDef{param_types, ret_types} <- funCtx & lookupFunE predicate
+  FunDef{param_types, ret_types} <- lookupFunE predicate
 
   when (ret_types /= [tbool]) $
     throwError "predicate must return a single Bool"
@@ -88,10 +95,10 @@ checkPrimitive funCtx "any" [predicate] args = do
   return [tbool]
 
 -- search
-checkPrimitive funCtx "search" [predicate] args = do
+checkPrimitive "search" [predicate] args = do
   arg_tys <- mapM Ctx.lookup args
 
-  FunDef{param_types, ret_types} <- funCtx & lookupFunE predicate
+  FunDef{param_types, ret_types} <- lookupFunE predicate
 
   when (ret_types /= [tbool]) $
     throwError "predicate must return a single Bool"
@@ -102,24 +109,23 @@ checkPrimitive funCtx "search" [predicate] args = do
   return [tbool, last param_types]
 
 -- unsupported
-checkPrimitive _ prim_name prim_params _ =
+checkPrimitive prim_name prim_params _ =
   throwError $ printf "unsupported subroutine %s[%s]" prim_name (show prim_params)
 
 -- | Typecheck an expression and return the output types
 checkExpr ::
   forall primT sizeT.
   (TypeCheckable sizeT) =>
-  FunCtx primT sizeT ->
   Expr primT sizeT ->
-  TypeChecker sizeT [VarType sizeT]
+  TypeChecker primT sizeT [VarType sizeT]
 -- x
-checkExpr _ VarE{arg} = do
+checkExpr VarE{arg} = do
   ty <- Ctx.lookup arg
   return [ty]
 -- const v : t
-checkExpr _ ConstE{ty} = return [ty]
+checkExpr ConstE{ty} = return [ty]
 -- `op` x
-checkExpr _ UnOpE{un_op, arg} = do
+checkExpr UnOpE{un_op, arg} = do
   arg_ty <- Ctx.lookup arg
   ty <- case un_op of
     NotOp -> do
@@ -127,7 +133,7 @@ checkExpr _ UnOpE{un_op, arg} = do
       return tbool
   return [ty]
 -- x `op` y
-checkExpr _ BinOpE{bin_op, lhs, rhs} = do
+checkExpr BinOpE{bin_op, lhs, rhs} = do
   ty_lhs <- Ctx.lookup lhs
   ty_rhs <- Ctx.lookup rhs
   ty <- case bin_op of
@@ -139,7 +145,7 @@ checkExpr _ BinOpE{bin_op, lhs, rhs} = do
     AddOp -> return $ tmax ty_lhs ty_rhs
   return [ty]
 -- ifte b x y
-checkExpr _ TernaryE{branch, lhs, rhs} = do
+checkExpr TernaryE{branch, lhs, rhs} = do
   ty_branch <- Ctx.lookup branch
   unless (ty_branch == tbool) $
     throwError (printf "`ifte` requires bool to branch, got %s" (show ty_branch))
@@ -152,8 +158,8 @@ checkExpr _ TernaryE{branch, lhs, rhs} = do
   return [ty_lhs]
 
 -- f(x, ...)
-checkExpr funCtx FunCallE{fun_kind = FunctionCall fun, args} = do
-  FunDef{param_types, ret_types} <- funCtx & lookupFunE fun
+checkExpr FunCallE{fun_kind = FunctionCall fun, args} = do
+  FunDef{param_types, ret_types} <- lookupFunE fun
 
   arg_tys <- mapM Ctx.lookup args
   unless (arg_tys == param_types) $
@@ -162,37 +168,36 @@ checkExpr funCtx FunCallE{fun_kind = FunctionCall fun, args} = do
   return ret_types
 
 -- `subroutine`(...)
-checkExpr funCtx FunCallE{fun_kind = PrimitiveCallOld prim_name prim_params, args} = do
-  checkPrimitive funCtx prim_name prim_params args
+checkExpr FunCallE{fun_kind = PrimitiveCallOld prim_name prim_params, args} = do
+  checkPrimitive prim_name prim_params args
 
 {- | Typecheck a statement, given the current context and function definitions.
  If successful, the typing context is updated.
 -}
 checkStmt ::
-  forall primT a.
-  (TypeCheckable a) =>
-  FunCtx primT a ->
-  Stmt primT a ->
-  TypeChecker a ()
+  forall primT sizeT.
+  (TypeCheckable sizeT) =>
+  Stmt primT sizeT ->
+  TypeChecker primT sizeT ()
 -- single statement
-checkStmt funCtx ExprS{rets, expr} = do
-  out_tys <- checkExpr funCtx expr
+checkStmt ExprS{rets, expr} = do
+  out_tys <- checkExpr expr
   when (length out_tys /= length rets) $ do
     throwError $
       ("Expected " <> show (length out_tys) <> " outputs, but given " <> show (length out_tys) <> " vars to bind.")
         <> (" (return variables: " <> show rets <> ", output types: " <> show out_tys <> ")")
   zipWithM_ Ctx.put rets out_tys
 -- sequence
-checkStmt funCtx (SeqS ss) = mapM_ (checkStmt funCtx) ss
+checkStmt (SeqS ss) = mapM_ checkStmt ss
 -- ifte
-checkStmt funCtx IfThenElseS{cond, s_true, s_false} = do
+checkStmt IfThenElseS{cond, s_true, s_false} = do
   cond_ty <- Ctx.lookup cond
   unless (cond_ty == tbool) $
     throwError $
       "`if` condition must be a boolean, got " <> show (cond, cond_ty)
 
-  sigma_t <- withSandbox $ checkStmt funCtx s_true >> use id
-  sigma_f <- withSandbox $ checkStmt funCtx s_false >> use id
+  sigma_t <- withSandbox $ checkStmt s_true >> use id
+  sigma_f <- withSandbox $ checkStmt s_false >> use id
   when (sigma_t /= sigma_f) $
     throwError ("if: branches must declare same variables, got " <> show [sigma_t, sigma_f])
   id .= sigma_t
@@ -212,7 +217,7 @@ typeCheckFun
       throwError "number of returns must match the types"
 
     let gamma = Ctx.fromList $ zip param_names param_types
-    gamma' <- execMyStateT (checkStmt funCtx body_stmt) gamma
+    gamma' <- execMyReaderStateT (checkStmt body_stmt) funCtx gamma
     forM_ (zip ret_names ret_types) $ \(x, t) -> do
       when (has _Just (gamma ^. Ctx.at x)) $ do
         throwError $ printf "parameter `%s` cannot be returned, please copy it into a new variable and return that" x
@@ -230,4 +235,4 @@ typeCheckFun _ FunDef{mbody = Nothing} = return ()
 typeCheckProg :: (TypeCheckable a) => TypingCtx a -> Program primT a -> Either String (TypingCtx a)
 typeCheckProg gamma Program{funCtx, stmt} = do
   mapM_ (typeCheckFun funCtx) funCtx
-  execMyStateT (checkStmt funCtx stmt) gamma
+  execMyReaderStateT (checkStmt stmt) funCtx gamma

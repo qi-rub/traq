@@ -255,8 +255,7 @@ lowerStmt ::
   CompilerT primT holeT sizeT costT (Stmt holeT sizeT)
 -- single statement
 lowerStmt eps s@P.ExprS{P.rets, P.expr} = do
-  checker <- P.checkStmt <$> view protoFunCtx <*> pure s
-  zoom typingCtx $ embedStateT checker
+  censored . magnify protoFunCtx . zoom typingCtx $ P.checkStmt s
   lowerExpr eps expr rets
 
 -- compound statements
