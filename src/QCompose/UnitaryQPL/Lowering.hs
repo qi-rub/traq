@@ -27,15 +27,15 @@ data QSearchUnitaryImpl holeT sizeT costT = QSearchUnitaryImpl
   }
 
 -- | Configuration for lowering
-type LoweringConfig holeT sizeT costT = (P.FunCtx sizeT, P.OracleName, QSearchUnitaryImpl holeT sizeT costT)
+type LoweringConfig primT holeT sizeT costT = (P.FunCtx primT sizeT, P.OracleName, QSearchUnitaryImpl holeT sizeT costT)
 
-protoFunCtx :: Lens' (LoweringConfig holeT sizeT costT) (P.FunCtx sizeT)
+protoFunCtx :: Lens' (LoweringConfig primT holeT sizeT costT) (P.FunCtx primT sizeT)
 protoFunCtx = _1
 
-oracleName :: Lens' (LoweringConfig holeT sizeT costT) P.OracleName
+oracleName :: Lens' (LoweringConfig primT holeT sizeT costT) P.OracleName
 oracleName = _2
 
-qsearchConfig :: Lens' (LoweringConfig holeT sizeT costT) (QSearchUnitaryImpl holeT sizeT costT)
+qsearchConfig :: Lens' (LoweringConfig primT holeT sizeT costT) (QSearchUnitaryImpl holeT sizeT costT)
 qsearchConfig = _3
 
 {- | A global lowering context storing the source functions and generated procedures
@@ -62,9 +62,9 @@ loweredProcs = id
 This should contain the _final_ typing context for the input program,
 that is, contains both the inputs and outputs of each statement.
 -}
-type CompilerT holeT sizeT costT = MyReaderWriterStateT (LoweringConfig holeT sizeT costT) (LoweringOutput holeT sizeT) (LoweringCtx sizeT) (Either String)
+type CompilerT primT holeT sizeT costT = MyReaderWriterStateT (LoweringConfig primT holeT sizeT costT) (LoweringOutput holeT sizeT) (LoweringCtx sizeT) (Either String)
 
-newIdent :: Ident -> CompilerT holeT sizeT costT Ident
+newIdent :: Ident -> CompilerT primT holeT sizeT costT Ident
 newIdent prefix = do
   ident <-
     msum . map checked $
@@ -72,7 +72,7 @@ newIdent prefix = do
   uniqNames . at ident ?= ()
   return ident
  where
-  checked :: Ident -> CompilerT holeT sizeT costT Ident
+  checked :: Ident -> CompilerT primT holeT sizeT costT Ident
   checked name = do
     already_exists <- use (uniqNames . at name)
     case already_exists of
@@ -80,14 +80,14 @@ newIdent prefix = do
       Just () -> throwError "next ident please!"
 
 -- | Allocate an ancilla register, and update the typing context.
-allocAncilla :: P.VarType sizeT -> CompilerT holeT sizeT costT Ident
+allocAncilla :: P.VarType sizeT -> CompilerT primT holeT sizeT costT Ident
 allocAncilla ty = do
   name <- newIdent "aux"
   zoom typingCtx $ Ctx.put name ty
   return name
 
 -- | Add a new procedure.
-addProc :: ProcDef holeT sizeT -> CompilerT holeT sizeT costT ()
+addProc :: ProcDef holeT sizeT -> CompilerT primT holeT sizeT costT ()
 addProc procDef = tellAt loweredProcs [procDef]
 
 -- | A procDef generated from a funDef, along with the partitioned register spaces.
@@ -103,13 +103,13 @@ data LoweredProc holeT sizeT costT = LoweredProc
 
 -- | Compile a single expression statement
 lowerExpr ::
-  forall holeT sizeT costT.
+  forall primT holeT sizeT costT.
   (P.TypeCheckable sizeT, Show costT, Floating costT) =>
   costT ->
-  P.Expr sizeT ->
+  P.Expr primT sizeT ->
   -- | returns
   [Ident] ->
-  CompilerT holeT sizeT costT (Stmt holeT sizeT)
+  CompilerT primT holeT sizeT costT (Stmt holeT sizeT)
 -- basic expressions
 lowerExpr _ P.VarE{P.arg} [ret] = do
   ty <- zoom typingCtx $ Ctx.lookup arg
@@ -223,14 +223,14 @@ lowerExpr delta P.FunCallE{P.fun_kind = PrimitiveCall "any" [predicate], P.args}
       }
 
 -- error out in all other cases
-lowerExpr _ e rets = throwError $ "cannot compile unsupported expression: " <> show (e, rets)
+lowerExpr _ _ _ = throwError "cannot compile unsupported expression"
 
 -- | Compile a statement (simple or compound)
 lowerStmt ::
   (P.TypeCheckable sizeT, Show costT, Floating costT) =>
   costT ->
-  P.Stmt sizeT ->
-  CompilerT holeT sizeT costT (Stmt holeT sizeT)
+  P.Stmt primT sizeT ->
+  CompilerT primT holeT sizeT costT (Stmt holeT sizeT)
 -- single statement
 lowerStmt delta s@P.ExprS{P.rets, P.expr} = do
   checker <- P.checkStmt <$> view protoFunCtx <*> pure s
@@ -259,8 +259,8 @@ lowerFunDefWithGarbage ::
   (P.TypeCheckable sizeT, Show costT, Floating costT) =>
   -- | precision \delta
   costT ->
-  P.FunDef sizeT ->
-  CompilerT holeT sizeT costT (LoweredProc holeT sizeT costT)
+  P.FunDef primT sizeT ->
+  CompilerT primT holeT sizeT costT (LoweredProc holeT sizeT costT)
 lowerFunDefWithGarbage _ P.FunDef{P.mbody = Nothing} = error "TODO"
 lowerFunDefWithGarbage
   delta
@@ -310,8 +310,8 @@ lowerFunDef ::
   (P.TypeCheckable sizeT, Show costT, Floating costT) =>
   -- | precision \delta
   costT ->
-  P.FunDef sizeT ->
-  CompilerT holeT sizeT costT (LoweredProc holeT sizeT costT)
+  P.FunDef primT sizeT ->
+  CompilerT primT holeT sizeT costT (LoweredProc holeT sizeT costT)
 -- lower a declaration as-is, we treat all declarations as perfect data oracles (so delta is ignored).
 lowerFunDef _ P.FunDef{P.fun_name, P.param_types, P.ret_types, P.mbody = Nothing} = do
   let param_names = map (printf "in_%d") [0 .. length param_types]
@@ -402,7 +402,7 @@ lowerProgram ::
   P.OracleName ->
   -- | precision \delta
   costT ->
-  P.Program SizeT ->
+  P.Program primT SizeT ->
   Either String (Program holeT SizeT, P.TypingCtx SizeT)
 lowerProgram qsearch_config gamma_in oracle_name delta prog@P.Program{P.funCtx, P.stmt} = do
   unless (P.checkVarsUnique prog) $

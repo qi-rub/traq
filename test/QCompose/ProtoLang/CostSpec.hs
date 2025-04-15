@@ -1,6 +1,7 @@
 module QCompose.ProtoLang.CostSpec (spec) where
 
 import qualified Data.Number.Symbolic as Sym
+import Data.Void (Void)
 import Lens.Micro
 
 import QCompose.Prelude
@@ -11,7 +12,7 @@ import QCompose.ProtoLang.Syntax
 
 import Test.Hspec
 
-unsafeParseProgram :: String -> Program SizeT
+unsafeParseProgram :: String -> Program Void SizeT
 unsafeParseProgram = fmap Sym.unSym . either (error . show) id . parseProgram
 
 spec :: Spec

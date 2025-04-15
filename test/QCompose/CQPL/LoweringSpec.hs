@@ -1,6 +1,9 @@
+{-# LANGUAGE TypeApplications #-}
+
 module QCompose.CQPL.LoweringSpec (spec) where
 
 import qualified Data.Number.Symbolic as Sym
+import Data.Void
 import Lens.Micro
 import qualified QCompose.Data.Context as Ctx
 
@@ -19,7 +22,7 @@ spec = do
     it "assign" $ do
       ex_ <-
         expectRight $
-          P.parseProgram $
+          P.parseProgram @Void $
             unlines
               [ "declare Oracle() -> Bool"
               , "x <- const 0 : Fin<10>"
