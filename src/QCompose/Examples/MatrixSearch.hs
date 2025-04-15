@@ -59,7 +59,7 @@ matrixExample n m tyBool =
               { param_names = [i]
               , body_stmt =
                   SeqS
-                    [ ExprS{rets = [ok], expr = FunCallE{fun_kind = PrimitiveCall "any" ["IsEntryZero"], args = [i]}}
+                    [ ExprS{rets = [ok], expr = FunCallE{fun_kind = PrimitiveCallOld "any" ["IsEntryZero"], args = [i]}}
                     , ExprS{rets = [ok'], expr = UnOpE{un_op = NotOp, arg = ok}}
                     ]
               , ret_names = [ok']
@@ -80,7 +80,7 @@ matrixExample n m tyBool =
           Just
             FunBody
               { param_names = []
-              , body_stmt = ExprS{rets = [ok], expr = FunCallE{fun_kind = PrimitiveCall "any" ["IsRowAllOnes"], args = []}}
+              , body_stmt = ExprS{rets = [ok], expr = FunCallE{fun_kind = PrimitiveCallOld "any" ["IsRowAllOnes"], args = []}}
               , ret_names = [ok]
               }
       , ret_types = [tyBool]

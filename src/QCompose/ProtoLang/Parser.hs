@@ -98,11 +98,11 @@ exprP tp@TokenParser{..} =
   funCallKind :: Parser (FunctionCallKind primT)
   funCallKind = primitiveCall <|> primitiveCallOld <|> functionCall
    where
-    primitiveCall = PrimitiveCall' <$> primitiveParser tp
+    primitiveCall = PrimitiveCall <$> primitiveParser tp
     primitiveCallOld = do
       prim_name <- char '@' *> identifier
       prim_params <- squares (commaSep identifier)
-      return PrimitiveCall{..}
+      return PrimitiveCallOld{..}
     functionCall = FunctionCall <$> identifier
 
   funCallE :: Parser (Expr primT SymbSize)

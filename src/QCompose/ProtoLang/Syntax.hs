@@ -41,8 +41,8 @@ data BinOp = AddOp | LEqOp | AndOp
 -- | Either call an existing function, or an existing primitive.
 data FunctionCallKind primT
   = FunctionCall Ident
-  | PrimitiveCall {prim_name :: Ident, prim_params :: [Ident]}
-  | PrimitiveCall' {prim :: primT}
+  | PrimitiveCallOld {prim_name :: Ident, prim_params :: [Ident]}
+  | PrimitiveCall {prim :: primT}
   deriving (Eq, Show, Read)
 
 {- | An expression in the prototype language.
@@ -127,8 +127,8 @@ instance ToCodeString BinOp where
 
 instance (ToCodeString primT) => ToCodeString (FunctionCallKind primT) where
   toCodeString (FunctionCall f) = f
-  toCodeString (PrimitiveCall f ps) = printf "@%s[%s]" f (commaList ps)
-  toCodeString (PrimitiveCall' prim) = printf "@%s" (toCodeString prim)
+  toCodeString (PrimitiveCallOld f ps) = printf "@%s[%s]" f (commaList ps)
+  toCodeString (PrimitiveCall prim) = printf "@%s" (toCodeString prim)
 
 instance (Show sizeT, ToCodeString primT) => ToCodeString (Expr primT sizeT) where
   toCodeString VarE{arg} = arg

@@ -104,7 +104,7 @@ evalExpr FunCallE{fun_kind = FunctionCall fun, args} = do
 
 -- subroutines
 -- `any` / `search`
-evalExpr FunCallE{fun_kind = PrimitiveCall prim_name [predicate], args}
+evalExpr FunCallE{fun_kind = PrimitiveCallOld prim_name [predicate], args}
   | prim_name == "any" = do
       search_range <- get_search_range
       has_sol <- anyM evalPredicate search_range

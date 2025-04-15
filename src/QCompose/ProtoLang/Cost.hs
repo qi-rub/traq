@@ -99,7 +99,7 @@ unitaryQueryCostE delta FunCallE{fun_kind = FunctionCall fname} = do
       case mbody of
         Nothing -> return 0 -- no cost for injected data
         Just FunBody{body_stmt} -> (2 *) <$> unitaryQueryCostS (delta / 2) body_stmt
-unitaryQueryCostE delta FunCallE{fun_kind = PrimitiveCall c [predicate]}
+unitaryQueryCostE delta FunCallE{fun_kind = PrimitiveCallOld c [predicate]}
   | c == "any" || c == "search" = do
       FunDef{param_types} <- view $ _2 . to (unsafeLookupFun predicate)
       let Fin n = param_types & last
@@ -192,7 +192,7 @@ quantumMaxQueryCostE eps FunCallE{fun_kind = FunctionCall fname} = do
         Just FunBody{body_stmt} -> quantumMaxQueryCostS eps body_stmt
 
 -- -- known cost formulas
-quantumMaxQueryCostE eps FunCallE{fun_kind = PrimitiveCall c [predicate]}
+quantumMaxQueryCostE eps FunCallE{fun_kind = PrimitiveCallOld c [predicate]}
   | c == "any" || c == "search" = do
       FunDef{param_types} <- view $ _2 . to (unsafeLookupFun predicate)
 
@@ -285,7 +285,7 @@ quantumQueryCostE eps sigma FunCallE{fun_kind = FunctionCall f, args} = do
           quantumQueryCostS eps omega body_stmt
 
 -- -- known cost formulas
-quantumQueryCostE eps sigma FunCallE{fun_kind = PrimitiveCall c [predicate], args}
+quantumQueryCostE eps sigma FunCallE{fun_kind = PrimitiveCallOld c [predicate], args}
   | c == "any" || c == "search" = do
       let vs = args & map (\x -> sigma ^. Ctx.at x . singular _Just)
 
@@ -407,7 +407,7 @@ quantumQueryCostBound algs a_eps p oracle_name interp_ctx sigma =
 needsEpsS :: Stmt primT sizeT -> MyReaderT (FunCtx primT sizeT) Identity Bool
 needsEpsS IfThenElseS{s_true, s_false} = (||) <$> needsEpsS s_true <*> needsEpsS s_false
 needsEpsS (SeqS ss) = or <$> traverse needsEpsS ss
-needsEpsS ExprS{expr = FunCallE{fun_kind = PrimitiveCall _ _}} = return True
+needsEpsS ExprS{expr = FunCallE{fun_kind = PrimitiveCallOld _ _}} = return True
 needsEpsS ExprS{expr = FunCallE{fun_kind = FunctionCall f}} = do
   view (to (unsafeLookupFun f) . to mbody) >>= \case
     Just FunBody{body_stmt} -> needsEpsS body_stmt

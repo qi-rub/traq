@@ -20,7 +20,7 @@ arraySearch n =
     ExprS
       { expr =
           FunCallE
-            { fun_kind = PrimitiveCall "any" ["Oracle"]
+            { fun_kind = PrimitiveCallOld "any" ["Oracle"]
             , args = []
             }
       , rets = ["result"]
@@ -64,7 +64,7 @@ arraySearchIx n =
       { rets = ["result", "solution"]
       , expr =
           FunCallE
-            { fun_kind = PrimitiveCall "search" ["check"]
+            { fun_kind = PrimitiveCallOld "search" ["check"]
             , args = []
             }
       }

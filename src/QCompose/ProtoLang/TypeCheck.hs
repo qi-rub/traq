@@ -21,16 +21,12 @@ import Lens.Micro.Mtl
 
 import qualified QCompose.Data.Context as Ctx
 
+import Data.Void (Void, absurd)
 import QCompose.Control.Monad
 import QCompose.Prelude
 import QCompose.ProtoLang.Syntax
 
--- | A context mapping variables to their types.
-type TypingCtx sizeT = Ctx.Context (VarType sizeT)
-
--- | The TypeChecker monad
-type TypeChecker sizeT = MyStateT (TypingCtx sizeT) (Either String)
-
+-- | SizeT that can be type-checked. Needs to have a boolean type, and max of two types.
 class (Eq sizeT, Show sizeT, Num sizeT) => TypeCheckable sizeT where
   tbool :: VarType sizeT
   tmax :: VarType sizeT -> VarType sizeT -> VarType sizeT
@@ -43,10 +39,28 @@ instance TypeCheckable Int where
   tbool = Fin 2
   tmax (Fin n) (Fin m) = Fin (max n m)
 
+-- | A context mapping variables to their types.
+type TypingCtx sizeT = Ctx.Context (VarType sizeT)
+
+-- | The TypeChecker monad
+type TypeChecker sizeT = MyStateT (TypingCtx sizeT) (Either String)
+
 lookupFunE :: Ident -> FunCtx primT sizeT -> TypeChecker sizeT (FunDef primT sizeT)
 lookupFunE fname funCtx =
   maybeWithError (printf "cannot find function `%s`" fname) $
     funCtx ^. Ctx.at fname
+
+class TypeCheckablePrimitive primT where
+  typeCheckPrimitive ::
+    (TypeCheckable a) =>
+    -- | primitive
+    primT ->
+    -- | arguments
+    [Ident] ->
+    TypeChecker a [VarType a]
+
+instance TypeCheckablePrimitive Void where
+  typeCheckPrimitive prim _ = absurd prim
 
 -- | Typecheck a subroutine call
 checkPrimitive ::
@@ -148,7 +162,7 @@ checkExpr funCtx FunCallE{fun_kind = FunctionCall fun, args} = do
   return ret_types
 
 -- `subroutine`(...)
-checkExpr funCtx FunCallE{fun_kind = PrimitiveCall prim_name prim_params, args} = do
+checkExpr funCtx FunCallE{fun_kind = PrimitiveCallOld prim_name prim_params, args} = do
   checkPrimitive funCtx prim_name prim_params args
 
 {- | Typecheck a statement, given the current context and function definitions.

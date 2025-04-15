@@ -193,7 +193,7 @@ lowerExpr _ P.UnOpE{P.un_op, P.arg} [ret] =
 lowerExpr eps P.FunCallE{P.fun_kind = P.FunctionCall f, P.args} rets = do
   proc_name <- lowerFunDefByName eps f
   return $ CallS{fun = FunctionCall proc_name, args = args ++ rets, meta_params = []}
-lowerExpr eps P.FunCallE{P.fun_kind = P.PrimitiveCall "any" [predicate], P.args} rets = do
+lowerExpr eps P.FunCallE{P.fun_kind = P.PrimitiveCallOld "any" [predicate], P.args} rets = do
   -- the predicate
   pred_fun@P.FunDef{P.param_types} <-
     view (protoFunCtx . Ctx.at predicate)

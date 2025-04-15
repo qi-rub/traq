@@ -13,7 +13,7 @@ import qualified QCompose.Data.Context as Ctx
 import QCompose.Control.Monad
 import QCompose.Prelude
 import qualified QCompose.ProtoLang as P
-import QCompose.ProtoLang.Syntax (FunctionCallKind (PrimitiveCall))
+import QCompose.ProtoLang.Syntax (FunctionCallKind (PrimitiveCallOld))
 import QCompose.UnitaryQPL.Syntax
 
 -- | Formulas for primitives
@@ -157,7 +157,7 @@ lowerExpr delta P.FunCallE{P.fun_kind = P.FunctionCall f, P.args} rets = do
       }
 
 -- `any`
-lowerExpr delta P.FunCallE{P.fun_kind = PrimitiveCall "any" [predicate], P.args} rets = do
+lowerExpr delta P.FunCallE{P.fun_kind = PrimitiveCallOld "any" [predicate], P.args} rets = do
   -- the predicate
   pred_fun@P.FunDef{P.param_types} <-
     view (protoFunCtx . Ctx.at predicate)
