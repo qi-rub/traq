@@ -26,14 +26,14 @@ import QCompose.Prelude
 import QCompose.ProtoLang.Syntax
 
 -- | A context mapping variables to their types.
-type TypingCtx a = Ctx.Context (VarType a)
+type TypingCtx sizeT = Ctx.Context (VarType sizeT)
 
 -- | The TypeChecker monad
-type TypeChecker a = MyStateT (TypingCtx a) (Either String)
+type TypeChecker sizeT = MyStateT (TypingCtx sizeT) (Either String)
 
-class (Eq a, Show a, Num a) => TypeCheckable a where
-  tbool :: VarType a
-  tmax :: VarType a -> VarType a -> VarType a
+class (Eq sizeT, Show sizeT, Num sizeT) => TypeCheckable sizeT where
+  tbool :: VarType sizeT
+  tmax :: VarType sizeT -> VarType sizeT -> VarType sizeT
 
 instance TypeCheckable Integer where
   tbool = Fin 2
@@ -43,7 +43,7 @@ instance TypeCheckable Int where
   tbool = Fin 2
   tmax (Fin n) (Fin m) = Fin (max n m)
 
-lookupFunE :: Ident -> FunCtx a -> TypeChecker a (FunDef a)
+lookupFunE :: Ident -> FunCtx primT sizeT -> TypeChecker sizeT (FunDef primT sizeT)
 lookupFunE fname funCtx =
   maybeWithError (printf "cannot find function `%s`" fname) $
     funCtx ^. Ctx.at fname
@@ -51,7 +51,7 @@ lookupFunE fname funCtx =
 -- | Typecheck a subroutine call
 checkPrimitive ::
   (TypeCheckable a) =>
-  FunCtx a ->
+  FunCtx primT a ->
   -- | subroutine name
   Ident ->
   -- | subroutine params
@@ -93,11 +93,11 @@ checkPrimitive _ prim_name prim_params _ =
 
 -- | Typecheck an expression and return the output types
 checkExpr ::
-  forall a.
-  (TypeCheckable a) =>
-  FunCtx a ->
-  Expr a ->
-  TypeChecker a [VarType a]
+  forall primT sizeT.
+  (TypeCheckable sizeT) =>
+  FunCtx primT sizeT ->
+  Expr primT sizeT ->
+  TypeChecker sizeT [VarType sizeT]
 -- x
 checkExpr _ VarE{arg} = do
   ty <- Ctx.lookup arg
@@ -155,10 +155,10 @@ checkExpr funCtx FunCallE{fun_kind = PrimitiveCall prim_name prim_params, args} 
  If successful, the typing context is updated.
 -}
 checkStmt ::
-  forall a.
+  forall primT a.
   (TypeCheckable a) =>
-  FunCtx a ->
-  Stmt a ->
+  FunCtx primT a ->
+  Stmt primT a ->
   TypeChecker a ()
 -- single statement
 checkStmt funCtx ExprS{rets, expr} = do
@@ -184,7 +184,7 @@ checkStmt funCtx IfThenElseS{cond, s_true, s_false} = do
   id .= sigma_t
 
 -- | Type check a single function.
-typeCheckFun :: (TypeCheckable a) => FunCtx a -> FunDef a -> Either String ()
+typeCheckFun :: (TypeCheckable a) => FunCtx primT a -> FunDef primT a -> Either String ()
 typeCheckFun
   funCtx
   FunDef
@@ -213,7 +213,7 @@ typeCheckFun
 typeCheckFun _ FunDef{mbody = Nothing} = return ()
 
 -- | Type check a full program (i.e. list of functions).
-typeCheckProg :: (TypeCheckable a) => TypingCtx a -> Program a -> Either String (TypingCtx a)
+typeCheckProg :: (TypeCheckable a) => TypingCtx a -> Program primT a -> Either String (TypingCtx a)
 typeCheckProg gamma Program{funCtx, stmt} = do
   mapM_ (typeCheckFun funCtx) funCtx
   execMyStateT (checkStmt funCtx stmt) gamma
