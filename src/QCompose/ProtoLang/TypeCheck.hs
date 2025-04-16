@@ -4,6 +4,7 @@ module QCompose.ProtoLang.TypeCheck (
   TypingCtx,
   TypeCheckable (..),
   TypeChecker,
+  TypeCheckablePrimitive (..),
 
   -- * Checkers
   checkPrimitive,

@@ -5,10 +5,12 @@ import Data.Void (Void)
 import Lens.Micro
 
 import QCompose.Prelude
-import QCompose.Primitives.QSearch
 import QCompose.ProtoLang.Cost
 import QCompose.ProtoLang.Parser
 import QCompose.ProtoLang.Syntax
+
+import QCompose.Primitives.QSearch
+import QCompose.Primitives.Search.Prelude
 
 import Test.Hspec
 

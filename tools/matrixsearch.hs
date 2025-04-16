@@ -6,13 +6,15 @@ import Lens.Micro
 
 import qualified QCompose.Data.Context as Ctx
 
+import QCompose.Prelude
 import qualified QCompose.ProtoLang as P
 import qualified QCompose.UnitaryQPL as UQPL
+import QCompose.Utils.Printing
 
 import QCompose.Examples.MatrixSearch
-import QCompose.Prelude
 import QCompose.Primitives.QSearch
-import QCompose.Utils.Printing
+import QCompose.Primitives.Search.Prelude
+import QCompose.Primitives.Search.Symbolic
 
 symbolicEx :: IO ()
 symbolicEx = do

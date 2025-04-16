@@ -10,9 +10,11 @@ import qualified QCompose.Data.Context as Ctx
 
 import qualified QCompose.CQPL as CQPL
 import QCompose.Prelude
-import QCompose.Primitives.QSearch
 import qualified QCompose.ProtoLang as P
 import QCompose.Utils.Printing
+
+import QCompose.Primitives.QSearch
+import QCompose.Primitives.Search.Prelude
 
 data Options = Options
   { in_file :: FilePath

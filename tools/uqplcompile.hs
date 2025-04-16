@@ -12,10 +12,12 @@ import Text.Read (readMaybe)
 import qualified QCompose.Data.Context as Ctx
 
 import QCompose.Prelude
-import QCompose.Primitives.QSearch
 import qualified QCompose.ProtoLang as P
 import qualified QCompose.UnitaryQPL as UQPL
 import QCompose.Utils.Printing
+
+import QCompose.Primitives.QSearch
+import QCompose.Primitives.Search.Prelude
 
 data Options = Options
   { in_file :: FilePath

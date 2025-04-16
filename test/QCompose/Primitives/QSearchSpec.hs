@@ -2,10 +2,12 @@ module QCompose.Primitives.QSearchSpec (spec) where
 
 import Lens.Micro
 
-import QCompose.Primitives.QSearch
 import QCompose.ProtoLang (VarType (..))
 import qualified QCompose.UnitaryQPL as UQPL
 import QCompose.Utils.Printing
+
+import QCompose.Primitives.QSearch
+import QCompose.Primitives.Search.Prelude
 
 import Test.Hspec
 

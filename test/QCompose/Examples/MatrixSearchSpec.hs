@@ -12,6 +12,8 @@ import QCompose.Utils.Printing
 
 import QCompose.Examples.MatrixSearch
 import QCompose.Primitives.QSearch
+import QCompose.Primitives.Search.Prelude
+import QCompose.Primitives.Search.Symbolic
 
 import Test.Hspec
 import TestHelpers

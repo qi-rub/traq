@@ -33,6 +33,8 @@ library
           QCompose.Prelude
           QCompose.Primitives
           QCompose.Primitives.QSearch
+          QCompose.Primitives.Search.Prelude
+          QCompose.Primitives.Search.Symbolic
           QCompose.ProtoLang
           QCompose.ProtoLang.Cost
           QCompose.ProtoLang.Eval

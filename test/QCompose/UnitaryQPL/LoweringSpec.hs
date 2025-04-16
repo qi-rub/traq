@@ -6,9 +6,10 @@ import qualified QCompose.Data.Context as Ctx
 
 import qualified QCompose.ProtoLang as P
 import qualified QCompose.UnitaryQPL as U
+import QCompose.Utils.Printing
 
 import QCompose.Primitives.QSearch
-import QCompose.Utils.Printing
+import QCompose.Primitives.Search.Prelude
 
 import Test.Hspec
 import TestHelpers
