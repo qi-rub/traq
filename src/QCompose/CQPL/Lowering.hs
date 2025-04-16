@@ -11,6 +11,7 @@ import Control.Monad (forM, msum, unless)
 import Control.Monad.Except (throwError)
 import Control.Monad.Trans (lift)
 import qualified Data.Set as Set
+import Data.Void (Void, absurd)
 import Lens.Micro
 import Lens.Micro.Mtl
 import Text.Printf (printf)
@@ -88,6 +89,13 @@ that is, contains both the inputs and outputs of each statement.
 -}
 type CompilerT primT holeT sizeT costT = MyReaderWriterStateT (LoweringEnv primT holeT sizeT costT) (LoweringOutput holeT sizeT) (LoweringCtx sizeT) (Either String)
 
+-- | Primitives that support a classical-quantum lowering.
+class (P.TypeCheckablePrimitive primT, UQPL.Lowerable primT) => Lowerable primT where
+  lowerPrimitive :: forall holeT sizeT costT. primT -> CompilerT primT holeT sizeT costT (Stmt holeT sizeT)
+
+instance Lowerable Void where
+  lowerPrimitive = absurd
+
 -- | Generate a new identifier with the given prefix.
 newIdent :: forall primT holeT sizeT costT. Ident -> CompilerT primT holeT sizeT costT Ident
 newIdent prefix = do
@@ -114,7 +122,7 @@ addProc procDef = tellAt loweredProcs [procDef]
 
 -- | Lower a source function to a procedure call.
 lowerFunDef ::
-  (P.TypeCheckable sizeT, Show costT, Floating costT) =>
+  (Lowerable primT, P.TypeCheckable sizeT, Show costT, Floating costT) =>
   -- | fail prob
   costT ->
   -- | source function
@@ -164,7 +172,7 @@ lowerFunDef eps P.FunDef{P.fun_name, P.param_types, P.mbody = Just body} = do
 
 -- | Lookup a source function by name, and lower it to a procedure call.
 lowerFunDefByName ::
-  (P.TypeCheckable sizeT, Show costT, Floating costT) =>
+  (Lowerable primT, P.TypeCheckable sizeT, Show costT, Floating costT) =>
   -- | fail prob
   costT ->
   -- | source function name
@@ -176,7 +184,7 @@ lowerFunDefByName eps f = do
 
 -- | Lower a source expression to a statement.
 lowerExpr ::
-  (P.TypeCheckable sizeT, Show costT, Floating costT) =>
+  (Lowerable primT, P.TypeCheckable sizeT, Show costT, Floating costT) =>
   -- fail prob
   costT ->
   -- source expression
@@ -249,7 +257,7 @@ lowerExpr _ _ _ = error "TODO implement lowerExpr"
 
 -- | Lower a single statement
 lowerStmt ::
-  (P.TypeCheckable sizeT, Show costT, Floating costT) =>
+  (Lowerable primT, P.TypeCheckable sizeT, Show costT, Floating costT) =>
   costT ->
   P.Stmt primT sizeT ->
   CompilerT primT holeT sizeT costT (Stmt holeT sizeT)
@@ -272,7 +280,7 @@ lowerStmt _ _ = throwError "lowering: unsupported"
 -- | Lower a full program into a CQPL program.
 lowerProgram ::
   forall primT holeT sizeT costT.
-  (P.TypeCheckable sizeT, Show costT, Floating costT) =>
+  (Lowerable primT, P.TypeCheckable sizeT, Show costT, Floating costT) =>
   -- | the implementation of primitive `any`
   QSearchCQImpl holeT sizeT costT ->
   -- | input bindings to the source program

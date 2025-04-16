@@ -116,7 +116,7 @@ checkPrimitive prim_name prim_params _ =
 -- | Typecheck an expression and return the output types
 checkExpr ::
   forall primT sizeT.
-  (TypeCheckable sizeT) =>
+  (TypeCheckablePrimitive primT, TypeCheckable sizeT) =>
   Expr primT sizeT ->
   TypeChecker primT sizeT [VarType sizeT]
 -- x
@@ -171,13 +171,15 @@ checkExpr FunCallE{fun_kind = FunctionCall fun, args} = do
 -- `subroutine`(...)
 checkExpr FunCallE{fun_kind = PrimitiveCallOld prim_name prim_params, args} = do
   checkPrimitive prim_name prim_params args
+-- `primitive`[...](...)
+checkExpr FunCallE{fun_kind = PrimitiveCall prim, args} = typeCheckPrimitive prim args
 
 {- | Typecheck a statement, given the current context and function definitions.
  If successful, the typing context is updated.
 -}
 checkStmt ::
   forall primT sizeT.
-  (TypeCheckable sizeT) =>
+  (TypeCheckablePrimitive primT, TypeCheckable sizeT) =>
   Stmt primT sizeT ->
   TypeChecker primT sizeT ()
 -- single statement
@@ -204,7 +206,7 @@ checkStmt IfThenElseS{cond, s_true, s_false} = do
   id .= sigma_t
 
 -- | Type check a single function.
-typeCheckFun :: (TypeCheckable a) => FunCtx primT a -> FunDef primT a -> Either String ()
+typeCheckFun :: (TypeCheckablePrimitive primT, TypeCheckable a) => FunCtx primT a -> FunDef primT a -> Either String ()
 typeCheckFun
   funCtx
   FunDef
@@ -233,7 +235,7 @@ typeCheckFun
 typeCheckFun _ FunDef{mbody = Nothing} = return ()
 
 -- | Type check a full program (i.e. list of functions).
-typeCheckProg :: (TypeCheckable a) => TypingCtx a -> Program primT a -> Either String (TypingCtx a)
+typeCheckProg :: (TypeCheckablePrimitive primT, TypeCheckable a) => TypingCtx a -> Program primT a -> Either String (TypingCtx a)
 typeCheckProg gamma Program{funCtx, stmt} = do
   mapM_ (typeCheckFun funCtx) funCtx
   execMyReaderStateT (checkStmt stmt) funCtx gamma

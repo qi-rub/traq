@@ -9,7 +9,10 @@ import qualified QCompose.ProtoLang as P
 import QCompose.Primitives.Search.Prelude
 
 -- | Symbolic worst case formulas.
-symbolicFormulas :: forall sizeT costT. (Show sizeT, Show costT, Integral sizeT, RealFloat costT) => P.QSearchFormulas (Sym.Sym sizeT) (Sym.Sym costT)
+symbolicFormulas ::
+  forall sizeT costT.
+  (Show sizeT, Show costT, Integral sizeT, RealFloat costT) =>
+  P.QSearchFormulas (Sym.Sym sizeT) (Sym.Sym costT)
 symbolicFormulas =
   P.QSearchFormulas
     { P.qSearchExpectedCost = error "no symbolic support for expected quantum cost"
