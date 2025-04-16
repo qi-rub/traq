@@ -66,12 +66,13 @@ class TypeCheckablePrimitive primT where
     primT ->
     -- | arguments
     [Ident] ->
-    TypeChecker primT sizeT [VarType sizeT]
+    TypeChecker primsT sizeT [VarType sizeT]
 
 instance TypeCheckablePrimitive Void where
   typeCheckPrimitive prim _ = absurd prim
 
 -- | Typecheck a subroutine call
+{-# DEPRECATED checkPrimitive "Refactor Prims" #-}
 checkPrimitive ::
   (TypeCheckable sizeT) =>
   -- | subroutine name
