@@ -1,5 +1,6 @@
 module QCompose.ProtoLang.Eval (
   -- * Evaluations
+  evalExpr,
   execStmt,
   evalFun,
   runProgram,
@@ -16,6 +17,7 @@ module QCompose.ProtoLang.Eval (
   ExecutionState,
   Evaluator,
   Executor,
+  EvaluatablePrimitive (..),
 ) where
 
 import Control.Monad (filterM, zipWithM_)
@@ -52,6 +54,10 @@ type Evaluator primT = MyReaderT (ExecutionEnv primT SizeT) Tree.Tree
 
 -- | Non-deterministic Execution Monad
 type Executor primT = MyReaderStateT (ExecutionEnv primT SizeT) (ExecutionState SizeT) Tree.Tree
+
+-- | Primitives that support evaluation
+class EvaluatablePrimitive primT where
+  evalPrimitive :: primT -> [Value] -> Evaluator primsT [Value]
 
 -- evaluation
 range :: VarType SizeT -> [Value]

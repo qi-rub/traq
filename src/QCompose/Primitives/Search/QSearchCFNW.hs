@@ -7,12 +7,15 @@ module QCompose.Primitives.Search.QSearchCFNW (
 
 import Control.Monad (when)
 import Control.Monad.Except (throwError)
+import Control.Monad.Extra (anyM)
+import Lens.Micro
 import Lens.Micro.Mtl
 import Text.Printf
 
 import QCompose.Control.Monad
 import qualified QCompose.Data.Context as Ctx
 
+import Data.Maybe (fromMaybe)
 import qualified QCompose.CQPL as CQPL
 import QCompose.Prelude
 import qualified QCompose.ProtoLang as P
@@ -76,3 +79,14 @@ instance P.TypeCheckablePrimitive QSearchCFNW where
       throwError "Invalid arguments to bind to predicate"
 
     return [P.tbool]
+
+instance P.EvaluatablePrimitive QSearchCFNW where
+  evalPrimitive QSearchCFNW{predicate} arg_vals = do
+    pred_fun <- view $ _1 . Ctx.at predicate . to (fromMaybe (error "unable to find predicate, please typecheck first!"))
+    let search_range = pred_fun ^. to P.param_types . to last . to P.range
+
+    has_sol <- flip anyM search_range $ \val -> do
+      res <- P.evalFun (arg_vals ++ [val]) pred_fun
+      return $ head res /= 0
+
+    return [P.boolToValue has_sol]
