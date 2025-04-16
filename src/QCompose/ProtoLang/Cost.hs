@@ -1,3 +1,5 @@
+{-# LANGUAGE TypeFamilies #-}
+
 module QCompose.ProtoLang.Cost (
   -- * Abstract Formulas
   QSearchFormulas (..),
@@ -29,6 +31,7 @@ module QCompose.ProtoLang.Cost (
   StaticCostEnv,
   UnitaryCostCalculator,
   QuantumMaxCostCalculator,
+  UnitaryCostablePrimitive (..),
 
   -- ** Dynamic
   DynamicCostEnv,
@@ -81,6 +84,12 @@ type StaticCostEnv primT sizeT costT = (QSearchFormulas sizeT costT, FunCtx prim
 
 -- | Monad to compute unitary cost.
 type UnitaryCostCalculator primT sizeT costT = MyReaderT (StaticCostEnv primT sizeT costT) Maybe
+
+-- | Primitives that support evaluation
+class UnitaryCostablePrimitive primT where
+  type PrimSizeT primT
+  type PrimCostT primT
+  unitaryQueryCostPrimitive :: PrimCostT primT -> primT -> UnitaryCostCalculator primsT (PrimSizeT primT) (PrimCostT primT) (PrimCostT primT)
 
 -- | Evaluate the query cost of an expression
 unitaryQueryCostE ::

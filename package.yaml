@@ -46,6 +46,7 @@ default-extensions:
   - ApplicativeDo
   - RankNTypes
   - FlexibleContexts
+  - TypeFamilies
 
 library:
   source-dirs: src

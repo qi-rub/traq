@@ -73,6 +73,7 @@ library
           ApplicativeDo
           RankNTypes
           FlexibleContexts
+          TypeFamilies
           Safe
     ghc-options: -Wall
     default-language: Haskell2010
@@ -88,6 +89,7 @@ executable cqplcompile
           ApplicativeDo
           RankNTypes
           FlexibleContexts
+          TypeFamilies
           RecordWildCards
     ghc-options: -Wall
     build-depends:
@@ -117,6 +119,7 @@ executable matrixsearch
           ApplicativeDo
           RankNTypes
           FlexibleContexts
+          TypeFamilies
           RecordWildCards
     ghc-options: -Wall
     build-depends:
@@ -146,6 +149,7 @@ executable uqplcompile
           ApplicativeDo
           RankNTypes
           FlexibleContexts
+          TypeFamilies
           RecordWildCards
     ghc-options: -Wall
     build-depends:
@@ -175,6 +179,7 @@ executable uqpltoquipper
           ApplicativeDo
           RankNTypes
           FlexibleContexts
+          TypeFamilies
           RecordWildCards
     ghc-options: -Wall
     build-depends:
@@ -221,6 +226,7 @@ test-suite spec
           ApplicativeDo
           RankNTypes
           FlexibleContexts
+          TypeFamilies
     ghc-options: -Wall
     cpp-options: -DTEST
     build-depends:

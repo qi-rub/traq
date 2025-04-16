@@ -63,9 +63,10 @@ _QSearchZalka n delta = 2 * nq -- for compute-uncompute
 -- Primitive Class Implementation
 -- ================================================================================
 
-newtype QSearchCFNW = QSearchCFNW {predicate :: Ident}
+newtype QSearchCFNW sizeT costT = QSearchCFNW {predicate :: Ident}
 
-instance P.TypeCheckablePrimitive QSearchCFNW where
+-- | TypeCheck an `any` call
+instance P.TypeCheckablePrimitive (QSearchCFNW sizeT costT) where
   typeCheckPrimitive QSearchCFNW{predicate} args = do
     P.FunDef{P.param_types, P.ret_types} <-
       view (Ctx.at predicate)
@@ -80,7 +81,10 @@ instance P.TypeCheckablePrimitive QSearchCFNW where
 
     return [P.tbool]
 
-instance P.EvaluatablePrimitive QSearchCFNW where
+{- | Evaluate an `any` call by evaluating the predicate on each element of the search space
+ and or-ing the results.
+-}
+instance P.EvaluatablePrimitive (QSearchCFNW sizeT costT) where
   evalPrimitive QSearchCFNW{predicate} arg_vals = do
     pred_fun <- view $ _1 . Ctx.at predicate . to (fromMaybe (error "unable to find predicate, please typecheck first!"))
     let search_range = pred_fun ^. to P.param_types . to last . to P.range
@@ -90,3 +94,29 @@ instance P.EvaluatablePrimitive QSearchCFNW where
       return $ head res /= 0
 
     return [P.boolToValue has_sol]
+
+-- | Compute the unitary cost using the QSearch_Zalka cost formula.
+instance (Integral sizeT, Floating costT) => P.UnitaryCostablePrimitive (QSearchCFNW sizeT costT) where
+  type PrimSizeT (QSearchCFNW sizeT costT) = sizeT
+  type PrimCostT (QSearchCFNW sizeT costT) = costT
+
+  unitaryQueryCostPrimitive delta QSearchCFNW{predicate} = do
+    P.FunDef{P.param_types} <- view $ _2 . Ctx.at predicate . singular _Just
+    let P.Fin n = param_types & last
+
+    -- split the precision
+    let delta_search = delta / 2
+    let delta_pred = delta - delta_search
+
+    -- number of predicate queries
+    let qry = _QSearchZalka n delta_search
+
+    -- precision per predicate call
+    let delta_per_pred_call = delta_pred / qry
+
+    -- cost of each predicate call
+    cost_pred <-
+      P.unitaryQueryCostE delta_per_pred_call $
+        P.FunCallE{P.fun_kind = P.FunctionCall predicate, P.args = undefined}
+
+    return $ qry * cost_pred
