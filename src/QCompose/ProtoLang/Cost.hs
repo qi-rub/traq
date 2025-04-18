@@ -1,4 +1,5 @@
-{-# LANGUAGE TypeFamilies #-}
+{-# LANGUAGE FlexibleInstances #-}
+{-# LANGUAGE MultiParamTypeClasses #-}
 
 module QCompose.ProtoLang.Cost (
   -- * Abstract Formulas
@@ -52,9 +53,11 @@ import QCompose.Control.Monad
 import qualified QCompose.Data.Context as Ctx
 import qualified QCompose.Data.Tree as Tree
 
+import Data.Void (Void, absurd)
 import QCompose.Prelude
 import QCompose.ProtoLang.Eval
 import QCompose.ProtoLang.Syntax
+import QCompose.ProtoLang.TypeCheck
 
 -- | Computed cost functions (quantum, unitary) of a given set of algorithms implementing quantum search
 data QSearchFormulas sizeT costT = QSearchFormulas
@@ -85,11 +88,15 @@ type StaticCostEnv primT sizeT costT = (QSearchFormulas sizeT costT, FunCtx prim
 -- | Monad to compute unitary cost.
 type UnitaryCostCalculator primT sizeT costT = MyReaderT (StaticCostEnv primT sizeT costT) Maybe
 
--- | Primitives that support evaluation
-class UnitaryCostablePrimitive primT where
-  type PrimSizeT primT
-  type PrimCostT primT
-  unitaryQueryCostPrimitive :: PrimCostT primT -> primT -> UnitaryCostCalculator primsT (PrimSizeT primT) (PrimCostT primT) (PrimCostT primT)
+-- | Primitives that have a unitary cost
+class (TypeCheckablePrimitive primT sizeT) => UnitaryCostablePrimitive primT sizeT costT where
+  unitaryQueryCostPrimitive ::
+    costT ->
+    primT ->
+    UnitaryCostCalculator primsT sizeT costT costT
+
+instance UnitaryCostablePrimitive Void sizeT costT where
+  unitaryQueryCostPrimitive _ = absurd
 
 -- | Evaluate the query cost of an expression
 unitaryQueryCostE ::

@@ -1,3 +1,6 @@
+{-# LANGUAGE FlexibleInstances #-}
+{-# LANGUAGE MultiParamTypeClasses #-}
+
 module QCompose.Primitives () where
 
 import QCompose.Control.Monad
@@ -12,5 +15,5 @@ import QCompose.Primitives.Search.QSearchCFNW
 
 data DefaultPrims = QAny QSearchCFNW
 
-instance P.TypeCheckablePrimitive DefaultPrims where
+instance P.TypeCheckablePrimitive DefaultPrims sizeT where
   typeCheckPrimitive (QAny q) = P.typeCheckPrimitive q

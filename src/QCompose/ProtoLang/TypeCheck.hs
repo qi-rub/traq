@@ -1,3 +1,6 @@
+{-# LANGUAGE FlexibleInstances #-}
+{-# LANGUAGE MultiParamTypeClasses #-}
+
 module QCompose.ProtoLang.TypeCheck (
   -- * Types
   TypingEnv,
@@ -59,7 +62,7 @@ lookupFunE fname =
   view (Ctx.at fname)
     >>= maybeWithError (printf "cannot find function `%s`" fname)
 
-class TypeCheckablePrimitive primT where
+class TypeCheckablePrimitive primT sizeT where
   typeCheckPrimitive ::
     (TypeCheckable sizeT) =>
     -- | primitive
@@ -68,7 +71,7 @@ class TypeCheckablePrimitive primT where
     [Ident] ->
     TypeChecker primsT sizeT [VarType sizeT]
 
-instance TypeCheckablePrimitive Void where
+instance TypeCheckablePrimitive Void sizeT where
   typeCheckPrimitive prim _ = absurd prim
 
 -- | Typecheck a subroutine call
@@ -117,7 +120,9 @@ checkPrimitive prim_name prim_params _ =
 -- | Typecheck an expression and return the output types
 checkExpr ::
   forall primT sizeT.
-  (TypeCheckablePrimitive primT, TypeCheckable sizeT) =>
+  ( TypeCheckablePrimitive primT sizeT
+  , TypeCheckable sizeT
+  ) =>
   Expr primT sizeT ->
   TypeChecker primT sizeT [VarType sizeT]
 -- x
@@ -180,7 +185,9 @@ checkExpr FunCallE{fun_kind = PrimitiveCall prim, args} = typeCheckPrimitive pri
 -}
 checkStmt ::
   forall primT sizeT.
-  (TypeCheckablePrimitive primT, TypeCheckable sizeT) =>
+  ( TypeCheckablePrimitive primT sizeT
+  , TypeCheckable sizeT
+  ) =>
   Stmt primT sizeT ->
   TypeChecker primT sizeT ()
 -- single statement
@@ -207,7 +214,13 @@ checkStmt IfThenElseS{cond, s_true, s_false} = do
   id .= sigma_t
 
 -- | Type check a single function.
-typeCheckFun :: (TypeCheckablePrimitive primT, TypeCheckable a) => FunCtx primT a -> FunDef primT a -> Either String ()
+typeCheckFun ::
+  ( TypeCheckablePrimitive primT sizeT
+  , TypeCheckable sizeT
+  ) =>
+  FunCtx primT sizeT ->
+  FunDef primT sizeT ->
+  Either String ()
 typeCheckFun
   funCtx
   FunDef
@@ -236,7 +249,13 @@ typeCheckFun
 typeCheckFun _ FunDef{mbody = Nothing} = return ()
 
 -- | Type check a full program (i.e. list of functions).
-typeCheckProg :: (TypeCheckablePrimitive primT, TypeCheckable a) => TypingCtx a -> Program primT a -> Either String (TypingCtx a)
+typeCheckProg ::
+  ( TypeCheckablePrimitive primT sizeT
+  , TypeCheckable sizeT
+  ) =>
+  TypingCtx sizeT ->
+  Program primT sizeT ->
+  Either String (TypingCtx sizeT)
 typeCheckProg gamma Program{funCtx, stmt} = do
   mapM_ (typeCheckFun funCtx) funCtx
   execMyReaderStateT (checkStmt stmt) funCtx gamma

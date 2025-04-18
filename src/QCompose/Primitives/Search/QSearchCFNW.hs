@@ -1,3 +1,6 @@
+{-# LANGUAGE FlexibleInstances #-}
+{-# LANGUAGE MultiParamTypeClasses #-}
+
 module QCompose.Primitives.Search.QSearchCFNW (
   _EQSearch,
   _EQSearchWorst,
@@ -63,10 +66,10 @@ _QSearchZalka n delta = 2 * nq -- for compute-uncompute
 -- Primitive Class Implementation
 -- ================================================================================
 
-newtype QSearchCFNW sizeT costT = QSearchCFNW {predicate :: Ident}
+newtype QSearchCFNW = QSearchCFNW {predicate :: Ident}
 
 -- | TypeCheck an `any` call
-instance P.TypeCheckablePrimitive (QSearchCFNW sizeT costT) where
+instance P.TypeCheckablePrimitive QSearchCFNW sizeT where
   typeCheckPrimitive QSearchCFNW{predicate} args = do
     P.FunDef{P.param_types, P.ret_types} <-
       view (Ctx.at predicate)
@@ -84,7 +87,7 @@ instance P.TypeCheckablePrimitive (QSearchCFNW sizeT costT) where
 {- | Evaluate an `any` call by evaluating the predicate on each element of the search space
  and or-ing the results.
 -}
-instance P.EvaluatablePrimitive (QSearchCFNW sizeT costT) where
+instance P.EvaluatablePrimitive QSearchCFNW where
   evalPrimitive QSearchCFNW{predicate} arg_vals = do
     pred_fun <- view $ _1 . Ctx.at predicate . to (fromMaybe (error "unable to find predicate, please typecheck first!"))
     let search_range = pred_fun ^. to P.param_types . to last . to P.range
@@ -96,10 +99,10 @@ instance P.EvaluatablePrimitive (QSearchCFNW sizeT costT) where
     return [P.boolToValue has_sol]
 
 -- | Compute the unitary cost using the QSearch_Zalka cost formula.
-instance (Integral sizeT, Floating costT) => P.UnitaryCostablePrimitive (QSearchCFNW sizeT costT) where
-  type PrimSizeT (QSearchCFNW sizeT costT) = sizeT
-  type PrimCostT (QSearchCFNW sizeT costT) = costT
-
+instance
+  (Integral sizeT, Floating costT) =>
+  P.UnitaryCostablePrimitive QSearchCFNW sizeT costT
+  where
   unitaryQueryCostPrimitive delta QSearchCFNW{predicate} = do
     P.FunDef{P.param_types} <- view $ _2 . Ctx.at predicate . singular _Just
     let P.Fin n = param_types & last

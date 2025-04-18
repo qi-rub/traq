@@ -1,3 +1,6 @@
+{-# LANGUAGE FlexibleInstances #-}
+{-# LANGUAGE MultiParamTypeClasses #-}
+
 module QCompose.UnitaryQPL.Lowering where
 
 import Control.Monad (forM, msum, replicateM, unless, when)
@@ -66,10 +69,13 @@ that is, contains both the inputs and outputs of each statement.
 type CompilerT primT holeT sizeT costT = MyReaderWriterStateT (LoweringConfig primT holeT sizeT costT) (LoweringOutput holeT sizeT) (LoweringCtx sizeT) (Either String)
 
 -- | Primitives that support a unitary lowering.
-class (P.TypeCheckablePrimitive primT) => Lowerable primT where
-  lowerPrimitive :: forall holeT sizeT costT. primT -> CompilerT primT holeT sizeT costT (Stmt holeT sizeT)
+class (P.UnitaryCostablePrimitive primT sizeT costT) => Lowerable primT sizeT costT where
+  lowerPrimitive ::
+    forall holeT.
+    primT ->
+    CompilerT primT holeT sizeT costT (Stmt holeT sizeT)
 
-instance Lowerable Void where
+instance Lowerable Void sizeT costT where
   lowerPrimitive = absurd
 
 -- ================================================================================
@@ -120,7 +126,11 @@ data LoweredProc holeT sizeT costT = LoweredProc
 -- | Compile a single expression statement
 lowerExpr ::
   forall primT holeT sizeT costT.
-  (Lowerable primT, P.TypeCheckable sizeT, Show costT, Floating costT) =>
+  ( Lowerable primT sizeT costT
+  , P.TypeCheckable sizeT
+  , Show costT
+  , Floating costT
+  ) =>
   costT ->
   P.Expr primT sizeT ->
   -- | returns
@@ -243,7 +253,11 @@ lowerExpr _ _ _ = throwError "cannot compile unsupported expression"
 
 -- | Compile a statement (simple or compound)
 lowerStmt ::
-  (Lowerable primT, P.TypeCheckable sizeT, Show costT, Floating costT) =>
+  ( Lowerable primT sizeT costT
+  , P.TypeCheckable sizeT
+  , Show costT
+  , Floating costT
+  ) =>
   costT ->
   P.Stmt primT sizeT ->
   CompilerT primT holeT sizeT costT (Stmt holeT sizeT)
@@ -271,7 +285,11 @@ lowerStmt _ _ = error "lowering: unsupported"
  TODO try to cache compiled procs by key (funDefName, Precision).
 -}
 lowerFunDefWithGarbage ::
-  (Lowerable primT, P.TypeCheckable sizeT, Show costT, Floating costT) =>
+  ( Lowerable primT sizeT costT
+  , P.TypeCheckable sizeT
+  , Show costT
+  , Floating costT
+  ) =>
   -- | precision \delta
   costT ->
   P.FunDef primT sizeT ->
@@ -322,7 +340,11 @@ withTag tag = map $ \(x, ty) -> (x, tag, ty)
  TODO try to cache compiled procs by key (funDefName, Precision).
 -}
 lowerFunDef ::
-  (Lowerable primT, P.TypeCheckable sizeT, Show costT, Floating costT) =>
+  ( Lowerable primT sizeT costT
+  , P.TypeCheckable sizeT
+  , Show costT
+  , Floating costT
+  ) =>
   -- | precision \delta
   costT ->
   P.FunDef primT sizeT ->
@@ -408,7 +430,10 @@ lowerFunDef
 
 -- | Lower a full program into a UQPL program.
 lowerProgram ::
-  (Lowerable primT, Show costT, Floating costT) =>
+  ( Lowerable primT SizeT costT
+  , Show costT
+  , Floating costT
+  ) =>
   -- | A unitary implementation for QSearch (`any`)
   QSearchUnitaryImpl holeT SizeT costT ->
   -- | All variable bindings
