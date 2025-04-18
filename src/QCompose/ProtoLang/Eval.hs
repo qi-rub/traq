@@ -73,6 +73,10 @@ boolToValue :: Bool -> Value
 boolToValue True = 1
 boolToValue False = 0
 
+valueToBool :: Value -> Bool
+valueToBool 0 = False
+valueToBool _ = True
+
 evalUnOp :: UnOp -> Value -> Value
 evalUnOp NotOp 0 = 1
 evalUnOp NotOp _ = 0
@@ -86,7 +90,11 @@ evalBinOp AndOp 0 _ = 0
 evalBinOp AndOp _ 0 = 0
 evalBinOp AndOp _ _ = 1
 
-evalExpr :: Expr primT SizeT -> Executor primT [Value]
+evalExpr ::
+  forall primT.
+  (EvaluatablePrimitive primT) =>
+  Expr primT SizeT ->
+  Executor primT [Value]
 -- basic expressions
 evalExpr VarE{arg} = do
   v <- lookupS arg
@@ -101,6 +109,10 @@ evalExpr BinOpE{bin_op, lhs, rhs} = do
   rhs_val <- lookupS rhs
   let ret_val = evalBinOp bin_op lhs_val rhs_val
   return [ret_val]
+evalExpr TernaryE{branch, lhs, rhs} = do
+  b <- lookupS branch
+  v <- lookupS $ if valueToBool b then lhs else rhs
+  return [v]
 -- function calls
 evalExpr FunCallE{fun_kind = FunctionCall fun, args} = do
   arg_vals <- mapM lookupS args
@@ -140,10 +152,13 @@ evalExpr FunCallE{fun_kind = PrimitiveCallOld prim_name [predicate], args}
     head
       <$> evalExpr
         FunCallE{fun_kind = FunctionCall predicate, args = args ++ [s_arg]}
+evalExpr FunCallE{fun_kind = PrimitiveCall prim, args} = do
+  vals <- mapM lookupS args
+  embedReaderT $ evalPrimitive prim vals
 -- unsupported
 evalExpr _ = error "unsupported"
 
-execStmt :: Stmt primT SizeT -> Executor primT ()
+execStmt :: (EvaluatablePrimitive primT) => Stmt primT SizeT -> Executor primT ()
 execStmt ExprS{rets, expr} = do
   vals <- withSandbox $ evalExpr expr
   zipWithM_ putS rets vals
@@ -153,7 +168,7 @@ execStmt IfThenElseS{cond, s_true, s_false} = do
   execStmt s
 execStmt (SeqS ss) = mapM_ execStmt ss
 
-evalFun :: [Value] -> FunDef primT SizeT -> Evaluator primT [Value]
+evalFun :: (EvaluatablePrimitive primT) => [Value] -> FunDef primT SizeT -> Evaluator primT [Value]
 evalFun vals_in FunDef{mbody = Just FunBody{param_names, ret_names, body_stmt}} =
   let params = Ctx.fromList $ zip param_names vals_in
    in withInjectedState params $ do
@@ -163,7 +178,7 @@ evalFun vals_in FunDef{fun_name, mbody = Nothing} = do
   interp <- view $ _2 . Ctx.at fun_name . singular _Just
   return $ interp vals_in
 
-runProgram :: Program primT SizeT -> FunInterpCtx -> ProgramState -> Tree.Tree ProgramState
+runProgram :: (EvaluatablePrimitive primT) => Program primT SizeT -> FunInterpCtx -> ProgramState -> Tree.Tree ProgramState
 runProgram Program{funCtx, stmt} oracleF st = view _2 <$> runRWST (execStmt stmt) env st
  where
   env = (funCtx, oracleF)

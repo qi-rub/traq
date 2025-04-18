@@ -4,23 +4,24 @@ import Data.Void (Void)
 import qualified QCompose.Data.Context as Ctx
 
 import QCompose.Prelude
+import QCompose.Primitives
 import QCompose.ProtoLang.Syntax
 
-arraySearch :: SizeT -> Program Void SizeT
+arraySearch :: SizeT -> Program DefaultPrims SizeT
 arraySearch n =
   Program
     { funCtx = Ctx.fromListWith fun_name [oracle_decl]
     , stmt
     }
  where
-  oracle_decl :: FunDef Void SizeT
+  oracle_decl :: FunDef DefaultPrims SizeT
   oracle_decl = FunDef{fun_name = "Oracle", param_types = [Fin n], ret_types = [Fin 2], mbody = Nothing}
 
   stmt =
     ExprS
       { expr =
           FunCallE
-            { fun_kind = PrimitiveCallOld "any" ["Oracle"]
+            { fun_kind = PrimitiveCall $ QAny (QSearchCFNW "Oracle")
             , args = []
             }
       , rets = ["result"]

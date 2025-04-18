@@ -190,8 +190,22 @@ unitaryQueryCost algs delta Program{funCtx, stmt} oracle_name =
 -- Environment to compute the max quantum cost (input independent)
 type QuantumMaxCostCalculator primT sizeT costT = MyReaderT (StaticCostEnv primT sizeT costT) Maybe
 
+-- | Primitives that have a quantum max cost
+class
+  (UnitaryCostablePrimitive primT sizeT costT) =>
+  QuantumMaxCostablePrimitive primT sizeT costT
+  where
+  quantumMaxQueryCostPrimitive ::
+    costT ->
+    primT ->
+    QuantumMaxCostCalculator primsT sizeT costT costT
+
 quantumMaxQueryCostE ::
-  (Num sizeT, Ord costT, Floating costT) =>
+  ( Num sizeT
+  , Ord costT
+  , Floating costT
+  , QuantumMaxCostablePrimitive primT sizeT costT
+  ) =>
   -- | failure probability \( \varepsilon \)
   costT ->
   -- | statement @S@
@@ -237,7 +251,11 @@ quantumMaxQueryCostE _ TernaryE{} = return 0
 quantumMaxQueryCostE _ FunCallE{} = error "invalid syntax"
 
 quantumMaxQueryCostS ::
-  (Num sizeT, Ord costT, Floating costT) =>
+  ( Num sizeT
+  , Ord costT
+  , Floating costT
+  , QuantumMaxCostablePrimitive primT sizeT costT
+  ) =>
   -- | failure probability \( \varepsilon \)
   costT ->
   -- | statement @S@
@@ -255,7 +273,11 @@ quantumMaxQueryCostS _ _ = error "INVALID"
 
 quantumMaxQueryCost ::
   forall primT sizeT costT.
-  (Num sizeT, Ord costT, Floating costT) =>
+  ( Num sizeT
+  , Ord costT
+  , Floating costT
+  , QuantumMaxCostablePrimitive primT sizeT costT
+  ) =>
   -- | Qry formulas
   QSearchFormulas sizeT costT ->
   -- | failure probability `eps`
@@ -278,8 +300,23 @@ type DynamicCostEnv primT sizeT costT = (QSearchFormulas sizeT costT, FunCtx pri
 
 type QuantumCostCalculator primT sizeT costT = MyReaderT (DynamicCostEnv primT sizeT costT) Maybe
 
+-- | Primitives that have a input dependent expected quantum cost
+class
+  ( QuantumMaxCostablePrimitive primT sizeT costT
+  , EvaluatablePrimitive primT
+  ) =>
+  QuantumCostablePrimitive primT sizeT costT
+  where
+  quantumQueryCostPrimitive ::
+    costT ->
+    primT ->
+    QuantumCostCalculator primsT sizeT costT costT
+
 quantumQueryCostE ::
-  (Floating costT) =>
+  forall primT costT.
+  ( Floating costT
+  , QuantumCostablePrimitive primT SizeT costT
+  ) =>
   -- | failure probability \( \varepsilon \)
   costT ->
   -- | state \( \sigma \)
@@ -354,7 +391,7 @@ extractUEnv :: Lens' (DynamicCostEnv primT sizeT costT) (StaticCostEnv primT siz
 extractUEnv focus (a, b, c, d) = (\(a', b', d') -> (a', b', c, d')) <$> focus (a, b, d)
 
 quantumQueryCostS ::
-  (Floating costT) =>
+  (Floating costT, QuantumCostablePrimitive primT SizeT costT) =>
   -- | failure probability \( \varepsilon \)
   costT ->
   -- | state \( \sigma \)
@@ -380,7 +417,7 @@ quantumQueryCostS _ _ _ = error "INVALID"
 
 quantumQueryCost ::
   forall primT costT.
-  (Floating costT) =>
+  (Floating costT, QuantumCostablePrimitive primT SizeT costT) =>
   -- | Qry formulas
   QSearchFormulas SizeT costT ->
   -- | failure probability \( \varepsilon \)
@@ -401,7 +438,10 @@ quantumQueryCost algs a_eps Program{funCtx, stmt} oracle_name interpCtx sigma =
 -- | The bound on the true expected runtime which fails with probability <= \eps.
 quantumQueryCostBound ::
   forall primT costT.
-  (Ord costT, Floating costT) =>
+  ( Ord costT
+  , Floating costT
+  , QuantumCostablePrimitive primT SizeT costT
+  ) =>
   -- | Qry formulas
   QSearchFormulas SizeT costT ->
   -- | failure probability \( \varepsilon \)

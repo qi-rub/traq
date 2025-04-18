@@ -71,9 +71,9 @@ type CompilerT primT holeT sizeT costT = MyReaderWriterStateT (LoweringConfig pr
 -- | Primitives that support a unitary lowering.
 class (P.UnitaryCostablePrimitive primT sizeT costT) => Lowerable primT sizeT costT where
   lowerPrimitive ::
-    forall holeT.
+    forall primsT holeT.
     primT ->
-    CompilerT primT holeT sizeT costT (Stmt holeT sizeT)
+    CompilerT primsT holeT sizeT costT (Stmt holeT sizeT)
 
 instance Lowerable Void sizeT costT where
   lowerPrimitive = absurd

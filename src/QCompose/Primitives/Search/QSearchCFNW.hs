@@ -5,12 +5,13 @@ module QCompose.Primitives.Search.QSearchCFNW (
   _EQSearch,
   _EQSearchWorst,
   _QSearchZalka,
-  QSearchCFNW,
+  QSearchCFNW (..),
 ) where
 
 import Control.Monad (when)
 import Control.Monad.Except (throwError)
 import Control.Monad.Extra (anyM)
+import Data.Maybe (fromMaybe)
 import Lens.Micro
 import Lens.Micro.Mtl
 import Text.Printf
@@ -18,11 +19,11 @@ import Text.Printf
 import QCompose.Control.Monad
 import qualified QCompose.Data.Context as Ctx
 
-import Data.Maybe (fromMaybe)
 import qualified QCompose.CQPL as CQPL
 import QCompose.Prelude
 import qualified QCompose.ProtoLang as P
 import qualified QCompose.UnitaryQPL as UQPL
+import QCompose.Utils.Printing
 
 -- ================================================================================
 -- Cost Formulas
@@ -67,6 +68,9 @@ _QSearchZalka n delta = 2 * nq -- for compute-uncompute
 -- ================================================================================
 
 newtype QSearchCFNW = QSearchCFNW {predicate :: Ident}
+
+instance ToCodeString QSearchCFNW where
+  toCodeString QSearchCFNW{predicate} = printf "any[%s]" predicate
 
 -- | TypeCheck an `any` call
 instance P.TypeCheckablePrimitive QSearchCFNW sizeT where
@@ -123,3 +127,5 @@ instance
         P.FunCallE{P.fun_kind = P.FunctionCall predicate, P.args = undefined}
 
     return $ qry * cost_pred
+
+instance (Integral sizeT, Floating costT) => UQPL.Lowerable QSearchCFNW sizeT costT
