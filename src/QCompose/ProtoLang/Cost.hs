@@ -125,28 +125,6 @@ unitaryQueryCostE delta FunCallE{fun_kind = FunctionCall fname} = do
       case mbody of
         Nothing -> return 0 -- no cost for injected data
         Just FunBody{body_stmt} -> (2 *) <$> unitaryQueryCostS (delta / 2) body_stmt
-unitaryQueryCostE delta FunCallE{fun_kind = PrimitiveCallOld c [predicate]}
-  | c == "any" || c == "search" = do
-      FunDef{param_types} <- view $ _2 . to (unsafeLookupFun predicate)
-      let Fin n = param_types & last
-
-      -- split the precision
-      let delta_search = delta / 2
-      let delta_pred = delta - delta_search
-
-      -- number of predicate queries
-      qry_formula <- view $ _1 . to qSearchUnitaryCost
-      let qry = qry_formula n delta_search
-
-      -- precision per predicate call
-      let delta_per_pred_call = delta_pred / qry
-
-      -- cost of each predicate call
-      cost_pred <-
-        unitaryQueryCostE delta_per_pred_call $
-          FunCallE{fun_kind = FunctionCall predicate, args = undefined}
-
-      return $ qry * cost_pred
 unitaryQueryCostE delta FunCallE{fun_kind = PrimitiveCall prim} =
   unitaryQueryCostPrimitive delta prim
 -- zero-cost expressions
@@ -243,24 +221,6 @@ quantumMaxQueryCostE eps FunCallE{fun_kind = FunctionCall fname} = do
         Just FunBody{body_stmt} -> quantumMaxQueryCostS eps body_stmt
 
 -- -- known cost formulas
-quantumMaxQueryCostE eps FunCallE{fun_kind = PrimitiveCallOld c [predicate]}
-  | c == "any" || c == "search" = do
-      FunDef{param_types} <- view $ _2 . to (unsafeLookupFun predicate)
-
-      let Fin n = last param_types
-
-      worst_case_formula <- view $ _1 . to qSearchWorstCaseCost
-
-      let eps_s = eps / 2
-      let n_pred_calls = worst_case_formula n eps_s
-      let eps_per_pred_call = (eps - eps_s) / n_pred_calls
-
-      let delta_per_pred_call = eps_per_pred_call / 2
-      pred_unitary_cost <-
-        unitaryQueryCostE delta_per_pred_call $
-          FunCallE{fun_kind = FunctionCall predicate, args = undefined}
-
-      return $ n_pred_calls * pred_unitary_cost
 quantumMaxQueryCostE eps FunCallE{fun_kind = PrimitiveCall prim} =
   quantumMaxQueryCostPrimitive eps prim
 -- -- zero-cost expressions
@@ -365,44 +325,6 @@ quantumQueryCostE eps sigma FunCallE{fun_kind = FunctionCall f, args} = do
           quantumQueryCostS eps omega body_stmt
 
 -- -- known cost formulas
-quantumQueryCostE eps sigma FunCallE{fun_kind = PrimitiveCallOld c [predicate], args}
-  | c == "any" || c == "search" = do
-      let vs = args & map (\x -> sigma ^. Ctx.at x . singular _Just)
-
-      predDef@FunDef{param_types} <- view $ _2 . to (unsafeLookupFun predicate)
-      let typ_x = last param_types
-
-      let space = range typ_x
-      sols <- do
-        env <- (,) <$> view _2 <*> view _3
-        -- TODO this is too convoluted...
-        return $
-          (`runMyReaderT` env) $
-            (`filterM` space)
-              ( \v -> do
-                  result <- evalFun (vs ++ [v]) predDef
-                  let [b] = result
-                  return $ b /= 0
-              )
-
-      let n = length space
-      let t = minimum $ fmap length sols
-
-      let eps_search = eps / 2
-      let eps_pred = eps - eps_search
-
-      exp_case_formula <- view $ _1 . to qSearchExpectedCost
-      let n_pred_calls = exp_case_formula n t eps_search
-
-      worst_case_formula <- view $ _1 . to qSearchWorstCaseCost
-      let q_worst = worst_case_formula n eps_search
-      let eps_per_pred_call = eps_pred / q_worst
-      let delta_per_pred_call = eps_per_pred_call / 2
-
-      pred_unitary_cost <-
-        magnify extractUEnv $
-          unitaryQueryCostE delta_per_pred_call FunCallE{fun_kind = FunctionCall predicate, args = undefined}
-      return $ n_pred_calls * pred_unitary_cost
 quantumQueryCostE eps sigma FunCallE{fun_kind = PrimitiveCall prim, args} = do
   let vals = [sigma ^. Ctx.at x . singular _Just | x <- args]
   quantumQueryCostPrimitive eps prim vals
@@ -493,7 +415,6 @@ quantumQueryCostBound algs a_eps p oracle_name interp_ctx sigma =
 needsEpsS :: Stmt primsT sizeT -> MyReaderT (FunCtx primsT sizeT) Identity Bool
 needsEpsS IfThenElseS{s_true, s_false} = (||) <$> needsEpsS s_true <*> needsEpsS s_false
 needsEpsS (SeqS ss) = or <$> traverse needsEpsS ss
-needsEpsS ExprS{expr = FunCallE{fun_kind = PrimitiveCallOld _ _}} = return True
 needsEpsS ExprS{expr = FunCallE{fun_kind = FunctionCall f}} = do
   view (to (unsafeLookupFun f) . to mbody) >>= \case
     Just FunBody{body_stmt} -> needsEpsS body_stmt

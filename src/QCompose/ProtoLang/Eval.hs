@@ -24,7 +24,6 @@ module QCompose.ProtoLang.Eval (
 ) where
 
 import Control.Monad (filterM, zipWithM_)
-import Control.Monad.Extra (anyM)
 import Control.Monad.RWS (MonadState, runRWST)
 import Control.Monad.Trans (lift)
 import Lens.Micro
@@ -130,40 +129,10 @@ evalExpr FunCallE{fun_kind = FunctionCall fun, args} = do
   embedReaderT $ evalFun arg_vals fun_def
 
 -- subroutines
--- `any` / `search`
-evalExpr FunCallE{fun_kind = PrimitiveCallOld prim_name [predicate], args}
-  | prim_name == "any" = do
-      search_range <- get_search_range
-      has_sol <- anyM evalPredicate search_range
-
-      return [boolToValue has_sol]
-  | prim_name == "search" = do
-      search_range <- get_search_range
-      sols <- filterM evalPredicate search_range
-
-      let has_sol = not $ null sols
-      let out_vals = if has_sol then sols else search_range
-      lift $ Tree.choice [pure [boolToValue has_sol, v] | v <- out_vals]
- where
-  get_search_range :: Executor primsT [Value]
-  get_search_range = do
-    FunDef{param_types = pred_param_types} <- view $ _1 . Ctx.at predicate . singular _Just
-    let s_arg_ty = last pred_param_types
-    let search_range = range s_arg_ty
-    return search_range
-
-  evalPredicate :: Value -> Executor primsT Bool
-  evalPredicate val = (/= 0) <$> runPredicate "_search_arg" val
-
-  runPredicate :: Ident -> Value -> Executor primsT Value
-  runPredicate s_arg val = withSandbox $ do
-    Ctx.ins s_arg .= val
-    head
-      <$> evalExpr
-        FunCallE{fun_kind = FunctionCall predicate, args = args ++ [s_arg]}
 evalExpr FunCallE{fun_kind = PrimitiveCall prim, args} = do
   vals <- mapM lookupS args
   embedReaderT $ evalPrimitive prim vals
+
 -- unsupported
 evalExpr _ = error "unsupported"
 

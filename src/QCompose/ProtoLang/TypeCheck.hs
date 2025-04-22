@@ -174,9 +174,6 @@ checkExpr FunCallE{fun_kind = FunctionCall fun, args} = do
 
   return ret_types
 
--- `subroutine`(...)
-checkExpr FunCallE{fun_kind = PrimitiveCallOld prim_name prim_params, args} = do
-  checkPrimitive prim_name prim_params args
 -- `primitive`[...](...)
 checkExpr FunCallE{fun_kind = PrimitiveCall prim, args} = typeCheckPrimitive prim args
 

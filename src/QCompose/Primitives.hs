@@ -5,11 +5,8 @@
 module QCompose.Primitives (
   DefaultPrims (..),
   QSearchCFNW (..),
+  qAnyCFNW,
 ) where
-
-import QCompose.Control.Monad
-import qualified QCompose.Data.Context as Ctx
-import Text.Parsec.Token (TokenParser)
 
 import qualified QCompose.CQPL as CQPL
 import QCompose.Prelude
@@ -29,8 +26,7 @@ instance ToCodeString DefaultPrims where
 
 -- Parsing
 instance P.CanParsePrimitive DefaultPrims where
-  -- primitiveParser :: TokenParser () -> Parser primT
-  primitiveParser tp = undefined
+  primitiveParser tp = QAny <$> P.primitiveParser tp
 
 -- Type Checking
 instance P.TypeCheckablePrimitive DefaultPrims sizeT where

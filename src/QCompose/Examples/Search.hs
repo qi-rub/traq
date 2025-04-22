@@ -1,6 +1,5 @@
 module QCompose.Examples.Search where
 
-import Data.Void (Void)
 import qualified QCompose.Data.Context as Ctx
 
 import QCompose.Prelude
@@ -21,23 +20,23 @@ arraySearch n =
     ExprS
       { expr =
           FunCallE
-            { fun_kind = PrimitiveCall $ QAny (QSearchCFNW "Oracle")
+            { fun_kind = PrimitiveCall $ QAny (qAnyCFNW "Oracle")
             , args = []
             }
       , rets = ["result"]
       }
 
-arraySearchIx :: SizeT -> Program Void SizeT
+arraySearchIx :: SizeT -> Program DefaultPrims SizeT
 arraySearchIx n =
   Program
     { funCtx = Ctx.fromListWith fun_name [oracle_decl, check]
     , stmt
     }
  where
-  oracle_decl :: FunDef Void SizeT
+  oracle_decl :: FunDef DefaultPrims SizeT
   oracle_decl = FunDef{fun_name = "Oracle", param_types = [Fin n], ret_types = [Fin 2], mbody = Nothing}
 
-  check :: FunDef Void SizeT
+  check :: FunDef DefaultPrims SizeT
   check =
     FunDef
       { fun_name = "check"
@@ -65,7 +64,7 @@ arraySearchIx n =
       { rets = ["result", "solution"]
       , expr =
           FunCallE
-            { fun_kind = PrimitiveCallOld "search" ["check"]
+            { fun_kind = PrimitiveCall (QAny $ QSearchCFNW{predicate = "check", return_sol = True})
             , args = []
             }
       }

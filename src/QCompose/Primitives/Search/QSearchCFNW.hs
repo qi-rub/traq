@@ -7,18 +7,23 @@ module QCompose.Primitives.Search.QSearchCFNW (
   _EQSearchWorst,
   _QSearchZalka,
   QSearchCFNW (..),
+  qAnyCFNW,
 ) where
 
+import Control.Applicative ((<|>))
 import Control.Monad (filterM, when)
 import Control.Monad.Except (throwError)
 import Control.Monad.Extra (anyM)
+import Control.Monad.Trans (lift)
 import Data.Maybe (fromMaybe)
 import Lens.Micro
 import Lens.Micro.Mtl
+import Text.Parsec.Token (GenTokenParser (..))
 import Text.Printf
 
 import QCompose.Control.Monad
 import qualified QCompose.Data.Context as Ctx
+import qualified QCompose.Data.Tree as Tree
 
 import qualified QCompose.CQPL as CQPL
 import QCompose.Prelude
@@ -68,15 +73,32 @@ _QSearchZalka n delta = 2 * nq -- for compute-uncompute
 -- Primitive Class Implementation
 -- ================================================================================
 
-newtype QSearchCFNW = QSearchCFNW {predicate :: Ident}
+data QSearchCFNW = QSearchCFNW {predicate :: Ident, return_sol :: Bool}
   deriving (Eq, Show, Read)
 
+qAnyCFNW :: Ident -> QSearchCFNW
+qAnyCFNW p = QSearchCFNW{return_sol = False, predicate = p}
+
 instance ToCodeString QSearchCFNW where
-  toCodeString QSearchCFNW{predicate} = printf "any[%s]" predicate
+  toCodeString QSearchCFNW{predicate, return_sol = False} = printf "any[%s]" predicate
+  toCodeString QSearchCFNW{predicate, return_sol = True} = printf "search[%s]" predicate
+
+-- Parsing
+instance P.CanParsePrimitive QSearchCFNW where
+  primitiveParser tp = parseAny <|> parseSearch
+   where
+    parseAny = do
+      reserved tp "any"
+      predicate <- brackets tp $ identifier tp
+      return QSearchCFNW{predicate, return_sol = False}
+    parseSearch = do
+      reserved tp "search"
+      predicate <- brackets tp $ identifier tp
+      return QSearchCFNW{predicate, return_sol = True}
 
 -- | TypeCheck an `any` call
 instance P.TypeCheckablePrimitive QSearchCFNW sizeT where
-  typeCheckPrimitive QSearchCFNW{predicate} args = do
+  typeCheckPrimitive QSearchCFNW{predicate, return_sol} args = do
     P.FunDef{P.param_types, P.ret_types} <-
       view (Ctx.at predicate)
         >>= maybeWithError (printf "cannot find search predicate `%s`" predicate)
@@ -88,7 +110,7 @@ instance P.TypeCheckablePrimitive QSearchCFNW sizeT where
     when (init param_types /= arg_tys) $
       throwError "Invalid arguments to bind to predicate"
 
-    return [P.tbool]
+    return $ P.tbool : [last param_types | return_sol]
 
 {- | Evaluate an `any` call by evaluating the predicate on each element of the search space
  and or-ing the results.
@@ -97,7 +119,7 @@ instance
   (P.EvaluatablePrimitive primsT primsT) =>
   P.EvaluatablePrimitive primsT QSearchCFNW
   where
-  evalPrimitive QSearchCFNW{predicate} arg_vals = do
+  evalPrimitive QSearchCFNW{predicate, return_sol = False} arg_vals = do
     pred_fun <- view $ _1 . Ctx.at predicate . to (fromMaybe (error "unable to find predicate, please typecheck first!"))
     let search_range = pred_fun ^. to P.param_types . to last . to P.range
 
@@ -106,6 +128,17 @@ instance
       return $ head res /= 0
 
     return [P.boolToValue has_sol]
+  evalPrimitive QSearchCFNW{predicate, return_sol = True} arg_vals = do
+    pred_fun <- view $ _1 . Ctx.at predicate . to (fromMaybe (error "unable to find predicate, please typecheck first!"))
+    let search_range = pred_fun ^. to P.param_types . to last . to P.range
+
+    sols <- flip filterM search_range $ \val -> do
+      res <- P.evalFun (arg_vals ++ [val]) pred_fun
+      return $ head res /= 0
+
+    let has_sol = not $ null sols
+    let out_vals = if has_sol then sols else search_range
+    lift $ Tree.choice [pure [P.boolToValue has_sol, v] | v <- out_vals]
 
 -- | Compute the unitary cost using the QSearch_Zalka cost formula.
 instance
