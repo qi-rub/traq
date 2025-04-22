@@ -69,6 +69,7 @@ _QSearchZalka n delta = 2 * nq -- for compute-uncompute
 -- ================================================================================
 
 newtype QSearchCFNW = QSearchCFNW {predicate :: Ident}
+  deriving (Eq, Show, Read)
 
 instance ToCodeString QSearchCFNW where
   toCodeString QSearchCFNW{predicate} = printf "any[%s]" predicate
@@ -216,5 +217,14 @@ instance
   , UQPL.Lowerable primsT primsT sizeT costT
   ) =>
   UQPL.Lowerable primsT QSearchCFNW sizeT costT
+  where
+  lowerPrimitive = error "TODO"
+
+instance
+  ( Integral sizeT
+  , Floating costT
+  , CQPL.Lowerable primsT primsT sizeT costT
+  ) =>
+  CQPL.Lowerable primsT QSearchCFNW sizeT costT
   where
   lowerPrimitive = error "TODO"

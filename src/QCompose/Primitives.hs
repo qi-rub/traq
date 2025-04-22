@@ -9,6 +9,7 @@ module QCompose.Primitives (
 
 import QCompose.Control.Monad
 import qualified QCompose.Data.Context as Ctx
+import Text.Parsec.Token (TokenParser)
 
 import qualified QCompose.CQPL as CQPL
 import QCompose.Prelude
@@ -19,11 +20,17 @@ import QCompose.Utils.Printing
 import QCompose.Primitives.Search.QSearchCFNW
 
 newtype DefaultPrims = QAny QSearchCFNW
+  deriving (Eq, Show, Read)
 
 -- Printing
 instance ToCodeString DefaultPrims where
   toCodeString (QAny q) = toCodeString q
   toCodeLines (QAny q) = toCodeLines q
+
+-- Parsing
+instance P.CanParsePrimitive DefaultPrims where
+  -- primitiveParser :: TokenParser () -> Parser primT
+  primitiveParser tp = undefined
 
 -- Type Checking
 instance P.TypeCheckablePrimitive DefaultPrims sizeT where
@@ -75,3 +82,12 @@ instance
   UQPL.Lowerable primsT DefaultPrims sizeT costT
   where
   lowerPrimitive (QAny q) = UQPL.lowerPrimitive q
+
+instance
+  ( Integral sizeT
+  , Floating costT
+  , CQPL.Lowerable primsT primsT sizeT costT
+  ) =>
+  CQPL.Lowerable primsT DefaultPrims sizeT costT
+  where
+  lowerPrimitive (QAny q) = CQPL.lowerPrimitive q
