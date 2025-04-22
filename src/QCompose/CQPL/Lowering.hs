@@ -94,13 +94,16 @@ that is, contains both the inputs and outputs of each statement.
 type CompilerT primT holeT sizeT costT = MyReaderWriterStateT (LoweringEnv primT holeT sizeT costT) (LoweringOutput holeT sizeT) (LoweringCtx sizeT) (Either String)
 
 -- | Primitives that support a classical-quantum lowering.
-class (UQPL.Lowerable primT sizeT costT) => Lowerable primT sizeT costT where
+class
+  (UQPL.Lowerable primsT primT sizeT costT) =>
+  Lowerable primsT primT sizeT costT
+  where
   lowerPrimitive ::
     forall holeT.
     primT ->
-    CompilerT primT holeT sizeT costT (Stmt holeT sizeT)
+    CompilerT primsT holeT sizeT costT (Stmt holeT sizeT)
 
-instance Lowerable Void sizeT costT where
+instance Lowerable primsT Void sizeT costT where
   lowerPrimitive = absurd
 
 -- | Generate a new identifier with the given prefix.
@@ -129,7 +132,8 @@ addProc procDef = tellAt loweredProcs [procDef]
 
 -- | Lower a source function to a procedure call.
 lowerFunDef ::
-  ( Lowerable primT sizeT costT
+  forall primsT sizeT costT holeT.
+  ( Lowerable primsT primsT sizeT costT
   , P.TypeCheckable sizeT
   , Show costT
   , Floating costT
@@ -137,8 +141,8 @@ lowerFunDef ::
   -- | fail prob
   costT ->
   -- | source function
-  P.FunDef primT sizeT ->
-  CompilerT primT holeT sizeT costT Ident
+  P.FunDef primsT sizeT ->
+  CompilerT primsT holeT sizeT costT Ident
 -- lower declarations as-is, ignoring fail prob
 lowerFunDef _ P.FunDef{P.fun_name, P.param_types, P.ret_types, P.mbody = Nothing} = do
   is_oracle <- (fun_name ==) <$> view oracleName
@@ -183,7 +187,8 @@ lowerFunDef eps P.FunDef{P.fun_name, P.param_types, P.mbody = Just body} = do
 
 -- | Lookup a source function by name, and lower it to a procedure call.
 lowerFunDefByName ::
-  ( Lowerable primT sizeT costT
+  forall primsT sizeT costT holeT.
+  ( Lowerable primsT primsT sizeT costT
   , P.TypeCheckable sizeT
   , Show costT
   , Floating costT
@@ -192,14 +197,15 @@ lowerFunDefByName ::
   costT ->
   -- | source function name
   Ident ->
-  CompilerT primT holeT sizeT costT Ident
+  CompilerT primsT holeT sizeT costT Ident
 lowerFunDefByName eps f = do
   fun_def <- view $ protoFunCtx . Ctx.at f . singular _Just
   lowerFunDef eps fun_def
 
 -- | Lower a source expression to a statement.
 lowerExpr ::
-  ( Lowerable primT sizeT costT
+  forall primsT sizeT costT holeT.
+  ( Lowerable primsT primsT sizeT costT
   , P.TypeCheckable sizeT
   , Show costT
   , Floating costT
@@ -207,10 +213,10 @@ lowerExpr ::
   -- fail prob
   costT ->
   -- source expression
-  P.Expr primT sizeT ->
+  P.Expr primsT sizeT ->
   -- return variables
   [Ident] ->
-  CompilerT primT holeT sizeT costT (Stmt holeT sizeT)
+  CompilerT primsT holeT sizeT costT (Stmt holeT sizeT)
 lowerExpr _ P.VarE{P.arg} [ret] = return $ AssignS [ret] VarE{var = arg}
 lowerExpr _ P.ConstE{P.val, P.ty} [ret] = return $ AssignS [ret] ConstE{val, val_ty = ty}
 lowerExpr _ P.UnOpE{P.un_op, P.arg} [ret] =
@@ -276,15 +282,15 @@ lowerExpr _ _ _ = error "TODO implement lowerExpr"
 
 -- | Lower a single statement
 lowerStmt ::
-  forall primT holeT sizeT costT.
-  ( Lowerable primT sizeT costT
+  forall primsT sizeT costT holeT.
+  ( Lowerable primsT primsT sizeT costT
   , P.TypeCheckable sizeT
   , Show costT
   , Floating costT
   ) =>
   costT ->
-  P.Stmt primT sizeT ->
-  CompilerT primT holeT sizeT costT (Stmt holeT sizeT)
+  P.Stmt primsT sizeT ->
+  CompilerT primsT holeT sizeT costT (Stmt holeT sizeT)
 -- single statement
 lowerStmt eps s@P.ExprS{P.rets, P.expr} = do
   censored . magnify protoFunCtx . zoom typingCtx $ P.checkStmt s
@@ -303,8 +309,8 @@ lowerStmt _ _ = throwError "lowering: unsupported"
 
 -- | Lower a full program into a CQPL program.
 lowerProgram ::
-  forall primT holeT sizeT costT.
-  ( Lowerable primT sizeT costT
+  forall primsT holeT sizeT costT.
+  ( Lowerable primsT primsT sizeT costT
   , P.TypeCheckable sizeT
   , Show costT
   , Floating costT
@@ -318,7 +324,7 @@ lowerProgram ::
   -- | fail prob \( \varepsilon \)
   costT ->
   -- | source program
-  P.Program primT sizeT ->
+  P.Program primsT sizeT ->
   Either String (Program holeT sizeT, P.TypingCtx sizeT)
 lowerProgram qsearch_config gamma_in oracle_name eps prog@P.Program{P.funCtx, P.stmt} = do
   unless (P.checkVarsUnique prog) $

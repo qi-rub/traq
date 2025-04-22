@@ -17,7 +17,6 @@ import qualified QCompose.Data.Context as Ctx
 import QCompose.Control.Monad
 import QCompose.Prelude
 import qualified QCompose.ProtoLang as P
-import QCompose.ProtoLang.Syntax (FunctionCallKind (PrimitiveCallOld))
 import QCompose.UnitaryQPL.Syntax
 
 -- | Formulas for primitives
@@ -69,13 +68,16 @@ that is, contains both the inputs and outputs of each statement.
 type CompilerT primT holeT sizeT costT = MyReaderWriterStateT (LoweringConfig primT holeT sizeT costT) (LoweringOutput holeT sizeT) (LoweringCtx sizeT) (Either String)
 
 -- | Primitives that support a unitary lowering.
-class (P.UnitaryCostablePrimitive primT sizeT costT) => Lowerable primT sizeT costT where
+class
+  (P.UnitaryCostablePrimitive primsT primT sizeT costT) =>
+  Lowerable primsT primT sizeT costT
+  where
   lowerPrimitive ::
-    forall primsT holeT.
+    forall holeT.
     primT ->
     CompilerT primsT holeT sizeT costT (Stmt holeT sizeT)
 
-instance Lowerable Void sizeT costT where
+instance Lowerable primsT Void sizeT costT where
   lowerPrimitive = absurd
 
 -- ================================================================================
@@ -125,17 +127,17 @@ data LoweredProc holeT sizeT costT = LoweredProc
 
 -- | Compile a single expression statement
 lowerExpr ::
-  forall primT holeT sizeT costT.
-  ( Lowerable primT sizeT costT
+  forall primsT holeT sizeT costT.
+  ( Lowerable primsT primsT sizeT costT
   , P.TypeCheckable sizeT
   , Show costT
   , Floating costT
   ) =>
   costT ->
-  P.Expr primT sizeT ->
+  P.Expr primsT sizeT ->
   -- | returns
   [Ident] ->
-  CompilerT primT holeT sizeT costT (Stmt holeT sizeT)
+  CompilerT primsT holeT sizeT costT (Stmt holeT sizeT)
 -- basic expressions
 lowerExpr _ P.VarE{P.arg} [ret] = do
   ty <- zoom typingCtx $ Ctx.lookup arg
@@ -183,7 +185,7 @@ lowerExpr delta P.FunCallE{P.fun_kind = P.FunctionCall f, P.args} rets = do
       }
 
 -- `any`
-lowerExpr delta P.FunCallE{P.fun_kind = PrimitiveCallOld "any" [predicate], P.args} rets = do
+lowerExpr delta P.FunCallE{P.fun_kind = P.PrimitiveCallOld "any" [predicate], P.args} rets = do
   -- the predicate
   pred_fun@P.FunDef{P.param_types} <-
     view (protoFunCtx . Ctx.at predicate)
@@ -253,14 +255,15 @@ lowerExpr _ _ _ = throwError "cannot compile unsupported expression"
 
 -- | Compile a statement (simple or compound)
 lowerStmt ::
-  ( Lowerable primT sizeT costT
+  forall primsT sizeT costT holeT.
+  ( Lowerable primsT primsT sizeT costT
   , P.TypeCheckable sizeT
   , Show costT
   , Floating costT
   ) =>
   costT ->
-  P.Stmt primT sizeT ->
-  CompilerT primT holeT sizeT costT (Stmt holeT sizeT)
+  P.Stmt primsT sizeT ->
+  CompilerT primsT holeT sizeT costT (Stmt holeT sizeT)
 -- single statement
 lowerStmt delta s@P.ExprS{P.rets, P.expr} = do
   censored . magnify protoFunCtx . zoom typingCtx $ P.checkStmt s
@@ -285,15 +288,16 @@ lowerStmt _ _ = error "lowering: unsupported"
  TODO try to cache compiled procs by key (funDefName, Precision).
 -}
 lowerFunDefWithGarbage ::
-  ( Lowerable primT sizeT costT
+  forall primsT sizeT costT holeT.
+  ( Lowerable primsT primsT sizeT costT
   , P.TypeCheckable sizeT
   , Show costT
   , Floating costT
   ) =>
   -- | precision \delta
   costT ->
-  P.FunDef primT sizeT ->
-  CompilerT primT holeT sizeT costT (LoweredProc holeT sizeT costT)
+  P.FunDef primsT sizeT ->
+  CompilerT primsT holeT sizeT costT (LoweredProc holeT sizeT costT)
 lowerFunDefWithGarbage _ P.FunDef{P.mbody = Nothing} = error "TODO"
 lowerFunDefWithGarbage
   delta
@@ -340,15 +344,16 @@ withTag tag = map $ \(x, ty) -> (x, tag, ty)
  TODO try to cache compiled procs by key (funDefName, Precision).
 -}
 lowerFunDef ::
-  ( Lowerable primT sizeT costT
+  forall primsT sizeT costT holeT.
+  ( Lowerable primsT primsT sizeT costT
   , P.TypeCheckable sizeT
   , Show costT
   , Floating costT
   ) =>
   -- | precision \delta
   costT ->
-  P.FunDef primT sizeT ->
-  CompilerT primT holeT sizeT costT (LoweredProc holeT sizeT costT)
+  P.FunDef primsT sizeT ->
+  CompilerT primsT holeT sizeT costT (LoweredProc holeT sizeT costT)
 -- lower a declaration as-is, we treat all declarations as perfect data oracles (so delta is ignored).
 lowerFunDef _ P.FunDef{P.fun_name, P.param_types, P.ret_types, P.mbody = Nothing} = do
   let param_names = map (printf "in_%d") [0 .. length param_types]
@@ -430,7 +435,8 @@ lowerFunDef
 
 -- | Lower a full program into a UQPL program.
 lowerProgram ::
-  ( Lowerable primT SizeT costT
+  forall primsT costT holeT.
+  ( Lowerable primsT primsT SizeT costT
   , Show costT
   , Floating costT
   ) =>
@@ -442,7 +448,7 @@ lowerProgram ::
   P.OracleName ->
   -- | precision \delta
   costT ->
-  P.Program primT SizeT ->
+  P.Program primsT SizeT ->
   Either String (Program holeT SizeT, P.TypingCtx SizeT)
 lowerProgram qsearch_config gamma_in oracle_name delta prog@P.Program{P.funCtx, P.stmt} = do
   unless (P.checkVarsUnique prog) $

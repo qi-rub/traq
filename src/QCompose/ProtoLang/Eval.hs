@@ -1,3 +1,6 @@
+{-# LANGUAGE FlexibleInstances #-}
+{-# LANGUAGE MultiParamTypeClasses #-}
+
 module QCompose.ProtoLang.Eval (
   -- * Evaluations
   evalExpr,
@@ -32,6 +35,7 @@ import QCompose.Control.Monad
 import qualified QCompose.Data.Context as Ctx
 import qualified QCompose.Data.Tree as Tree
 
+import Data.Void (Void, absurd)
 import QCompose.Prelude
 import QCompose.ProtoLang.Syntax
 
@@ -45,19 +49,24 @@ type FunInterp = [Value] -> [Value]
 type FunInterpCtx = Ctx.Context FunInterp
 
 -- | Environment for evaluation
-type ExecutionEnv primT sizeT = (FunCtx primT sizeT, FunInterpCtx)
+type ExecutionEnv primsT sizeT = (FunCtx primsT sizeT, FunInterpCtx)
 
 type ExecutionState sizeT = ProgramState
 
 -- | Non-deterministic Execution Monad (i.e. no state)
-type Evaluator primT = MyReaderT (ExecutionEnv primT SizeT) Tree.Tree
+type Evaluator primsT = MyReaderT (ExecutionEnv primsT SizeT) Tree.Tree
 
 -- | Non-deterministic Execution Monad
-type Executor primT = MyReaderStateT (ExecutionEnv primT SizeT) (ExecutionState SizeT) Tree.Tree
+type Executor primsT = MyReaderStateT (ExecutionEnv primsT SizeT) (ExecutionState SizeT) Tree.Tree
 
--- | Primitives that support evaluation
-class EvaluatablePrimitive primT where
+{- | Primitives that support evaluation:
+ Can evaluate @primT@ under a context of @primsT@.
+-}
+class EvaluatablePrimitive primsT primT where
   evalPrimitive :: primT -> [Value] -> Evaluator primsT [Value]
+
+instance EvaluatablePrimitive primsT Void where
+  evalPrimitive = absurd
 
 -- evaluation
 range :: VarType SizeT -> [Value]
@@ -91,10 +100,10 @@ evalBinOp AndOp _ 0 = 0
 evalBinOp AndOp _ _ = 1
 
 evalExpr ::
-  forall primT.
-  (EvaluatablePrimitive primT) =>
-  Expr primT SizeT ->
-  Executor primT [Value]
+  forall primsT.
+  (EvaluatablePrimitive primsT primsT) =>
+  Expr primsT SizeT ->
+  Executor primsT [Value]
 -- basic expressions
 evalExpr VarE{arg} = do
   v <- lookupS arg
@@ -136,17 +145,17 @@ evalExpr FunCallE{fun_kind = PrimitiveCallOld prim_name [predicate], args}
       let out_vals = if has_sol then sols else search_range
       lift $ Tree.choice [pure [boolToValue has_sol, v] | v <- out_vals]
  where
-  get_search_range :: Executor primT [Value]
+  get_search_range :: Executor primsT [Value]
   get_search_range = do
     FunDef{param_types = pred_param_types} <- view $ _1 . Ctx.at predicate . singular _Just
     let s_arg_ty = last pred_param_types
     let search_range = range s_arg_ty
     return search_range
 
-  evalPredicate :: Value -> Executor primT Bool
+  evalPredicate :: Value -> Executor primsT Bool
   evalPredicate val = (/= 0) <$> runPredicate "_search_arg" val
 
-  runPredicate :: Ident -> Value -> Executor primT Value
+  runPredicate :: Ident -> Value -> Executor primsT Value
   runPredicate s_arg val = withSandbox $ do
     Ctx.ins s_arg .= val
     head
@@ -158,7 +167,7 @@ evalExpr FunCallE{fun_kind = PrimitiveCall prim, args} = do
 -- unsupported
 evalExpr _ = error "unsupported"
 
-execStmt :: (EvaluatablePrimitive primT) => Stmt primT SizeT -> Executor primT ()
+execStmt :: (EvaluatablePrimitive primsT primsT) => Stmt primsT SizeT -> Executor primsT ()
 execStmt ExprS{rets, expr} = do
   vals <- withSandbox $ evalExpr expr
   zipWithM_ putS rets vals
@@ -168,7 +177,7 @@ execStmt IfThenElseS{cond, s_true, s_false} = do
   execStmt s
 execStmt (SeqS ss) = mapM_ execStmt ss
 
-evalFun :: (EvaluatablePrimitive primT) => [Value] -> FunDef primT SizeT -> Evaluator primT [Value]
+evalFun :: (EvaluatablePrimitive primsT primsT) => [Value] -> FunDef primsT SizeT -> Evaluator primsT [Value]
 evalFun vals_in FunDef{mbody = Just FunBody{param_names, ret_names, body_stmt}} =
   let params = Ctx.fromList $ zip param_names vals_in
    in withInjectedState params $ do
@@ -178,7 +187,7 @@ evalFun vals_in FunDef{fun_name, mbody = Nothing} = do
   interp <- view $ _2 . Ctx.at fun_name . singular _Just
   return $ interp vals_in
 
-runProgram :: (EvaluatablePrimitive primT) => Program primT SizeT -> FunInterpCtx -> ProgramState -> Tree.Tree ProgramState
+runProgram :: (EvaluatablePrimitive primsT primsT) => Program primsT SizeT -> FunInterpCtx -> ProgramState -> Tree.Tree ProgramState
 runProgram Program{funCtx, stmt} oracleF st = view _2 <$> runRWST (execStmt stmt) env st
  where
   env = (funCtx, oracleF)

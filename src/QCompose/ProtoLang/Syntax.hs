@@ -1,12 +1,19 @@
 {-# LANGUAGE DeriveFunctor #-}
+{-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE MultiParamTypeClasses #-}
 
 module QCompose.ProtoLang.Syntax (
   -- * Syntax
+
+  -- ** Basic Types and Operations
   VarType (..),
   UnOp (..),
   BinOp (..),
+
+  -- ** Calls and Primitives
   FunctionCallKind (..),
+
+  -- ** Expressions and Statements
   Expr (..),
   Stmt (..),
   FunBody (..),
