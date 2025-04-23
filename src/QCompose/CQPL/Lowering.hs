@@ -1,19 +1,24 @@
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE MultiParamTypeClasses #-}
 
-module QCompose.CQPL.Lowering where
+module QCompose.CQPL.Lowering (
+  -- * Compilation
+  lowerProgram,
+  newIdent,
+  addProc,
 
---   (
---   -- * Compilation
---   lowerProgram,
---   newIdent,
---   addProc,
+  -- * Types and lenses
+  CompilerT,
+  LoweringEnv,
+  LoweringCtx,
+  LoweringOutput,
+  loweredProcs,
+  loweredUProcs,
+  typingCtx,
 
---   -- * Primitive implementations
---   QSearchCQImpl (..),
---   QSearchAlgorithm,
---   Lowerable (..),
--- ) where
+  -- * Primitive implementations
+  Lowerable (..),
+) where
 
 import Control.Monad (msum, unless)
 import Control.Monad.Except (throwError)
@@ -31,41 +36,14 @@ import QCompose.Prelude
 import qualified QCompose.ProtoLang as P
 import qualified QCompose.UnitaryQPL as UQPL
 
--- | Shape of a QSearch implementation
-type QSearchAlgorithm holeT sizeT costT =
-  -- | search elem type
-  P.VarType sizeT ->
-  -- | number of classical samples
-  sizeT ->
-  -- | max fail prob
-  costT ->
-  -- | unitary predicate caller
-  (Ident -> Ident -> UQPL.Stmt holeT sizeT) ->
-  -- | cqpl predicate caller
-  (Ident -> Ident -> Stmt holeT sizeT) ->
-  -- | arguments to the function
-  [(Ident, P.VarType sizeT)] ->
-  -- | the generated QSearch procedure
-  ProcDef holeT sizeT
-
--- | Formulas for primitives
-data QSearchCQImpl holeT sizeT costT = QSearchCQImpl
-  { costFormulas :: P.QSearchFormulas sizeT costT
-  , qsearchAlgo :: QSearchAlgorithm holeT sizeT costT
-  , unitaryImpl :: UQPL.QSearchUnitaryImpl holeT sizeT costT
-  }
-
 -- | Configuration for lowering
-type LoweringEnv primT holeT sizeT costT = (P.FunCtx primT sizeT, P.OracleName, QSearchCQImpl holeT sizeT costT)
+type LoweringEnv primT holeT sizeT costT = (P.FunCtx primT sizeT, P.OracleName)
 
 protoFunCtx :: Lens' (LoweringEnv primT holeT sizeT costT) (P.FunCtx primT sizeT)
 protoFunCtx = _1
 
 oracleName :: Lens' (LoweringEnv primT holeT sizeT costT) P.OracleName
 oracleName = _2
-
-qsearchConfig :: Lens' (LoweringEnv primT holeT sizeT costT) (QSearchCQImpl holeT sizeT costT)
-qsearchConfig = _3
 
 {- | A global lowering context storing the source functions and generated procedures
  along with info to generate unique ancilla and variable/procedure names
@@ -98,11 +76,10 @@ type CompilerT primT holeT sizeT costT = MyReaderWriterStateT (LoweringEnv primT
 
 -- | Primitives that support a classical-quantum lowering.
 class
-  (UQPL.Lowerable primsT primT sizeT costT) =>
-  Lowerable primsT primT sizeT costT
+  (UQPL.Lowerable primsT primT holeT sizeT costT) =>
+  Lowerable primsT primT holeT sizeT costT
   where
   lowerPrimitive ::
-    forall holeT.
     -- | fail prob
     costT ->
     primT ->
@@ -112,7 +89,7 @@ class
     [Ident] ->
     CompilerT primsT holeT sizeT costT (Stmt holeT sizeT)
 
-instance Lowerable primsT Void sizeT costT where
+instance Lowerable primsT Void holeT sizeT costT where
   lowerPrimitive _ = absurd
 
 -- | Generate a new identifier with the given prefix.
@@ -142,7 +119,7 @@ addProc procDef = tellAt loweredProcs [procDef]
 -- | Lower a source function to a procedure call.
 lowerFunDef ::
   forall primsT sizeT costT holeT.
-  ( Lowerable primsT primsT sizeT costT
+  ( Lowerable primsT primsT holeT sizeT costT
   , P.TypeCheckable sizeT
   , Show costT
   , Floating costT
@@ -197,7 +174,7 @@ lowerFunDef eps P.FunDef{P.fun_name, P.param_types, P.mbody = Just body} = do
 -- | Lookup a source function by name, and lower it to a procedure call.
 lowerFunDefByName ::
   forall primsT sizeT costT holeT.
-  ( Lowerable primsT primsT sizeT costT
+  ( Lowerable primsT primsT holeT sizeT costT
   , P.TypeCheckable sizeT
   , Show costT
   , Floating costT
@@ -214,7 +191,7 @@ lowerFunDefByName eps f = do
 -- | Lower a source expression to a statement.
 lowerExpr ::
   forall primsT sizeT costT holeT.
-  ( Lowerable primsT primsT sizeT costT
+  ( Lowerable primsT primsT holeT sizeT costT
   , P.TypeCheckable sizeT
   , Show costT
   , Floating costT
@@ -242,7 +219,7 @@ lowerExpr _ _ _ = throwError "lowering: unsupported"
 -- | Lower a single statement
 lowerStmt ::
   forall primsT sizeT costT holeT.
-  ( Lowerable primsT primsT sizeT costT
+  ( Lowerable primsT primsT holeT sizeT costT
   , P.TypeCheckable sizeT
   , Show costT
   , Floating costT
@@ -269,13 +246,11 @@ lowerStmt _ _ = throwError "lowering: unsupported"
 -- | Lower a full program into a CQPL program.
 lowerProgram ::
   forall primsT holeT sizeT costT.
-  ( Lowerable primsT primsT sizeT costT
+  ( Lowerable primsT primsT holeT sizeT costT
   , P.TypeCheckable sizeT
   , Show costT
   , Floating costT
   ) =>
-  -- | the implementation of primitive `any`
-  QSearchCQImpl holeT sizeT costT ->
   -- | input bindings to the source program
   P.TypingCtx sizeT ->
   -- | name of the oracle
@@ -285,11 +260,11 @@ lowerProgram ::
   -- | source program
   P.Program primsT sizeT ->
   Either String (Program holeT sizeT, P.TypingCtx sizeT)
-lowerProgram qsearch_config gamma_in oracle_name eps prog@P.Program{P.funCtx, P.stmt} = do
+lowerProgram gamma_in oracle_name eps prog@P.Program{P.funCtx, P.stmt} = do
   unless (P.checkVarsUnique prog) $
     throwError "program does not have unique variables!"
 
-  let config = (funCtx, oracle_name, qsearch_config)
+  let config = (funCtx, oracle_name)
   let lowering_ctx =
         emptyLoweringCtx
           & typingCtx .~ gamma_in

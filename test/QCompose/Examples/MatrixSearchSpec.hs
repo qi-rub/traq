@@ -2,7 +2,7 @@
 
 module QCompose.Examples.MatrixSearchSpec (spec) where
 
-import Lens.Micro
+import Data.Void (Void)
 
 import qualified QCompose.Data.Context as Ctx
 import qualified QCompose.Data.Symbolic as Sym
@@ -13,8 +13,7 @@ import qualified QCompose.UnitaryQPL as UQPL
 import QCompose.Utils.Printing
 
 import QCompose.Examples.MatrixSearch
-import QCompose.Primitives.QSearch
-import QCompose.Primitives.Search.Prelude
+import QCompose.Primitives.Search.QSearchCFNW (_EQSearchWorst, _QSearchZalka)
 import QCompose.Primitives.Search.Symbolic
 
 import Test.Hspec
@@ -40,7 +39,8 @@ spec = do
       res `shouldBe` pure (Ctx.singleton "result" 0)
 
     -- expected, worst, unitary
-    let (P.QSearchFormulas _ wcF ucF) = qsearchCFNW ^. to formulas
+    let wcF = _EQSearchWorst
+    let ucF = _QSearchZalka
 
     it "unitary cost for delta=0.0001" $ do
       let delta = 0.0001 :: Double
@@ -61,29 +61,27 @@ spec = do
       toCodeString ex `shouldSatisfy` (not . null)
 
     describe "lower to UQPL" $ do
-      let ualgo = qsearchCFNW ^. to unitaryAlgo
       let delta = 0.001 :: Double
       it "lowers" $ do
-        assertRight $ UQPL.lowerProgram ualgo Ctx.empty "Oracle" delta ex
+        assertRight $ UQPL.lowerProgram @_ @_ @Void Ctx.empty "Oracle" delta ex
 
       it "type checks" $ do
-        (ex_uqpl, gamma) <- expectRight $ UQPL.lowerProgram ualgo Ctx.empty "Oracle" delta ex
+        (ex_uqpl, gamma) <- expectRight $ UQPL.lowerProgram @_ @_ @Void Ctx.empty "Oracle" delta ex
         assertRight $ UQPL.typeCheckProgram gamma ex_uqpl
 
       it "preserves cost" $ do
-        (ex_uqpl, _) <- expectRight $ UQPL.lowerProgram ualgo Ctx.empty "Oracle" delta ex
+        (ex_uqpl, _) <- expectRight $ UQPL.lowerProgram @_ @_ @Void Ctx.empty "Oracle" delta ex
         let (uqpl_cost, _) = UQPL.programCost ex_uqpl
         let proto_cost = P.unitaryQueryCost delta ex "Oracle"
         uqpl_cost `shouldBe` proto_cost
 
     describe "lower to CQPL" $ do
-      let qalgo = qsearchCFNW ^. to quantumAlgo
       let eps = 0.001 :: Double
       it "lowers" $ do
-        assertRight $ CQPL.lowerProgram qalgo Ctx.empty "Oracle" eps ex
+        assertRight $ CQPL.lowerProgram @_ @Void Ctx.empty "Oracle" eps ex
 
       it "type checks" $ do
-        (ex_cqpl, gamma) <- expectRight $ CQPL.lowerProgram qalgo Ctx.empty "Oracle" eps ex
+        (ex_cqpl, gamma) <- expectRight $ CQPL.lowerProgram @_ @Void Ctx.empty "Oracle" eps ex
         -- case CQPL.typeCheckProgram gamma ex_uqpl of Left e -> putStrLn e; _ -> return ()
         assertRight $ CQPL.typeCheckProgram gamma ex_cqpl
 
@@ -94,8 +92,8 @@ spec = do
     let ex = matrixExample @QSearchSym n m sbool
 
     -- expected, worst, unitary
-    let (P.QSearchFormulas _ wcF ucF) = qsearchSymbolic ^. to formulas
     let ucF = _QryU
+    let wcF = _QryQmax
 
     it "unitary cost for delta=0.0001" $ do
       let delta = Sym.var "δ" :: Sym.Sym Double

@@ -11,17 +11,18 @@ References:
 module QCompose.Primitives.QSearch (
   -- * A full implementation of quantum search.
   qsearchCFNW,
+  QSearchFullImpl (..),
+  QSearchCQImpl (..),
+  QSearchUnitaryImpl (..),
 ) where
 
 import Data.Maybe (catMaybes)
 
-import qualified QCompose.CQPL as CQ
+import qualified QCompose.CQPL as CQPL
 import QCompose.Prelude
 import QCompose.ProtoLang (VarType (..))
 import qualified QCompose.ProtoLang as P
 import qualified QCompose.UnitaryQPL as UQPL
-
-import QCompose.Primitives.Search.Prelude
 
 -- | Temporary black-boxes for un-implemented parts of the quantum search algorithms.
 data QSearchBlackBoxes costT
@@ -35,13 +36,59 @@ instance UQPL.HoleCost (QSearchBlackBoxes costT) costT where
     return $ n_pred_calls * pred_cost
   holeCost (TODOHole s) = error $ "no cost of unknown hole: " <> s
 
+-- | Computed cost functions (quantum, unitary) of a given set of algorithms implementing quantum search
+data QSearchFormulas sizeT costT = QSearchFormulas
+  { qSearchExpectedCost :: sizeT -> sizeT -> costT -> costT -- n t eps
+  , qSearchWorstCaseCost :: sizeT -> costT -> costT -- n eps
+  , qSearchUnitaryCost :: sizeT -> costT -> costT -- n delta
+  }
+
+-- | Formulas for primitives
+data QSearchUnitaryImpl holeT sizeT costT = QSearchUnitaryImpl
+  { ancillaTypes ::
+      sizeT -> -- size of search space
+      costT -> -- precision
+      [P.VarType sizeT]
+  , algorithm :: P.VarType sizeT -> (Ident -> Ident -> UQPL.Stmt holeT sizeT) -> costT -> UQPL.Stmt holeT sizeT
+  }
+
+-- | Shape of a QSearch implementation
+type QSearchAlgorithm holeT sizeT costT =
+  -- | search elem type
+  P.VarType sizeT ->
+  -- | number of classical samples
+  sizeT ->
+  -- | max fail prob
+  costT ->
+  -- | unitary predicate caller
+  (Ident -> Ident -> UQPL.Stmt holeT sizeT) ->
+  -- | cqpl predicate caller
+  (Ident -> Ident -> CQPL.Stmt holeT sizeT) ->
+  -- | arguments to the function
+  [(Ident, P.VarType sizeT)] ->
+  -- | the generated QSearch procedure
+  CQPL.ProcDef holeT sizeT
+
+-- | Formulas for primitives
+data QSearchCQImpl holeT sizeT costT = QSearchCQImpl
+  { qsearchAlgo :: QSearchAlgorithm holeT sizeT costT
+  , unitaryImpl :: QSearchUnitaryImpl holeT sizeT costT
+  }
+
+-- | Full Implementation
+data QSearchFullImpl holeT sizeT costT = QSearchFullImpl
+  { formulas :: QSearchFormulas sizeT costT
+  , unitaryAlgo :: QSearchUnitaryImpl holeT sizeT costT
+  , quantumAlgo :: QSearchCQImpl holeT sizeT costT
+  }
+
 -- | Cost formulas for quantum search algorithms \( \textbf{QSearch} \) and \( \textbf{QSearch}_\text{Zalka} \).
-cadeEtAlFormulas :: forall sizeT costT. (Integral sizeT, RealFloat costT) => P.QSearchFormulas sizeT costT
+cadeEtAlFormulas :: forall sizeT costT. (Integral sizeT, RealFloat costT) => QSearchFormulas sizeT costT
 cadeEtAlFormulas =
-  P.QSearchFormulas
-    { P.qSearchExpectedCost = eqsearch
-    , P.qSearchWorstCaseCost = eqsearch_worst
-    , P.qSearchUnitaryCost = zalka
+  QSearchFormulas
+    { qSearchExpectedCost = eqsearch
+    , qSearchWorstCaseCost = eqsearch_worst
+    , qSearchUnitaryCost = zalka
     }
  where
   eqsearch_worst :: sizeT -> costT -> costT
@@ -72,12 +119,11 @@ cadeEtAlFormulas =
     nq = 5 * log_fac + pi * sqrt (fromIntegral n * log_fac)
 
 -- | Ancilla and Cost formulas for the unitary quantum search algorithm \( \textbf{QSearch}_\text{Zalka} \).
-zalkaQSearch :: (RealFloat costT) => UQPL.QSearchUnitaryImpl (QSearchBlackBoxes costT) SizeT costT
+zalkaQSearch :: (RealFloat costT) => QSearchUnitaryImpl (QSearchBlackBoxes costT) SizeT costT
 zalkaQSearch =
-  UQPL.QSearchUnitaryImpl
-    { UQPL.ancillaTypes = anc
-    , UQPL.costFormulas = cadeEtAlFormulas
-    , UQPL.algorithm = zalkaQSearchImpl
+  QSearchUnitaryImpl
+    { ancillaTypes = anc
+    , algorithm = zalkaQSearchImpl
     }
  where
   -- anc n delta = error "TODO"
@@ -146,7 +192,7 @@ zalkaQSearchImpl ty mk_pred eps =
     { UQPL.hole =
         QSearchBlackBox
           { q_pred_name
-          , n_pred_calls = P.qSearchUnitaryCost cadeEtAlFormulas n eps
+          , n_pred_calls = qSearchUnitaryCost cadeEtAlFormulas n eps
           }
     , UQPL.dagger = False
     }
@@ -163,36 +209,36 @@ zalkaQSearchImpl ty mk_pred eps =
 qSearch ::
   forall costT.
   (RealFloat costT) =>
-  CQ.QSearchAlgorithm (QSearchBlackBoxes costT) SizeT costT
+  QSearchAlgorithm (QSearchBlackBoxes costT) SizeT costT
 qSearch ty n_samples eps upred_caller pred_caller params =
-  CQ.ProcDef
-    { CQ.proc_name = "qSearch"
-    , CQ.proc_meta_params = []
-    , CQ.proc_param_types = map snd params
-    , CQ.mproc_body =
+  CQPL.ProcDef
+    { CQPL.proc_name = "qSearch"
+    , CQPL.proc_meta_params = []
+    , CQPL.proc_param_types = map snd params
+    , CQPL.mproc_body =
         Just
-          CQ.ProcBody
-            { CQ.proc_param_names = map fst params
-            , CQ.proc_local_vars =
+          CQPL.ProcBody
+            { CQPL.proc_param_names = map fst params
+            , CQPL.proc_local_vars =
                 [ ("not_done", P.Fin 2)
                 , ("Q_sum", j_type)
                 , ("j", j_type)
                 ]
-            , CQ.proc_body_stmt =
-                CQ.SeqS $
+            , CQPL.proc_body_stmt =
+                CQPL.SeqS $
                   catMaybes
                     [ if n_samples /= 0 then Just classicalSampling else Nothing
                     , Just quantumSampling
                     ]
             }
-    , CQ.is_oracle = False
+    , CQPL.is_oracle = False
     }
  where
-  classicalSampling :: CQ.Stmt (QSearchBlackBoxes costT) SizeT
+  classicalSampling :: CQPL.Stmt (QSearchBlackBoxes costT) SizeT
   classicalSampling =
-    CQ.WhileKWithCondExpr n_samples "not_done" (CQ.NotE $ CQ.VarE "ok") $
-      CQ.SeqS
-        [ CQ.RandomS "x" (Fin n)
+    CQPL.WhileKWithCondExpr n_samples "not_done" (CQPL.NotE $ CQPL.VarE "ok") $
+      CQPL.SeqS
+        [ CQPL.RandomS "x" (Fin n)
         , pred_caller "x" "ok"
         ]
 
@@ -229,29 +275,28 @@ qSearch ty n_samples eps upred_caller pred_caller params =
     nxt :: Float -> Float
     nxt m = min (lambda * m) sqrt_n
 
-  quantumSampling, quantumSamplingOneRound :: CQ.Stmt (QSearchBlackBoxes costT) SizeT
-  quantumSampling = CQ.RepeatS n_runs quantumSamplingOneRound
+  quantumSampling, quantumSamplingOneRound :: CQPL.Stmt (QSearchBlackBoxes costT) SizeT
+  quantumSampling = CQPL.RepeatS n_runs quantumSamplingOneRound
   quantumSamplingOneRound =
-    CQ.SeqS $
-      CQ.AssignS ["Q_sum"] (CQ.ConstE{CQ.val = 0, CQ.val_ty = j_type})
+    CQPL.SeqS $
+      CQPL.AssignS ["Q_sum"] (CQPL.ConstE{CQPL.val = 0, CQPL.val_ty = j_type})
         : map quantumGroverOnce sampling_ranges
 
   -- one call and meas to grover with j iterations
   quantumGroverOnce j_lim =
-    CQ.SeqS
-      [ CQ.RandomS "j" (P.Fin $ j_lim + 1)
-      , CQ.AssignS ["Q_sum"] (CQ.AddE (CQ.VarE "Q_sum") (CQ.VarE "j"))
-      , CQ.AssignS ["not_done"] (CQ.LEqE (CQ.VarE "Q_sum") (CQ.ConstE{CQ.val = fromIntegral j_lim, CQ.val_ty = j_type}))
-      , CQ.IfThenElseS "not_done" (CQ.HoleS "callandmeas: grover cycle j") CQ.SkipS
+    CQPL.SeqS
+      [ CQPL.RandomS "j" (P.Fin $ j_lim + 1)
+      , CQPL.AssignS ["Q_sum"] (CQPL.AddE (CQPL.VarE "Q_sum") (CQPL.VarE "j"))
+      , CQPL.AssignS ["not_done"] (CQPL.LEqE (CQPL.VarE "Q_sum") (CQPL.ConstE{CQPL.val = fromIntegral j_lim, CQPL.val_ty = j_type}))
+      , CQPL.IfThenElseS "not_done" (CQPL.HoleS "callandmeas: grover cycle j") CQPL.SkipS
       , pred_caller "y" "ok"
       ]
 
-qSearchCQImpl :: (RealFloat costT) => CQ.QSearchCQImpl (QSearchBlackBoxes costT) SizeT costT
+qSearchCQImpl :: (RealFloat costT) => QSearchCQImpl (QSearchBlackBoxes costT) SizeT costT
 qSearchCQImpl =
-  CQ.QSearchCQImpl
-    { CQ.costFormulas = cadeEtAlFormulas
-    , CQ.qsearchAlgo = qSearch
-    , CQ.unitaryImpl = zalkaQSearch
+  QSearchCQImpl
+    { qsearchAlgo = qSearch
+    , unitaryImpl = zalkaQSearch
     }
 
 -- | Search Algorithms from https://arxiv.org/abs/2203.04975

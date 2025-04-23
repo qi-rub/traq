@@ -3,7 +3,6 @@ module Main (main) where
 import Control.Monad (forM_, when)
 import Control.Monad.Writer (MonadWriter, execWriterT, tell)
 import Data.Maybe (fromMaybe)
-import Data.Void (Void)
 import Lens.Micro
 import Options.Applicative
 import qualified QCompose.Data.Symbolic as Sym
@@ -16,6 +15,7 @@ import qualified QCompose.ProtoLang as P
 import qualified QCompose.UnitaryQPL as UQPL
 import QCompose.Utils.Printing
 
+import QCompose.Primitives (DefaultPrims)
 import QCompose.Primitives.QSearch
 import QCompose.Primitives.Search.Prelude
 
@@ -65,7 +65,7 @@ subsNM params s = Sym.unSym $ foldr subsOnce s params
 tellLn :: (MonadWriter String m) => String -> m ()
 tellLn x = tell $ unlines [x]
 
-compile :: forall costT. (RealFloat costT, Show costT) => P.Program Void SizeT -> costT -> IO String
+compile :: forall costT. (Floating costT, Show costT) => P.Program DefaultPrims SizeT -> costT -> IO String
 compile prog delta = do
   let Right (uqpl_prog, _) = UQPL.lowerProgram (qsearchCFNW ^. to unitaryAlgo) Ctx.empty "Oracle" delta prog
   -- get costs

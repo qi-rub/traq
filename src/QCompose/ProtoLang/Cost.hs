@@ -2,9 +2,6 @@
 {-# LANGUAGE MultiParamTypeClasses #-}
 
 module QCompose.ProtoLang.Cost (
-  -- * Abstract Formulas
-  QSearchFormulas (..),
-
   -- * Unitary Cost
   unitaryQueryCost,
   unitaryQueryCostE,
@@ -60,13 +57,6 @@ import QCompose.Prelude
 import QCompose.ProtoLang.Eval
 import QCompose.ProtoLang.Syntax
 import QCompose.ProtoLang.TypeCheck
-
--- | Computed cost functions (quantum, unitary) of a given set of algorithms implementing quantum search
-data QSearchFormulas sizeT costT = QSearchFormulas
-  { qSearchExpectedCost :: sizeT -> sizeT -> costT -> costT -- n t eps
-  , qSearchWorstCaseCost :: sizeT -> costT -> costT -- n eps
-  , qSearchUnitaryCost :: sizeT -> costT -> costT -- n delta
-  }
 
 detExtract :: Tree.Tree a -> a
 detExtract xs = case toList xs of

@@ -1,6 +1,8 @@
+{-# LANGUAGE TypeApplications #-}
+
 module QCompose.Examples.SearchSpec (spec) where
 
-import Lens.Micro
+import Data.Void (Void)
 import qualified QCompose.Data.Context as Ctx
 import qualified QCompose.Data.Tree as Tree
 
@@ -10,8 +12,7 @@ import qualified QCompose.UnitaryQPL as UQPL
 import QCompose.Utils.Printing
 
 import QCompose.Examples.Search
-import QCompose.Primitives.QSearch
-import QCompose.Primitives.Search.Prelude
+import QCompose.Primitives.Search.QSearchCFNW (_EQSearch, _QSearchZalka)
 
 import Test.Hspec
 import TestHelpers
@@ -32,8 +33,8 @@ spec = do
       let res = P.runProgram ex interpCtx Ctx.empty
       res `shouldBe` pure (Ctx.singleton "result" 0)
 
-    let (P.QSearchFormulas ecF _ ucF) = qsearchCFNW ^. to formulas
-    let ualgo = qsearchCFNW ^. to unitaryAlgo
+    let ecF = _EQSearch
+    let ucF = _QSearchZalka
 
     let eps = 0.0001 :: Double
 
@@ -51,14 +52,14 @@ spec = do
     describe "lowers to UQPL" $ do
       let delta = 0.0001 :: Double
       it "lowers" $ do
-        assertRight $ UQPL.lowerProgram ualgo Ctx.empty "Oracle" delta ex
+        assertRight $ UQPL.lowerProgram @_ @_ @Void Ctx.empty "Oracle" delta ex
 
       it "typechecks" $ do
-        (ex_uqpl, gamma) <- expectRight $ UQPL.lowerProgram ualgo Ctx.empty "Oracle" delta ex
+        (ex_uqpl, gamma) <- expectRight $ UQPL.lowerProgram @_ @_ @Void Ctx.empty "Oracle" delta ex
         assertRight $ UQPL.typeCheckProgram gamma ex_uqpl
 
       it "preserves cost" $ do
-        (ex_uqpl, _) <- expectRight $ UQPL.lowerProgram ualgo Ctx.empty "Oracle" delta ex
+        (ex_uqpl, _) <- expectRight $ UQPL.lowerProgram @_ @_ @Void Ctx.empty "Oracle" delta ex
         let (uqpl_cost, _) = UQPL.programCost ex_uqpl
         let proto_cost = P.unitaryQueryCost delta ex "Oracle"
         uqpl_cost `shouldBe` proto_cost

@@ -1,6 +1,5 @@
 module QCompose.ProtoLang.CostSpec (spec) where
 
-import Lens.Micro
 import qualified QCompose.Data.Symbolic as Sym
 
 import QCompose.Prelude
@@ -9,8 +8,7 @@ import QCompose.ProtoLang.Parser
 import QCompose.ProtoLang.Syntax
 
 import QCompose.Primitives
-import QCompose.Primitives.QSearch
-import QCompose.Primitives.Search.Prelude
+import QCompose.Primitives.Search.QSearchCFNW (_QSearchZalka)
 
 import Test.Hspec
 
@@ -20,8 +18,6 @@ unsafeParseProgram = fmap Sym.unSym . either (error . show) id . parseProgram
 spec :: Spec
 spec = do
   describe "unitary cost of statements" $ do
-    let ucFormula = qsearchCFNW ^. to formulas . to qSearchUnitaryCost
-
     it "fun call of oracle" $ do
       let prog =
             unsafeParseProgram . unlines $
@@ -60,4 +56,4 @@ spec = do
               , "res <- @any[f]()"
               ]
       let c = unitaryQueryCost 0.001 prog "Oracle"
-      (c :: Double) `shouldBe` 2 * ucFormula 100 (0.001 / 2)
+      (c :: Double) `shouldBe` 2 * _QSearchZalka (100 :: Int) (0.001 / 2)

@@ -4,7 +4,6 @@
 
 module QCompose.Primitives.Search.Symbolic (
   -- * Search Primitive supporting symbolic cost
-  qsearchSymbolic,
   QSearchSym (..),
 
   -- * Formulas
@@ -41,30 +40,6 @@ _QryU n eps = Sym.var $ printf "QryU(%s, %s)" (show n) (show eps)
 
 _QryQmax :: forall sizeT costT. (Show sizeT, Show costT) => Sym.Sym sizeT -> Sym.Sym costT -> Sym.Sym costT
 _QryQmax n eps = Sym.var $ printf "QryQmax(%s, %s)" (show n) (show eps)
-
--- | Symbolic worst case formulas.
-{-# DEPRECATED symbolicFormulas "Remove" #-}
-symbolicFormulas ::
-  forall sizeT costT.
-  (Show sizeT, Show costT, Integral sizeT, RealFloat costT) =>
-  P.QSearchFormulas (Sym.Sym sizeT) (Sym.Sym costT)
-symbolicFormulas =
-  P.QSearchFormulas
-    { P.qSearchExpectedCost = error "no symbolic support for expected quantum cost"
-    , P.qSearchWorstCaseCost = _QryQmax
-    , P.qSearchUnitaryCost = _QryU
-    }
-
-{-# DEPRECATED qsearchSymbolic "Remove" #-}
-qsearchSymbolic ::
-  (Show sizeT, Show costT, Integral sizeT, RealFloat costT) =>
-  QSearchFullImpl holeT (Sym.Sym sizeT) (Sym.Sym costT)
-qsearchSymbolic =
-  QSearchFullImpl
-    { formulas = symbolicFormulas
-    , unitaryAlgo = error "Cannot compile unitary with symbolic formulas"
-    , quantumAlgo = error "Cannot compile quantum with symbolic formulas"
-    }
 
 -- ================================================================================
 -- Primitive Class Implementation

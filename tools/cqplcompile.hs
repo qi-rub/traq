@@ -1,6 +1,5 @@
 module Main (main) where
 
-import Data.Void (Void)
 import Lens.Micro
 import Options.Applicative
 import qualified QCompose.Data.Symbolic as Sym
@@ -13,6 +12,7 @@ import QCompose.Prelude
 import qualified QCompose.ProtoLang as P
 import QCompose.Utils.Printing
 
+import QCompose.Primitives (DefaultPrims)
 import QCompose.Primitives.QSearch
 import QCompose.Primitives.Search.Prelude
 
@@ -59,7 +59,7 @@ subsNM params s = Sym.unSym $ foldr subsOnce s params
   subsOnce :: (Ident, SizeT) -> SymbSize -> SymbSize
   subsOnce (k, v) = Sym.subst k (Sym.con v)
 
-compile :: (RealFloat costT, Show costT) => P.Program Void SizeT -> costT -> IO String
+compile :: (Floating costT, Show costT) => P.Program DefaultPrims SizeT -> costT -> IO String
 compile prog eps = do
   let Right (cqpl_prog, _) = CQPL.lowerProgram (qsearchCFNW ^. to quantumAlgo) Ctx.empty "Oracle" eps prog
 

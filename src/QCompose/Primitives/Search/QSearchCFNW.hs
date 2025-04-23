@@ -257,12 +257,12 @@ instance
 instance
   ( Integral sizeT
   , Floating costT
-  , UQPL.Lowerable primsT primsT sizeT costT
+  , UQPL.Lowerable primsT primsT holeT sizeT costT
   , Show sizeT
   , Show costT
   , P.TypeCheckable sizeT
   ) =>
-  UQPL.Lowerable primsT QSearchCFNW sizeT costT
+  UQPL.Lowerable primsT QSearchCFNW holeT sizeT costT
   where
   lowerPrimitive delta QSearchCFNW{predicate, return_sol = False} args rets = do
     -- the predicate
@@ -296,7 +296,7 @@ instance
     qsearch_proc_name <-
       UQPL.newIdent $
         printf "QSearch[%s, %s, %s]" (show n) (show delta_search) (UQPL.proc_name pred_proc)
-    qsearch_ancilla_tys <- view (UQPL.qsearchConfig . to UQPL.ancillaTypes) <&> (\f -> f n delta_search)
+    qsearch_ancilla_tys <- error "TODO ancilla types" -- view (UQPL.qsearchConfig . to UQPL.ancillaTypes) <&> (\f -> f n delta_search)
     let qsearch_param_tys =
           init pred_inp_tys
             ++ pred_out_tys
@@ -307,7 +307,7 @@ instance
     pred_ancilla <- mapM UQPL.allocAncilla pred_aux_tys
 
     qsearch_param_names <- replicateM (length qsearch_param_tys) $ UQPL.newIdent "_qs"
-    mk_proc_body <- view $ UQPL.qsearchConfig . to UQPL.algorithm
+    mk_proc_body <- error "view $ UQPL.qsearchConfig . to UQPL.algorithm"
     let proc_body =
           mk_proc_body
             s_ty
@@ -332,12 +332,12 @@ instance
 instance
   ( Integral sizeT
   , Floating costT
-  , CQPL.Lowerable primsT primsT sizeT costT
+  , CQPL.Lowerable primsT primsT holeT sizeT costT
   , Show sizeT
   , Show costT
   , P.TypeCheckable sizeT
   ) =>
-  CQPL.Lowerable primsT QSearchCFNW sizeT costT
+  CQPL.Lowerable primsT QSearchCFNW holeT sizeT costT
   where
   lowerPrimitive eps QSearchCFNW{predicate, return_sol = False} args rets = do
     -- the predicate
@@ -353,7 +353,7 @@ instance
 
     -- fail prob predicate
     let eps_pred = eps - eps_s
-    max_cost_formula <- view $ CQPL.qsearchConfig . to CQPL.costFormulas . to P.qSearchWorstCaseCost
+    max_cost_formula <- error "view $ CQPL.qsearchConfig . to CQPL.costFormulas . to P.qSearchWorstCaseCost"
     let n_max_pred_calls = max_cost_formula n eps_pred
     let eps_per_pred_call = eps_pred / n_max_pred_calls
     let delta_per_pred_call = eps_per_pred_call / 2 -- norm error in unitary predicate
@@ -361,7 +361,7 @@ instance
     -- lower the unitary predicate
     let upred_compiler = UQPL.lowerFunDef delta_per_pred_call pred_fun
     (pred_uproc, uprocs) <- do
-      uenv <- view id <&> _3 %~ CQPL.unitaryImpl
+      uenv <- view id
       ust <- use id
       (a, _, w) <- lift $ runMyReaderWriterStateT upred_compiler uenv ust
       return (a, w)
@@ -370,7 +370,7 @@ instance
     let pred_proc_name = pred_uproc ^. to UQPL.lowered_def . to UQPL.proc_name
 
     -- emit the QSearch algorithm
-    qsearch_builder <- view $ CQPL.qsearchConfig . to CQPL.qsearchAlgo
+    qsearch_builder <- error "view $ CQPL.qsearchConfig . to CQPL.qsearchAlgo"
     qsearch_params <- forM (args ++ rets) $ \x -> do
       ty <- use $ CQPL.typingCtx . Ctx.at x . singular _Just
       return (x, ty)

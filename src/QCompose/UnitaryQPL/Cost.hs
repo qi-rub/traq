@@ -1,3 +1,4 @@
+{-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE MultiParamTypeClasses #-}
 
 module QCompose.UnitaryQPL.Cost (
@@ -17,6 +18,7 @@ module QCompose.UnitaryQPL.Cost (
 import Control.Applicative ((<|>))
 import Control.Monad.Trans (lift)
 import qualified Data.Map as Map
+import Data.Void (Void, absurd)
 import Lens.Micro.GHC
 import Lens.Micro.Mtl
 
@@ -41,6 +43,9 @@ type CostCalculator holeT sizeT costT = MyReaderStateT (CostEnv holeT sizeT cost
 -- | Compute the cost of a placeholder (hole) program.
 class HoleCost holeT costT where
   holeCost :: forall sizeT. (Integral sizeT, Floating costT) => holeT -> CostCalculator holeT sizeT costT costT
+
+instance HoleCost Void costT where
+  holeCost = absurd
 
 stmtCost :: (Integral sizeT, Floating costT, HoleCost holeT costT) => Stmt holeT sizeT -> CostCalculator holeT sizeT costT costT
 stmtCost SkipS = return 0

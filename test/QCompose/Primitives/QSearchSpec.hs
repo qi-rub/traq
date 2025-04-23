@@ -7,7 +7,6 @@ import qualified QCompose.UnitaryQPL as UQPL
 import QCompose.Utils.Printing
 
 import QCompose.Primitives.QSearch
-import QCompose.Primitives.Search.Prelude
 
 import Test.Hspec
 
@@ -26,7 +25,7 @@ spec = do
       it "for simple values" $ do
         let n = 10 :: Int
         let eps = 0.001 :: Float
-        let zalkaQSearchImpl = qsearchCFNW ^. to unitaryAlgo . to UQPL.algorithm
+        let zalkaQSearchImpl = qsearchCFNW ^. to unitaryAlgo . to algorithm
         let pred_caller x b = UQPL.CallS{UQPL.proc_id = "Oracle", UQPL.dagger = False, UQPL.args = [x, b]}
         let circ = zalkaQSearchImpl (Fin n) pred_caller eps
         toCodeString circ `shouldSatisfy` (not . null)
