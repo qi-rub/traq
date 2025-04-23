@@ -3,10 +3,10 @@ module Main (main) where
 import Control.Monad (forM_, when)
 import Control.Monad.Writer (MonadWriter, execWriterT, tell)
 import Data.Maybe (fromMaybe)
-import qualified Data.Number.Symbolic as Sym
 import Data.Void (Void)
 import Lens.Micro
 import Options.Applicative
+import qualified QCompose.Data.Symbolic as Sym
 import Text.Read (readMaybe)
 
 import qualified QCompose.Data.Context as Ctx

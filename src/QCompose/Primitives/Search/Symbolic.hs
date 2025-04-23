@@ -7,9 +7,9 @@ module QCompose.Primitives.Search.Symbolic (
 ) where
 
 import Control.Applicative ((<|>))
-import qualified Data.Number.Symbolic as Sym
 import Lens.Micro
 import Lens.Micro.Mtl
+import qualified QCompose.Data.Symbolic as Sym
 import Text.Parsec (try)
 import Text.Parsec.Token (GenTokenParser (..))
 import Text.Printf (printf)

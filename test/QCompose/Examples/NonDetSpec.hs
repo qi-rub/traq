@@ -3,8 +3,8 @@
 module QCompose.Examples.NonDetSpec (spec) where
 
 import Data.Either (fromRight, isRight)
-import qualified Data.Number.Symbolic as Sym
 import Lens.Micro
+import qualified QCompose.Data.Symbolic as Sym
 import Text.Parsec.String (parseFromFile)
 
 import qualified QCompose.Data.Context as Ctx

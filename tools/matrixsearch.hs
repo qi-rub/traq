@@ -1,8 +1,8 @@
 module Main where
 
 import Control.Exception (assert)
-import qualified Data.Number.Symbolic as Sym
 import Lens.Micro
+import qualified QCompose.Data.Symbolic as Sym
 
 import qualified QCompose.Data.Context as Ctx
 

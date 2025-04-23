@@ -15,8 +15,8 @@ module QCompose.ProtoLang.Parser (
 
 import Data.Either (isRight)
 import Data.Functor (($>))
-import qualified Data.Number.Symbolic as Sym
 import Data.Void (Void)
+import qualified QCompose.Data.Symbolic as Sym
 import Text.Parsec (ParseError, choice, eof, many, parse, try, (<|>))
 import Text.Parsec.Language (LanguageDef, emptyDef)
 import Text.Parsec.String (Parser)

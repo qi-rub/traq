@@ -1,6 +1,6 @@
 module QCompose.Prelude where
 
-import qualified Data.Number.Symbolic as Sym
+import qualified QCompose.Data.Symbolic as Sym
 
 type Ident = String
 

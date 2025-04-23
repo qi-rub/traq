@@ -60,7 +60,6 @@ library
         , microlens-ghc ==0.4.*
         , microlens-mtl ==0.2.*
         , mtl >=2.2.2
-        , numbers ==3000.2.*
         , parsec >=3.1.17 && <3.2
         , probability ==0.2.*
         , transformers >=0.4 && <0.6
@@ -100,7 +99,6 @@ executable cqplcompile
         , microlens-ghc ==0.4.*
         , microlens-mtl ==0.2.*
         , mtl >=2.2.2
-        , numbers ==3000.2.*
         , optparse-applicative ==0.18.*
         , parsec >=3.1.17 && <3.2
         , probability ==0.2.*
@@ -130,7 +128,6 @@ executable matrixsearch
         , microlens-ghc ==0.4.*
         , microlens-mtl ==0.2.*
         , mtl >=2.2.2
-        , numbers ==3000.2.*
         , optparse-applicative ==0.18.*
         , parsec >=3.1.17 && <3.2
         , probability ==0.2.*
@@ -160,7 +157,6 @@ executable uqplcompile
         , microlens-ghc ==0.4.*
         , microlens-mtl ==0.2.*
         , mtl >=2.2.2
-        , numbers ==3000.2.*
         , optparse-applicative ==0.18.*
         , parsec >=3.1.17 && <3.2
         , probability ==0.2.*
@@ -190,7 +186,6 @@ executable uqpltoquipper
         , microlens-ghc ==0.4.*
         , microlens-mtl ==0.2.*
         , mtl >=2.2.2
-        , numbers ==3000.2.*
         , optparse-applicative ==0.18.*
         , parsec >=3.1.17 && <3.2
         , probability ==0.2.*
@@ -239,7 +234,6 @@ test-suite spec
         , microlens-ghc ==0.4.*
         , microlens-mtl ==0.2.*
         , mtl >=2.2.2
-        , numbers ==3000.2.*
         , parsec >=3.1.17 && <3.2
         , probability ==0.2.*
         , qcompose
