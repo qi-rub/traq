@@ -74,16 +74,20 @@ instance
   ( Integral sizeT
   , Floating costT
   , UQPL.Lowerable primsT primsT sizeT costT
+  , P.TypeCheckable sizeT
+  , Show costT
   ) =>
   UQPL.Lowerable primsT DefaultPrims sizeT costT
   where
-  lowerPrimitive (QAny q) = UQPL.lowerPrimitive q
+  lowerPrimitive delta (QAny q) = UQPL.lowerPrimitive delta q
 
 instance
   ( Integral sizeT
   , Floating costT
   , CQPL.Lowerable primsT primsT sizeT costT
+  , P.TypeCheckable sizeT
+  , Show costT
   ) =>
   CQPL.Lowerable primsT DefaultPrims sizeT costT
   where
-  lowerPrimitive (QAny q) = CQPL.lowerPrimitive q
+  lowerPrimitive eps (QAny q) = CQPL.lowerPrimitive eps q

@@ -23,9 +23,8 @@ module QCompose.ProtoLang.Eval (
   EvaluatablePrimitive (..),
 ) where
 
-import Control.Monad (filterM, zipWithM_)
+import Control.Monad (zipWithM_)
 import Control.Monad.RWS (MonadState, runRWST)
-import Control.Monad.Trans (lift)
 import Lens.Micro
 import Lens.Micro.GHC ()
 import Lens.Micro.Mtl
@@ -132,9 +131,6 @@ evalExpr FunCallE{fun_kind = FunctionCall fun, args} = do
 evalExpr FunCallE{fun_kind = PrimitiveCall prim, args} = do
   vals <- mapM lookupS args
   embedReaderT $ evalPrimitive prim vals
-
--- unsupported
-evalExpr _ = error "unsupported"
 
 execStmt :: (EvaluatablePrimitive primsT primsT) => Stmt primsT SizeT -> Executor primsT ()
 execStmt ExprS{rets, expr} = do

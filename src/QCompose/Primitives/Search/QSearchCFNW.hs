@@ -11,13 +11,14 @@ module QCompose.Primitives.Search.QSearchCFNW (
 ) where
 
 import Control.Applicative ((<|>))
-import Control.Monad (filterM, when)
+import Control.Monad (filterM, forM, guard, replicateM, when)
 import Control.Monad.Except (throwError)
 import Control.Monad.Extra (anyM)
 import Control.Monad.Trans (lift)
 import Data.Maybe (fromMaybe)
 import Lens.Micro
 import Lens.Micro.Mtl
+import Text.Parsec (try)
 import Text.Parsec.Token (GenTokenParser (..))
 import Text.Printf
 
@@ -80,19 +81,19 @@ qAnyCFNW :: Ident -> QSearchCFNW
 qAnyCFNW p = QSearchCFNW{return_sol = False, predicate = p}
 
 instance ToCodeString QSearchCFNW where
-  toCodeString QSearchCFNW{predicate, return_sol = False} = printf "any[%s]" predicate
-  toCodeString QSearchCFNW{predicate, return_sol = True} = printf "search[%s]" predicate
+  toCodeString QSearchCFNW{predicate, return_sol = False} = printf "@any[%s]" predicate
+  toCodeString QSearchCFNW{predicate, return_sol = True} = printf "@search[%s]" predicate
 
 -- Parsing
 instance P.CanParsePrimitive QSearchCFNW where
-  primitiveParser tp = parseAny <|> parseSearch
+  primitiveParser tp = try parseAny <|> try parseSearch
    where
     parseAny = do
-      reserved tp "any"
+      symbol tp "@any"
       predicate <- brackets tp $ identifier tp
       return QSearchCFNW{predicate, return_sol = False}
     parseSearch = do
-      reserved tp "search"
+      symbol tp "@search"
       predicate <- brackets tp $ identifier tp
       return QSearchCFNW{predicate, return_sol = True}
 
@@ -248,16 +249,137 @@ instance
   ( Integral sizeT
   , Floating costT
   , UQPL.Lowerable primsT primsT sizeT costT
+  , Show sizeT
+  , Show costT
+  , P.TypeCheckable sizeT
   ) =>
   UQPL.Lowerable primsT QSearchCFNW sizeT costT
   where
-  lowerPrimitive = error "TODO"
+  lowerPrimitive delta QSearchCFNW{predicate, return_sol = False} args rets = do
+    -- the predicate
+    pred_fun@P.FunDef{P.param_types} <-
+      view (_1 . Ctx.at predicate)
+        >>= maybeWithError ("cannot find predicate " <> predicate)
+
+    -- size of the search space
+    let s_ty@(P.Fin n) = last param_types
+
+    -- precision for the search
+    let delta_search = delta / 2
+    -- precision for each predicate call
+    let n_qry = _QSearchZalka n delta_search
+    let delta_per_pred_call = (delta - delta_search) / n_qry
+
+    -- compile the predicate
+    UQPL.LoweredProc
+      { UQPL.lowered_def = pred_proc
+      , UQPL.inp_tys = pred_inp_tys
+      , UQPL.out_tys = pred_out_tys
+      , UQPL.aux_tys = pred_aux_tys
+      } <-
+      UQPL.lowerFunDef delta_per_pred_call pred_fun
+
+    when (pred_out_tys /= [P.tbool]) $ throwError "invalid outputs for predicate"
+    when (last pred_inp_tys /= s_ty) $ throwError "mismatched search argument type"
+
+    -- emit the qsearch procedure
+    -- TODO maybe this can be somehow "parametrized" so we don't have to generate each time.
+    qsearch_proc_name <-
+      UQPL.newIdent $
+        printf "QSearch[%s, %s, %s]" (show n) (show delta_search) (UQPL.proc_name pred_proc)
+    qsearch_ancilla_tys <- view (UQPL.qsearchConfig . to UQPL.ancillaTypes) <&> (\f -> f n delta_search)
+    let qsearch_param_tys =
+          init pred_inp_tys
+            ++ pred_out_tys
+            ++ pred_aux_tys
+            ++ qsearch_ancilla_tys
+
+    qsearch_ancilla <- mapM UQPL.allocAncilla qsearch_ancilla_tys
+    pred_ancilla <- mapM UQPL.allocAncilla pred_aux_tys
+
+    qsearch_param_names <- replicateM (length qsearch_param_tys) $ UQPL.newIdent "_qs"
+    mk_proc_body <- view $ UQPL.qsearchConfig . to UQPL.algorithm
+    let proc_body =
+          mk_proc_body
+            s_ty
+            (\x b -> UQPL.CallS{UQPL.proc_id = UQPL.proc_name pred_proc, UQPL.dagger = False, UQPL.args = args ++ [x, b] ++ pred_ancilla})
+            delta_search
+    UQPL.addProc
+      UQPL.ProcDef
+        { UQPL.proc_name = qsearch_proc_name
+        , UQPL.proc_params = UQPL.withTag UQPL.ParamUnk $ zip qsearch_param_names qsearch_param_tys
+        , UQPL.mproc_body = Just proc_body
+        , UQPL.is_oracle = False
+        }
+
+    return
+      UQPL.CallS
+        { UQPL.proc_id = qsearch_proc_name
+        , UQPL.args = args ++ rets ++ pred_ancilla ++ qsearch_ancilla
+        , UQPL.dagger = False
+        }
+  lowerPrimitive _ _ _ _ = error "TODO"
 
 instance
   ( Integral sizeT
   , Floating costT
   , CQPL.Lowerable primsT primsT sizeT costT
+  , Show sizeT
+  , Show costT
+  , P.TypeCheckable sizeT
   ) =>
   CQPL.Lowerable primsT QSearchCFNW sizeT costT
   where
-  lowerPrimitive = error "TODO"
+  lowerPrimitive eps QSearchCFNW{predicate, return_sol = False} args rets = do
+    -- the predicate
+    pred_fun@P.FunDef{P.param_types} <-
+      view (_1 . Ctx.at predicate)
+        >>= maybeWithError ("cannot find predicate " <> predicate)
+
+    -- size of the search space
+    let s_ty@(P.Fin n) = last param_types
+
+    -- fail prob of search
+    let eps_s = eps / 2
+
+    -- fail prob predicate
+    let eps_pred = eps - eps_s
+    max_cost_formula <- view $ CQPL.qsearchConfig . to CQPL.costFormulas . to P.qSearchWorstCaseCost
+    let n_max_pred_calls = max_cost_formula n eps_pred
+    let eps_per_pred_call = eps_pred / n_max_pred_calls
+    let delta_per_pred_call = eps_per_pred_call / 2 -- norm error in unitary predicate
+
+    -- lower the unitary predicate
+    let upred_compiler = UQPL.lowerFunDef delta_per_pred_call pred_fun
+    (pred_uproc, uprocs) <- do
+      uenv <- view id <&> _3 %~ CQPL.unitaryImpl
+      ust <- use id
+      (a, _, w) <- lift $ runMyReaderWriterStateT upred_compiler uenv ust
+      return (a, w)
+
+    tellAt CQPL.loweredUProcs uprocs
+    let pred_proc_name = pred_uproc ^. to UQPL.lowered_def . to UQPL.proc_name
+
+    -- emit the QSearch algorithm
+    qsearch_builder <- view $ CQPL.qsearchConfig . to CQPL.qsearchAlgo
+    qsearch_params <- forM (args ++ rets) $ \x -> do
+      ty <- use $ CQPL.typingCtx . Ctx.at x . singular _Just
+      return (x, ty)
+    let qsearch_proc =
+          qsearch_builder
+            s_ty
+            0
+            eps_s
+            (\x b -> error "TODO unitary pred call")
+            (\x b -> CQPL.HoleS "classical predicate call")
+            qsearch_params
+    qsearch_proc_name <- CQPL.newIdent $ printf "QSearch[%s]" (show eps_s)
+    CQPL.addProc $ qsearch_proc{CQPL.proc_name = qsearch_proc_name}
+
+    return
+      CQPL.CallS
+        { CQPL.fun = CQPL.FunctionCall qsearch_proc_name
+        , CQPL.args = args ++ rets
+        , CQPL.meta_params = []
+        }
+  lowerPrimitive _ _ _ _ = error "TODO"

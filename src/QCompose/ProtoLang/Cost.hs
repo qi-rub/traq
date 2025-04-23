@@ -46,7 +46,6 @@ module QCompose.ProtoLang.Cost (
   needsEpsP,
 ) where
 
-import Control.Monad (filterM)
 import Control.Monad.Identity (Identity, runIdentity)
 import Data.Foldable (toList)
 import Lens.Micro
@@ -133,7 +132,6 @@ unitaryQueryCostE _ ConstE{} = return 0
 unitaryQueryCostE _ UnOpE{} = return 0
 unitaryQueryCostE _ BinOpE{} = return 0
 unitaryQueryCostE _ TernaryE{} = return 0
-unitaryQueryCostE _ FunCallE{} = error "invalid syntax"
 
 -- Evaluate the query cost of a statement
 unitaryQueryCostS ::
@@ -229,8 +227,6 @@ quantumMaxQueryCostE _ ConstE{} = return 0
 quantumMaxQueryCostE _ UnOpE{} = return 0
 quantumMaxQueryCostE _ BinOpE{} = return 0
 quantumMaxQueryCostE _ TernaryE{} = return 0
--- -- unsupported
-quantumMaxQueryCostE _ FunCallE{} = error "invalid syntax"
 
 quantumMaxQueryCostS ::
   forall primsT sizeT costT.
@@ -334,8 +330,6 @@ quantumQueryCostE _ _ ConstE{} = return 0
 quantumQueryCostE _ _ UnOpE{} = return 0
 quantumQueryCostE _ _ BinOpE{} = return 0
 quantumQueryCostE _ _ TernaryE{} = return 0
--- -- unsupported
-quantumQueryCostE _ _ FunCallE{} = error "invalid syntax"
 
 -- TODO use proper argument names
 extractUEnv :: Lens' (DynamicCostEnv primsT sizeT costT) (StaticCostEnv primsT sizeT costT)

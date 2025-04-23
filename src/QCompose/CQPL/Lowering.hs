@@ -1,15 +1,19 @@
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE MultiParamTypeClasses #-}
 
-module QCompose.CQPL.Lowering (
-  -- * Compilation
-  lowerProgram,
+module QCompose.CQPL.Lowering where
 
-  -- * Primitive implementations
-  QSearchCQImpl (..),
-  QSearchAlgorithm,
-  Lowerable (..),
-) where
+--   (
+--   -- * Compilation
+--   lowerProgram,
+--   newIdent,
+--   addProc,
+
+--   -- * Primitive implementations
+--   QSearchCQImpl (..),
+--   QSearchAlgorithm,
+--   Lowerable (..),
+-- ) where
 
 import Control.Monad (forM, msum, unless)
 import Control.Monad.Except (throwError)
@@ -100,11 +104,17 @@ class
   where
   lowerPrimitive ::
     forall holeT.
+    -- | fail prob
+    costT ->
     primT ->
+    -- | args
+    [Ident] ->
+    -- | rets
+    [Ident] ->
     CompilerT primsT holeT sizeT costT (Stmt holeT sizeT)
 
 instance Lowerable primsT Void sizeT costT where
-  lowerPrimitive = absurd
+  lowerPrimitive _ = absurd
 
 -- | Generate a new identifier with the given prefix.
 newIdent :: forall primT holeT sizeT costT. Ident -> CompilerT primT holeT sizeT costT Ident
@@ -226,59 +236,8 @@ lowerExpr _ P.UnOpE{P.un_op, P.arg} [ret] =
 lowerExpr eps P.FunCallE{P.fun_kind = P.FunctionCall f, P.args} rets = do
   proc_name <- lowerFunDefByName eps f
   return $ CallS{fun = FunctionCall proc_name, args = args ++ rets, meta_params = []}
-lowerExpr eps P.FunCallE{P.fun_kind = P.PrimitiveCallOld "any" [predicate], P.args} rets = do
-  -- the predicate
-  pred_fun@P.FunDef{P.param_types} <-
-    view (protoFunCtx . Ctx.at predicate)
-      >>= maybeWithError ("cannot find predicate " <> predicate)
-
-  -- size of the search space
-  let s_ty@(P.Fin n) = last param_types
-
-  -- fail prob of search
-  let eps_s = eps / 2
-
-  -- fail prob predicate
-  let eps_pred = eps - eps_s
-  max_cost_formula <- view $ qsearchConfig . to costFormulas . to P.qSearchWorstCaseCost
-  let n_max_pred_calls = max_cost_formula n eps_pred
-  let eps_per_pred_call = eps_pred / n_max_pred_calls
-  let delta_per_pred_call = eps_per_pred_call / 2 -- norm error in unitary predicate
-
-  -- lower the unitary predicate
-  let upred_compiler = UQPL.lowerFunDef delta_per_pred_call pred_fun
-  (pred_uproc, uprocs) <- do
-    uenv <- view id <&> _3 %~ unitaryImpl
-    ust <- use id
-    (a, _, w) <- lift $ runMyReaderWriterStateT upred_compiler uenv ust
-    return (a, w)
-
-  tellAt loweredUProcs uprocs
-  let pred_proc_name = pred_uproc ^. to UQPL.lowered_def . to UQPL.proc_name
-
-  -- emit the QSearch algorithm
-  qsearch_builder <- view $ qsearchConfig . to qsearchAlgo
-  qsearch_params <- forM (args ++ rets) $ \x -> do
-    ty <- use $ typingCtx . Ctx.at x . singular _Just
-    return (x, ty)
-  let qsearch_proc =
-        qsearch_builder
-          s_ty
-          0
-          eps_s
-          (\x b -> error "TODO unitary pred call")
-          (\x b -> HoleS "classical predicate call")
-          qsearch_params
-  qsearch_proc_name <- newIdent $ printf "QSearch[%s]" (show eps_s)
-  addProc $ qsearch_proc{proc_name = qsearch_proc_name}
-
-  return
-    CallS
-      { fun = FunctionCall qsearch_proc_name
-      , args = args ++ rets
-      , meta_params = []
-      }
-lowerExpr _ _ _ = error "TODO implement lowerExpr"
+lowerExpr eps P.FunCallE{P.fun_kind = P.PrimitiveCall prim, P.args} rets =
+  lowerPrimitive eps prim args rets
 
 -- | Lower a single statement
 lowerStmt ::

@@ -4,7 +4,6 @@ module QCompose.Examples.NonDetSpec (spec) where
 
 import Data.Either (fromRight, isRight)
 import qualified Data.Number.Symbolic as Sym
-import Data.Void (Void)
 import Lens.Micro
 import Text.Parsec.String (parseFromFile)
 
@@ -12,6 +11,7 @@ import qualified QCompose.Data.Context as Ctx
 import qualified QCompose.Data.Tree as Tree
 
 import QCompose.Prelude
+import QCompose.Primitives (DefaultPrims)
 import qualified QCompose.ProtoLang as P
 import qualified QCompose.ProtoLang.Parser as PP
 
@@ -21,15 +21,12 @@ import TestHelpers
 spec :: Spec
 spec = do
   describe "SimpleExample" $ do
-    let load = parseFromFile (PP.programParser @Void) "examples/nondet.qb"
+    let load = parseFromFile (PP.programParser @DefaultPrims) "examples/nondet.qb"
     it "parses" $ do
       mEx <- load
       assertRight mEx
 
-    let load' =
-          load
-            <&> fromRight undefined
-            <&> fmap Sym.unSym
+    let load' = load <&> fromRight (error "parsing failed") <&> fmap Sym.unSym
 
     it "typechecks" $ do
       ex <- load'

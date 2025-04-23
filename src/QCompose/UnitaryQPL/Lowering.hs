@@ -3,7 +3,7 @@
 
 module QCompose.UnitaryQPL.Lowering where
 
-import Control.Monad (forM, msum, replicateM, unless, when)
+import Control.Monad (forM, msum, unless, when)
 import Control.Monad.Except (throwError)
 import Data.List (intersect)
 import qualified Data.Set as Set
@@ -74,11 +74,16 @@ class
   where
   lowerPrimitive ::
     forall holeT.
+    costT ->
     primT ->
+    -- | args
+    [Ident] ->
+    -- | rets
+    [Ident] ->
     CompilerT primsT holeT sizeT costT (Stmt holeT sizeT)
 
 instance Lowerable primsT Void sizeT costT where
-  lowerPrimitive = absurd
+  lowerPrimitive _ = absurd
 
 -- ================================================================================
 -- Helpers
@@ -183,73 +188,9 @@ lowerExpr delta P.FunCallE{P.fun_kind = P.FunctionCall f, P.args} rets = do
       , args = args ++ rets ++ aux_args
       , dagger = False
       }
-
--- `any`
-lowerExpr delta P.FunCallE{P.fun_kind = P.PrimitiveCallOld "any" [predicate], P.args} rets = do
-  -- the predicate
-  pred_fun@P.FunDef{P.param_types} <-
-    view (protoFunCtx . Ctx.at predicate)
-      >>= maybeWithError ("cannot find predicate " <> predicate)
-
-  -- size of the search space
-  let s_ty@(P.Fin n) = last param_types
-
-  -- precision for the search
-  let delta_search = delta / 2
-  -- precision for each predicate call
-  calc_u_cost <- view $ qsearchConfig . to costFormulas . to P.qSearchUnitaryCost
-  let n_qry = (calc_u_cost :: sizeT -> costT -> costT) n delta_search
-  let delta_per_pred_call = (delta - delta_search) / n_qry
-
-  -- compile the predicate
-  LoweredProc
-    { lowered_def = pred_proc
-    , inp_tys = pred_inp_tys
-    , out_tys = pred_out_tys
-    , aux_tys = pred_aux_tys
-    } <-
-    lowerFunDef delta_per_pred_call pred_fun
-
-  when (pred_out_tys /= [P.tbool]) $ throwError "invalid outputs for predicate"
-  when (last pred_inp_tys /= s_ty) $ throwError "mismatched search argument type"
-
-  -- emit the qsearch procedure
-  -- TODO maybe this can be somehow "parametrized" so we don't have to generate each time.
-  qsearch_proc_name <-
-    newIdent $
-      printf "QSearch[%s, %s, %s]" (show n) (show delta_search) (proc_name pred_proc)
-  qsearch_ancilla_tys <- view (qsearchConfig . to ancillaTypes) <&> (\f -> f n delta_search)
-  let qsearch_param_tys =
-        init pred_inp_tys
-          ++ pred_out_tys
-          ++ pred_aux_tys
-          ++ qsearch_ancilla_tys
-
-  qsearch_ancilla <- mapM allocAncilla qsearch_ancilla_tys
-  pred_ancilla <- mapM allocAncilla pred_aux_tys
-
-  qsearch_param_names <- replicateM (length qsearch_param_tys) $ newIdent "_qs"
-  mk_proc_body <- view $ qsearchConfig . to algorithm
-  let proc_body =
-        mk_proc_body
-          s_ty
-          (\x b -> CallS{proc_id = proc_name pred_proc, dagger = False, args = args ++ [x, b] ++ pred_ancilla})
-          delta_search
-  addProc
-    ProcDef
-      { proc_name = qsearch_proc_name
-      , proc_params = withTag ParamUnk $ zip qsearch_param_names qsearch_param_tys
-      , mproc_body = Just proc_body
-      , is_oracle = False
-      }
-
-  return
-    CallS
-      { proc_id = qsearch_proc_name
-      , args = args ++ rets ++ pred_ancilla ++ qsearch_ancilla
-      , dagger = False
-      }
-
+-- primitive call
+lowerExpr delta P.FunCallE{P.fun_kind = P.PrimitiveCall prim, P.args} rets =
+  lowerPrimitive delta prim args rets
 -- error out in all other cases
 lowerExpr _ _ _ = throwError "cannot compile unsupported expression"
 

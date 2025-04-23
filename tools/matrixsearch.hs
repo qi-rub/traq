@@ -55,5 +55,5 @@ concreteEx = do
 main :: IO ()
 main = do
   putStrLn "hello qcompose"
-  symbolicEx
   concreteEx
+  symbolicEx

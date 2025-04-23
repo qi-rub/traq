@@ -10,7 +10,6 @@ module QCompose.ProtoLang.TypeCheck (
   TypeCheckablePrimitive (..),
 
   -- * Checkers
-  checkPrimitive,
   checkExpr,
   checkStmt,
   typeCheckFun,
@@ -73,49 +72,6 @@ class TypeCheckablePrimitive primT sizeT where
 
 instance TypeCheckablePrimitive Void sizeT where
   typeCheckPrimitive prim _ = absurd prim
-
--- | Typecheck a subroutine call
-{-# DEPRECATED checkPrimitive "Refactor Prims" #-}
-checkPrimitive ::
-  (TypeCheckable sizeT) =>
-  -- | subroutine name
-  Ident ->
-  -- | subroutine params
-  [Ident] ->
-  -- | arguments
-  [Ident] ->
-  TypeChecker primT sizeT [VarType sizeT]
--- contains
-checkPrimitive "any" [predicate] args = do
-  arg_tys <- mapM Ctx.lookup args
-
-  FunDef{param_types, ret_types} <- lookupFunE predicate
-
-  when (ret_types /= [tbool]) $
-    throwError "predicate must return a single Bool"
-
-  when (init param_types /= arg_tys) $
-    throwError "Invalid arguments to bind to predicate"
-
-  return [tbool]
-
--- search
-checkPrimitive "search" [predicate] args = do
-  arg_tys <- mapM Ctx.lookup args
-
-  FunDef{param_types, ret_types} <- lookupFunE predicate
-
-  when (ret_types /= [tbool]) $
-    throwError "predicate must return a single Bool"
-
-  when (init param_types /= arg_tys) $
-    throwError "Invalid arguments to bind to predicate"
-
-  return [tbool, last param_types]
-
--- unsupported
-checkPrimitive prim_name prim_params _ =
-  throwError $ printf "unsupported subroutine %s[%s]" prim_name (show prim_params)
 
 -- | Typecheck an expression and return the output types
 checkExpr ::
