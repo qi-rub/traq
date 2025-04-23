@@ -15,9 +15,8 @@ module QCompose.CQPL.Lowering where
 --   Lowerable (..),
 -- ) where
 
-import Control.Monad (forM, msum, unless)
+import Control.Monad (msum, unless)
 import Control.Monad.Except (throwError)
-import Control.Monad.Trans (lift)
 import qualified Data.Set as Set
 import Data.Void (Void, absurd)
 import Lens.Micro
@@ -238,6 +237,7 @@ lowerExpr eps P.FunCallE{P.fun_kind = P.FunctionCall f, P.args} rets = do
   return $ CallS{fun = FunctionCall proc_name, args = args ++ rets, meta_params = []}
 lowerExpr eps P.FunCallE{P.fun_kind = P.PrimitiveCall prim, P.args} rets =
   lowerPrimitive eps prim args rets
+lowerExpr _ _ _ = throwError "lowering: unsupported"
 
 -- | Lower a single statement
 lowerStmt ::

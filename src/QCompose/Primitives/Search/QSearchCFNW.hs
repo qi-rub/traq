@@ -11,7 +11,7 @@ module QCompose.Primitives.Search.QSearchCFNW (
 ) where
 
 import Control.Applicative ((<|>))
-import Control.Monad (filterM, forM, guard, replicateM, when)
+import Control.Monad (filterM, forM, replicateM, when)
 import Control.Monad.Except (throwError)
 import Control.Monad.Extra (anyM)
 import Control.Monad.Trans (lift)
