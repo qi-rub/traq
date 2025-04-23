@@ -25,7 +25,6 @@ instance HasSearch DefaultPrims where
   mkSearch = QAny . mkSearch
 
   getPredicate (QAny q) = getPredicate q
-  returnsSol (QAny q) = returnsSol q
 
 -- Printing
 instance ToCodeString DefaultPrims where

@@ -1,6 +1,3 @@
-{-# LANGUAGE FlexibleInstances #-}
-{-# LANGUAGE MultiParamTypeClasses #-}
-
 module QCompose.Primitives.Search.Prelude (
   HasSearch (..),
 ) where
@@ -12,4 +9,3 @@ class HasSearch primT where
   mkSearch :: Ident -> primT
 
   getPredicate :: primT -> Ident
-  returnsSol :: primT -> Bool

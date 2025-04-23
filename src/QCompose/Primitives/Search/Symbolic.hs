@@ -52,8 +52,6 @@ instance HasSearch QSearchSym where
   mkSearch = QSearchSym
 
   getPredicate = predicate
-  returnsSol QSearchSym{} = True
-  returnsSol _ = False
 
 -- Printing
 instance ToCodeString QSearchSym where
@@ -88,7 +86,7 @@ instance P.TypeCheckablePrimitive QSearchSym sizeT where
     when (init param_types /= arg_tys) $
       throwError "Invalid arguments to bind to predicate"
 
-    return $ P.tbool : [last param_types | returnsSol prim]
+    return $ P.tbool : [last param_types | case prim of QSearchSym _ -> True; _ -> False]
 
 -- | Compute the unitary cost using the QSearch_Zalka cost formula.
 instance

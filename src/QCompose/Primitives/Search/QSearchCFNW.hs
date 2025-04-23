@@ -98,7 +98,6 @@ instance HasSearch QSearchCFNW where
   mkSearch p = QSearchCFNW{predicate = p, return_sol = True}
 
   getPredicate = predicate
-  returnsSol = return_sol
 
 instance ToCodeString QSearchCFNW where
   toCodeString QSearchCFNW{predicate, return_sol = False} = printf "@any[%s]" predicate
@@ -119,8 +118,7 @@ instance P.CanParsePrimitive QSearchCFNW where
 
 -- Type check
 instance P.TypeCheckablePrimitive QSearchCFNW sizeT where
-  typeCheckPrimitive prim args = do
-    let predicate = getPredicate prim
+  typeCheckPrimitive QSearchCFNW{predicate, return_sol} args = do
     P.FunDef{P.param_types, P.ret_types} <-
       view (Ctx.at predicate)
         >>= maybeWithError (printf "cannot find search predicate `%s`" predicate)
@@ -132,7 +130,7 @@ instance P.TypeCheckablePrimitive QSearchCFNW sizeT where
     when (init param_types /= arg_tys) $
       throwError "Invalid arguments to bind to predicate"
 
-    return $ P.tbool : [last param_types | returnsSol prim]
+    return $ P.tbool : [last param_types | return_sol]
 
 {- | Evaluate an `any` call by evaluating the predicate on each element of the search space
  and or-ing the results.
@@ -547,7 +545,8 @@ qSearch ty n_samples eps upred_caller pred_caller params =
 
 instance
   ( Integral sizeT
-  , Floating costT
+  , RealFloat costT
+  , sizeT ~ SizeT
   , holeT ~ QSearchBlackBoxes costT
   , CQPL.Lowerable primsT primsT holeT sizeT costT
   , Show sizeT
@@ -570,8 +569,7 @@ instance
 
     -- fail prob predicate
     let eps_pred = eps - eps_s
-    max_cost_formula <- error "view $ CQPL.qsearchConfig . to CQPL.costFormulas . to P.qSearchWorstCaseCost"
-    let n_max_pred_calls = max_cost_formula n eps_pred
+    let n_max_pred_calls = _EQSearchWorst n eps_pred
     let eps_per_pred_call = eps_pred / n_max_pred_calls
     let delta_per_pred_call = eps_per_pred_call / 2 -- norm error in unitary predicate
 
@@ -587,17 +585,16 @@ instance
     let pred_proc_name = pred_uproc ^. to UQPL.lowered_def . to UQPL.proc_name
 
     -- emit the QSearch algorithm
-    qsearch_builder <- error "view $ CQPL.qsearchConfig . to CQPL.qsearchAlgo"
     qsearch_params <- forM (args ++ rets) $ \x -> do
       ty <- use $ CQPL.typingCtx . Ctx.at x . singular _Just
       return (x, ty)
     let qsearch_proc =
-          qsearch_builder
+          qSearch
             s_ty
             0
             eps_s
-            (\x b -> error "TODO unitary pred call")
-            (\x b -> CQPL.HoleS "classical predicate call")
+            (\x b -> UQPL.holeS $ TODOHole "TODO unitary pred call")
+            (\x b -> CQPL.HoleS $ TODOHole "classical predicate call")
             qsearch_params
     qsearch_proc_name <- CQPL.newIdent $ printf "QSearch[%s]" (show eps_s)
     CQPL.addProc $ qsearch_proc{CQPL.proc_name = qsearch_proc_name}
