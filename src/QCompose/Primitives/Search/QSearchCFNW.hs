@@ -150,6 +150,10 @@ instance
     let out_vals = if has_sol then sols else search_range
     lift $ Tree.choice [pure [P.boolToValue has_sol, v] | v <- out_vals]
 
+-- ================================================================================
+-- Abstract Costs
+-- ================================================================================
+
 -- | Compute the unitary cost using the QSearch_Zalka cost formula.
 instance
   ( Integral sizeT
@@ -254,6 +258,10 @@ instance
         P.unitaryQueryCostE delta_per_pred_call P.FunCallE{P.fun_kind = P.FunctionCall predicate, P.args = undefined}
     return $ qry * pred_unitary_cost
 
+-- ================================================================================
+-- Unitary Lowering
+-- ================================================================================
+
 instance
   ( Integral sizeT
   , Floating costT
@@ -328,6 +336,10 @@ instance
         , UQPL.dagger = False
         }
   lowerPrimitive _ _ _ _ = error "TODO"
+
+-- ================================================================================
+-- CQ Lowering
+-- ================================================================================
 
 instance
   ( Integral sizeT
