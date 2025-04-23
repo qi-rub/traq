@@ -362,7 +362,7 @@ zalkaQSearchImpl ty mk_pred eps =
 
 instance
   ( Integral sizeT
-  , Floating costT
+  , RealFloat costT
   , holeT ~ QSearchBlackBoxes costT
   , UQPL.Lowerable primsT primsT holeT sizeT costT
   , Show sizeT
@@ -380,7 +380,7 @@ instance
     -- size of the search space
     let s_ty@(P.Fin n) = last param_types
 
-    -- precision for the search
+    -- split the precision for the search
     let delta_search = delta / 2
     -- precision for each predicate call
     let n_qry = _QSearchZalka n delta_search
@@ -403,7 +403,8 @@ instance
     qsearch_proc_name <-
       UQPL.newIdent $
         printf "QSearch[%s, %s, %s]" (show n) (show delta_search) (UQPL.proc_name pred_proc)
-    qsearch_ancilla_tys <- error "TODO ancilla types" -- view (UQPL.qsearchConfig . to UQPL.ancillaTypes) <&> (\f -> f n delta_search)
+    -- TODO fix
+    let qsearch_ancilla_tys = []
     let qsearch_param_tys =
           init pred_inp_tys
             ++ pred_out_tys
@@ -414,9 +415,8 @@ instance
     pred_ancilla <- mapM UQPL.allocAncilla pred_aux_tys
 
     qsearch_param_names <- replicateM (length qsearch_param_tys) $ UQPL.newIdent "_qs"
-    mk_proc_body <- error "view $ UQPL.qsearchConfig . to UQPL.algorithm"
     let proc_body =
-          mk_proc_body
+          zalkaQSearchImpl
             s_ty
             (\x b -> UQPL.CallS{UQPL.proc_id = UQPL.proc_name pred_proc, UQPL.dagger = False, UQPL.args = args ++ [x, b] ++ pred_ancilla})
             delta_search
