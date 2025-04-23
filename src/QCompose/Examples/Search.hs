@@ -20,7 +20,7 @@ arraySearch n =
     ExprS
       { expr =
           FunCallE
-            { fun_kind = PrimitiveCall $ QAny (qAnyCFNW "Oracle")
+            { fun_kind = PrimitiveCall $ QAny (mkAny "Oracle")
             , args = []
             }
       , rets = ["result"]

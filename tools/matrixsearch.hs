@@ -39,7 +39,7 @@ concreteEx = do
 
   let delta = 0.001 :: Double
 
-  let u_formula_cost = P.unitaryQueryCost (qsearchCFNW ^. to formulas) delta ex "Oracle"
+  let u_formula_cost = P.unitaryQueryCost delta ex "Oracle"
 
   putStrLn $ replicate 80 '='
   let (Right (exU, _)) = UQPL.lowerProgram (qsearchCFNW ^. to unitaryAlgo) Ctx.empty "Oracle" delta ex

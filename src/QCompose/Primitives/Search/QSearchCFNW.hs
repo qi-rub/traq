@@ -5,7 +5,6 @@
 module QCompose.Primitives.Search.QSearchCFNW (
   -- * Search Primitive
   QSearchCFNW (..),
-  qAnyCFNW,
 
   -- * Cost Formulas
   _EQSearch,
@@ -34,6 +33,8 @@ import QCompose.Prelude
 import qualified QCompose.ProtoLang as P
 import qualified QCompose.UnitaryQPL as UQPL
 import QCompose.Utils.Printing
+
+import QCompose.Primitives.Search.Prelude
 
 -- ================================================================================
 -- Cost Formulas
@@ -80,8 +81,12 @@ _QSearchZalka n delta = 2 * nq -- for compute-uncompute
 data QSearchCFNW = QSearchCFNW {predicate :: Ident, return_sol :: Bool}
   deriving (Eq, Show, Read)
 
-qAnyCFNW :: Ident -> QSearchCFNW
-qAnyCFNW p = QSearchCFNW{return_sol = False, predicate = p}
+instance IsSearch QSearchCFNW where
+  mkAny p = QSearchCFNW{predicate = p, return_sol = False}
+  mkSearch p = QSearchCFNW{predicate = p, return_sol = True}
+
+  getPredicate = predicate
+  returnsSol = return_sol
 
 instance ToCodeString QSearchCFNW where
   toCodeString QSearchCFNW{predicate, return_sol = False} = printf "@any[%s]" predicate
@@ -99,22 +104,6 @@ instance P.CanParsePrimitive QSearchCFNW where
       symbol tp "@search"
       predicate <- brackets tp $ identifier tp
       return QSearchCFNW{predicate, return_sol = True}
-
--- | TypeCheck an `any` call
-instance P.TypeCheckablePrimitive QSearchCFNW sizeT where
-  typeCheckPrimitive QSearchCFNW{predicate, return_sol} args = do
-    P.FunDef{P.param_types, P.ret_types} <-
-      view (Ctx.at predicate)
-        >>= maybeWithError (printf "cannot find search predicate `%s`" predicate)
-
-    when (ret_types /= [P.tbool]) $
-      throwError "predicate must return a single Bool"
-
-    arg_tys <- mapM Ctx.lookup args
-    when (init param_types /= arg_tys) $
-      throwError "Invalid arguments to bind to predicate"
-
-    return $ P.tbool : [last param_types | return_sol]
 
 {- | Evaluate an `any` call by evaluating the predicate on each element of the search space
  and or-ing the results.

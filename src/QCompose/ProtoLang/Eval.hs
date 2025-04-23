@@ -52,16 +52,16 @@ type ExecutionEnv primsT sizeT = (FunCtx primsT sizeT, FunInterpCtx)
 type ExecutionState sizeT = ProgramState
 
 -- | Non-deterministic Execution Monad (i.e. no state)
-type Evaluator primsT = MyReaderT (ExecutionEnv primsT SizeT) Tree.Tree
+type Evaluator primsT sizeT = MyReaderT (ExecutionEnv primsT sizeT) Tree.Tree
 
 -- | Non-deterministic Execution Monad
-type Executor primsT = MyReaderStateT (ExecutionEnv primsT SizeT) (ExecutionState SizeT) Tree.Tree
+type Executor primsT sizeT = MyReaderStateT (ExecutionEnv primsT sizeT) (ExecutionState sizeT) Tree.Tree
 
 {- | Primitives that support evaluation:
  Can evaluate @primT@ under a context of @primsT@.
 -}
 class EvaluatablePrimitive primsT primT where
-  evalPrimitive :: primT -> [Value] -> Evaluator primsT [Value]
+  evalPrimitive :: primT -> [Value] -> Evaluator primsT SizeT [Value]
 
 instance EvaluatablePrimitive primsT Void where
   evalPrimitive = absurd
@@ -101,7 +101,7 @@ evalExpr ::
   forall primsT.
   (EvaluatablePrimitive primsT primsT) =>
   Expr primsT SizeT ->
-  Executor primsT [Value]
+  Executor primsT SizeT [Value]
 -- basic expressions
 evalExpr VarE{arg} = do
   v <- lookupS arg
@@ -132,7 +132,7 @@ evalExpr FunCallE{fun_kind = PrimitiveCall prim, args} = do
   vals <- mapM lookupS args
   embedReaderT $ evalPrimitive prim vals
 
-execStmt :: (EvaluatablePrimitive primsT primsT) => Stmt primsT SizeT -> Executor primsT ()
+execStmt :: (EvaluatablePrimitive primsT primsT) => Stmt primsT SizeT -> Executor primsT SizeT ()
 execStmt ExprS{rets, expr} = do
   vals <- withSandbox $ evalExpr expr
   zipWithM_ putS rets vals
@@ -142,7 +142,7 @@ execStmt IfThenElseS{cond, s_true, s_false} = do
   execStmt s
 execStmt (SeqS ss) = mapM_ execStmt ss
 
-evalFun :: (EvaluatablePrimitive primsT primsT) => [Value] -> FunDef primsT SizeT -> Evaluator primsT [Value]
+evalFun :: (EvaluatablePrimitive primsT primsT) => [Value] -> FunDef primsT SizeT -> Evaluator primsT SizeT [Value]
 evalFun vals_in FunDef{mbody = Just FunBody{param_names, ret_names, body_stmt}} =
   let params = Ctx.fromList $ zip param_names vals_in
    in withInjectedState params $ do

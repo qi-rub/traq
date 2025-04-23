@@ -5,7 +5,7 @@
 module QCompose.Primitives (
   DefaultPrims (..),
   QSearchCFNW (..),
-  qAnyCFNW,
+  IsSearch (..),
 ) where
 
 import qualified QCompose.CQPL as CQPL
@@ -14,6 +14,7 @@ import qualified QCompose.ProtoLang as P
 import qualified QCompose.UnitaryQPL as UQPL
 import QCompose.Utils.Printing
 
+import QCompose.Primitives.Search.Prelude
 import QCompose.Primitives.Search.QSearchCFNW
 
 newtype DefaultPrims = QAny QSearchCFNW

@@ -87,7 +87,6 @@ compile prog delta = do
                     P.FunDef{mbody = Just body} <- prog ^. to P.funCtx . Ctx.at fname
                     let cf =
                           P.unitaryQueryCost
-                            (qsearchCFNW ^. to formulas)
                             fdelta
                             P.Program
                               { stmt = body ^. to P.body_stmt
@@ -102,7 +101,7 @@ compile prog delta = do
       tellLn $ toCodeString p
 
     tellLn $ "// Actual Cost : " <> show cost
-    tellLn $ "// Formula Cost: " ++ show (P.unitaryQueryCost (qsearchCFNW ^. to formulas) delta prog "Oracle")
+    tellLn $ "// Formula Cost: " ++ show (P.unitaryQueryCost delta prog "Oracle")
     tellLn $ toCodeString $ uqpl_prog ^. to UQPL.stmt
 
 main :: IO ()
