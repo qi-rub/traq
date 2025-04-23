@@ -2,8 +2,6 @@
 
 module QCompose.Examples.MatrixSearchSpec (spec) where
 
-import Data.Void (Void)
-
 import qualified QCompose.Data.Context as Ctx
 import qualified QCompose.Data.Symbolic as Sym
 
@@ -63,14 +61,14 @@ spec = do
     describe "lower to UQPL" $ do
       let delta = 0.001 :: Double
       it "lowers" $ do
-        assertRight $ UQPL.lowerProgram @_ @Void Ctx.empty "Oracle" delta ex
+        assertRight $ UQPL.lowerProgram Ctx.empty "Oracle" delta ex
 
       it "type checks" $ do
-        (ex_uqpl, gamma) <- expectRight $ UQPL.lowerProgram @_ @Void Ctx.empty "Oracle" delta ex
+        (ex_uqpl, gamma) <- expectRight $ UQPL.lowerProgram Ctx.empty "Oracle" delta ex
         assertRight $ UQPL.typeCheckProgram gamma ex_uqpl
 
       it "preserves cost" $ do
-        (ex_uqpl, _) <- expectRight $ UQPL.lowerProgram @_ @Void Ctx.empty "Oracle" delta ex
+        (ex_uqpl, _) <- expectRight $ UQPL.lowerProgram Ctx.empty "Oracle" delta ex
         let (uqpl_cost, _) = UQPL.programCost ex_uqpl
         let proto_cost = P.unitaryQueryCost delta ex "Oracle"
         uqpl_cost `shouldBe` proto_cost
@@ -78,10 +76,10 @@ spec = do
     describe "lower to CQPL" $ do
       let eps = 0.001 :: Double
       it "lowers" $ do
-        assertRight $ CQPL.lowerProgram @_ @Void Ctx.empty "Oracle" eps ex
+        assertRight $ CQPL.lowerProgram Ctx.empty "Oracle" eps ex
 
       it "type checks" $ do
-        (ex_cqpl, gamma) <- expectRight $ CQPL.lowerProgram @_ @Void Ctx.empty "Oracle" eps ex
+        (ex_cqpl, gamma) <- expectRight $ CQPL.lowerProgram Ctx.empty "Oracle" eps ex
         -- case CQPL.typeCheckProgram gamma ex_uqpl of Left e -> putStrLn e; _ -> return ()
         assertRight $ CQPL.typeCheckProgram gamma ex_cqpl
 

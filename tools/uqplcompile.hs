@@ -94,7 +94,7 @@ compile prog delta = do
                     return $ show cf
                 )
 
-        tellLn $ "// Cost         : " <> show (proc_costs ^. at pname . non (error $ "cannot find proc " <> pname))
+        tellLn $ "// Cost         : " <> show (proc_costs ^. at pname . singular _Just)
         tellLn $ "// Formula Cost : " <> f_cost
       tellLn $ toCodeString p
 

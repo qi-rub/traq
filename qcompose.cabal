@@ -32,7 +32,6 @@ library
           QCompose.Examples.Search
           QCompose.Prelude
           QCompose.Primitives
-          QCompose.Primitives.QSearch
           QCompose.Primitives.Search.Prelude
           QCompose.Primitives.Search.QSearchCFNW
           QCompose.Primitives.Search.Symbolic

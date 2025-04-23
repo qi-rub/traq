@@ -3,7 +3,6 @@
 module Main where
 
 import Control.Exception (assert)
-import Data.Void (Void)
 import qualified QCompose.Data.Symbolic as Sym
 
 import qualified QCompose.Data.Context as Ctx
@@ -42,7 +41,7 @@ concreteEx = do
   let u_formula_cost = P.unitaryQueryCost delta ex "Oracle"
 
   putStrLn $ replicate 80 '='
-  let (Right (exU, _)) = UQPL.lowerProgram @_ @Void Ctx.empty "Oracle" delta ex
+  let (Right (exU, _)) = UQPL.lowerProgram Ctx.empty "Oracle" delta ex
   putStrLn $ toCodeString exU
 
   let (u_true_cost, _) = UQPL.programCost exU
