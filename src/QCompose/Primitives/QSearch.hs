@@ -1,8 +1,5 @@
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE MultiParamTypeClasses #-}
-{-# OPTIONS_GHC -Wno-unused-local-binds #-}
-{-# OPTIONS_GHC -Wno-unused-matches #-}
-{-# OPTIONS_GHC -Wno-unused-top-binds #-}
 
 {- |
 Cost formulas and implementations of the quantum search algorithms in Ref [1].

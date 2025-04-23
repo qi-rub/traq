@@ -21,7 +21,6 @@ spec :: Spec
 spec = do
   describe "unitary cost of statements" $ do
     let ucFormula = qsearchCFNW ^. to formulas . to qSearchUnitaryCost
-    let ucProg = unitaryQueryCost (qsearchCFNW ^. to formulas)
 
     it "fun call of oracle" $ do
       let prog =
@@ -34,7 +33,7 @@ spec = do
               , "i <- const 10 : Fin<100>;"
               , "res <- f(i)"
               ]
-      let c = ucProg 0.001 prog "Oracle"
+      let c = unitaryQueryCost 0.001 prog "Oracle"
       c `shouldBe` (2 :: Double)
 
     it "search with no oracle" $ do
@@ -47,7 +46,7 @@ spec = do
               , "end"
               , "res <- @any[f]()"
               ]
-      let c = ucProg 0.001 prog "Oracle"
+      let c = unitaryQueryCost 0.001 prog "Oracle"
       c `shouldBe` (0 :: Double)
 
     it "search with 1x oracle" $ do
@@ -60,5 +59,5 @@ spec = do
               , "end"
               , "res <- @any[f]()"
               ]
-      let c = ucProg 0.001 prog "Oracle"
+      let c = unitaryQueryCost 0.001 prog "Oracle"
       (c :: Double) `shouldBe` 2 * ucFormula 100 (0.001 / 2)

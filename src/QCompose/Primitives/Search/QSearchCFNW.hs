@@ -3,11 +3,14 @@
 {-# LANGUAGE UndecidableInstances #-}
 
 module QCompose.Primitives.Search.QSearchCFNW (
+  -- * Search Primitive
+  QSearchCFNW (..),
+  qAnyCFNW,
+
+  -- * Cost Formulas
   _EQSearch,
   _EQSearchWorst,
   _QSearchZalka,
-  QSearchCFNW (..),
-  qAnyCFNW,
 ) where
 
 import Control.Applicative ((<|>))
@@ -20,7 +23,7 @@ import Lens.Micro
 import Lens.Micro.Mtl
 import Text.Parsec (try)
 import Text.Parsec.Token (GenTokenParser (..))
-import Text.Printf
+import Text.Printf (printf)
 
 import QCompose.Control.Monad
 import qualified QCompose.Data.Context as Ctx
@@ -150,7 +153,7 @@ instance
   P.UnitaryCostablePrimitive primsT QSearchCFNW sizeT costT
   where
   unitaryQueryCostPrimitive delta QSearchCFNW{predicate} = do
-    P.FunDef{P.param_types} <- view $ _2 . Ctx.at predicate . singular _Just
+    P.FunDef{P.param_types} <- view $ _1 . Ctx.at predicate . singular _Just
     let P.Fin n = last param_types
 
     -- split the precision
@@ -178,7 +181,7 @@ instance
   P.QuantumMaxCostablePrimitive primsT QSearchCFNW sizeT costT
   where
   quantumMaxQueryCostPrimitive eps QSearchCFNW{predicate} = do
-    P.FunDef{P.param_types} <- view $ _2 . Ctx.at predicate . singular _Just
+    P.FunDef{P.param_types} <- view $ _1 . Ctx.at predicate . singular _Just
     let P.Fin n = last param_types
 
     -- split the fail prob
@@ -209,7 +212,7 @@ instance
   P.QuantumCostablePrimitive primsT QSearchCFNW sizeT costT
   where
   quantumQueryCostPrimitive eps QSearchCFNW{predicate} vs = do
-    predDef@P.FunDef{P.param_types} <- view $ _2 . Ctx.at predicate . singular _Just
+    predDef@P.FunDef{P.param_types} <- view $ _1 . Ctx.at predicate . singular _Just
     let typ_x = last param_types
 
     -- split the fail prob
@@ -219,7 +222,7 @@ instance
     -- number of solutions
     let space = P.range typ_x
     sols <- do
-      env <- (,) <$> view _2 <*> view _3
+      env <- (,) <$> view _1 <*> view _2
       -- TODO this is too convoluted...
       return $
         (`runMyReaderT` env) $

@@ -85,7 +85,13 @@ unsafeLookupFun fname funCtx = funCtx ^. Ctx.at fname . singular _Just
 type OracleName = Ident
 
 -- | Environment to compute the unitary cost
-type StaticCostEnv primsT sizeT costT = (QSearchFormulas sizeT costT, FunCtx primsT sizeT, OracleName)
+type StaticCostEnv primsT sizeT costT = (FunCtx primsT sizeT, OracleName)
+
+_funCtx :: Lens' (StaticCostEnv primsT sizeT costT) (FunCtx primsT sizeT)
+_funCtx = _1
+
+_oracleName :: Lens' (StaticCostEnv primsT sizeT costT) OracleName
+_oracleName = _2
 
 -- | Monad to compute unitary cost.
 type UnitaryCostCalculator primsT sizeT costT = MyReaderT (StaticCostEnv primsT sizeT costT) Maybe
@@ -116,11 +122,11 @@ unitaryQueryCostE ::
   Expr primsT sizeT ->
   UnitaryCostCalculator primsT sizeT costT costT
 unitaryQueryCostE delta FunCallE{fun_kind = FunctionCall fname} = do
-  is_oracle_call <- view $ _3 . to (== fname)
+  is_oracle_call <- view $ _oracleName . to (== fname)
   if is_oracle_call
     then return 1.0
     else do
-      FunDef{mbody} <- view $ _2 . to (unsafeLookupFun fname)
+      FunDef{mbody} <- view $ _funCtx . to (unsafeLookupFun fname)
       case mbody of
         Nothing -> return 0 -- no cost for injected data
         Just FunBody{body_stmt} -> (2 *) <$> unitaryQueryCostS (delta / 2) body_stmt
@@ -163,8 +169,6 @@ unitaryQueryCost ::
   , Floating costT
   , UnitaryCostablePrimitive primsT primsT sizeT costT
   ) =>
-  -- | Qry formulas
-  QSearchFormulas sizeT costT ->
   -- | precision (l2-norm)
   costT ->
   -- | program @P@
@@ -172,8 +176,8 @@ unitaryQueryCost ::
   -- | oracle name @O@
   OracleName ->
   costT
-unitaryQueryCost algs delta Program{funCtx, stmt} oracle_name =
-  let env = (algs, funCtx, oracle_name)
+unitaryQueryCost delta Program{funCtx, stmt} oracle_name =
+  let env = (funCtx, oracle_name)
    in unitaryQueryCostS delta stmt `runMyReaderT` env ^. singular _Just
 
 -- ================================================================================
@@ -209,11 +213,11 @@ quantumMaxQueryCostE ::
   Expr primsT sizeT ->
   QuantumMaxCostCalculator primsT sizeT costT costT
 quantumMaxQueryCostE eps FunCallE{fun_kind = FunctionCall fname} = do
-  is_oracle_call <- view $ _3 . to (== fname)
+  is_oracle_call <- view $ _oracleName . to (== fname)
   if is_oracle_call
     then return 1
     else do
-      FunDef{mbody} <- view $ _2 . to (unsafeLookupFun fname)
+      FunDef{mbody} <- view $ _funCtx . to (unsafeLookupFun fname)
       case mbody of
         Nothing -> return 0 -- no cost for injected data
         Just FunBody{body_stmt} -> quantumMaxQueryCostS eps body_stmt
@@ -257,8 +261,6 @@ quantumMaxQueryCost ::
   , Floating costT
   , QuantumMaxCostablePrimitive primsT primsT sizeT costT
   ) =>
-  -- | Qry formulas
-  QSearchFormulas sizeT costT ->
   -- | failure probability `eps`
   costT ->
   -- | program `P`
@@ -266,8 +268,8 @@ quantumMaxQueryCost ::
   -- | oracle @O@
   OracleName ->
   costT
-quantumMaxQueryCost algs a_eps Program{funCtx, stmt} oracle_name =
-  let env = (algs, funCtx, oracle_name)
+quantumMaxQueryCost a_eps Program{funCtx, stmt} oracle_name =
+  let env = (funCtx, oracle_name)
    in quantumMaxQueryCostS a_eps stmt `runMyReaderT` env ^. singular _Just
 
 -- ================================================================================
@@ -275,7 +277,7 @@ quantumMaxQueryCost algs a_eps Program{funCtx, stmt} oracle_name =
 -- ================================================================================
 
 -- Environment to compute the quantum cost (input dependent)
-type DynamicCostEnv primsT sizeT costT = (QSearchFormulas sizeT costT, FunCtx primsT sizeT, FunInterpCtx, OracleName)
+type DynamicCostEnv primsT sizeT costT = (FunCtx primsT sizeT, FunInterpCtx, OracleName)
 
 type QuantumCostCalculator primsT sizeT costT = MyReaderT (DynamicCostEnv primsT sizeT costT) Maybe
 
@@ -308,11 +310,11 @@ quantumQueryCostE ::
   Expr primsT SizeT ->
   QuantumCostCalculator primsT SizeT costT costT
 quantumQueryCostE eps sigma FunCallE{fun_kind = FunctionCall f, args} = do
-  is_oracle <- (f ==) <$> view _4
+  is_oracle <- (f ==) <$> view _3
   if is_oracle
     then return 1
     else
-      view (_2 . to (unsafeLookupFun f) . to mbody) >>= \case
+      view (_1 . to (unsafeLookupFun f) . to mbody) >>= \case
         Nothing -> return 0 -- no cost for injected data
         Just FunBody{param_names, body_stmt} -> do
           let vs = args & map (\x -> sigma ^. Ctx.at x . singular _Just)
@@ -333,7 +335,7 @@ quantumQueryCostE _ _ TernaryE{} = return 0
 
 -- TODO use proper argument names
 extractUEnv :: Lens' (DynamicCostEnv primsT sizeT costT) (StaticCostEnv primsT sizeT costT)
-extractUEnv focus (a, b, c, d) = (\(a', b', d') -> (a', b', c, d')) <$> focus (a, b, d)
+extractUEnv focus (b, c, d) = (\(b', d') -> (b', c, d')) <$> focus (b, d)
 
 quantumQueryCostS ::
   forall primsT costT.
@@ -353,8 +355,8 @@ quantumQueryCostS eps sigma (SeqS [s]) = quantumQueryCostS eps sigma s
 quantumQueryCostS eps sigma (SeqS (s : ss)) = do
   cost_s <- quantumQueryCostS (eps / 2) sigma s
 
-  funCtx <- view _2
-  interpCtx <- view _3
+  funCtx <- view _1
+  interpCtx <- view _2
   let sigma' = detExtract $ runProgram Program{funCtx, stmt = s} interpCtx sigma
 
   cost_ss <- quantumQueryCostS (eps / 2) sigma' (SeqS ss)
@@ -364,8 +366,6 @@ quantumQueryCostS _ _ _ = error "INVALID"
 quantumQueryCost ::
   forall primsT costT.
   (Floating costT, QuantumCostablePrimitive primsT primsT SizeT costT) =>
-  -- | Qry formulas
-  QSearchFormulas SizeT costT ->
   -- | failure probability \( \varepsilon \)
   costT ->
   -- | program @P@
@@ -377,8 +377,8 @@ quantumQueryCost ::
   -- | state \( \sigma \)
   ProgramState ->
   costT
-quantumQueryCost algs a_eps Program{funCtx, stmt} oracle_name interpCtx sigma =
-  let env = (algs, funCtx, interpCtx, oracle_name)
+quantumQueryCost a_eps Program{funCtx, stmt} oracle_name interpCtx sigma =
+  let env = (funCtx, interpCtx, oracle_name)
    in quantumQueryCostS a_eps sigma stmt `runMyReaderT` env ^. singular _Just
 
 -- | The bound on the true expected runtime which fails with probability <= \eps.
@@ -388,8 +388,6 @@ quantumQueryCostBound ::
   , Floating costT
   , QuantumCostablePrimitive primsT primsT SizeT costT
   ) =>
-  -- | Qry formulas
-  QSearchFormulas SizeT costT ->
   -- | failure probability \( \varepsilon \)
   costT ->
   -- | program @P@
@@ -401,9 +399,9 @@ quantumQueryCostBound ::
   -- | state \( \sigma \)
   ProgramState ->
   costT
-quantumQueryCostBound algs a_eps p oracle_name interp_ctx sigma =
-  (1 - a_eps) * quantumQueryCost algs a_eps p oracle_name interp_ctx sigma
-    + a_eps * quantumMaxQueryCost algs a_eps p oracle_name
+quantumQueryCostBound a_eps p oracle_name interp_ctx sigma =
+  (1 - a_eps) * quantumQueryCost a_eps p oracle_name interp_ctx sigma
+    + a_eps * quantumMaxQueryCost a_eps p oracle_name
 
 -- | Compute if a statement can fail and therefore needs a failure probability to implement
 needsEpsS :: Stmt primsT sizeT -> MyReaderT (FunCtx primsT sizeT) Identity Bool

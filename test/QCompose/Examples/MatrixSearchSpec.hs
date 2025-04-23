@@ -38,18 +38,18 @@ spec = do
       res `shouldBe` pure (Ctx.singleton "result" 0)
 
     -- expected, worst, unitary
-    let qformulas@(P.QSearchFormulas _ wcF ucF) = qsearchCFNW ^. to formulas
+    let (P.QSearchFormulas _ wcF ucF) = qsearchCFNW ^. to formulas
 
     it "unitary cost for delta=0.0001" $ do
       let delta = 0.0001 :: Double
-      let cu = P.unitaryQueryCost qformulas delta ex "Oracle"
+      let cu = P.unitaryQueryCost delta ex "Oracle"
       let nu_outer = ucF n (delta / 4)
       let nu_inner = 2 * ucF m (delta / 4 / nu_outer / 8)
       cu `shouldBe` 2 * nu_outer * 2 * nu_inner
 
     it "quantum cost for eps=0.0001" $ do
       let eps = 0.0001
-      let cq = P.quantumQueryCost qformulas eps ex "Oracle" interpCtx Ctx.empty
+      let cq = P.quantumQueryCost eps ex "Oracle" interpCtx Ctx.empty
       let nq_outer = wcF n (eps / 2)
       let nq_inner = 2 * ucF m (eps / 2 / nq_outer / 16)
       let nq_oracle = 2
@@ -71,7 +71,7 @@ spec = do
       it "preserves cost" $ do
         (ex_uqpl, _) <- expectRight $ UQPL.lowerProgram ualgo Ctx.empty "Oracle" delta ex
         let (uqpl_cost, _) = UQPL.programCost ex_uqpl
-        let proto_cost = P.unitaryQueryCost qformulas delta ex "Oracle"
+        let proto_cost = P.unitaryQueryCost delta ex "Oracle"
         uqpl_cost `shouldBe` proto_cost
 
     describe "lower to CQPL" $ do
@@ -92,11 +92,11 @@ spec = do
     let ex = matrixExample n m sbool
 
     -- expected, worst, unitary
-    let qformulas@(P.QSearchFormulas _ wcF ucF) = qsearchSymbolic ^. to formulas
+    let (P.QSearchFormulas _ wcF ucF) = qsearchSymbolic ^. to formulas
 
     it "unitary cost for delta=0.0001" $ do
       let delta = Sym.var "δ" :: Sym.Sym Double
-      let cu = P.unitaryQueryCost qformulas delta ex "Oracle"
+      let cu = P.unitaryQueryCost delta ex "Oracle"
       let nu_outer = ucF n (delta / 2 / 2)
       let nu_inner = 2 * ucF m ((delta / 2 - delta / 2 / 2) / nu_outer / 2 / 2 / 2)
       let nu_oracle = 2
@@ -104,7 +104,7 @@ spec = do
 
     it "quantum cost for eps=0.0001" $ do
       let eps = Sym.var "ε" :: Sym.Sym Double
-      let cq = P.quantumMaxQueryCost qformulas eps ex "Oracle"
+      let cq = P.quantumMaxQueryCost eps ex "Oracle"
       let nq_outer = wcF n (eps / 2)
       let nq_inner = 2 * ucF m ((eps - eps / 2) / nq_outer / 2 / 2 / 2 / 2)
       let nq_oracle = 2

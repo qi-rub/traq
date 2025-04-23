@@ -32,18 +32,18 @@ spec = do
       let res = P.runProgram ex interpCtx Ctx.empty
       res `shouldBe` pure (Ctx.singleton "result" 0)
 
-    let qformulas@(P.QSearchFormulas ecF _ ucF) = qsearchCFNW ^. to formulas
+    let (P.QSearchFormulas ecF _ ucF) = qsearchCFNW ^. to formulas
     let ualgo = qsearchCFNW ^. to unitaryAlgo
 
     let eps = 0.0001 :: Double
 
     it "unitary cost for eps=0.0001" $ do
       let true_cost = ucF n (eps / 2) :: Double
-      P.unitaryQueryCost qformulas eps ex "Oracle" `shouldBe` true_cost
+      P.unitaryQueryCost eps ex "Oracle" `shouldBe` true_cost
 
     it "quantum cost for eps=0.0001" $ do
       let true_cost = ecF n 0 (eps / 2)
-      P.quantumQueryCost qformulas eps ex "Oracle" interpCtx Ctx.empty `shouldBe` true_cost
+      P.quantumQueryCost eps ex "Oracle" interpCtx Ctx.empty `shouldBe` true_cost
 
     it "generate code" $ do
       toCodeString ex `shouldSatisfy` (not . null)
@@ -60,7 +60,7 @@ spec = do
       it "preserves cost" $ do
         (ex_uqpl, _) <- expectRight $ UQPL.lowerProgram ualgo Ctx.empty "Oracle" delta ex
         let (uqpl_cost, _) = UQPL.programCost ex_uqpl
-        let proto_cost = P.unitaryQueryCost qformulas delta ex "Oracle"
+        let proto_cost = P.unitaryQueryCost delta ex "Oracle"
         uqpl_cost `shouldBe` proto_cost
 
   describe "arraySearch (returning solution)" $ do
