@@ -3,7 +3,7 @@
 module Main where
 
 import Control.Exception (assert)
-import Lens.Micro
+import Data.Void (Void)
 import qualified QCompose.Data.Symbolic as Sym
 
 import qualified QCompose.Data.Context as Ctx
@@ -14,8 +14,6 @@ import qualified QCompose.UnitaryQPL as UQPL
 import QCompose.Utils.Printing
 
 import QCompose.Examples.MatrixSearch
-import QCompose.Primitives.QSearch
-import QCompose.Primitives.Search.Prelude
 import QCompose.Primitives.Search.Symbolic
 
 symbolicEx :: IO ()
@@ -44,7 +42,7 @@ concreteEx = do
   let u_formula_cost = P.unitaryQueryCost delta ex "Oracle"
 
   putStrLn $ replicate 80 '='
-  let (Right (exU, _)) = UQPL.lowerProgram (qsearchCFNW ^. to unitaryAlgo) Ctx.empty "Oracle" delta ex
+  let (Right (exU, _)) = UQPL.lowerProgram @_ @Void Ctx.empty "Oracle" delta ex
   putStrLn $ toCodeString exU
 
   let (u_true_cost, _) = UQPL.programCost exU
@@ -58,6 +56,6 @@ main :: IO ()
 main = do
   putStrLn "hello qcompose"
   putStrLn ""
-  concreteEx
-  putStrLn ""
   symbolicEx
+  putStrLn ""
+  concreteEx
