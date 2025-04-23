@@ -210,6 +210,6 @@ qSearch ty n_samples eps upred_caller pred_caller params =
       [ CQPL.RandomS "j" (P.Fin $ j_lim + 1)
       , CQPL.AssignS ["Q_sum"] (CQPL.AddE (CQPL.VarE "Q_sum") (CQPL.VarE "j"))
       , CQPL.AssignS ["not_done"] (CQPL.LEqE (CQPL.VarE "Q_sum") (CQPL.ConstE{CQPL.val = fromIntegral j_lim, CQPL.val_ty = j_type}))
-      , CQPL.IfThenElseS "not_done" (CQPL.HoleS "callandmeas: grover cycle j") CQPL.SkipS
+      , CQPL.IfThenElseS "not_done" (CQPL.HoleS $ TODOHole "callandmeas: grover cycle j") CQPL.SkipS
       , pred_caller "y" "ok"
       ]

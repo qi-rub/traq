@@ -62,7 +62,7 @@ data Stmt holeT sizeT
   | SeqS [Stmt holeT sizeT]
   | IfThenElseS {cond :: Ident, s_true, s_false :: Stmt holeT sizeT}
   | RepeatS {n_iter :: sizeT, loop_body :: Stmt holeT sizeT}
-  | HoleS String
+  | HoleS holeT
   | -- syntax sugar
     WhileK {n_iter :: sizeT, cond :: Ident, loop_body :: Stmt holeT sizeT}
   | WhileKWithCondExpr {n_iter :: sizeT, cond :: Ident, cond_expr :: Expr sizeT, loop_body :: Stmt holeT sizeT}
@@ -183,7 +183,7 @@ instance (Show sizeT) => ToCodeString (Expr sizeT) where
   toCodeString MinE{lhs, rhs} =
     "min(" ++ toCodeString lhs ++ ", " ++ toCodeString rhs ++ ")"
 
-instance (Show sizeT) => ToCodeString (Stmt holeT sizeT) where
+instance (Show holeT, Show sizeT) => ToCodeString (Stmt holeT sizeT) where
   toCodeLines SkipS = ["skip;"]
   toCodeLines AssignS{rets, expr} =
     [printf "%s := %s;" (commaList rets) (toCodeString expr)]
@@ -205,7 +205,7 @@ instance (Show sizeT) => ToCodeString (Stmt holeT sizeT) where
       ++ indent (toCodeLines loop_body)
       ++ ["end"]
   -- hole
-  toCodeLines (HoleS info) = [printf "HOLE :: %s;" info]
+  toCodeLines (HoleS info) = [printf "HOLE :: %s;" (show info)]
   -- syntax sugar
   toCodeLines WhileK{n_iter, cond, loop_body} =
     printf "while[%s] (%s) do" (show n_iter) cond
@@ -216,7 +216,7 @@ instance (Show sizeT) => ToCodeString (Stmt holeT sizeT) where
       : indent (toCodeLines loop_body)
       ++ ["end"]
 
-instance (Show sizeT) => ToCodeString (ProcDef holeT sizeT) where
+instance (Show holeT, Show sizeT) => ToCodeString (ProcDef holeT sizeT) where
   toCodeLines ProcDef{proc_name, proc_meta_params, proc_param_types, mproc_body = Nothing} =
     [ printf
         "proc %s[%s](%s);"
