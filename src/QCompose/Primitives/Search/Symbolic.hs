@@ -3,16 +3,26 @@
 {-# LANGUAGE UndecidableInstances #-}
 
 module QCompose.Primitives.Search.Symbolic (
+  -- * Search Primitive supporting symbolic cost
   qsearchSymbolic,
+  QSearchSym (..),
+
+  -- * Formulas
+  _QryU,
+  _QryQmax,
 ) where
 
 import Control.Applicative ((<|>))
+import Control.Monad (when)
+import Control.Monad.Except (throwError)
 import Lens.Micro
 import Lens.Micro.Mtl
 import qualified QCompose.Data.Symbolic as Sym
 import Text.Parsec (try)
 import Text.Parsec.Token (GenTokenParser (..))
 import Text.Printf (printf)
+
+import QCompose.Control.Monad (maybeWithError)
 
 import qualified QCompose.Data.Context as Ctx
 
@@ -60,8 +70,9 @@ qsearchSymbolic =
 -- Primitive Class Implementation
 -- ================================================================================
 data QSearchSym = QSearchSym {predicate :: Ident} | QAnySym {predicate :: Ident}
+  deriving (Eq, Show, Read)
 
-instance IsSearch QSearchSym where
+instance HasSearch QSearchSym where
   mkAny = QAnySym
   mkSearch = QSearchSym
 
@@ -86,6 +97,23 @@ instance P.CanParsePrimitive QSearchSym where
       symbol tp "@search"
       predicate <- brackets tp $ identifier tp
       return QSearchSym{predicate}
+
+-- Type check
+instance P.TypeCheckablePrimitive QSearchSym sizeT where
+  typeCheckPrimitive prim args = do
+    let predicate = getPredicate prim
+    P.FunDef{P.param_types, P.ret_types} <-
+      view (Ctx.at predicate)
+        >>= maybeWithError (printf "cannot find search predicate `%s`" predicate)
+
+    when (ret_types /= [P.tbool]) $
+      throwError "predicate must return a single Bool"
+
+    arg_tys <- mapM Ctx.lookup args
+    when (init param_types /= arg_tys) $
+      throwError "Invalid arguments to bind to predicate"
+
+    return $ P.tbool : [last param_types | returnsSol prim]
 
 -- | Compute the unitary cost using the QSearch_Zalka cost formula.
 instance

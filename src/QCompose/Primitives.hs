@@ -5,7 +5,7 @@
 module QCompose.Primitives (
   DefaultPrims (..),
   QSearchCFNW (..),
-  IsSearch (..),
+  HasSearch (..),
 ) where
 
 import qualified QCompose.CQPL as CQPL
@@ -19,6 +19,13 @@ import QCompose.Primitives.Search.QSearchCFNW
 
 newtype DefaultPrims = QAny QSearchCFNW
   deriving (Eq, Show, Read)
+
+instance HasSearch DefaultPrims where
+  mkAny = QAny . mkAny
+  mkSearch = QAny . mkSearch
+
+  getPredicate (QAny q) = getPredicate q
+  returnsSol (QAny q) = returnsSol q
 
 -- Printing
 instance ToCodeString DefaultPrims where

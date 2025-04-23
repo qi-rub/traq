@@ -1,9 +1,11 @@
+{-# LANGUAGE TypeApplications #-}
+
 module QCompose.Examples.MatrixSearchSpec (spec) where
 
 import Lens.Micro
-import qualified QCompose.Data.Symbolic as Sym
 
 import qualified QCompose.Data.Context as Ctx
+import qualified QCompose.Data.Symbolic as Sym
 
 import qualified QCompose.CQPL as CQPL
 import qualified QCompose.ProtoLang as P
@@ -89,10 +91,11 @@ spec = do
     let n = Sym.var "n" :: Sym.Sym Int
     let m = Sym.var "m" :: Sym.Sym Int
     let sbool = P.Fin (Sym.con 2) :: P.VarType (Sym.Sym Int)
-    let ex = matrixExample n m sbool
+    let ex = matrixExample @QSearchSym n m sbool
 
     -- expected, worst, unitary
     let (P.QSearchFormulas _ wcF ucF) = qsearchSymbolic ^. to formulas
+    let ucF = _QryU
 
     it "unitary cost for delta=0.0001" $ do
       let delta = Sym.var "δ" :: Sym.Sym Double

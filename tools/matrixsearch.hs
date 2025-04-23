@@ -1,3 +1,5 @@
+{-# LANGUAGE TypeApplications #-}
+
 module Main where
 
 import Control.Exception (assert)
@@ -18,19 +20,19 @@ import QCompose.Primitives.Search.Symbolic
 
 symbolicEx :: IO ()
 symbolicEx = do
-  putStrLn "symbolic program:"
+  putStrLn "Symbolic program:"
 
   let n = Sym.var "N" :: Sym.Sym SizeT
   let m = Sym.var "M" :: Sym.Sym SizeT
-  let ex = matrixExample n m (P.Fin $ Sym.con 2)
+  let ex = matrixExample @QSearchSym n m (P.Fin $ Sym.con 2)
 
   let delta = Sym.var "δ" :: Sym.Sym Double
-  let u_formula_cost = (qsearchSymbolic ^. to formulas . to P.unitaryQueryCost) delta ex "Oracle"
+  let u_formula_cost = P.unitaryQueryCost delta ex "Oracle"
   print u_formula_cost
 
 concreteEx :: IO ()
 concreteEx = do
-  putStrLn "concrete program:"
+  putStrLn "Concrete program:"
   let (n, m) = (1000, 1000)
   let ex = matrixExampleS n m
 
@@ -55,5 +57,7 @@ concreteEx = do
 main :: IO ()
 main = do
   putStrLn "hello qcompose"
+  putStrLn ""
   concreteEx
+  putStrLn ""
   symbolicEx

@@ -81,7 +81,7 @@ _QSearchZalka n delta = 2 * nq -- for compute-uncompute
 data QSearchCFNW = QSearchCFNW {predicate :: Ident, return_sol :: Bool}
   deriving (Eq, Show, Read)
 
-instance IsSearch QSearchCFNW where
+instance HasSearch QSearchCFNW where
   mkAny p = QSearchCFNW{predicate = p, return_sol = False}
   mkSearch p = QSearchCFNW{predicate = p, return_sol = True}
 
@@ -104,6 +104,23 @@ instance P.CanParsePrimitive QSearchCFNW where
       symbol tp "@search"
       predicate <- brackets tp $ identifier tp
       return QSearchCFNW{predicate, return_sol = True}
+
+-- Type check
+instance P.TypeCheckablePrimitive QSearchCFNW sizeT where
+  typeCheckPrimitive prim args = do
+    let predicate = getPredicate prim
+    P.FunDef{P.param_types, P.ret_types} <-
+      view (Ctx.at predicate)
+        >>= maybeWithError (printf "cannot find search predicate `%s`" predicate)
+
+    when (ret_types /= [P.tbool]) $
+      throwError "predicate must return a single Bool"
+
+    arg_tys <- mapM Ctx.lookup args
+    when (init param_types /= arg_tys) $
+      throwError "Invalid arguments to bind to predicate"
+
+    return $ P.tbool : [last param_types | returnsSol prim]
 
 {- | Evaluate an `any` call by evaluating the predicate on each element of the search space
  and or-ing the results.

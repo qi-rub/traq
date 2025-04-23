@@ -12,6 +12,8 @@ import QCompose.ProtoLang.Rewrites
 import QCompose.ProtoLang.Syntax
 import QCompose.Utils.ASTRewriting
 
+import QCompose.Primitives.Search.Symbolic
+
 import Test.Hspec
 import TestHelpers
 
@@ -69,6 +71,6 @@ spec = do
 
   describe "parse file" $ do
     it "parses example" $ do
-      e <- parseFromFile programParser "examples/matrix_search/matrix_search.qb" >>= expectRight
+      e <- parseFromFile (programParser @QSearchSym) "examples/matrix_search/matrix_search.qb" >>= expectRight
       let e' = rewriteAST flattenSeq e
       e' `shouldBe` matrixExample (Sym.var "N") (Sym.var "M") (Fin (Sym.con 2))
