@@ -16,8 +16,6 @@ import qualified QCompose.UnitaryQPL as UQPL
 import QCompose.Utils.Printing
 
 import QCompose.Primitives (DefaultPrims)
-import QCompose.Primitives.QSearch
-import QCompose.Primitives.Search.Prelude
 
 data Options = Options
   { in_file :: FilePath
@@ -67,7 +65,7 @@ tellLn x = tell $ unlines [x]
 
 compile :: forall costT. (Floating costT, Show costT) => P.Program DefaultPrims SizeT -> costT -> IO String
 compile prog delta = do
-  let Right (uqpl_prog, _) = UQPL.lowerProgram (qsearchCFNW ^. to unitaryAlgo) Ctx.empty "Oracle" delta prog
+  let Right (uqpl_prog, _) = UQPL.lowerProgram Ctx.empty "Oracle" delta prog
   -- get costs
   let (cost :: costT, proc_costs) = UQPL.programCost uqpl_prog
 

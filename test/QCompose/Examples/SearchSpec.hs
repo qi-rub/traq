@@ -52,14 +52,14 @@ spec = do
     describe "lowers to UQPL" $ do
       let delta = 0.0001 :: Double
       it "lowers" $ do
-        assertRight $ UQPL.lowerProgram @_ @_ @Void Ctx.empty "Oracle" delta ex
+        assertRight $ UQPL.lowerProgram @_ @Void Ctx.empty "Oracle" delta ex
 
       it "typechecks" $ do
-        (ex_uqpl, gamma) <- expectRight $ UQPL.lowerProgram @_ @_ @Void Ctx.empty "Oracle" delta ex
+        (ex_uqpl, gamma) <- expectRight $ UQPL.lowerProgram @_ @Void Ctx.empty "Oracle" delta ex
         assertRight $ UQPL.typeCheckProgram gamma ex_uqpl
 
       it "preserves cost" $ do
-        (ex_uqpl, _) <- expectRight $ UQPL.lowerProgram @_ @_ @Void Ctx.empty "Oracle" delta ex
+        (ex_uqpl, _) <- expectRight $ UQPL.lowerProgram @_ @Void Ctx.empty "Oracle" delta ex
         let (uqpl_cost, _) = UQPL.programCost ex_uqpl
         let proto_cost = P.unitaryQueryCost delta ex "Oracle"
         uqpl_cost `shouldBe` proto_cost

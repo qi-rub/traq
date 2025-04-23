@@ -362,7 +362,7 @@ lowerFunDef
 
 -- | Lower a full program into a UQPL program.
 lowerProgram ::
-  forall primsT costT holeT.
+  forall primsT holeT costT.
   ( Lowerable primsT primsT holeT SizeT costT
   , Show costT
   , Floating costT
