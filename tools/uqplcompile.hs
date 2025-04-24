@@ -63,7 +63,7 @@ subsNM params s = Sym.unSym $ foldr subsOnce s params
 tellLn :: (MonadWriter String m) => String -> m ()
 tellLn x = tell $ unlines [x]
 
-compile :: forall costT. (Floating costT, Show costT) => P.Program DefaultPrims SizeT -> costT -> IO String
+compile :: forall costT. (RealFloat costT, Show costT) => P.Program DefaultPrims SizeT -> costT -> IO String
 compile prog delta = do
   let Right (uqpl_prog, _) = UQPL.lowerProgram Ctx.empty "Oracle" delta prog
   -- get costs
@@ -113,5 +113,5 @@ main = do
   -- compile
   out_prog <- case delta of
     Just d -> compile prog d
-    Nothing -> compile prog (Sym.var "d" :: Sym.Sym Float)
+    Nothing -> fail "compile prog (Sym.var \"d\" :: Sym.Sym Float)"
   writeFile out_file out_prog

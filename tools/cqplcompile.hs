@@ -56,7 +56,7 @@ subsNM params s = Sym.unSym $ foldr subsOnce s params
   subsOnce :: (Ident, SizeT) -> SymbSize -> SymbSize
   subsOnce (k, v) = Sym.subst k (Sym.con v)
 
-compile :: (Floating costT, Show costT) => P.Program DefaultPrims SizeT -> costT -> IO String
+compile :: (RealFloat costT, Show costT) => P.Program DefaultPrims SizeT -> costT -> IO String
 compile prog eps = do
   let Right (cqpl_prog, _) = CQPL.lowerProgram Ctx.empty "Oracle" eps prog
 
@@ -73,5 +73,5 @@ main = do
   -- compile
   out_prog <- case eps of
     Just p -> compile prog p
-    Nothing -> compile prog (Sym.var "d" :: Sym.Sym Float)
+    Nothing -> fail "compile prog (Sym.var \"d\" :: Sym.Sym Float)"
   writeFile out_file out_prog
