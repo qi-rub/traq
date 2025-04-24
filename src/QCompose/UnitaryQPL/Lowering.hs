@@ -131,6 +131,7 @@ addProc procDef = tellAt loweredProcs [procDef]
 -- | A procDef generated from a funDef, along with the partitioned register spaces.
 data LoweredProc holeT sizeT costT = LoweredProc
   { lowered_def :: ProcDef holeT sizeT
+  , has_ctrl :: Bool
   , inp_tys :: [P.VarType sizeT]
   -- ^ the inputs to the original fun
   , out_tys :: [P.VarType sizeT]
@@ -278,6 +279,7 @@ lowerFunDefWithGarbage
       return
         LoweredProc
           { lowered_def = procDef
+          , has_ctrl = False
           , inp_tys = map snd param_binds
           , out_tys = map snd ret_binds
           , aux_tys = map snd aux_binds
@@ -323,6 +325,7 @@ lowerFunDef _ P.FunDef{P.fun_name, P.param_types, P.ret_types, P.mbody = Nothing
   return
     LoweredProc
       { lowered_def = proc_def
+      , has_ctrl = False
       , inp_tys = param_types
       , out_tys = ret_types
       , aux_tys = []
@@ -378,6 +381,7 @@ lowerFunDef
     return
       LoweredProc
         { lowered_def = proc_def
+        , has_ctrl = False
         , inp_tys = map snd param_binds
         , out_tys = g_ret_tys
         , aux_tys = g_ret_tys ++ g_aux_tys

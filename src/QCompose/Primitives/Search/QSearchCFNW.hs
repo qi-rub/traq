@@ -14,7 +14,7 @@ module QCompose.Primitives.Search.QSearchCFNW (
   QSearchCFNW (..),
 
   -- * Unitary Implementation
-  zalkaQSearchImpl,
+  algoQSearchZalka,
 
   -- * CQ Implementation
 
@@ -332,7 +332,7 @@ groverCertainty ::
   UQPL.Stmt holeT sizeT
 groverCertainty (x, P.Fin n) m b mk_pred = error "TODO GroverCertainty circuit"
 
-zalkaQSearchImpl ::
+algoQSearchZalka ::
   forall primsT holeT sizeT costT.
   ( Integral sizeT
   , RealFloat costT
@@ -344,16 +344,19 @@ zalkaQSearchImpl ::
   (Ident -> Ident -> UQPL.Stmt holeT sizeT) ->
   -- | max. failure probability @\eps@
   costT ->
-  UQPL.CompilerT primsT holeT sizeT costT (UQPL.Stmt holeT sizeT)
-zalkaQSearchImpl ty mk_pred eps =
-  UQPL.HoleS
-    { UQPL.hole =
-        QSearchBlackBox
-          { q_pred_name
-          , n_pred_calls = _QSearchZalka n eps
-          }
-    , UQPL.dagger = False
-    }
+  MyWriterT [(Ident, P.VarType sizeT)] (UQPL.CompilerT primsT holeT sizeT costT) (UQPL.Stmt holeT sizeT, Ident)
+algoQSearchZalka ty mk_pred eps =
+  return $
+    ( UQPL.HoleS
+        { UQPL.hole =
+            QSearchBlackBox
+              { q_pred_name
+              , n_pred_calls = _QSearchZalka n eps
+              }
+        , UQPL.dagger = False
+        }
+    , error "TODO output bit"
+    )
  where
   q_pred_name = case mk_pred "pred_arg" "pred_res" of
     UQPL.CallS{UQPL.proc_id} -> proc_id
@@ -374,7 +377,7 @@ instance
   ) =>
   UQPL.Lowerable primsT QSearchCFNW holeT sizeT costT
   where
-  lowerPrimitive delta QSearchCFNW{predicate, return_sol = False} args rets = do
+  lowerPrimitive delta QSearchCFNW{predicate, return_sol = False} args [ret] = do
     -- the predicate
     pred_fun@P.FunDef{P.param_types} <-
       view (_1 . Ctx.at predicate)
@@ -414,42 +417,36 @@ instance
 
     -- Emit the qsearch procedure
     -- body:
-    qsearch_body <- zalkaQSearchImpl s_ty pred_caller delta_search
+    ((qsearch_body, out_bit), qsearch_ancilla) <- runMyWriterT $ algoQSearchZalka s_ty pred_caller delta_search
 
+    -- name:
     -- TODO maybe this can be somehow "parametrized" so we don't have to generate each time.
     qsearch_proc_name <-
       UQPL.newIdent $
-        printf "QSearch[%s, %s, %s]" (show n) (show delta_search) (UQPL.proc_name pred_proc)
+        printf "QSearch_garb[%s, %s, %s]" (show n) (show delta_search) (UQPL.proc_name pred_proc)
 
-    -- TODO fix
-    let qsearch_param_tys =
-          init pred_inp_tys
-            ++ pred_out_tys
-            ++ pred_aux_tys
-
-    qsearch_ancilla <- mapM UQPL.allocAncilla qsearch_ancilla_tys
-
-    qsearch_param_names <- replicateM (length qsearch_param_tys) $ UQPL.newIdent "_qs"
-    let proc_body =
-          zalkaQSearchImpl
-            s_ty
-            (\x b -> UQPL.CallS{UQPL.proc_id = UQPL.proc_name pred_proc, UQPL.dagger = False, UQPL.args = args ++ [x, b] ++ pred_ancilla})
-            delta_search
+    -- add the proc:
     UQPL.addProc
       UQPL.ProcDef
         { UQPL.proc_name = qsearch_proc_name
-        , UQPL.proc_params = UQPL.withTag UQPL.ParamUnk $ zip qsearch_param_names qsearch_param_tys
-        , UQPL.mproc_body = Just proc_body
+        , UQPL.proc_params =
+            UQPL.withTag UQPL.ParamInp (zip args (init pred_inp_tys))
+              ++ UQPL.withTag UQPL.ParamOut [(ret, P.tbool)]
+              ++ UQPL.withTag UQPL.ParamAux (zip pred_ancilla pred_aux_tys)
+              ++ UQPL.withTag UQPL.ParamAux qsearch_ancilla
+        , UQPL.mproc_body = Just qsearch_body
         , UQPL.is_oracle = False
         }
 
     return
       UQPL.CallS
         { UQPL.proc_id = qsearch_proc_name
-        , UQPL.args = args ++ rets ++ pred_ancilla ++ qsearch_ancilla
+        , UQPL.args = args ++ [ret] ++ pred_ancilla ++ map fst qsearch_ancilla
         , UQPL.dagger = False
         }
-  lowerPrimitive _ _ _ _ = error "TODO"
+
+  -- fallback
+  lowerPrimitive _ _ _ _ = throwError "Unsupported"
 
 -- ================================================================================
 -- CQ Lowering
