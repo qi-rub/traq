@@ -1,4 +1,4 @@
-{-# LANGUAGE DeriveTraversable #-}
+{-# LANGUAGE DeriveFunctor #-}
 
 module QCompose.Data.Context (
   Context,
@@ -49,7 +49,7 @@ import QCompose.Control.Monad (maybeWithError)
 type Ident = String
 
 data Binding a = Binding Ident a
-  deriving (Eq, Show, Read, Functor, Foldable, Traversable)
+  deriving (Eq, Show, Read, Functor)
 
 _binding :: Lens' (Binding a) (Ident, a)
 _binding focus (Binding k v) = uncurry Binding <$> focus (k, v)
@@ -61,7 +61,15 @@ _val :: Lens' (Binding a) a
 _val = _binding . _2
 
 newtype Context a = Context [Binding a]
-  deriving (Eq, Show, Read, Functor, Foldable, Traversable)
+  deriving (Eq, Show, Read, Functor)
+
+instance Foldable Context where
+  foldr f b (Context m) = foldr (f . view _val) b (reverse m)
+
+instance Traversable Context where
+  traverse f (Context m) = Context . reverse <$> traverse f' (reverse m)
+   where
+    f' (Binding x v) = Binding x <$> f v
 
 _ctx :: Lens' (Context a) [Binding a]
 _ctx focus (Context m) = Context <$> focus m
