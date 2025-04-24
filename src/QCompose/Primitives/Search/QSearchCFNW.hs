@@ -333,15 +333,18 @@ groverCertainty ::
 groverCertainty (x, P.Fin n) m b mk_pred = error "TODO GroverCertainty circuit"
 
 zalkaQSearchImpl ::
-  forall sizeT costT.
-  (Integral sizeT, RealFloat costT) =>
+  forall primsT holeT sizeT costT.
+  ( Integral sizeT
+  , RealFloat costT
+  , holeT ~ QSearchBlackBoxes costT
+  ) =>
   -- | type of the element to search over
   P.VarType sizeT ->
   -- | call the predicate on @x, b@
-  (Ident -> Ident -> UQPL.Stmt (QSearchBlackBoxes costT) sizeT) ->
+  (Ident -> Ident -> UQPL.Stmt holeT sizeT) ->
   -- | max. failure probability @\eps@
   costT ->
-  UQPL.Stmt (QSearchBlackBoxes costT) sizeT
+  UQPL.CompilerT primsT holeT sizeT costT (UQPL.Stmt holeT sizeT)
 zalkaQSearchImpl ty mk_pred eps =
   UQPL.HoleS
     { UQPL.hole =
@@ -380,11 +383,13 @@ instance
     -- size of the search space
     let s_ty@(P.Fin n) = last param_types
 
-    -- split the precision for the search
+    -- split the precision
     let delta_search = delta / 2
-    -- precision for each predicate call
-    let n_qry = _QSearchZalka n delta_search
-    let delta_per_pred_call = (delta - delta_search) / n_qry
+    let delta_pred = delta - delta_search
+    -- number of predicate queries
+    let qry = _QSearchZalka n delta_search
+    -- precision per predicate call
+    let delta_per_pred_call = delta_pred / qry
 
     -- compile the predicate
     UQPL.LoweredProc
@@ -398,21 +403,31 @@ instance
     when (pred_out_tys /= [P.tbool]) $ throwError "invalid outputs for predicate"
     when (last pred_inp_tys /= s_ty) $ throwError "mismatched search argument type"
 
-    -- emit the qsearch procedure
+    -- function to call the predicate, re-using the same aux space each time.
+    pred_ancilla <- mapM UQPL.allocAncilla pred_aux_tys
+    let pred_caller x b =
+          UQPL.CallS
+            { UQPL.proc_id = UQPL.proc_name pred_proc
+            , UQPL.dagger = False
+            , UQPL.args = args ++ [x, b] ++ pred_ancilla
+            }
+
+    -- Emit the qsearch procedure
+    -- body:
+    qsearch_body <- zalkaQSearchImpl s_ty pred_caller delta_search
+
     -- TODO maybe this can be somehow "parametrized" so we don't have to generate each time.
     qsearch_proc_name <-
       UQPL.newIdent $
         printf "QSearch[%s, %s, %s]" (show n) (show delta_search) (UQPL.proc_name pred_proc)
+
     -- TODO fix
-    let qsearch_ancilla_tys = []
     let qsearch_param_tys =
           init pred_inp_tys
             ++ pred_out_tys
             ++ pred_aux_tys
-            ++ qsearch_ancilla_tys
 
     qsearch_ancilla <- mapM UQPL.allocAncilla qsearch_ancilla_tys
-    pred_ancilla <- mapM UQPL.allocAncilla pred_aux_tys
 
     qsearch_param_names <- replicateM (length qsearch_param_tys) $ UQPL.newIdent "_qs"
     let proc_body =
