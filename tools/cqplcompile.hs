@@ -1,9 +1,7 @@
 module Main (main) where
 
-import qualified Data.Number.Symbolic as Sym
-import Data.Void (Void)
-import Lens.Micro
 import Options.Applicative
+import qualified QCompose.Data.Symbolic as Sym
 import Text.Read (readMaybe)
 
 import qualified QCompose.Data.Context as Ctx
@@ -13,8 +11,7 @@ import QCompose.Prelude
 import qualified QCompose.ProtoLang as P
 import QCompose.Utils.Printing
 
-import QCompose.Primitives.QSearch
-import QCompose.Primitives.Search.Prelude
+import QCompose.Primitives (DefaultPrims)
 
 data Options = Options
   { in_file :: FilePath
@@ -59,9 +56,9 @@ subsNM params s = Sym.unSym $ foldr subsOnce s params
   subsOnce :: (Ident, SizeT) -> SymbSize -> SymbSize
   subsOnce (k, v) = Sym.subst k (Sym.con v)
 
-compile :: (RealFloat costT, Show costT) => P.Program Void SizeT -> costT -> IO String
+compile :: (RealFloat costT, Show costT) => P.Program DefaultPrims SizeT -> costT -> IO String
 compile prog eps = do
-  let Right (cqpl_prog, _) = CQPL.lowerProgram (qsearchCFNW ^. to quantumAlgo) Ctx.empty "Oracle" eps prog
+  let Right (cqpl_prog, _) = CQPL.lowerProgram Ctx.empty "Oracle" eps prog
 
   return $ toCodeString cqpl_prog
 
@@ -76,5 +73,5 @@ main = do
   -- compile
   out_prog <- case eps of
     Just p -> compile prog p
-    Nothing -> compile prog (Sym.var "d" :: Sym.Sym Float)
+    Nothing -> fail "compile prog (Sym.var \"d\" :: Sym.Sym Float)"
   writeFile out_file out_prog

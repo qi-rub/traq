@@ -15,9 +15,9 @@ module QCompose.ProtoLang.Parser (
 
 import Data.Either (isRight)
 import Data.Functor (($>))
-import qualified Data.Number.Symbolic as Sym
 import Data.Void (Void)
-import Text.Parsec (ParseError, char, choice, eof, many, parse, try, (<|>))
+import qualified QCompose.Data.Symbolic as Sym
+import Text.Parsec (ParseError, choice, eof, many, parse, try, (<|>))
 import Text.Parsec.Language (LanguageDef, emptyDef)
 import Text.Parsec.String (Parser)
 import Text.Parsec.Token (
@@ -96,13 +96,9 @@ exprP tp@TokenParser{..} =
     return ConstE{val, ty}
 
   funCallKind :: Parser (FunctionCallKind primT)
-  funCallKind = primitiveCall <|> primitiveCallOld <|> functionCall
+  funCallKind = primitiveCall <|> functionCall
    where
     primitiveCall = PrimitiveCall <$> primitiveParser tp
-    primitiveCallOld = do
-      prim_name <- char '@' *> identifier
-      prim_params <- squares (commaSep identifier)
-      return PrimitiveCallOld{..}
     functionCall = FunctionCall <$> identifier
 
   funCallE :: Parser (Expr primT SymbSize)

@@ -1,12 +1,19 @@
 {-# LANGUAGE DeriveFunctor #-}
+{-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE MultiParamTypeClasses #-}
 
 module QCompose.ProtoLang.Syntax (
   -- * Syntax
+
+  -- ** Basic Types and Operations
   VarType (..),
   UnOp (..),
   BinOp (..),
+
+  -- ** Calls and Primitives
   FunctionCallKind (..),
+
+  -- ** Expressions and Statements
   Expr (..),
   Stmt (..),
   FunBody (..),
@@ -41,7 +48,6 @@ data BinOp = AddOp | LEqOp | AndOp
 -- | Either call an existing function, or an existing primitive.
 data FunctionCallKind primT
   = FunctionCall Ident
-  | PrimitiveCallOld {prim_name :: Ident, prim_params :: [Ident]}
   | PrimitiveCall {prim :: primT}
   deriving (Eq, Show, Read)
 
@@ -127,8 +133,7 @@ instance ToCodeString BinOp where
 
 instance (ToCodeString primT) => ToCodeString (FunctionCallKind primT) where
   toCodeString (FunctionCall f) = f
-  toCodeString (PrimitiveCallOld f ps) = printf "@%s[%s]" f (commaList ps)
-  toCodeString (PrimitiveCall prim) = printf "@%s" (toCodeString prim)
+  toCodeString (PrimitiveCall prim) = toCodeString prim
 
 instance (Show sizeT, ToCodeString primT) => ToCodeString (Expr primT sizeT) where
   toCodeString VarE{arg} = arg

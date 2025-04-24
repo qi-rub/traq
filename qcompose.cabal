@@ -32,8 +32,8 @@ library
           QCompose.Examples.Search
           QCompose.Prelude
           QCompose.Primitives
-          QCompose.Primitives.QSearch
           QCompose.Primitives.Search.Prelude
+          QCompose.Primitives.Search.QSearchCFNW
           QCompose.Primitives.Search.Symbolic
           QCompose.ProtoLang
           QCompose.ProtoLang.Cost
@@ -59,7 +59,6 @@ library
         , microlens-ghc ==0.4.*
         , microlens-mtl ==0.2.*
         , mtl >=2.2.2
-        , numbers ==3000.2.*
         , parsec >=3.1.17 && <3.2
         , probability ==0.2.*
         , transformers >=0.4 && <0.6
@@ -72,6 +71,7 @@ library
           ApplicativeDo
           RankNTypes
           FlexibleContexts
+          TypeFamilies
           Safe
     ghc-options: -Wall
     default-language: Haskell2010
@@ -87,6 +87,7 @@ executable cqplcompile
           ApplicativeDo
           RankNTypes
           FlexibleContexts
+          TypeFamilies
           RecordWildCards
     ghc-options: -Wall
     build-depends:
@@ -97,7 +98,6 @@ executable cqplcompile
         , microlens-ghc ==0.4.*
         , microlens-mtl ==0.2.*
         , mtl >=2.2.2
-        , numbers ==3000.2.*
         , optparse-applicative ==0.18.*
         , parsec >=3.1.17 && <3.2
         , probability ==0.2.*
@@ -116,6 +116,7 @@ executable matrixsearch
           ApplicativeDo
           RankNTypes
           FlexibleContexts
+          TypeFamilies
           RecordWildCards
     ghc-options: -Wall
     build-depends:
@@ -126,7 +127,6 @@ executable matrixsearch
         , microlens-ghc ==0.4.*
         , microlens-mtl ==0.2.*
         , mtl >=2.2.2
-        , numbers ==3000.2.*
         , optparse-applicative ==0.18.*
         , parsec >=3.1.17 && <3.2
         , probability ==0.2.*
@@ -145,6 +145,7 @@ executable uqplcompile
           ApplicativeDo
           RankNTypes
           FlexibleContexts
+          TypeFamilies
           RecordWildCards
     ghc-options: -Wall
     build-depends:
@@ -155,7 +156,6 @@ executable uqplcompile
         , microlens-ghc ==0.4.*
         , microlens-mtl ==0.2.*
         , mtl >=2.2.2
-        , numbers ==3000.2.*
         , optparse-applicative ==0.18.*
         , parsec >=3.1.17 && <3.2
         , probability ==0.2.*
@@ -174,6 +174,7 @@ executable uqpltoquipper
           ApplicativeDo
           RankNTypes
           FlexibleContexts
+          TypeFamilies
           RecordWildCards
     ghc-options: -Wall
     build-depends:
@@ -184,7 +185,6 @@ executable uqpltoquipper
         , microlens-ghc ==0.4.*
         , microlens-mtl ==0.2.*
         , mtl >=2.2.2
-        , numbers ==3000.2.*
         , optparse-applicative ==0.18.*
         , parsec >=3.1.17 && <3.2
         , probability ==0.2.*
@@ -220,6 +220,7 @@ test-suite spec
           ApplicativeDo
           RankNTypes
           FlexibleContexts
+          TypeFamilies
     ghc-options: -Wall
     cpp-options: -DTEST
     build-depends:
@@ -232,7 +233,6 @@ test-suite spec
         , microlens-ghc ==0.4.*
         , microlens-mtl ==0.2.*
         , mtl >=2.2.2
-        , numbers ==3000.2.*
         , parsec >=3.1.17 && <3.2
         , probability ==0.2.*
         , qcompose

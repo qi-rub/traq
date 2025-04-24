@@ -1,28 +1,23 @@
 module QCompose.ProtoLang.CostSpec (spec) where
 
-import qualified Data.Number.Symbolic as Sym
-import Data.Void (Void)
-import Lens.Micro
+import qualified QCompose.Data.Symbolic as Sym
 
 import QCompose.Prelude
 import QCompose.ProtoLang.Cost
 import QCompose.ProtoLang.Parser
 import QCompose.ProtoLang.Syntax
 
-import QCompose.Primitives.QSearch
-import QCompose.Primitives.Search.Prelude
+import QCompose.Primitives
+import QCompose.Primitives.Search.QSearchCFNW (_QSearchZalka)
 
 import Test.Hspec
 
-unsafeParseProgram :: String -> Program Void SizeT
+unsafeParseProgram :: String -> Program DefaultPrims SizeT
 unsafeParseProgram = fmap Sym.unSym . either (error . show) id . parseProgram
 
 spec :: Spec
 spec = do
   describe "unitary cost of statements" $ do
-    let ucFormula = qsearchCFNW ^. to formulas . to qSearchUnitaryCost
-    let ucProg = unitaryQueryCost (qsearchCFNW ^. to formulas)
-
     it "fun call of oracle" $ do
       let prog =
             unsafeParseProgram . unlines $
@@ -34,7 +29,7 @@ spec = do
               , "i <- const 10 : Fin<100>;"
               , "res <- f(i)"
               ]
-      let c = ucProg 0.001 prog "Oracle"
+      let c = unitaryQueryCost 0.001 prog "Oracle"
       c `shouldBe` (2 :: Double)
 
     it "search with no oracle" $ do
@@ -47,7 +42,7 @@ spec = do
               , "end"
               , "res <- @any[f]()"
               ]
-      let c = ucProg 0.001 prog "Oracle"
+      let c = unitaryQueryCost 0.001 prog "Oracle"
       c `shouldBe` (0 :: Double)
 
     it "search with 1x oracle" $ do
@@ -60,5 +55,5 @@ spec = do
               , "end"
               , "res <- @any[f]()"
               ]
-      let c = ucProg 0.001 prog "Oracle"
-      (c :: Double) `shouldBe` 2 * ucFormula 100 (0.001 / 2)
+      let c = unitaryQueryCost 0.001 prog "Oracle"
+      (c :: Double) `shouldBe` 2 * _QSearchZalka (100 :: Int) (0.001 / 2)

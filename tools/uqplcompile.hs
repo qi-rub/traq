@@ -3,10 +3,9 @@ module Main (main) where
 import Control.Monad (forM_, when)
 import Control.Monad.Writer (MonadWriter, execWriterT, tell)
 import Data.Maybe (fromMaybe)
-import qualified Data.Number.Symbolic as Sym
-import Data.Void (Void)
 import Lens.Micro
 import Options.Applicative
+import qualified QCompose.Data.Symbolic as Sym
 import Text.Read (readMaybe)
 
 import qualified QCompose.Data.Context as Ctx
@@ -16,8 +15,7 @@ import qualified QCompose.ProtoLang as P
 import qualified QCompose.UnitaryQPL as UQPL
 import QCompose.Utils.Printing
 
-import QCompose.Primitives.QSearch
-import QCompose.Primitives.Search.Prelude
+import QCompose.Primitives (DefaultPrims)
 
 data Options = Options
   { in_file :: FilePath
@@ -65,9 +63,9 @@ subsNM params s = Sym.unSym $ foldr subsOnce s params
 tellLn :: (MonadWriter String m) => String -> m ()
 tellLn x = tell $ unlines [x]
 
-compile :: forall costT. (RealFloat costT, Show costT) => P.Program Void SizeT -> costT -> IO String
+compile :: forall costT. (RealFloat costT, Show costT) => P.Program DefaultPrims SizeT -> costT -> IO String
 compile prog delta = do
-  let Right (uqpl_prog, _) = UQPL.lowerProgram (qsearchCFNW ^. to unitaryAlgo) Ctx.empty "Oracle" delta prog
+  let Right (uqpl_prog, _) = UQPL.lowerProgram Ctx.empty "Oracle" delta prog
   -- get costs
   let (cost :: costT, proc_costs) = UQPL.programCost uqpl_prog
 
@@ -87,7 +85,6 @@ compile prog delta = do
                     P.FunDef{mbody = Just body} <- prog ^. to P.funCtx . Ctx.at fname
                     let cf =
                           P.unitaryQueryCost
-                            (qsearchCFNW ^. to formulas)
                             fdelta
                             P.Program
                               { stmt = body ^. to P.body_stmt
@@ -97,12 +94,12 @@ compile prog delta = do
                     return $ show cf
                 )
 
-        tellLn $ "// Cost         : " <> show (proc_costs ^. at pname . non (error $ "cannot find proc " <> pname))
+        tellLn $ "// Cost         : " <> show (proc_costs ^. at pname . singular _Just)
         tellLn $ "// Formula Cost : " <> f_cost
       tellLn $ toCodeString p
 
     tellLn $ "// Actual Cost : " <> show cost
-    tellLn $ "// Formula Cost: " ++ show (P.unitaryQueryCost (qsearchCFNW ^. to formulas) delta prog "Oracle")
+    tellLn $ "// Formula Cost: " ++ show (P.unitaryQueryCost delta prog "Oracle")
     tellLn $ toCodeString $ uqpl_prog ^. to UQPL.stmt
 
 main :: IO ()
@@ -116,5 +113,5 @@ main = do
   -- compile
   out_prog <- case delta of
     Just d -> compile prog d
-    Nothing -> compile prog (Sym.var "d" :: Sym.Sym Float)
+    Nothing -> fail "compile prog (Sym.var \"d\" :: Sym.Sym Float)"
   writeFile out_file out_prog

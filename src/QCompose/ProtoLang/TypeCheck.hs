@@ -1,3 +1,6 @@
+{-# LANGUAGE FlexibleInstances #-}
+{-# LANGUAGE MultiParamTypeClasses #-}
+
 module QCompose.ProtoLang.TypeCheck (
   -- * Types
   TypingEnv,
@@ -7,7 +10,6 @@ module QCompose.ProtoLang.TypeCheck (
   TypeCheckablePrimitive (..),
 
   -- * Checkers
-  checkPrimitive,
   checkExpr,
   checkStmt,
   typeCheckFun,
@@ -59,64 +61,24 @@ lookupFunE fname =
   view (Ctx.at fname)
     >>= maybeWithError (printf "cannot find function `%s`" fname)
 
-class TypeCheckablePrimitive primT where
+class TypeCheckablePrimitive primT sizeT where
   typeCheckPrimitive ::
     (TypeCheckable sizeT) =>
     -- | primitive
     primT ->
     -- | arguments
     [Ident] ->
-    TypeChecker primT sizeT [VarType sizeT]
+    TypeChecker primsT sizeT [VarType sizeT]
 
-instance TypeCheckablePrimitive Void where
+instance TypeCheckablePrimitive Void sizeT where
   typeCheckPrimitive prim _ = absurd prim
-
--- | Typecheck a subroutine call
-checkPrimitive ::
-  (TypeCheckable sizeT) =>
-  -- | subroutine name
-  Ident ->
-  -- | subroutine params
-  [Ident] ->
-  -- | arguments
-  [Ident] ->
-  TypeChecker primT sizeT [VarType sizeT]
--- contains
-checkPrimitive "any" [predicate] args = do
-  arg_tys <- mapM Ctx.lookup args
-
-  FunDef{param_types, ret_types} <- lookupFunE predicate
-
-  when (ret_types /= [tbool]) $
-    throwError "predicate must return a single Bool"
-
-  when (init param_types /= arg_tys) $
-    throwError "Invalid arguments to bind to predicate"
-
-  return [tbool]
-
--- search
-checkPrimitive "search" [predicate] args = do
-  arg_tys <- mapM Ctx.lookup args
-
-  FunDef{param_types, ret_types} <- lookupFunE predicate
-
-  when (ret_types /= [tbool]) $
-    throwError "predicate must return a single Bool"
-
-  when (init param_types /= arg_tys) $
-    throwError "Invalid arguments to bind to predicate"
-
-  return [tbool, last param_types]
-
--- unsupported
-checkPrimitive prim_name prim_params _ =
-  throwError $ printf "unsupported subroutine %s[%s]" prim_name (show prim_params)
 
 -- | Typecheck an expression and return the output types
 checkExpr ::
   forall primT sizeT.
-  (TypeCheckable sizeT) =>
+  ( TypeCheckablePrimitive primT sizeT
+  , TypeCheckable sizeT
+  ) =>
   Expr primT sizeT ->
   TypeChecker primT sizeT [VarType sizeT]
 -- x
@@ -168,16 +130,17 @@ checkExpr FunCallE{fun_kind = FunctionCall fun, args} = do
 
   return ret_types
 
--- `subroutine`(...)
-checkExpr FunCallE{fun_kind = PrimitiveCallOld prim_name prim_params, args} = do
-  checkPrimitive prim_name prim_params args
+-- `primitive`[...](...)
+checkExpr FunCallE{fun_kind = PrimitiveCall prim, args} = typeCheckPrimitive prim args
 
 {- | Typecheck a statement, given the current context and function definitions.
  If successful, the typing context is updated.
 -}
 checkStmt ::
   forall primT sizeT.
-  (TypeCheckable sizeT) =>
+  ( TypeCheckablePrimitive primT sizeT
+  , TypeCheckable sizeT
+  ) =>
   Stmt primT sizeT ->
   TypeChecker primT sizeT ()
 -- single statement
@@ -204,7 +167,13 @@ checkStmt IfThenElseS{cond, s_true, s_false} = do
   id .= sigma_t
 
 -- | Type check a single function.
-typeCheckFun :: (TypeCheckable a) => FunCtx primT a -> FunDef primT a -> Either String ()
+typeCheckFun ::
+  ( TypeCheckablePrimitive primT sizeT
+  , TypeCheckable sizeT
+  ) =>
+  FunCtx primT sizeT ->
+  FunDef primT sizeT ->
+  Either String ()
 typeCheckFun
   funCtx
   FunDef
@@ -233,7 +202,13 @@ typeCheckFun
 typeCheckFun _ FunDef{mbody = Nothing} = return ()
 
 -- | Type check a full program (i.e. list of functions).
-typeCheckProg :: (TypeCheckable a) => TypingCtx a -> Program primT a -> Either String (TypingCtx a)
+typeCheckProg ::
+  ( TypeCheckablePrimitive primT sizeT
+  , TypeCheckable sizeT
+  ) =>
+  TypingCtx sizeT ->
+  Program primT sizeT ->
+  Either String (TypingCtx sizeT)
 typeCheckProg gamma Program{funCtx, stmt} = do
   mapM_ (typeCheckFun funCtx) funCtx
   execMyReaderStateT (checkStmt stmt) funCtx gamma

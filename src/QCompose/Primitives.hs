@@ -1,1 +1,102 @@
-module QCompose.Primitives () where
+{-# LANGUAGE FlexibleInstances #-}
+{-# LANGUAGE MultiParamTypeClasses #-}
+{-# LANGUAGE UndecidableInstances #-}
+
+module QCompose.Primitives (
+  DefaultPrims (..),
+  QSearchCFNW (..),
+  HasSearch (..),
+) where
+
+import qualified QCompose.CQPL as CQPL
+import QCompose.Prelude
+import qualified QCompose.ProtoLang as P
+import qualified QCompose.UnitaryQPL as UQPL
+import QCompose.Utils.Printing
+
+import QCompose.Primitives.Search.Prelude
+import QCompose.Primitives.Search.QSearchCFNW
+
+newtype DefaultPrims = QAny QSearchCFNW
+  deriving (Eq, Show, Read)
+
+instance HasSearch DefaultPrims where
+  mkAny = QAny . mkAny
+  mkSearch = QAny . mkSearch
+
+  getPredicate (QAny q) = getPredicate q
+
+-- Printing
+instance ToCodeString DefaultPrims where
+  toCodeString (QAny q) = toCodeString q
+  toCodeLines (QAny q) = toCodeLines q
+
+-- Parsing
+instance P.CanParsePrimitive DefaultPrims where
+  primitiveParser tp = QAny <$> P.primitiveParser tp
+
+-- Type Checking
+instance P.TypeCheckablePrimitive DefaultPrims sizeT where
+  typeCheckPrimitive (QAny q) = P.typeCheckPrimitive q
+
+-- Evaluation
+instance
+  (P.EvaluatablePrimitive primsT primsT) =>
+  P.EvaluatablePrimitive primsT DefaultPrims
+  where
+  evalPrimitive (QAny q) = P.evalPrimitive q
+
+-- Costs
+instance
+  ( Integral sizeT
+  , Floating costT
+  , P.UnitaryCostablePrimitive primsT primsT sizeT costT
+  ) =>
+  P.UnitaryCostablePrimitive primsT DefaultPrims sizeT costT
+  where
+  unitaryQueryCostPrimitive delta (QAny q) = P.unitaryQueryCostPrimitive delta q
+
+instance
+  ( Integral sizeT
+  , Floating costT
+  , P.QuantumMaxCostablePrimitive primsT primsT sizeT costT
+  ) =>
+  P.QuantumMaxCostablePrimitive primsT DefaultPrims sizeT costT
+  where
+  quantumMaxQueryCostPrimitive delta (QAny q) = P.quantumMaxQueryCostPrimitive delta q
+
+instance
+  ( Integral sizeT
+  , Floating costT
+  , P.EvaluatablePrimitive primsT primsT
+  , P.QuantumCostablePrimitive primsT primsT sizeT costT
+  , sizeT ~ SizeT
+  ) =>
+  P.QuantumCostablePrimitive primsT DefaultPrims sizeT costT
+  where
+  quantumQueryCostPrimitive delta (QAny q) = P.quantumQueryCostPrimitive delta q
+
+-- Lowering
+instance
+  ( Integral sizeT
+  , Floating costT
+  , UQPL.Lowerable primsT primsT holeT sizeT costT
+  , UQPL.Lowerable primsT QSearchCFNW holeT sizeT costT
+  , P.TypeCheckable sizeT
+  , Show costT
+  ) =>
+  UQPL.Lowerable primsT DefaultPrims holeT sizeT costT
+  where
+  lowerPrimitive delta (QAny q) = UQPL.lowerPrimitive delta q
+
+instance
+  ( Integral sizeT
+  , Floating costT
+  , CQPL.Lowerable primsT primsT holeT sizeT costT
+  , CQPL.Lowerable primsT QSearchCFNW holeT sizeT costT
+  , P.TypeCheckable sizeT
+  , Show costT
+  ) =>
+  CQPL.Lowerable primsT DefaultPrims holeT sizeT costT
+  where
+  lowerPrimitive eps (QAny q) = CQPL.lowerPrimitive eps q

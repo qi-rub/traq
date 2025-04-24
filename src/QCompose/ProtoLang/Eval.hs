@@ -1,5 +1,9 @@
+{-# LANGUAGE FlexibleInstances #-}
+{-# LANGUAGE MultiParamTypeClasses #-}
+
 module QCompose.ProtoLang.Eval (
   -- * Evaluations
+  evalExpr,
   execStmt,
   evalFun,
   runProgram,
@@ -16,12 +20,11 @@ module QCompose.ProtoLang.Eval (
   ExecutionState,
   Evaluator,
   Executor,
+  EvaluatablePrimitive (..),
 ) where
 
-import Control.Monad (filterM, zipWithM_)
-import Control.Monad.Extra (anyM)
+import Control.Monad (zipWithM_)
 import Control.Monad.RWS (MonadState, runRWST)
-import Control.Monad.Trans (lift)
 import Lens.Micro
 import Lens.Micro.GHC ()
 import Lens.Micro.Mtl
@@ -30,6 +33,7 @@ import QCompose.Control.Monad
 import qualified QCompose.Data.Context as Ctx
 import qualified QCompose.Data.Tree as Tree
 
+import Data.Void (Void, absurd)
 import QCompose.Prelude
 import QCompose.ProtoLang.Syntax
 
@@ -43,15 +47,24 @@ type FunInterp = [Value] -> [Value]
 type FunInterpCtx = Ctx.Context FunInterp
 
 -- | Environment for evaluation
-type ExecutionEnv primT sizeT = (FunCtx primT sizeT, FunInterpCtx)
+type ExecutionEnv primsT sizeT = (FunCtx primsT sizeT, FunInterpCtx)
 
 type ExecutionState sizeT = ProgramState
 
 -- | Non-deterministic Execution Monad (i.e. no state)
-type Evaluator primT = MyReaderT (ExecutionEnv primT SizeT) Tree.Tree
+type Evaluator primsT sizeT = MyReaderT (ExecutionEnv primsT sizeT) Tree.Tree
 
 -- | Non-deterministic Execution Monad
-type Executor primT = MyReaderStateT (ExecutionEnv primT SizeT) (ExecutionState SizeT) Tree.Tree
+type Executor primsT sizeT = MyReaderStateT (ExecutionEnv primsT sizeT) (ExecutionState sizeT) Tree.Tree
+
+{- | Primitives that support evaluation:
+ Can evaluate @primT@ under a context of @primsT@.
+-}
+class EvaluatablePrimitive primsT primT where
+  evalPrimitive :: primT -> [Value] -> Evaluator primsT SizeT [Value]
+
+instance EvaluatablePrimitive primsT Void where
+  evalPrimitive = absurd
 
 -- evaluation
 range :: VarType SizeT -> [Value]
@@ -67,6 +80,10 @@ boolToValue :: Bool -> Value
 boolToValue True = 1
 boolToValue False = 0
 
+valueToBool :: Value -> Bool
+valueToBool 0 = False
+valueToBool _ = True
+
 evalUnOp :: UnOp -> Value -> Value
 evalUnOp NotOp 0 = 1
 evalUnOp NotOp _ = 0
@@ -80,7 +97,11 @@ evalBinOp AndOp 0 _ = 0
 evalBinOp AndOp _ 0 = 0
 evalBinOp AndOp _ _ = 1
 
-evalExpr :: Expr primT SizeT -> Executor primT [Value]
+evalExpr ::
+  forall primsT.
+  (EvaluatablePrimitive primsT primsT) =>
+  Expr primsT SizeT ->
+  Executor primsT SizeT [Value]
 -- basic expressions
 evalExpr VarE{arg} = do
   v <- lookupS arg
@@ -95,6 +116,10 @@ evalExpr BinOpE{bin_op, lhs, rhs} = do
   rhs_val <- lookupS rhs
   let ret_val = evalBinOp bin_op lhs_val rhs_val
   return [ret_val]
+evalExpr TernaryE{branch, lhs, rhs} = do
+  b <- lookupS branch
+  v <- lookupS $ if valueToBool b then lhs else rhs
+  return [v]
 -- function calls
 evalExpr FunCallE{fun_kind = FunctionCall fun, args} = do
   arg_vals <- mapM lookupS args
@@ -103,41 +128,11 @@ evalExpr FunCallE{fun_kind = FunctionCall fun, args} = do
   embedReaderT $ evalFun arg_vals fun_def
 
 -- subroutines
--- `any` / `search`
-evalExpr FunCallE{fun_kind = PrimitiveCallOld prim_name [predicate], args}
-  | prim_name == "any" = do
-      search_range <- get_search_range
-      has_sol <- anyM evalPredicate search_range
+evalExpr FunCallE{fun_kind = PrimitiveCall prim, args} = do
+  vals <- mapM lookupS args
+  embedReaderT $ evalPrimitive prim vals
 
-      return [boolToValue has_sol]
-  | prim_name == "search" = do
-      search_range <- get_search_range
-      sols <- filterM evalPredicate search_range
-
-      let has_sol = not $ null sols
-      let out_vals = if has_sol then sols else search_range
-      lift $ Tree.choice [pure [boolToValue has_sol, v] | v <- out_vals]
- where
-  get_search_range :: Executor primT [Value]
-  get_search_range = do
-    FunDef{param_types = pred_param_types} <- view $ _1 . Ctx.at predicate . singular _Just
-    let s_arg_ty = last pred_param_types
-    let search_range = range s_arg_ty
-    return search_range
-
-  evalPredicate :: Value -> Executor primT Bool
-  evalPredicate val = (/= 0) <$> runPredicate "_search_arg" val
-
-  runPredicate :: Ident -> Value -> Executor primT Value
-  runPredicate s_arg val = withSandbox $ do
-    Ctx.ins s_arg .= val
-    head
-      <$> evalExpr
-        FunCallE{fun_kind = FunctionCall predicate, args = args ++ [s_arg]}
--- unsupported
-evalExpr _ = error "unsupported"
-
-execStmt :: Stmt primT SizeT -> Executor primT ()
+execStmt :: (EvaluatablePrimitive primsT primsT) => Stmt primsT SizeT -> Executor primsT SizeT ()
 execStmt ExprS{rets, expr} = do
   vals <- withSandbox $ evalExpr expr
   zipWithM_ putS rets vals
@@ -147,7 +142,7 @@ execStmt IfThenElseS{cond, s_true, s_false} = do
   execStmt s
 execStmt (SeqS ss) = mapM_ execStmt ss
 
-evalFun :: [Value] -> FunDef primT SizeT -> Evaluator primT [Value]
+evalFun :: (EvaluatablePrimitive primsT primsT) => [Value] -> FunDef primsT SizeT -> Evaluator primsT SizeT [Value]
 evalFun vals_in FunDef{mbody = Just FunBody{param_names, ret_names, body_stmt}} =
   let params = Ctx.fromList $ zip param_names vals_in
    in withInjectedState params $ do
@@ -157,7 +152,7 @@ evalFun vals_in FunDef{fun_name, mbody = Nothing} = do
   interp <- view $ _2 . Ctx.at fun_name . singular _Just
   return $ interp vals_in
 
-runProgram :: Program primT SizeT -> FunInterpCtx -> ProgramState -> Tree.Tree ProgramState
+runProgram :: (EvaluatablePrimitive primsT primsT) => Program primsT SizeT -> FunInterpCtx -> ProgramState -> Tree.Tree ProgramState
 runProgram Program{funCtx, stmt} oracleF st = view _2 <$> runRWST (execStmt stmt) env st
  where
   env = (funCtx, oracleF)

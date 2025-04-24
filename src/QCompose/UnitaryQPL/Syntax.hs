@@ -7,6 +7,7 @@ module QCompose.UnitaryQPL.Syntax (
 
   -- ** Statements
   Stmt (..),
+  holeS,
   Stmt',
 
   -- ** Procedures
@@ -79,6 +80,9 @@ data Stmt holeT sizeT
   | RepeatS sizeT (Stmt holeT sizeT) -- repeat k do S;
   | HoleS {hole :: holeT, dagger :: Bool} -- temporary place holder
   deriving (Eq, Show, Read)
+
+holeS :: holeT -> Stmt holeT sizeT
+holeS hole = HoleS{hole, dagger = False}
 
 -- | Alias for statement without holes
 type Stmt' = Stmt Void

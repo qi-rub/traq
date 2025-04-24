@@ -2,10 +2,10 @@
 
 module QCompose.CQPL.LoweringSpec (spec) where
 
-import qualified Data.Number.Symbolic as Sym
 import Data.Void
 import Lens.Micro
 import qualified QCompose.Data.Context as Ctx
+import qualified QCompose.Data.Symbolic as Sym
 
 import QCompose.CQPL.Lowering
 import QCompose.CQPL.Syntax
@@ -28,5 +28,5 @@ spec = do
               , "x <- const 0 : Fin<10>"
               ]
       let ex = Sym.unSym <$> ex_
-      (cq :: Program' SizeT, _) <- expectRight $ lowerProgram undefined Ctx.empty "Oracle" eps ex
+      (cq :: Program' SizeT, _) <- expectRight $ lowerProgram Ctx.empty "Oracle" eps ex
       cq ^. to stmt `shouldBe` AssignS ["x"] (ConstE 0 (P.Fin 10))

@@ -142,3 +142,9 @@ instance (Floating a, Eq a) => Floating (Sym a) where
   asinh = unOp asinh "asinh"
   atanh = unOp atanh "atanh"
   acosh = unOp acosh "acosh"
+
+instance (Ord a) => Ord (Sym a) where
+  compare (Con x) (Con y) = compare x y
+  compare (Con _) _ = LT
+  compare _ (Con _) = GT
+  compare (App op _ xs) (App op' _ xs') = compare (op, xs) (op', xs')
