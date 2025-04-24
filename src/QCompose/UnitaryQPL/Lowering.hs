@@ -1,7 +1,33 @@
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE MultiParamTypeClasses #-}
 
-module QCompose.UnitaryQPL.Lowering where
+module QCompose.UnitaryQPL.Lowering (
+  -- * Types
+  CompilerT,
+
+  -- ** Compiler State
+  LoweringConfig,
+  LoweringCtx,
+  LoweringOutput,
+
+  -- ** Helpers
+  newIdent,
+  addProc,
+  allocAncilla,
+
+  -- ** Lenses
+
+  -- * Compilation
+  Lowerable (..),
+  LoweredProc (..),
+  lowerExpr,
+  lowerStmt,
+  lowerFunDef,
+  lowerProgram,
+
+  -- * extra
+  withTag,
+) where
 
 import Control.Monad (forM, msum, unless, when)
 import Control.Monad.Except (throwError)
@@ -32,9 +58,6 @@ oracleName = _2
  along with info to generate unique ancilla and variable/procedure names
 -}
 type LoweringCtx sizeT = (Set.Set Ident, P.TypingCtx sizeT)
-
-emptyLoweringCtx :: LoweringCtx sizeT
-emptyLoweringCtx = (Set.empty, Ctx.empty)
 
 uniqNames :: Lens' (LoweringCtx sizeT) (Set.Set Ident)
 uniqNames = _1
@@ -379,9 +402,12 @@ lowerProgram gamma_in oracle_name delta prog@P.Program{P.funCtx, P.stmt} = do
   unless (P.checkVarsUnique prog) $
     throwError "program does not have unique variables!"
 
-  let config = (funCtx, oracle_name)
+  let config =
+        undefined
+          & protoFunCtx .~ funCtx
+          & oracleName .~ oracle_name
   let ctx =
-        emptyLoweringCtx
+        undefined
           & typingCtx .~ gamma_in
           & uniqNames .~ P.allNamesP prog
   let compiler = lowerStmt delta stmt
