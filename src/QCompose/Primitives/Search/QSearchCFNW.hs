@@ -337,6 +337,7 @@ algoQSearchZalka ::
   ( Integral sizeT
   , RealFloat costT
   , holeT ~ QSearchBlackBoxes costT
+  , P.TypeCheckable sizeT
   ) =>
   -- | type of the element to search over
   P.VarType sizeT ->
@@ -345,7 +346,8 @@ algoQSearchZalka ::
   -- | max. failure probability @\eps@
   costT ->
   MyWriterT [(Ident, P.VarType sizeT)] (UQPL.CompilerT primsT holeT sizeT costT) (UQPL.Stmt holeT sizeT, Ident)
-algoQSearchZalka ty mk_pred eps =
+algoQSearchZalka ty mk_pred eps = do
+  out_bit <- lift $ UQPL.allocAncilla P.tbool
   return $
     ( UQPL.HoleS
         { UQPL.hole =
@@ -355,7 +357,7 @@ algoQSearchZalka ty mk_pred eps =
               }
         , UQPL.dagger = False
         }
-    , error "TODO output bit"
+    , out_bit
     )
  where
   q_pred_name = case mk_pred "pred_arg" "pred_res" of
@@ -423,7 +425,7 @@ instance
     -- TODO maybe this can be somehow "parametrized" so we don't have to generate each time.
     qsearch_proc_name <-
       UQPL.newIdent $
-        printf "QSearch_garb[%s, %s, %s]" (show n) (show delta_search) (UQPL.proc_name pred_proc)
+        printf "QSearch[%s, %s, %s]" (show n) (show delta_search) (UQPL.proc_name pred_proc)
 
     -- add the proc:
     UQPL.addProc
@@ -431,17 +433,49 @@ instance
         { UQPL.proc_name = qsearch_proc_name
         , UQPL.proc_params =
             UQPL.withTag UQPL.ParamInp (zip args (init pred_inp_tys))
-              ++ UQPL.withTag UQPL.ParamOut [(ret, P.tbool)]
+              ++ UQPL.withTag UQPL.ParamOut [(out_bit, P.tbool)]
               ++ UQPL.withTag UQPL.ParamAux (zip pred_ancilla pred_aux_tys)
               ++ UQPL.withTag UQPL.ParamAux qsearch_ancilla
         , UQPL.mproc_body = Just qsearch_body
         , UQPL.is_oracle = False
         }
 
+    -- clean version of qsearch: uncompute to clean up ancilla
+    qsearch_clean_proc_name <-
+      UQPL.newIdent $
+        printf "QSearch_clean[%s, %s, %s]" (show n) (show delta_search) (UQPL.proc_name pred_proc)
+
+    UQPL.addProc
+      UQPL.ProcDef
+        { UQPL.proc_name = qsearch_clean_proc_name
+        , UQPL.proc_params =
+            UQPL.withTag UQPL.ParamInp (zip args (init pred_inp_tys))
+              ++ UQPL.withTag UQPL.ParamOut [(ret, P.tbool)]
+              ++ UQPL.withTag UQPL.ParamAux (zip pred_ancilla pred_aux_tys)
+              ++ UQPL.withTag UQPL.ParamAux qsearch_ancilla
+              ++ UQPL.withTag UQPL.ParamAux [(out_bit, P.tbool)]
+        , UQPL.mproc_body =
+            Just $
+              UQPL.SeqS
+                [ UQPL.CallS
+                    { UQPL.proc_id = qsearch_proc_name
+                    , UQPL.args = args ++ [out_bit] ++ pred_ancilla ++ map fst qsearch_ancilla
+                    , UQPL.dagger = False
+                    }
+                , UQPL.UnitaryS [out_bit, ret] (UQPL.RevEmbedU $ UQPL.IdF P.tbool)
+                , UQPL.CallS
+                    { UQPL.proc_id = qsearch_proc_name
+                    , UQPL.args = args ++ [out_bit] ++ pred_ancilla ++ map fst qsearch_ancilla
+                    , UQPL.dagger = True
+                    }
+                ]
+        , UQPL.is_oracle = False
+        }
+
     return
       UQPL.CallS
-        { UQPL.proc_id = qsearch_proc_name
-        , UQPL.args = args ++ [ret] ++ pred_ancilla ++ map fst qsearch_ancilla
+        { UQPL.proc_id = qsearch_clean_proc_name
+        , UQPL.args = args ++ [ret] ++ pred_ancilla ++ map fst qsearch_ancilla ++ [out_bit]
         , UQPL.dagger = False
         }
 

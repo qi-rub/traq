@@ -196,4 +196,4 @@ instance (Show holeT, Show sizeT) => ToCodeString (ProcDef holeT sizeT) where
     plist = commaList $ map showParamWithTag proc_params
 
 instance (Show holeT, Show sizeT) => ToCodeString (Program holeT sizeT) where
-  toCodeLines Program{proc_defs, stmt} = foldMap toCodeLines proc_defs <> [toCodeString stmt]
+  toCodeLines Program{proc_defs, stmt} = map toCodeString (Ctx.elems proc_defs) <> [toCodeString stmt]
