@@ -35,14 +35,17 @@ import QCompose.ProtoLang.Syntax
 class (Eq sizeT, Show sizeT, Num sizeT) => TypeCheckable sizeT where
   tbool :: VarType sizeT
   tmax :: VarType sizeT -> VarType sizeT -> VarType sizeT
+  irange :: sizeT -> Int
 
 instance TypeCheckable Integer where
   tbool = Fin 2
   tmax (Fin n) (Fin m) = Fin (max n m)
+  irange n = fromIntegral n
 
 instance TypeCheckable Int where
   tbool = Fin 2
   tmax (Fin n) (Fin m) = Fin (max n m)
+  irange n = n
 
 -- | Environment for type checking
 type TypingEnv primT sizeT = FunCtx primT sizeT

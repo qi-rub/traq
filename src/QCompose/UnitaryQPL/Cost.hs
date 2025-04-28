@@ -52,7 +52,8 @@ stmtCost SkipS = return 0
 stmtCost UnitaryS{} = return 0
 stmtCost CallS{proc_id} = procCost proc_id
 stmtCost (SeqS ss) = sum <$> mapM stmtCost ss
-stmtCost (RepeatS k s) = (fromIntegral k *) <$> stmtCost s
+stmtCost RepeatS{n_iter = MetaSize k, loop_body} = (fromIntegral k *) <$> stmtCost loop_body
+stmtCost RepeatS{n_iter = MetaName _} = fail "unsupported meta parameter substitution"
 stmtCost HoleS{hole} = holeCost hole
 
 procCost ::

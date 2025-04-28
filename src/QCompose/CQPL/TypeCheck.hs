@@ -74,6 +74,17 @@ typeCheckExpr LEqE{lhs, rhs} = do
     throwError $
       printf "LEqE: mismatched types %s, %s" (show lhs_ty) (show rhs_ty)
   return [tbool]
+typeCheckExpr MetaValE{val_ty} = return [val_ty]
+typeCheckExpr AndE{lhs, rhs} = do
+  lhs_ty <- ensureOne $ typeCheckExpr lhs
+  rhs_ty <- ensureOne $ typeCheckExpr rhs
+  ensureEqual lhs_ty rhs_ty $
+    printf "Add: mismatched types %s, %s" (show lhs_ty) (show rhs_ty)
+  return [lhs_ty]
+typeCheckExpr NotE{arg} = do
+  arg_ty <- ensureOne $ typeCheckExpr arg
+  ensureEqual arg_ty tbool $ printf "NotE: must be bool, got %s" (show arg_ty)
+  return [arg_ty]
 typeCheckExpr s = error $ "TODO typeCheckExpr: " <> show s
 
 -- | Check a statement
@@ -83,6 +94,7 @@ typeCheckStmt ::
   Stmt holeT sizeT ->
   TypeChecker holeT sizeT ()
 typeCheckStmt SkipS = return ()
+typeCheckStmt (CommentS _) = return ()
 -- ignore holes
 typeCheckStmt (HoleS _) = return ()
 -- Simple statements
@@ -95,16 +107,24 @@ typeCheckStmt AssignS{rets, expr} = do
         "mismatched expression return types: expected %s, got %s"
         (show expect_ret_tys)
         (show actual_ret_tys)
-typeCheckStmt RandomS{ret, ty} = do
+typeCheckStmt RandomS{ret, max_val} = do
   -- ret_ty <- magnify typingCtx $ Ctx.lookup' ret
   -- when (ret_ty /= ty) $ do
   --   throwError $ printf "random bound must match type, expected %s got %s" (show ret_ty) (show ty)
+  return ()
+typeCheckStmt RandomDynS{max_var} = do
+  view (typingCtx . Ctx.at max_var) >>= maybeWithError "cannot find variable"
   return ()
 -- function call
 typeCheckStmt CallS{fun = FunctionCall proc_id, meta_params, args} = do
   ProcDef{proc_param_types} <- magnify cqProcs $ Ctx.lookup' proc_id
   arg_tys <- magnify typingCtx $ mapM Ctx.lookup' args
   ensureEqual proc_param_types arg_tys "mismatched function args"
+typeCheckStmt CallS{fun = UProcAndMeas uproc_id, meta_params, args} = do
+  UQPL.ProcDef{UQPL.proc_params, UQPL.proc_meta_params} <- magnify uProcs $ Ctx.lookup' uproc_id
+  arg_tys <- magnify typingCtx $ mapM Ctx.lookup' args
+  let uproc_param_types = map (view _3) proc_params & take (length arg_tys)
+  ensureEqual uproc_param_types arg_tys "mismatched function args"
 -- compound statements
 typeCheckStmt (SeqS ss) = mapM_ typeCheckStmt ss
 typeCheckStmt IfThenElseS{cond, s_true, s_false} = do
@@ -115,7 +135,10 @@ typeCheckStmt IfThenElseS{cond, s_true, s_false} = do
   typeCheckStmt s_true
   typeCheckStmt s_false
 typeCheckStmt RepeatS{loop_body} = typeCheckStmt loop_body
-typeCheckStmt s = error $ "TODO " ++ show s
+-- try by desugaring
+typeCheckStmt s = case desugarS s of
+  Just s' -> typeCheckStmt s'
+  Nothing -> error $ "Unable to TypeCheck: " ++ show s
 
 -- | Check a procedure def
 typeCheckProc ::

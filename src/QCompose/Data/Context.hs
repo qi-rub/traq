@@ -20,6 +20,7 @@ module QCompose.Data.Context (
   fromListWith,
   singleton,
   toList,
+  keys,
   elems,
 
   -- * Monadic functions
@@ -130,6 +131,9 @@ toList c = reverse $ c ^.. _binds . _binding
 
 singleton :: Ident -> a -> Context a
 singleton k v = fromList [(k, v)]
+
+keys :: Context a -> [Ident]
+keys = map fst . toList
 
 elems :: Context a -> [a]
 elems = map snd . toList

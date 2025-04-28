@@ -6,6 +6,7 @@ module QCompose.UnitaryQPL.Syntax (
   Unitary (..),
 
   -- ** Statements
+  MetaParam (..),
   Stmt (..),
   holeS,
   Stmt',
@@ -40,6 +41,7 @@ data ClassicalFun sizeT
   | IdF {ty :: P.VarType sizeT} -- x -> x
   | AddF {ty :: P.VarType sizeT} -- x, y -> x + y
   | LEqF {ty :: P.VarType sizeT} -- x, y -> x <= y
+  | MultiOrF {cfun_n_args :: sizeT}
   deriving (Eq, Show, Read)
 
 data Unitary sizeT
@@ -72,12 +74,20 @@ instance HasDagger (Unitary sizeT) where
   adjoint u@(RevEmbedU _) = u
   adjoint (Controlled u) = Controlled (adjoint u)
 
+-- | Compile-time constant parameters
+data MetaParam sizeT = MetaName String | MetaSize sizeT
+  deriving (Eq, Show, Read)
+
+instance (Show sizeT) => ToCodeString (MetaParam sizeT) where
+  toCodeString (MetaName n) = "#" ++ n
+  toCodeString (MetaSize n) = show n
+
 data Stmt holeT sizeT
   = SkipS
   | UnitaryS {args :: [Ident], unitary :: Unitary sizeT} -- q... *= U
   | CallS {proc_id :: Ident, dagger :: Bool, args :: [Ident]} -- call F(q...)
   | SeqS [Stmt holeT sizeT] -- W1; W2; ...
-  | RepeatS sizeT (Stmt holeT sizeT) -- repeat k do S;
+  | RepeatS {n_iter :: MetaParam sizeT, loop_body :: Stmt holeT sizeT} -- repeat k do S;
   | HoleS {hole :: holeT, dagger :: Bool} -- temporary place holder
   deriving (Eq, Show, Read)
 
@@ -99,6 +109,7 @@ data ParamTag = ParamInp | ParamOut | ParamAux | ParamUnk deriving (Eq, Show, Re
 
 data ProcDef holeT sizeT = ProcDef
   { proc_name :: Ident
+  , proc_meta_params :: [Ident]
   , proc_params :: [(Ident, ParamTag, P.VarType sizeT)]
   , mproc_body :: Maybe (Stmt holeT sizeT)
   , is_oracle :: Bool
@@ -140,6 +151,7 @@ instance (Show a) => ToCodeString (ClassicalFun a) where
   toCodeString IdF{ty} = showTypedIdent ("x", ty) <> " => x"
   toCodeString AddF{ty} = showTypedIdent ("x", ty) <> ", " <> showTypedIdent ("y", ty) <> " => x+y"
   toCodeString LEqF{ty} = showTypedIdent ("x", ty) <> ", " <> showTypedIdent ("y", ty) <> " => x≤y"
+  toCodeString MultiOrF{cfun_n_args} = printf "(x) => OR_%s(x)" (show cfun_n_args)
 
 instance (Show sizeT) => ToCodeString (Unitary sizeT) where
   toCodeString (RevEmbedU f) = "RevEmbed[" <> toCodeString f <> "]"
@@ -165,7 +177,7 @@ instance (Show holeT, Show sizeT) => ToCodeString (Stmt holeT sizeT) where
     qc = commaList args
   toCodeLines (SeqS ps) = concatMap toCodeLines ps
   toCodeLines (RepeatS k s) =
-    [printf "repeat %s do" (show k)]
+    [printf "repeat %s do" (toCodeString k)]
       ++ indent (toCodeLines s)
       ++ ["end"]
   toCodeLines (HoleS info dagger) = [printf "HOLE :: %s%s;" (show info) (showDagger dagger)]
@@ -184,16 +196,19 @@ showParamWithTag (x, tag, ty) = printf "%s : %s%s" x tag_s (toCodeString ty)
     s -> s ++ " "
 
 instance (Show holeT, Show sizeT) => ToCodeString (ProcDef holeT sizeT) where
-  toCodeLines ProcDef{proc_name, proc_params, mproc_body, is_oracle} =
+  toCodeLines ProcDef{proc_name, proc_meta_params, proc_params, mproc_body, is_oracle} =
     ["@Oracle" | is_oracle]
       ++ case mproc_body of
-        Nothing -> [printf "uproc %s(%s);" proc_name plist]
+        Nothing -> [printf "%s;" header]
         Just proc_body ->
-          [printf "uproc %s(%s) do" proc_name plist]
+          [printf "%s do" header]
             <> indent (toCodeLines proc_body)
             <> ["end"]
    where
+    mplist, plist, header :: String
+    mplist = commaList $ map ("#" ++) proc_meta_params
     plist = commaList $ map showParamWithTag proc_params
+    header = printf "uproc %s[%s](%s)" proc_name mplist plist
 
 instance (Show holeT, Show sizeT) => ToCodeString (Program holeT sizeT) where
-  toCodeLines Program{proc_defs, stmt} = foldMap toCodeLines proc_defs <> [toCodeString stmt]
+  toCodeLines Program{proc_defs, stmt} = map toCodeString (Ctx.elems proc_defs) <> [toCodeString stmt]

@@ -7,11 +7,13 @@ module QCompose.CQPL.Lowering (
   newIdent,
   addProc,
 
-  -- * Types and lenses
+  -- * Types
   CompilerT,
   LoweringEnv,
   LoweringCtx,
   LoweringOutput,
+
+  -- * Lenses
   loweredProcs,
   loweredUProcs,
   typingCtx,
@@ -110,7 +112,7 @@ newIdent prefix = do
 
 -- | Add a new procedure.
 addProc :: ProcDef holeT sizeT -> CompilerT primT holeT sizeT costT ()
-addProc procDef = tellAt loweredProcs [procDef]
+addProc = writeElemAt loweredProcs
 
 -- ================================================================================
 -- Compilation

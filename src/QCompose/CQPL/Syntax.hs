@@ -2,10 +2,14 @@
 
 module QCompose.CQPL.Syntax (
   -- * Syntax
+
+  -- ** Expressions and Statements
   MetaParam (..),
   Expr (..),
   FunctionCall (..),
   Stmt (..),
+
+  -- ** Procedures
   ProcBody (..),
   ProcDef (..),
   ProcCtx,
@@ -13,6 +17,7 @@ module QCompose.CQPL.Syntax (
   Program',
 
   -- * Syntax Sugar
+  ifThenS,
   desugarS,
 ) where
 
@@ -23,6 +28,7 @@ import qualified QCompose.Data.Context as Ctx
 import Data.Void (Void)
 import QCompose.Prelude
 import QCompose.ProtoLang (VarType)
+import QCompose.UnitaryQPL (MetaParam (..))
 import qualified QCompose.UnitaryQPL as UQPL
 import QCompose.Utils.ASTRewriting
 import QCompose.Utils.Printing
@@ -31,13 +37,10 @@ import QCompose.Utils.Printing
 -- Syntax
 -- ================================================================================
 
--- | Compile-time constant parameters
-data MetaParam sizeT = NameMeta String | SizeMeta sizeT
-  deriving (Eq, Show, Read)
-
 -- | Expressions (RHS of an assignment operation)
 data Expr sizeT
   = ConstE {val :: Value, val_ty :: VarType sizeT}
+  | MetaValE {meta_val :: MetaParam sizeT, val_ty :: VarType sizeT}
   | VarE {var :: Ident}
   | AddE {lhs, rhs :: Expr sizeT}
   | MulE {lhs, rhs :: Expr sizeT}
@@ -56,17 +59,23 @@ data FunctionCall
 -- | CQ Statement
 data Stmt holeT sizeT
   = SkipS
+  | CommentS String
   | AssignS {rets :: [Ident], expr :: Expr sizeT}
-  | RandomS {ret :: Ident, ty :: VarType sizeT}
-  | CallS {fun :: FunctionCall, meta_params :: [MetaParam sizeT], args :: [Ident]}
+  | RandomS {ret :: Ident, max_val :: MetaParam sizeT}
+  | RandomDynS {ret :: Ident, max_var :: Ident}
+  | CallS {fun :: FunctionCall, meta_params :: [Either (MetaParam sizeT) Ident], args :: [Ident]}
   | SeqS [Stmt holeT sizeT]
   | IfThenElseS {cond :: Ident, s_true, s_false :: Stmt holeT sizeT}
-  | RepeatS {n_iter :: sizeT, loop_body :: Stmt holeT sizeT}
+  | RepeatS {n_iter :: MetaParam sizeT, loop_body :: Stmt holeT sizeT}
   | HoleS holeT
   | -- syntax sugar
-    WhileK {n_iter :: sizeT, cond :: Ident, loop_body :: Stmt holeT sizeT}
-  | WhileKWithCondExpr {n_iter :: sizeT, cond :: Ident, cond_expr :: Expr sizeT, loop_body :: Stmt holeT sizeT}
+    WhileK {n_iter :: MetaParam sizeT, cond :: Ident, loop_body :: Stmt holeT sizeT}
+  | WhileKWithCondExpr {n_iter :: MetaParam sizeT, cond :: Ident, cond_expr :: Expr sizeT, loop_body :: Stmt holeT sizeT}
+  | ForInArray {loop_index :: Ident, loop_index_ty :: VarType sizeT, loop_values :: [MetaParam sizeT], loop_body :: Stmt holeT sizeT}
   deriving (Eq, Show, Read)
+
+ifThenS :: Ident -> Stmt holeT sizeT -> Stmt holeT sizeT
+ifThenS cond s_true = IfThenElseS{cond, s_true, s_false = SkipS}
 
 -- | CQ Procedure body: binds the parameters to names, and optionally uses local variables.
 data ProcBody holeT sizeT = ProcBody
@@ -131,7 +140,7 @@ instance HasStmt (Program holeT sizeT) (Stmt holeT sizeT) where
 -- | bounded while loop
 whileK ::
   -- | iteration limit
-  sizeT ->
+  MetaParam sizeT ->
   -- | loop condition
   Ident ->
   -- | loop body
@@ -142,7 +151,7 @@ whileK k cond body = RepeatS k $ IfThenElseS cond body SkipS
 -- | bounded while loop given an expression for the loop condition
 whileKWithCondExpr ::
   -- | iteration limit
-  sizeT ->
+  MetaParam sizeT ->
   -- | loop condition variable
   Ident ->
   -- | loop condition expression
@@ -158,10 +167,21 @@ whileKWithCondExpr k cond_var cond_expr body =
  where
   compute_cond = AssignS [cond_var] cond_expr
 
+forInArray :: Ident -> VarType sizeT -> [MetaParam sizeT] -> Stmt holeT sizeT -> Stmt holeT sizeT
+forInArray ix ty ix_vals s =
+  SeqS
+    [ SeqS
+        [ AssignS{rets = [ix], expr = MetaValE v ty}
+        , s
+        ]
+    | v <- ix_vals
+    ]
+
 -- | Remove syntax sugar. Use with `rewriteAST`.
 desugarS :: Stmt holeT sizeT -> Maybe (Stmt holeT sizeT)
 desugarS WhileK{n_iter, cond, loop_body} = Just $ whileK n_iter cond loop_body
 desugarS WhileKWithCondExpr{n_iter, cond, cond_expr, loop_body} = Just $ whileKWithCondExpr n_iter cond cond_expr loop_body
+desugarS ForInArray{loop_index, loop_index_ty, loop_values, loop_body} = Just $ forInArray loop_index loop_index_ty loop_values loop_body
 desugarS _ = Nothing
 
 -- ================================================================================
@@ -174,6 +194,7 @@ parenBinExpr op_sym lhs rhs =
 
 instance (Show sizeT) => ToCodeString (Expr sizeT) where
   toCodeString ConstE{val, val_ty} = show val <> " : " <> toCodeString val_ty
+  toCodeString MetaValE{meta_val} = toCodeString meta_val
   toCodeString VarE{var} = var
   toCodeString AddE{lhs, rhs} = parenBinExpr "+" lhs rhs
   toCodeString MulE{lhs, rhs} = parenBinExpr "*" lhs rhs
@@ -187,12 +208,18 @@ instance (Show holeT, Show sizeT) => ToCodeString (Stmt holeT sizeT) where
   toCodeLines SkipS = ["skip;"]
   toCodeLines AssignS{rets, expr} =
     [printf "%s := %s;" (commaList rets) (toCodeString expr)]
-  toCodeLines RandomS{ret, ty} =
-    [printf "%s :=$ %s;" ret (toCodeString ty)]
-  toCodeLines CallS{fun = FunctionCall f, args} =
-    [printf "call %s(%s);" f (commaList args)]
-  toCodeLines CallS{fun = UProcAndMeas uproc_id, args} =
-    [printf "call_uproc_and_meas %s(%s);" uproc_id (commaList args)]
+  toCodeLines RandomS{ret, max_val} =
+    [printf "%s :=$ [1 .. %s];" ret (toCodeString max_val)]
+  toCodeLines RandomDynS{ret, max_var} =
+    [printf "%s :=$ [1 .. %s];" ret max_var]
+  toCodeLines CallS{fun, meta_params, args} =
+    [printf "%s[%s](%s);" (f_str fun) meta_params_str (commaList args)]
+   where
+    f_str :: FunctionCall -> String
+    f_str (FunctionCall fname) = printf "call %s" fname
+    f_str (UProcAndMeas uproc_id) = printf "call_uproc_and_meas %s" uproc_id
+
+    meta_params_str = commaList $ map (either toCodeString id) meta_params
   toCodeLines (SeqS ss) = concatMap toCodeLines ss
   toCodeLines IfThenElseS{cond, s_true, s_false} =
     [printf "if (%s) then" cond]
@@ -201,18 +228,23 @@ instance (Show holeT, Show sizeT) => ToCodeString (Stmt holeT sizeT) where
       ++ indent (toCodeLines s_false)
       ++ ["end"]
   toCodeLines RepeatS{n_iter, loop_body} =
-    [printf "repeat %s do" (show n_iter)]
+    [printf "repeat %s do" (toCodeString n_iter)]
       ++ indent (toCodeLines loop_body)
       ++ ["end"]
   -- hole
   toCodeLines (HoleS info) = [printf "HOLE :: %s;" (show info)]
   -- syntax sugar
   toCodeLines WhileK{n_iter, cond, loop_body} =
-    printf "while[%s] (%s) do" (show n_iter) cond
+    printf "while[%s] (%s) do" (toCodeString n_iter) cond
       : indent (toCodeLines loop_body)
       ++ ["end"]
   toCodeLines WhileKWithCondExpr{n_iter, cond, cond_expr, loop_body} =
-    printf "while[%s] (%s := %s) do" (show n_iter) cond (toCodeString cond_expr)
+    printf "while[%s] (%s := %s) do" (toCodeString n_iter) cond (toCodeString cond_expr)
+      : indent (toCodeLines loop_body)
+      ++ ["end"]
+  toCodeLines (CommentS c) = ["// " ++ c]
+  toCodeLines ForInArray{loop_index, loop_values, loop_body} =
+    printf "for %s in [%s] do" loop_index (commaList $ map toCodeString loop_values)
       : indent (toCodeLines loop_body)
       ++ ["end"]
 
