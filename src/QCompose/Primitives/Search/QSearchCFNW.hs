@@ -25,7 +25,7 @@ module QCompose.Primitives.Search.QSearchCFNW (
 ) where
 
 import Control.Applicative ((<|>))
-import Control.Monad (filterM, forM, when)
+import Control.Monad (filterM, forM, forM_, when)
 import Control.Monad.Except (throwError)
 import Control.Monad.Extra (anyM)
 import Control.Monad.Trans (lift)
@@ -332,6 +332,45 @@ groverCertainty ::
   UQPL.Stmt holeT sizeT
 groverCertainty (x, P.Fin n) m b mk_pred = error "TODO GroverCertainty circuit"
 
+bruteForceQSearch ::
+  forall primsT holeT sizeT costT.
+  ( Integral sizeT
+  , RealFloat costT
+  , holeT ~ QSearchBlackBoxes costT
+  , P.TypeCheckable sizeT
+  ) =>
+  -- | type of the element to search over
+  P.VarType sizeT ->
+  -- | call the predicate on @x, b@
+  (Ident -> Ident -> UQPL.Stmt holeT sizeT) ->
+  -- | output bit
+  Ident ->
+  MyWriterT [UQPL.Stmt holeT sizeT] (UQPL.CompilerT primsT holeT sizeT costT) ()
+bruteForceQSearch ty mk_pred out_bit = do
+  x <- lift $ UQPL.allocAncilla ty
+  bs <- forM (P.range ty) $ \v -> do
+    b <- lift $ UQPL.allocAncilla P.tbool
+
+    writeElem $
+      UQPL.UnitaryS
+        { UQPL.unitary = UQPL.RevEmbedU UQPL.ConstF{UQPL.ty = P.tbool, UQPL.val = v}
+        , UQPL.args = [b]
+        }
+    writeElem $ mk_pred x b
+
+    return b
+
+  let P.Fin n = ty
+  writeElem $
+    UQPL.UnitaryS
+      { UQPL.unitary = UQPL.RevEmbedU $ UQPL.MultiOrF n
+      , UQPL.args = bs ++ [out_bit]
+      }
+
+{-# DEPRECATED useBruteForce "temporary (valid) circuit placeholder" #-}
+useBruteForce :: Bool
+useBruteForce = True
+
 algoQSearchZalka ::
   forall primsT holeT sizeT costT.
   ( Integral sizeT
@@ -348,8 +387,11 @@ algoQSearchZalka ::
   -- | output bit
   Ident ->
   MyWriterT [UQPL.Stmt holeT sizeT] (UQPL.CompilerT primsT holeT sizeT costT) ()
+algoQSearchZalka ty mk_pred eps out_bit | useBruteForce = bruteForceQSearch ty mk_pred out_bit
 algoQSearchZalka ty mk_pred eps out_bit = do
-  writeElem $
+  writeElem qs_hole
+ where
+  qs_hole =
     UQPL.HoleS
       { UQPL.hole =
           QSearchBlackBox
@@ -358,7 +400,7 @@ algoQSearchZalka ty mk_pred eps out_bit = do
             }
       , UQPL.dagger = False
       }
- where
+
   q_pred_name = case mk_pred "pred_arg" "pred_res" of
     UQPL.CallS{UQPL.proc_id} -> proc_id
     _ -> error "predicate is not a call!"
@@ -421,7 +463,7 @@ instance
 
     -- Emit the qsearch procedure
     -- body:
-    (qsearch_body, qsearch_ancilla) <- withSandboxOf UQPL.typingCtx $ do
+    (qsearch_body, qsearch_ancilla) <- do
       ini_binds <- use UQPL.typingCtx
       ss <- execMyWriterT $ algoQSearchZalka s_ty pred_caller delta_search ret
       fin_binds <- use UQPL.typingCtx

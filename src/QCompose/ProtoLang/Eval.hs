@@ -67,7 +67,7 @@ instance EvaluatablePrimitive primsT Void where
   evalPrimitive = absurd
 
 -- evaluation
-range :: VarType SizeT -> [Value]
+range :: (Integral sizeT) => VarType sizeT -> [Value]
 range (Fin n) = [0 .. fromIntegral n - 1]
 
 lookupS :: (MonadState ProgramState m) => Ident -> m Value

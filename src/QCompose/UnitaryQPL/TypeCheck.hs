@@ -41,7 +41,7 @@ verifyArgs args tys = do
     throwError $
       printf "mismatched args: expected %s, got %s" (show tys) (show arg_tys)
 
-unitarySignature :: (TypeCheckable sizeT) => Unitary sizeT -> TypeChecker holeT sizeT [VarType sizeT]
+unitarySignature :: forall holeT sizeT. (TypeCheckable sizeT) => Unitary sizeT -> TypeChecker holeT sizeT [VarType sizeT]
 unitarySignature Toffoli = return [tbool, tbool, tbool]
 unitarySignature CNOT = return [tbool, tbool]
 unitarySignature XGate = return [tbool]
@@ -50,11 +50,13 @@ unitarySignature (Unif ty) = return [ty]
 unitarySignature (UnifDagger ty) = return [ty]
 unitarySignature (RevEmbedU f) = return $ revFunTys f
  where
+  revFunTys :: ClassicalFun sizeT -> [VarType sizeT]
   revFunTys ConstF{ty} = [ty]
   revFunTys NotF{ty} = [ty, ty]
   revFunTys IdF{ty} = [ty, ty]
   revFunTys AddF{ty} = [ty, ty, ty]
   revFunTys LEqF{ty} = [ty, ty, tbool]
+  revFunTys MultiOrF{cfun_n_args} = replicate (irange cfun_n_args + 1) tbool
 unitarySignature (Controlled u) = (tbool :) <$> unitarySignature u
 unitarySignature (Refl0 ty) = return [ty]
 unitarySignature (LoadData f) = do

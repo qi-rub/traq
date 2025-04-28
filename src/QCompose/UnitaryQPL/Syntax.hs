@@ -40,6 +40,7 @@ data ClassicalFun sizeT
   | IdF {ty :: P.VarType sizeT} -- x -> x
   | AddF {ty :: P.VarType sizeT} -- x, y -> x + y
   | LEqF {ty :: P.VarType sizeT} -- x, y -> x <= y
+  | MultiOrF {cfun_n_args :: sizeT}
   deriving (Eq, Show, Read)
 
 data Unitary sizeT
@@ -140,6 +141,7 @@ instance (Show a) => ToCodeString (ClassicalFun a) where
   toCodeString IdF{ty} = showTypedIdent ("x", ty) <> " => x"
   toCodeString AddF{ty} = showTypedIdent ("x", ty) <> ", " <> showTypedIdent ("y", ty) <> " => x+y"
   toCodeString LEqF{ty} = showTypedIdent ("x", ty) <> ", " <> showTypedIdent ("y", ty) <> " => x≤y"
+  toCodeString MultiOrF{cfun_n_args} = printf "(x) => OR_%s(x)" (show cfun_n_args)
 
 instance (Show sizeT) => ToCodeString (Unitary sizeT) where
   toCodeString (RevEmbedU f) = "RevEmbed[" <> toCodeString f <> "]"
