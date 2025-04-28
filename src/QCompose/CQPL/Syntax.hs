@@ -32,7 +32,7 @@ import QCompose.Utils.Printing
 -- ================================================================================
 
 -- | Compile-time constant parameters
-data MetaParam sizeT = NameMeta String | SizeMeta sizeT
+data MetaParam sizeT = MetaName String | MetaSize sizeT
   deriving (Eq, Show, Read)
 
 -- | Expressions (RHS of an assignment operation)
@@ -56,6 +56,7 @@ data FunctionCall
 -- | CQ Statement
 data Stmt holeT sizeT
   = SkipS
+  | CommentS String
   | AssignS {rets :: [Ident], expr :: Expr sizeT}
   | RandomS {ret :: Ident, ty :: VarType sizeT}
   | CallS {fun :: FunctionCall, meta_params :: [MetaParam sizeT], args :: [Ident]}
@@ -172,6 +173,10 @@ parenBinExpr :: (Show sizeT) => String -> Expr sizeT -> Expr sizeT -> String
 parenBinExpr op_sym lhs rhs =
   "(" ++ unwords [toCodeString lhs, op_sym, toCodeString rhs] ++ ")"
 
+instance (Show sizeT) => ToCodeString (MetaParam sizeT) where
+  toCodeString (MetaName n) = "#" ++ n
+  toCodeString (MetaSize n) = "#" ++ show n
+
 instance (Show sizeT) => ToCodeString (Expr sizeT) where
   toCodeString ConstE{val, val_ty} = show val <> " : " <> toCodeString val_ty
   toCodeString VarE{var} = var
@@ -189,10 +194,14 @@ instance (Show holeT, Show sizeT) => ToCodeString (Stmt holeT sizeT) where
     [printf "%s := %s;" (commaList rets) (toCodeString expr)]
   toCodeLines RandomS{ret, ty} =
     [printf "%s :=$ %s;" ret (toCodeString ty)]
-  toCodeLines CallS{fun = FunctionCall f, args} =
-    [printf "call %s(%s);" f (commaList args)]
-  toCodeLines CallS{fun = UProcAndMeas uproc_id, args} =
-    [printf "call_uproc_and_meas %s(%s);" uproc_id (commaList args)]
+  toCodeLines CallS{fun, meta_params, args} =
+    [printf "%s[%s](%s);" (f_str fun) meta_params_str (commaList args)]
+   where
+    f_str :: FunctionCall -> String
+    f_str (FunctionCall fname) = printf "call %s" fname
+    f_str (UProcAndMeas uproc_id) = printf "call_uproc_and_meas %s" uproc_id
+
+    meta_params_str = commaList $ map toCodeString meta_params
   toCodeLines (SeqS ss) = concatMap toCodeLines ss
   toCodeLines IfThenElseS{cond, s_true, s_false} =
     [printf "if (%s) then" cond]
@@ -215,6 +224,7 @@ instance (Show holeT, Show sizeT) => ToCodeString (Stmt holeT sizeT) where
     printf "while[%s] (%s := %s) do" (show n_iter) cond (toCodeString cond_expr)
       : indent (toCodeLines loop_body)
       ++ ["end"]
+  toCodeLines (CommentS c) = ["// " ++ c]
 
 instance (Show holeT, Show sizeT) => ToCodeString (ProcDef holeT sizeT) where
   toCodeLines ProcDef{proc_name, proc_meta_params, proc_param_types, mproc_body = Nothing} =

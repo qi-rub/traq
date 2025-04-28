@@ -27,7 +27,9 @@ module QCompose.Control.Monad (
   runMyWriterT,
   evalMyWriterT,
   execMyWriterT,
+  tell,
   tellAt,
+  writeElemAt,
   writeElem,
   embedWriterT,
   censored,
@@ -160,8 +162,11 @@ tellAt focus w' =
   let w = mempty & focus .~ w'
    in tell w
 
+writeElemAt :: (Applicative f, MonadWriter w m) => Lens' w (f a) -> a -> m ()
+writeElemAt focus = tellAt focus . pure
+
 writeElem :: (Applicative f, MonadWriter (f a) m) => a -> m ()
-writeElem = tell . pure
+writeElem = writeElemAt id
 
 -- | Embed a writer computation into an RWS monad.
 embedWriterT :: (Monad m, Monoid w) => MyWriterT w m a -> MyReaderWriterStateT r w s m a

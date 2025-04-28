@@ -7,11 +7,13 @@ module QCompose.CQPL.Lowering (
   newIdent,
   addProc,
 
-  -- * Types and lenses
+  -- * Types
   CompilerT,
   LoweringEnv,
   LoweringCtx,
   LoweringOutput,
+
+  -- * Lenses
   loweredProcs,
   loweredUProcs,
   typingCtx,

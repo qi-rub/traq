@@ -546,8 +546,24 @@ instance
 -- CQ Lowering
 -- ================================================================================
 
--- | Shape of a QSearch implementation
-type QSearchAlgorithm holeT sizeT costT =
+allocReg :: Ident -> P.VarType sizeT -> MyWriterT ([CQPL.Stmt holeT sizeT], [(Ident, P.VarType sizeT)]) (CQPL.CompilerT primsT holeT sizeT costT) Ident
+allocReg prefix ty = do
+  reg <- lift $ CQPL.newIdent prefix
+  writeElemAt _2 (reg, ty)
+  return reg
+
+-- | Implementation of the hybrid quantum search algorithm \( \textbf{QSearch} \).
+algoQSearch ::
+  forall primsT holeT sizeT costT.
+  ( Integral sizeT
+  , RealFloat costT
+  , sizeT ~ SizeT
+  , holeT ~ QSearchBlackBoxes costT
+  , CQPL.Lowerable primsT primsT holeT sizeT costT
+  , Show sizeT
+  , Show costT
+  , P.TypeCheckable sizeT
+  ) =>
   -- | search elem type
   P.VarType sizeT ->
   -- | number of classical samples
@@ -558,46 +574,30 @@ type QSearchAlgorithm holeT sizeT costT =
   (Ident -> Ident -> UQPL.Stmt holeT sizeT) ->
   -- | cqpl predicate caller
   (Ident -> Ident -> CQPL.Stmt holeT sizeT) ->
-  -- | arguments to the function
-  [(Ident, P.VarType sizeT)] ->
-  -- | the generated QSearch procedure
-  CQPL.ProcDef holeT sizeT
+  -- | Result register
+  Ident ->
+  -- | the generated QSearch procedure: body stmts and local vars
+  MyWriterT ([CQPL.Stmt holeT sizeT], [(Ident, P.VarType sizeT)]) (CQPL.CompilerT primsT holeT sizeT costT) ()
+algoQSearch ty n_samples eps upred_caller pred_caller ok = do
+  not_done <- allocReg "not_done" P.tbool
+  q_sum <- allocReg "Q_sum" j_type
+  j <- allocReg "j" j_type
+  x <- allocReg "x" ty
 
--- | Implementation of the hybrid quantum search algorithm \( \textbf{QSearch} \).
-qSearch ::
-  forall costT.
-  (RealFloat costT) =>
-  QSearchAlgorithm (QSearchBlackBoxes costT) SizeT costT
-qSearch ty n_samples eps upred_caller pred_caller params =
-  CQPL.ProcDef
-    { CQPL.proc_name = "qSearch"
-    , CQPL.proc_meta_params = []
-    , CQPL.proc_param_types = map snd params
-    , CQPL.mproc_body =
-        Just
-          CQPL.ProcBody
-            { CQPL.proc_param_names = map fst params
-            , CQPL.proc_local_vars =
-                [ ("not_done", P.Fin 2)
-                , ("Q_sum", j_type)
-                , ("j", j_type)
-                ]
-            , CQPL.proc_body_stmt =
-                CQPL.SeqS $
-                  catMaybes
-                    [ if n_samples /= 0 then Just classicalSampling else Nothing
-                    , Just quantumSampling
-                    ]
-            }
-    , CQPL.is_oracle = False
-    }
+  -- classical sampling
+  when (n_samples /= 0) $
+    writeElemAt _1 $
+      classicalSampling not_done x
+
+  -- quantum search
+  writeElemAt _1 quantumSampling
  where
-  classicalSampling :: CQPL.Stmt (QSearchBlackBoxes costT) SizeT
-  classicalSampling =
-    CQPL.WhileKWithCondExpr n_samples "not_done" (CQPL.NotE $ CQPL.VarE "ok") $
+  classicalSampling :: Ident -> Ident -> CQPL.Stmt (QSearchBlackBoxes costT) SizeT
+  classicalSampling not_done x =
+    CQPL.WhileKWithCondExpr n_samples not_done (CQPL.NotE $ CQPL.VarE ok) $
       CQPL.SeqS
-        [ CQPL.RandomS "x" (P.Fin n)
-        , pred_caller "x" "ok"
+        [ CQPL.RandomS x (P.Fin n)
+        , pred_caller x ok
         ]
 
   P.Fin n = ty
@@ -637,7 +637,9 @@ qSearch ty n_samples eps upred_caller pred_caller params =
   quantumSampling = CQPL.RepeatS n_runs quantumSamplingOneRound
   quantumSamplingOneRound =
     CQPL.SeqS $
-      CQPL.AssignS ["Q_sum"] (CQPL.ConstE{CQPL.val = 0, CQPL.val_ty = j_type}) : map quantumGroverOnce sampling_ranges
+      CQPL.CommentS ("Sampling Limits: " ++ show sampling_ranges)
+        : CQPL.AssignS ["Q_sum"] (CQPL.ConstE{CQPL.val = 0, CQPL.val_ty = j_type})
+        : map quantumGroverOnce sampling_ranges
 
   -- one call and meas to grover with j iterations
   quantumGroverOnce j_lim =
@@ -661,7 +663,7 @@ instance
   ) =>
   CQPL.Lowerable primsT QSearchCFNW holeT sizeT costT
   where
-  lowerPrimitive eps QSearchCFNW{predicate, return_sol = False} args rets = do
+  lowerPrimitive eps QSearchCFNW{predicate, return_sol = False} args [ret] = do
     -- the predicate
     pred_fun@P.FunDef{P.param_types} <-
       view (_1 . Ctx.at predicate)
@@ -688,27 +690,50 @@ instance
       return (a, w)
 
     tellAt CQPL.loweredUProcs uprocs
-    let pred_proc_name = pred_uproc ^. to UQPL.lowered_def . to UQPL.proc_name
+    let UQPL.LoweredProc
+          { UQPL.inp_tys
+          , UQPL.out_tys
+          , UQPL.aux_tys
+          } = pred_uproc
+    let upred_proc_name = pred_uproc ^. to UQPL.lowered_def . to UQPL.proc_name
 
     -- emit the QSearch algorithm
-    qsearch_params <- forM (args ++ rets) $ \x -> do
+    qsearch_params <- forM (args ++ [ret]) $ \x -> do
       ty <- use $ CQPL.typingCtx . Ctx.at x . singular _Just
       return (x, ty)
-    let qsearch_proc =
-          qSearch
-            s_ty
-            0
-            eps_s
-            (\x b -> UQPL.holeS $ TODOHole "TODO unitary pred call")
-            (\x b -> CQPL.HoleS $ TODOHole "classical predicate call")
-            qsearch_params
+
+    let upred_caller = (\x b -> UQPL.holeS $ TODOHole $ printf "unitary predicate call (%s, %s)" x b)
+
+    let pred_caller =
+          ( \x b ->
+              CQPL.CallS
+                { CQPL.fun = CQPL.UProcAndMeas upred_proc_name
+                , CQPL.meta_params = []
+                , CQPL.args = args ++ [x, b]
+                }
+          )
+
+    (qsearch_body, qsearch_local_vars) <- execMyWriterT $ algoQSearch s_ty 0 eps_s upred_caller pred_caller ret
     qsearch_proc_name <- CQPL.newIdent $ printf "QSearch[%s]" (show eps_s)
-    CQPL.addProc $ qsearch_proc{CQPL.proc_name = qsearch_proc_name}
+    CQPL.addProc $
+      CQPL.ProcDef
+        { CQPL.proc_name = qsearch_proc_name
+        , CQPL.proc_meta_params = []
+        , CQPL.proc_param_types = map snd qsearch_params
+        , CQPL.mproc_body =
+            Just $
+              CQPL.ProcBody
+                { CQPL.proc_param_names = map fst qsearch_params
+                , CQPL.proc_local_vars = qsearch_local_vars
+                , CQPL.proc_body_stmt = CQPL.SeqS qsearch_body
+                }
+        , CQPL.is_oracle = False
+        }
 
     return
       CQPL.CallS
         { CQPL.fun = CQPL.FunctionCall qsearch_proc_name
-        , CQPL.args = args ++ rets
+        , CQPL.args = args ++ [ret]
         , CQPL.meta_params = []
         }
-  lowerPrimitive _ _ _ _ = error "TODO"
+  lowerPrimitive _ _ _ _ = fail "Unsupported"

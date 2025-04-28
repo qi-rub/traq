@@ -83,6 +83,7 @@ typeCheckStmt ::
   Stmt holeT sizeT ->
   TypeChecker holeT sizeT ()
 typeCheckStmt SkipS = return ()
+typeCheckStmt (CommentS _) = return ()
 -- ignore holes
 typeCheckStmt (HoleS _) = return ()
 -- Simple statements
