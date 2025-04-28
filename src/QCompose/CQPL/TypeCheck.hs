@@ -85,7 +85,7 @@ typeCheckExpr NotE{arg} = do
   arg_ty <- ensureOne $ typeCheckExpr arg
   ensureEqual arg_ty tbool $ printf "NotE: must be bool, got %s" (show arg_ty)
   return [arg_ty]
-typeCheckExpr s = fail $ "TODO typeCheckExpr: " <> show s
+typeCheckExpr s = error $ "TODO typeCheckExpr: " <> show s
 
 -- | Check a statement
 typeCheckStmt ::
@@ -138,7 +138,7 @@ typeCheckStmt RepeatS{loop_body} = typeCheckStmt loop_body
 -- try by desugaring
 typeCheckStmt s = case desugarS s of
   Just s' -> typeCheckStmt s'
-  Nothing -> fail $ "Unable to TypeCheck: " ++ show s
+  Nothing -> error $ "Unable to TypeCheck: " ++ show s
 
 -- | Check a procedure def
 typeCheckProc ::
