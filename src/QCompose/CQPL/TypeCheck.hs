@@ -96,10 +96,13 @@ typeCheckStmt AssignS{rets, expr} = do
         "mismatched expression return types: expected %s, got %s"
         (show expect_ret_tys)
         (show actual_ret_tys)
-typeCheckStmt RandomS{ret, ty} = do
+typeCheckStmt RandomS{ret, max_val} = do
   -- ret_ty <- magnify typingCtx $ Ctx.lookup' ret
   -- when (ret_ty /= ty) $ do
   --   throwError $ printf "random bound must match type, expected %s got %s" (show ret_ty) (show ty)
+  return ()
+typeCheckStmt RandomDynS{max_var} = do
+  view (typingCtx . Ctx.at max_var) >>= maybeWithError "cannot find variable"
   return ()
 -- function call
 typeCheckStmt CallS{fun = FunctionCall proc_id, meta_params, args} = do
@@ -121,7 +124,10 @@ typeCheckStmt IfThenElseS{cond, s_true, s_false} = do
   typeCheckStmt s_true
   typeCheckStmt s_false
 typeCheckStmt RepeatS{loop_body} = typeCheckStmt loop_body
-typeCheckStmt s = error $ "TODO " ++ show s
+-- try by desugaring
+typeCheckStmt s = case desugarS s of
+  Just s' -> typeCheckStmt s'
+  Nothing -> fail $ "Unable to TypeCheck: " ++ show s
 
 -- | Check a procedure def
 typeCheckProc ::

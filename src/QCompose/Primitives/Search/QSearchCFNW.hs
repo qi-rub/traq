@@ -585,24 +585,56 @@ algoQSearch ty n_samples eps upred_caller pred_caller ok = do
   not_done <- allocReg "not_done" P.tbool
   q_sum <- allocReg "Q_sum" j_type
   j <- allocReg "j" j_type
+  j_lim <- allocReg "j_lim" j_type
   x <- allocReg "x" ty
 
   -- classical sampling
-  when (n_samples /= 0) $
-    writeElemAt _1 $
-      classicalSampling not_done x
+  when (n_samples /= 0) $ do
+    let classicalSampling =
+          CQPL.WhileKWithCondExpr (CQPL.MetaSize n_samples) not_done (CQPL.NotE $ CQPL.VarE ok) $
+            CQPL.SeqS
+              [ CQPL.RandomS x (UQPL.MetaSize n)
+              , pred_caller x ok
+              ]
+    writeElemAt _1 classicalSampling
 
   -- quantum search
+
+  -- one call and meas to grover with j iterations
+  let quantumGroverOnce =
+        CQPL.SeqS
+          [ CQPL.RandomDynS j j_lim
+          , CQPL.AssignS [q_sum] (CQPL.AddE (CQPL.VarE q_sum) (CQPL.VarE j))
+          , CQPL.AssignS
+              [not_done]
+              ( CQPL.AndE
+                  (CQPL.VarE not_done)
+                  (CQPL.LEqE (CQPL.VarE q_sum) (CQPL.VarE j_lim))
+              )
+          , CQPL.ifThenS
+              not_done
+              ( CQPL.SeqS
+                  [ CQPL.HoleS $ TODOHole "callandmeas: grover cycle j"
+                  , pred_caller x ok
+                  , CQPL.AssignS [not_done] (CQPL.AndE (CQPL.VarE not_done) (CQPL.NotE $ CQPL.VarE ok))
+                  ]
+              )
+          ]
+
+  let quantumSamplingOneRound =
+        CQPL.SeqS
+          [ CQPL.AssignS [q_sum] (CQPL.ConstE{CQPL.val = 0, CQPL.val_ty = j_type})
+          , CQPL.ForInArray
+              { CQPL.loop_index = j_lim
+              , CQPL.loop_values = map CQPL.MetaSize sampling_ranges
+              , CQPL.loop_body = quantumGroverOnce
+              }
+          ]
+
+  let quantumSampling = CQPL.RepeatS (CQPL.MetaSize n_runs) quantumSamplingOneRound
+
   writeElemAt _1 quantumSampling
  where
-  classicalSampling :: Ident -> Ident -> CQPL.Stmt (QSearchBlackBoxes costT) SizeT
-  classicalSampling not_done x =
-    CQPL.WhileKWithCondExpr (CQPL.MetaSize n_samples) not_done (CQPL.NotE $ CQPL.VarE ok) $
-      CQPL.SeqS
-        [ CQPL.RandomS x (P.Fin n)
-        , pred_caller x ok
-        ]
-
   P.Fin n = ty
 
   alpha = 9.2
@@ -635,24 +667,6 @@ algoQSearch ty n_samples eps upred_caller pred_caller ok = do
 
     nxt :: Float -> Float
     nxt m = min (lambda * m) sqrt_n
-
-  quantumSampling, quantumSamplingOneRound :: CQPL.Stmt (QSearchBlackBoxes costT) SizeT
-  quantumSampling = CQPL.RepeatS (CQPL.MetaSize n_runs) quantumSamplingOneRound
-  quantumSamplingOneRound =
-    CQPL.SeqS $
-      CQPL.CommentS ("Sampling Limits: " ++ show sampling_ranges)
-        : CQPL.AssignS ["Q_sum"] (CQPL.ConstE{CQPL.val = 0, CQPL.val_ty = j_type})
-        : map quantumGroverOnce sampling_ranges
-
-  -- one call and meas to grover with j iterations
-  quantumGroverOnce j_lim =
-    CQPL.SeqS
-      [ CQPL.RandomS "j" (P.Fin $ j_lim + 1)
-      , CQPL.AssignS ["Q_sum"] (CQPL.AddE (CQPL.VarE "Q_sum") (CQPL.VarE "j"))
-      , CQPL.AssignS ["not_done"] (CQPL.LEqE (CQPL.VarE "Q_sum") (CQPL.ConstE{CQPL.val = fromIntegral j_lim, CQPL.val_ty = j_type}))
-      , CQPL.IfThenElseS "not_done" (CQPL.HoleS $ TODOHole "callandmeas: grover cycle j") CQPL.SkipS
-      , pred_caller "y" "ok"
-      ]
 
 instance
   ( Integral sizeT
