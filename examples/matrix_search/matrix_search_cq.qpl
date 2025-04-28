@@ -1,164 +1,200 @@
-uproc IsEntryZero[6.785875e-11](i0 : IN Fin<20>, j0 : IN Fin<10>, e' : OUT Fin<2>, e : AUX Fin<2>) do
-  i0, j0, e *= Oracle;
+@Oracle
+uproc Oracle[](in_0 : IN Fin<20>, in_1 : IN Fin<10>, out_0 : OUT Fin<2>);
+
+uproc IsEntryZero[6.785875e-11][](i0 : IN Fin<20>, j0 : IN Fin<10>, e' : OUT Fin<2>, e : AUX Fin<2>) do
+  call Oracle(i0, j0, e);
   e, e' *= RevEmbed[x : Fin<2> => ~x];
 end
 
-uproc IsEntryZero_clean[1.357175e-10](i0 : IN Fin<20>, j0 : IN Fin<10>, e' : OUT Fin<2>, aux : AUX Fin<2>, aux_1 : AUX Fin<2>) do
+uproc IsEntryZero_clean[1.357175e-10][](i0 : IN Fin<20>, j0 : IN Fin<10>, e' : OUT Fin<2>, aux : AUX Fin<2>, aux_1 : AUX Fin<2>) do
   call IsEntryZero[6.785875e-11](i0, j0, aux, aux_1);
   aux, e' *= RevEmbed[x : Fin<2> => x];
   call† IsEntryZero[6.785875e-11](i0, j0, aux, aux_1);
 end
 
-uproc QSearch[10, 9.992682e-8, IsEntryZero_clean[1.357175e-10]](_qs :  Fin<20>, _qs_1 :  Fin<2>, _qs_2 :  Fin<10>, _qs_3 :  Fin<2>, _qs_4 :  Fin<2>) do
-  _qs, _qs_1, _qs_2, _qs_3, _qs_4 *= BlackBoxU (QSearchBB {pred_name = "IsEntryZero_clean[1.357175e-10]", n_pred_calls = 736.2854});
+uproc QSearch[10, 9.992682e-8, IsEntryZero_clean[1.357175e-10]][](i : IN Fin<20>, okr : OUT Fin<2>, aux_2 : AUX Fin<2>, aux_3 : AUX Fin<2>, aux_4 : AUX Fin<10>, aux_5 : AUX Fin<2>, aux_6 : AUX Fin<2>, aux_7 : AUX Fin<2>, aux_8 : AUX Fin<2>, aux_9 : AUX Fin<2>, aux_10 : AUX Fin<2>, aux_11 : AUX Fin<2>, aux_12 : AUX Fin<2>, aux_13 : AUX Fin<2>, aux_14 : AUX Fin<2>) do
+  aux_5 *= RevEmbed[() => 0 : Fin<2>];
+  call IsEntryZero_clean[1.357175e-10](i, aux_4, aux_5, aux_2, aux_3);
+  aux_6 *= RevEmbed[() => 1 : Fin<2>];
+  call IsEntryZero_clean[1.357175e-10](i, aux_4, aux_6, aux_2, aux_3);
+  aux_7 *= RevEmbed[() => 2 : Fin<2>];
+  call IsEntryZero_clean[1.357175e-10](i, aux_4, aux_7, aux_2, aux_3);
+  aux_8 *= RevEmbed[() => 3 : Fin<2>];
+  call IsEntryZero_clean[1.357175e-10](i, aux_4, aux_8, aux_2, aux_3);
+  aux_9 *= RevEmbed[() => 4 : Fin<2>];
+  call IsEntryZero_clean[1.357175e-10](i, aux_4, aux_9, aux_2, aux_3);
+  aux_10 *= RevEmbed[() => 5 : Fin<2>];
+  call IsEntryZero_clean[1.357175e-10](i, aux_4, aux_10, aux_2, aux_3);
+  aux_11 *= RevEmbed[() => 6 : Fin<2>];
+  call IsEntryZero_clean[1.357175e-10](i, aux_4, aux_11, aux_2, aux_3);
+  aux_12 *= RevEmbed[() => 7 : Fin<2>];
+  call IsEntryZero_clean[1.357175e-10](i, aux_4, aux_12, aux_2, aux_3);
+  aux_13 *= RevEmbed[() => 8 : Fin<2>];
+  call IsEntryZero_clean[1.357175e-10](i, aux_4, aux_13, aux_2, aux_3);
+  aux_14 *= RevEmbed[() => 9 : Fin<2>];
+  call IsEntryZero_clean[1.357175e-10](i, aux_4, aux_14, aux_2, aux_3);
+  aux_5, aux_6, aux_7, aux_8, aux_9, aux_10, aux_11, aux_12, aux_13, aux_14, okr *= RevEmbed[(x) => OR_10(x)];
 end
 
-uproc IsRowAllOnes[3.997073e-7](i : IN Fin<20>, okr' : OUT Fin<2>, okr : AUX Fin<2>, aux_2 : AUX Fin<2>, aux_3 : AUX Fin<2>, aux_4 : AUX Fin<10>) do
-  call QSearch[10, 9.992682e-8, IsEntryZero_clean[1.357175e-10]](i, okr, aux_4, aux_2, aux_3);
+uproc IsRowAllOnes[3.997073e-7][](i : IN Fin<20>, okr' : OUT Fin<2>, okr : AUX Fin<2>, aux_2 : AUX Fin<2>, aux_3 : AUX Fin<2>, aux_4 : AUX Fin<10>, aux_5 : AUX Fin<2>, aux_6 : AUX Fin<2>, aux_7 : AUX Fin<2>, aux_8 : AUX Fin<2>, aux_9 : AUX Fin<2>, aux_10 : AUX Fin<2>, aux_11 : AUX Fin<2>, aux_12 : AUX Fin<2>, aux_13 : AUX Fin<2>, aux_14 : AUX Fin<2>) do
+  call QSearch[10, 9.992682e-8, IsEntryZero_clean[1.357175e-10]](i, okr, aux_2, aux_3, aux_4, aux_5, aux_6, aux_7, aux_8, aux_9, aux_10, aux_11, aux_12, aux_13, aux_14);
   okr, okr' *= RevEmbed[x : Fin<2> => ~x];
 end
 
-uproc IsRowAllOnes_clean[7.994146e-7](i : IN Fin<20>, okr' : OUT Fin<2>, aux_5 : AUX Fin<2>, aux_6 : AUX Fin<2>, aux_7 : AUX Fin<2>, aux_8 : AUX Fin<2>, aux_9 : AUX Fin<10>) do
-  call IsRowAllOnes[3.997073e-7](i, aux_5, aux_6, aux_7, aux_8, aux_9);
-  aux_5, okr' *= RevEmbed[x : Fin<2> => x];
-  call† IsRowAllOnes[3.997073e-7](i, aux_5, aux_6, aux_7, aux_8, aux_9);
+uproc IsRowAllOnes_clean[7.994146e-7][](i : IN Fin<20>, okr' : OUT Fin<2>, aux_15 : AUX Fin<2>, aux_16 : AUX Fin<2>, aux_17 : AUX Fin<2>, aux_18 : AUX Fin<2>, aux_19 : AUX Fin<10>, aux_20 : AUX Fin<2>, aux_21 : AUX Fin<2>, aux_22 : AUX Fin<2>, aux_23 : AUX Fin<2>, aux_24 : AUX Fin<2>, aux_25 : AUX Fin<2>, aux_26 : AUX Fin<2>, aux_27 : AUX Fin<2>, aux_28 : AUX Fin<2>, aux_29 : AUX Fin<2>) do
+  call IsRowAllOnes[3.997073e-7](i, aux_15, aux_16, aux_17, aux_18, aux_19, aux_20, aux_21, aux_22, aux_23, aux_24, aux_25, aux_26, aux_27, aux_28, aux_29);
+  aux_15, okr' *= RevEmbed[x : Fin<2> => x];
+  call† IsRowAllOnes[3.997073e-7](i, aux_15, aux_16, aux_17, aux_18, aux_19, aux_20, aux_21, aux_22, aux_23, aux_24, aux_25, aux_26, aux_27, aux_28, aux_29);
 end
 
-proc QSearch[5.0e-4][](ok: Fin<2>) { locals: (not_done: Fin<2>) } do
+uproc Grover[#k](x : IN Fin<20>, ok : OUT Fin<2>, aux : AUX Fin<2>, aux_1 : AUX Fin<2>, aux_2 : AUX Fin<2>, aux_3 : AUX Fin<2>, aux_4 : AUX Fin<10>, aux_5 : AUX Fin<2>, aux_6 : AUX Fin<2>, aux_7 : AUX Fin<2>, aux_8 : AUX Fin<2>, aux_9 : AUX Fin<2>, aux_10 : AUX Fin<2>, aux_11 : AUX Fin<2>, aux_12 : AUX Fin<2>, aux_13 : AUX Fin<2>, aux_14 : AUX Fin<2>) do
+  ok *= X;
+  ok *= H;
+  x *= Unif[Fin<20>];
+  repeat #k do
+    call IsRowAllOnes_clean[7.994146e-7](x, ok, aux, aux_1, aux_2, aux_3, aux_4, aux_5, aux_6, aux_7, aux_8, aux_9, aux_10, aux_11, aux_12, aux_13, aux_14);
+    x *= Unif†[Fin<20>];
+    x *= (2|0><0| - I)[Fin<20>];
+    x *= Unif[Fin<20>];
+  end
+end
+
+proc QSearch[5.0e-4][](ok: Fin<2>) { locals: (not_done: Fin<2>, Q_sum: Fin<42>, j: Fin<42>, x_1: Fin<20>) } do
   repeat 7 do
-    Q_sum := 0;
+    // Sampling Limits: [1,1,1,2,2,2,3,4,4,4,4,4,4,4]
+    Q_sum := 0 : Fin<42>;
     j :=$ Fin<2>;
     Q_sum := (Q_sum + j);
-    not_done := (Q_sum <= 1);
+    not_done := (Q_sum <= 1 : Fin<42>);
     if (not_done) then
-      HOLE :: callandmeas: grover cycle j;
+      HOLE :: TODOHole "callandmeas: grover cycle j";
     else
       skip;
     end
-    HOLE :: classical predicate call;
+    call_uproc_and_meas IsRowAllOnes_clean[7.994146e-7][](y, ok);
     j :=$ Fin<2>;
     Q_sum := (Q_sum + j);
-    not_done := (Q_sum <= 1);
+    not_done := (Q_sum <= 1 : Fin<42>);
     if (not_done) then
-      HOLE :: callandmeas: grover cycle j;
+      HOLE :: TODOHole "callandmeas: grover cycle j";
     else
       skip;
     end
-    HOLE :: classical predicate call;
+    call_uproc_and_meas IsRowAllOnes_clean[7.994146e-7][](y, ok);
     j :=$ Fin<2>;
     Q_sum := (Q_sum + j);
-    not_done := (Q_sum <= 1);
+    not_done := (Q_sum <= 1 : Fin<42>);
     if (not_done) then
-      HOLE :: callandmeas: grover cycle j;
+      HOLE :: TODOHole "callandmeas: grover cycle j";
     else
       skip;
     end
-    HOLE :: classical predicate call;
+    call_uproc_and_meas IsRowAllOnes_clean[7.994146e-7][](y, ok);
     j :=$ Fin<3>;
     Q_sum := (Q_sum + j);
-    not_done := (Q_sum <= 2);
+    not_done := (Q_sum <= 2 : Fin<42>);
     if (not_done) then
-      HOLE :: callandmeas: grover cycle j;
+      HOLE :: TODOHole "callandmeas: grover cycle j";
     else
       skip;
     end
-    HOLE :: classical predicate call;
+    call_uproc_and_meas IsRowAllOnes_clean[7.994146e-7][](y, ok);
     j :=$ Fin<3>;
     Q_sum := (Q_sum + j);
-    not_done := (Q_sum <= 2);
+    not_done := (Q_sum <= 2 : Fin<42>);
     if (not_done) then
-      HOLE :: callandmeas: grover cycle j;
+      HOLE :: TODOHole "callandmeas: grover cycle j";
     else
       skip;
     end
-    HOLE :: classical predicate call;
+    call_uproc_and_meas IsRowAllOnes_clean[7.994146e-7][](y, ok);
     j :=$ Fin<3>;
     Q_sum := (Q_sum + j);
-    not_done := (Q_sum <= 2);
+    not_done := (Q_sum <= 2 : Fin<42>);
     if (not_done) then
-      HOLE :: callandmeas: grover cycle j;
+      HOLE :: TODOHole "callandmeas: grover cycle j";
     else
       skip;
     end
-    HOLE :: classical predicate call;
+    call_uproc_and_meas IsRowAllOnes_clean[7.994146e-7][](y, ok);
     j :=$ Fin<4>;
     Q_sum := (Q_sum + j);
-    not_done := (Q_sum <= 3);
+    not_done := (Q_sum <= 3 : Fin<42>);
     if (not_done) then
-      HOLE :: callandmeas: grover cycle j;
+      HOLE :: TODOHole "callandmeas: grover cycle j";
     else
       skip;
     end
-    HOLE :: classical predicate call;
+    call_uproc_and_meas IsRowAllOnes_clean[7.994146e-7][](y, ok);
     j :=$ Fin<5>;
     Q_sum := (Q_sum + j);
-    not_done := (Q_sum <= 4);
+    not_done := (Q_sum <= 4 : Fin<42>);
     if (not_done) then
-      HOLE :: callandmeas: grover cycle j;
+      HOLE :: TODOHole "callandmeas: grover cycle j";
     else
       skip;
     end
-    HOLE :: classical predicate call;
+    call_uproc_and_meas IsRowAllOnes_clean[7.994146e-7][](y, ok);
     j :=$ Fin<5>;
     Q_sum := (Q_sum + j);
-    not_done := (Q_sum <= 4);
+    not_done := (Q_sum <= 4 : Fin<42>);
     if (not_done) then
-      HOLE :: callandmeas: grover cycle j;
+      HOLE :: TODOHole "callandmeas: grover cycle j";
     else
       skip;
     end
-    HOLE :: classical predicate call;
+    call_uproc_and_meas IsRowAllOnes_clean[7.994146e-7][](y, ok);
     j :=$ Fin<5>;
     Q_sum := (Q_sum + j);
-    not_done := (Q_sum <= 4);
+    not_done := (Q_sum <= 4 : Fin<42>);
     if (not_done) then
-      HOLE :: callandmeas: grover cycle j;
+      HOLE :: TODOHole "callandmeas: grover cycle j";
     else
       skip;
     end
-    HOLE :: classical predicate call;
+    call_uproc_and_meas IsRowAllOnes_clean[7.994146e-7][](y, ok);
     j :=$ Fin<5>;
     Q_sum := (Q_sum + j);
-    not_done := (Q_sum <= 4);
+    not_done := (Q_sum <= 4 : Fin<42>);
     if (not_done) then
-      HOLE :: callandmeas: grover cycle j;
+      HOLE :: TODOHole "callandmeas: grover cycle j";
     else
       skip;
     end
-    HOLE :: classical predicate call;
+    call_uproc_and_meas IsRowAllOnes_clean[7.994146e-7][](y, ok);
     j :=$ Fin<5>;
     Q_sum := (Q_sum + j);
-    not_done := (Q_sum <= 4);
+    not_done := (Q_sum <= 4 : Fin<42>);
     if (not_done) then
-      HOLE :: callandmeas: grover cycle j;
+      HOLE :: TODOHole "callandmeas: grover cycle j";
     else
       skip;
     end
-    HOLE :: classical predicate call;
+    call_uproc_and_meas IsRowAllOnes_clean[7.994146e-7][](y, ok);
     j :=$ Fin<5>;
     Q_sum := (Q_sum + j);
-    not_done := (Q_sum <= 4);
+    not_done := (Q_sum <= 4 : Fin<42>);
     if (not_done) then
-      HOLE :: callandmeas: grover cycle j;
+      HOLE :: TODOHole "callandmeas: grover cycle j";
     else
       skip;
     end
-    HOLE :: classical predicate call;
+    call_uproc_and_meas IsRowAllOnes_clean[7.994146e-7][](y, ok);
     j :=$ Fin<5>;
     Q_sum := (Q_sum + j);
-    not_done := (Q_sum <= 4);
+    not_done := (Q_sum <= 4 : Fin<42>);
     if (not_done) then
-      HOLE :: callandmeas: grover cycle j;
+      HOLE :: TODOHole "callandmeas: grover cycle j";
     else
       skip;
     end
-    HOLE :: classical predicate call;
+    call_uproc_and_meas IsRowAllOnes_clean[7.994146e-7][](y, ok);
   end
 end
 
 proc HasAllOnesRow[1.0e-3][](ok: Fin<2>) { locals: () } do
-  call QSearch[5.0e-4](ok);
+  call QSearch[5.0e-4][](ok);
 end
 
-call HasAllOnesRow[1.0e-3](result);
+call HasAllOnesRow[1.0e-3][](result);
 

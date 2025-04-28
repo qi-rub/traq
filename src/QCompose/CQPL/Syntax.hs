@@ -2,10 +2,14 @@
 
 module QCompose.CQPL.Syntax (
   -- * Syntax
+
+  -- ** Expressions and Statements
   MetaParam (..),
   Expr (..),
   FunctionCall (..),
   Stmt (..),
+
+  -- ** Procedures
   ProcBody (..),
   ProcDef (..),
   ProcCtx,
@@ -23,6 +27,7 @@ import qualified QCompose.Data.Context as Ctx
 import Data.Void (Void)
 import QCompose.Prelude
 import QCompose.ProtoLang (VarType)
+import QCompose.UnitaryQPL (MetaParam (..))
 import qualified QCompose.UnitaryQPL as UQPL
 import QCompose.Utils.ASTRewriting
 import QCompose.Utils.Printing
@@ -30,10 +35,6 @@ import QCompose.Utils.Printing
 -- ================================================================================
 -- Syntax
 -- ================================================================================
-
--- | Compile-time constant parameters
-data MetaParam sizeT = MetaName String | MetaSize sizeT
-  deriving (Eq, Show, Read)
 
 -- | Expressions (RHS of an assignment operation)
 data Expr sizeT
@@ -62,11 +63,11 @@ data Stmt holeT sizeT
   | CallS {fun :: FunctionCall, meta_params :: [MetaParam sizeT], args :: [Ident]}
   | SeqS [Stmt holeT sizeT]
   | IfThenElseS {cond :: Ident, s_true, s_false :: Stmt holeT sizeT}
-  | RepeatS {n_iter :: sizeT, loop_body :: Stmt holeT sizeT}
+  | RepeatS {n_iter :: MetaParam sizeT, loop_body :: Stmt holeT sizeT}
   | HoleS holeT
   | -- syntax sugar
-    WhileK {n_iter :: sizeT, cond :: Ident, loop_body :: Stmt holeT sizeT}
-  | WhileKWithCondExpr {n_iter :: sizeT, cond :: Ident, cond_expr :: Expr sizeT, loop_body :: Stmt holeT sizeT}
+    WhileK {n_iter :: MetaParam sizeT, cond :: Ident, loop_body :: Stmt holeT sizeT}
+  | WhileKWithCondExpr {n_iter :: MetaParam sizeT, cond :: Ident, cond_expr :: Expr sizeT, loop_body :: Stmt holeT sizeT}
   deriving (Eq, Show, Read)
 
 -- | CQ Procedure body: binds the parameters to names, and optionally uses local variables.
@@ -132,7 +133,7 @@ instance HasStmt (Program holeT sizeT) (Stmt holeT sizeT) where
 -- | bounded while loop
 whileK ::
   -- | iteration limit
-  sizeT ->
+  MetaParam sizeT ->
   -- | loop condition
   Ident ->
   -- | loop body
@@ -143,7 +144,7 @@ whileK k cond body = RepeatS k $ IfThenElseS cond body SkipS
 -- | bounded while loop given an expression for the loop condition
 whileKWithCondExpr ::
   -- | iteration limit
-  sizeT ->
+  MetaParam sizeT ->
   -- | loop condition variable
   Ident ->
   -- | loop condition expression
@@ -172,10 +173,6 @@ desugarS _ = Nothing
 parenBinExpr :: (Show sizeT) => String -> Expr sizeT -> Expr sizeT -> String
 parenBinExpr op_sym lhs rhs =
   "(" ++ unwords [toCodeString lhs, op_sym, toCodeString rhs] ++ ")"
-
-instance (Show sizeT) => ToCodeString (MetaParam sizeT) where
-  toCodeString (MetaName n) = "#" ++ n
-  toCodeString (MetaSize n) = "#" ++ show n
 
 instance (Show sizeT) => ToCodeString (Expr sizeT) where
   toCodeString ConstE{val, val_ty} = show val <> " : " <> toCodeString val_ty
@@ -210,18 +207,18 @@ instance (Show holeT, Show sizeT) => ToCodeString (Stmt holeT sizeT) where
       ++ indent (toCodeLines s_false)
       ++ ["end"]
   toCodeLines RepeatS{n_iter, loop_body} =
-    [printf "repeat %s do" (show n_iter)]
+    [printf "repeat %s do" (toCodeString n_iter)]
       ++ indent (toCodeLines loop_body)
       ++ ["end"]
   -- hole
   toCodeLines (HoleS info) = [printf "HOLE :: %s;" (show info)]
   -- syntax sugar
   toCodeLines WhileK{n_iter, cond, loop_body} =
-    printf "while[%s] (%s) do" (show n_iter) cond
+    printf "while[%s] (%s) do" (toCodeString n_iter) cond
       : indent (toCodeLines loop_body)
       ++ ["end"]
   toCodeLines WhileKWithCondExpr{n_iter, cond, cond_expr, loop_body} =
-    printf "while[%s] (%s := %s) do" (show n_iter) cond (toCodeString cond_expr)
+    printf "while[%s] (%s := %s) do" (toCodeString n_iter) cond (toCodeString cond_expr)
       : indent (toCodeLines loop_body)
       ++ ["end"]
   toCodeLines (CommentS c) = ["// " ++ c]

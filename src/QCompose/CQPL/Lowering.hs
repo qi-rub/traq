@@ -112,7 +112,7 @@ newIdent prefix = do
 
 -- | Add a new procedure.
 addProc :: ProcDef holeT sizeT -> CompilerT primT holeT sizeT costT ()
-addProc procDef = tellAt loweredProcs [procDef]
+addProc = writeElemAt loweredProcs
 
 -- ================================================================================
 -- Compilation

@@ -275,7 +275,7 @@ lowerFunDefWithGarbage
       aux_binds <- use typingCtx <&> Ctx.toList <&> filter (not . (`elem` param_names ++ ret_names) . fst)
       let all_binds = withTag ParamInp param_binds ++ withTag ParamOut ret_binds ++ withTag ParamAux aux_binds
 
-      let procDef = ProcDef{proc_name, proc_params = all_binds, mproc_body = Just proc_body, is_oracle = False}
+      let procDef = ProcDef{proc_name, proc_meta_params = [], proc_params = all_binds, mproc_body = Just proc_body, is_oracle = False}
       addProc procDef
 
       return
@@ -316,6 +316,7 @@ lowerFunDef _ P.FunDef{P.fun_name, P.param_types, P.ret_types, P.mbody = Nothing
   let proc_def =
         ProcDef
           { proc_name = fun_name
+          , proc_meta_params = []
           , proc_params =
               withTag ParamInp (zip param_names param_types)
                 ++ withTag ParamOut (zip ret_names ret_types)
@@ -372,6 +373,7 @@ lowerFunDef
     let proc_def =
           ProcDef
             { proc_name
+            , proc_meta_params = []
             , proc_params =
                 withTag ParamInp param_binds
                   ++ withTag ParamOut (zip ret_names g_ret_tys)

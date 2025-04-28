@@ -106,6 +106,11 @@ typeCheckStmt CallS{fun = FunctionCall proc_id, meta_params, args} = do
   ProcDef{proc_param_types} <- magnify cqProcs $ Ctx.lookup' proc_id
   arg_tys <- magnify typingCtx $ mapM Ctx.lookup' args
   ensureEqual proc_param_types arg_tys "mismatched function args"
+typeCheckStmt CallS{fun = UProcAndMeas uproc_id, meta_params, args} = do
+  UQPL.ProcDef{UQPL.proc_params, UQPL.proc_meta_params} <- magnify uProcs $ Ctx.lookup' uproc_id
+  arg_tys <- magnify typingCtx $ mapM Ctx.lookup' args
+  let uproc_param_types = map (view _3) proc_params & take (length arg_tys)
+  ensureEqual uproc_param_types arg_tys "mismatched function args"
 -- compound statements
 typeCheckStmt (SeqS ss) = mapM_ typeCheckStmt ss
 typeCheckStmt IfThenElseS{cond, s_true, s_false} = do
