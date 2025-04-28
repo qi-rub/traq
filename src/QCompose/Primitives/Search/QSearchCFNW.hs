@@ -798,4 +798,4 @@ instance
         , CQPL.args = args ++ [ret]
         , CQPL.meta_params = []
         }
-  lowerPrimitive _ _ _ _ = fail "Unsupported"
+  lowerPrimitive _ _ _ _ = error "Unsupported"
