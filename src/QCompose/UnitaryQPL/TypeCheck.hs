@@ -34,7 +34,8 @@ typingCtx = _2
 verifyArgs :: (TypeCheckable sizeT) => [Ident] -> [VarType sizeT] -> TypeChecker holeT sizeT ()
 verifyArgs args tys = do
   arg_tys <- forM args $ \x -> do
-    view $ typingCtx . Ctx.at x . singular _Just
+    mty <- view $ typingCtx . Ctx.at x
+    maybeWithError (printf "cannot find argument %s" x) mty
 
   when (arg_tys /= tys) $
     throwError $

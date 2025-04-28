@@ -16,6 +16,8 @@ module QCompose.UnitaryQPL.Lowering (
   allocAncilla,
 
   -- ** Lenses
+  protoFunCtx,
+  typingCtx,
 
   -- * Compilation
   Lowerable (..),

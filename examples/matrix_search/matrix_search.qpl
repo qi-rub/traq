@@ -1,63 +1,63 @@
 @Oracle
-uproc Oracle(in_0 : IN Fin<10>, in_1 : IN Fin<20>, out_0 : OUT Fin<2>);
+uproc Oracle(in_0 : IN Fin<20>, in_1 : IN Fin<20>, out_0 : OUT Fin<2>);
 
 // Cost         : 1.0
 // Formula Cost : 1.0
-uproc IsEntryZero[4.546073e-11](i0 : IN Fin<10>, j0 : IN Fin<20>, e' : OUT Fin<2>, e : AUX Fin<2>) do
+uproc IsEntryZero[4.0793265e-11](i0 : IN Fin<20>, j0 : IN Fin<20>, e' : OUT Fin<2>, e : AUX Fin<2>) do
   call Oracle(i0, j0, e);
   e, e' *= RevEmbed[x : Fin<2> => ~x];
 end
 
 // Cost         : 2.0
 // Formula Cost : ()
-uproc IsEntryZero_clean[9.092146e-11](i0 : IN Fin<10>, j0 : IN Fin<20>, e' : OUT Fin<2>, aux : AUX Fin<2>, aux_1 : AUX Fin<2>) do
-  call IsEntryZero[4.546073e-11](i0, j0, aux, aux_1);
+uproc IsEntryZero_clean[8.158653e-11](i0 : IN Fin<20>, j0 : IN Fin<20>, e' : OUT Fin<2>, aux : AUX Fin<2>, aux_1 : AUX Fin<2>) do
+  call IsEntryZero[4.0793265e-11](i0, j0, aux, aux_1);
   aux, e' *= RevEmbed[x : Fin<2> => x];
-  call† IsEntryZero[4.546073e-11](i0, j0, aux, aux_1);
+  call† IsEntryZero[4.0793265e-11](i0, j0, aux, aux_1);
 end
 
-// Cost         : 1623.3298
+// Cost         : 1631.8032
 // Formula Cost : ()
-uproc QSearch[20, 7.379776e-8, IsEntryZero_clean[9.092146e-11]](_qs : Fin<10>, _qs_1 : Fin<2>, _qs_2 : Fin<20>, _qs_3 : Fin<2>, _qs_4 : Fin<2>) do
-  HOLE :: QSearchBlackBox {q_pred_name = "IsEntryZero_clean[9.092146e-11]", n_pred_calls = 811.6649};
+uproc QSearch[20, 6.656658e-8, IsEntryZero_clean[8.158653e-11]](i : IN Fin<20>, aux_4 : OUT Fin<2>, aux_2 : AUX Fin<2>, aux_3 : AUX Fin<2>, aux_4 : AUX Fin<2>) do
+  HOLE :: QSearchBlackBox {q_pred_name = "IsEntryZero_clean[8.158653e-11]", n_pred_calls = 815.9016};
 end
 
-// Cost         : 1623.3298
-// Formula Cost : 1623.3299970231096
-uproc IsRowAllOnes[2.9519103e-7](i : IN Fin<10>, okr' : OUT Fin<2>, okr : AUX Fin<2>, aux_2 : AUX Fin<2>, aux_3 : AUX Fin<2>) do
-  call QSearch[20, 7.379776e-8, IsEntryZero_clean[9.092146e-11]](i, okr, aux_2, aux_3);
+// Cost         : 1631.8032
+// Formula Cost : 1631.8033807258512
+uproc IsRowAllOnes[2.662663e-7](i : IN Fin<20>, okr' : OUT Fin<2>, okr : AUX Fin<2>, aux_2 : AUX Fin<2>, aux_3 : AUX Fin<2>) do
+  call QSearch[20, 6.656658e-8, IsEntryZero_clean[8.158653e-11]](i, aux_4, aux_2, aux_3, aux_4);
   okr, okr' *= RevEmbed[x : Fin<2> => ~x];
 end
 
-// Cost         : 3246.6597
+// Cost         : 3263.6064
 // Formula Cost : ()
-uproc IsRowAllOnes_clean[5.9038206e-7](i : IN Fin<10>, okr' : OUT Fin<2>, aux_4 : AUX Fin<2>, aux_5 : AUX Fin<2>, aux_6 : AUX Fin<2>, aux_7 : AUX Fin<2>) do
-  call IsRowAllOnes[2.9519103e-7](i, aux_4, aux_5, aux_6, aux_7);
-  aux_4, okr' *= RevEmbed[x : Fin<2> => x];
-  call† IsRowAllOnes[2.9519103e-7](i, aux_4, aux_5, aux_6, aux_7);
+uproc IsRowAllOnes_clean[5.325326e-7](i : IN Fin<20>, okr' : OUT Fin<2>, aux_5 : AUX Fin<2>, aux_6 : AUX Fin<2>, aux_7 : AUX Fin<2>, aux_8 : AUX Fin<2>) do
+  call IsRowAllOnes[2.662663e-7](i, aux_5, aux_6, aux_7, aux_8);
+  aux_5, okr' *= RevEmbed[x : Fin<2> => x];
+  call† IsRowAllOnes[2.662663e-7](i, aux_5, aux_6, aux_7, aux_8);
 end
 
-// Cost         : 1374813.0
+// Cost         : 1532115.9
 // Formula Cost : ()
-uproc QSearch[10, 2.5e-4, IsRowAllOnes_clean[5.9038206e-7]](_qs_5 : Fin<2>, _qs_6 : Fin<10>, _qs_7 : Fin<2>, _qs_8 : Fin<2>, _qs_9 : Fin<2>, _qs_10 : Fin<2>) do
-  HOLE :: QSearchBlackBox {q_pred_name = "IsRowAllOnes_clean[5.9038206e-7]", n_pred_calls = 423.45462};
+uproc QSearch[20, 2.5e-4, IsRowAllOnes_clean[5.325326e-7]](aux_13 : OUT Fin<2>, aux_9 : AUX Fin<2>, aux_10 : AUX Fin<2>, aux_11 : AUX Fin<2>, aux_12 : AUX Fin<2>, aux_13 : AUX Fin<2>) do
+  HOLE :: QSearchBlackBox {q_pred_name = "IsRowAllOnes_clean[5.325326e-7]", n_pred_calls = 469.45483};
 end
 
-// Cost         : 1374813.0
-// Formula Cost : 1374813.3269125589
-uproc HasAllOnesRow[5.0e-4](ok : OUT Fin<2>, aux_8 : AUX Fin<2>, aux_9 : AUX Fin<2>, aux_10 : AUX Fin<2>, aux_11 : AUX Fin<2>) do
-  call QSearch[10, 2.5e-4, IsRowAllOnes_clean[5.9038206e-7]](ok, aux_8, aux_9, aux_10, aux_11);
+// Cost         : 1532115.9
+// Formula Cost : 1532116.1431127726
+uproc HasAllOnesRow[5.0e-4](ok : OUT Fin<2>, aux_9 : AUX Fin<2>, aux_10 : AUX Fin<2>, aux_11 : AUX Fin<2>, aux_12 : AUX Fin<2>) do
+  call QSearch[20, 2.5e-4, IsRowAllOnes_clean[5.325326e-7]](aux_13, aux_9, aux_10, aux_11, aux_12, aux_13);
 end
 
-// Cost         : 2749626.0
+// Cost         : 3064231.8
 // Formula Cost : ()
-uproc HasAllOnesRow_clean[1.0e-3](ok : OUT Fin<2>, aux_12 : AUX Fin<2>, aux_13 : AUX Fin<2>, aux_14 : AUX Fin<2>, aux_15 : AUX Fin<2>, aux_16 : AUX Fin<2>) do
-  call HasAllOnesRow[5.0e-4](aux_12, aux_13, aux_14, aux_15, aux_16);
-  aux_12, ok *= RevEmbed[x : Fin<2> => x];
-  call† HasAllOnesRow[5.0e-4](aux_12, aux_13, aux_14, aux_15, aux_16);
+uproc HasAllOnesRow_clean[1.0e-3](ok : OUT Fin<2>, aux_14 : AUX Fin<2>, aux_15 : AUX Fin<2>, aux_16 : AUX Fin<2>, aux_17 : AUX Fin<2>, aux_18 : AUX Fin<2>) do
+  call HasAllOnesRow[5.0e-4](aux_14, aux_15, aux_16, aux_17, aux_18);
+  aux_14, ok *= RevEmbed[x : Fin<2> => x];
+  call† HasAllOnesRow[5.0e-4](aux_14, aux_15, aux_16, aux_17, aux_18);
 end
 
-// Actual Cost : 2749626.0
-// Formula Cost: 2749626.0
-call HasAllOnesRow_clean[1.0e-3](result, aux_17, aux_18, aux_19, aux_20, aux_21);
+// Actual Cost : 3064231.8
+// Formula Cost: 3064231.8
+call HasAllOnesRow_clean[1.0e-3](result, aux_19, aux_20, aux_21, aux_22, aux_23);
 

@@ -3,6 +3,7 @@ module QCompose.Primitives.QSearchSpec (spec) where
 import Lens.Micro
 
 import QCompose.Control.Monad
+import qualified QCompose.Data.Context as Ctx
 import QCompose.ProtoLang (VarType (..))
 import qualified QCompose.UnitaryQPL as UQPL
 import QCompose.Utils.Printing
@@ -20,9 +21,12 @@ spec = do
         let n = 10 :: Int
         let eps = 0.001 :: Float
         let pred_caller x b = UQPL.CallS{UQPL.proc_id = "Oracle", UQPL.dagger = False, UQPL.args = [x, b]}
-        (circ, _) <-
+        let lenv = (undefined, "Oracle")
+        let lctx = (mempty, Ctx.empty)
+        circ <-
           expectRight $
-            algoQSearchZalka (Fin n) pred_caller eps
-              & evalMyWriterT
-              & \m -> evalMyReaderStateT m undefined undefined
+            algoQSearchZalka (Fin n) pred_caller eps "output_bit"
+              & execMyWriterT
+              & (\m -> evalMyReaderStateT m lenv lctx)
+              <&> UQPL.SeqS
         toCodeString circ `shouldSatisfy` (not . null)

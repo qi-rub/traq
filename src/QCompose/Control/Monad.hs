@@ -26,7 +26,9 @@ module QCompose.Control.Monad (
   MyWriterT,
   runMyWriterT,
   evalMyWriterT,
+  execMyWriterT,
   tellAt,
+  writeElem,
   embedWriterT,
   censored,
 
@@ -149,11 +151,17 @@ runMyWriterT rws = evalMyReaderWriterStateT rws () ()
 evalMyWriterT :: (Monad m, Monoid w) => MyWriterT w m a -> m a
 evalMyWriterT = fmap fst . runMyWriterT
 
+execMyWriterT :: (Monad m, Monoid w) => MyWriterT w m a -> m w
+execMyWriterT = fmap snd . runMyWriterT
+
 -- | Write at a particular location in the monoid.
 tellAt :: (MonadWriter w m) => Lens' w w' -> w' -> m ()
 tellAt focus w' =
   let w = mempty & focus .~ w'
    in tell w
+
+writeElem :: (Applicative f, MonadWriter (f a) m) => a -> m ()
+writeElem = tell . pure
 
 -- | Embed a writer computation into an RWS monad.
 embedWriterT :: (Monad m, Monoid w) => MyWriterT w m a -> MyReaderWriterStateT r w s m a
