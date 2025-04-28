@@ -40,7 +40,7 @@ import QCompose.Utils.Printing
 -- | Expressions (RHS of an assignment operation)
 data Expr sizeT
   = ConstE {val :: Value, val_ty :: VarType sizeT}
-  | MetaValE {meta_val :: MetaParam sizeT}
+  | MetaValE {meta_val :: MetaParam sizeT, val_ty :: VarType sizeT}
   | VarE {var :: Ident}
   | AddE {lhs, rhs :: Expr sizeT}
   | MulE {lhs, rhs :: Expr sizeT}
@@ -63,7 +63,7 @@ data Stmt holeT sizeT
   | AssignS {rets :: [Ident], expr :: Expr sizeT}
   | RandomS {ret :: Ident, max_val :: MetaParam sizeT}
   | RandomDynS {ret :: Ident, max_var :: Ident}
-  | CallS {fun :: FunctionCall, meta_params :: [MetaParam sizeT], args :: [Ident]}
+  | CallS {fun :: FunctionCall, meta_params :: [Either (MetaParam sizeT) Ident], args :: [Ident]}
   | SeqS [Stmt holeT sizeT]
   | IfThenElseS {cond :: Ident, s_true, s_false :: Stmt holeT sizeT}
   | RepeatS {n_iter :: MetaParam sizeT, loop_body :: Stmt holeT sizeT}
@@ -71,7 +71,7 @@ data Stmt holeT sizeT
   | -- syntax sugar
     WhileK {n_iter :: MetaParam sizeT, cond :: Ident, loop_body :: Stmt holeT sizeT}
   | WhileKWithCondExpr {n_iter :: MetaParam sizeT, cond :: Ident, cond_expr :: Expr sizeT, loop_body :: Stmt holeT sizeT}
-  | ForInArray {loop_index :: Ident, loop_values :: [MetaParam sizeT], loop_body :: Stmt holeT sizeT}
+  | ForInArray {loop_index :: Ident, loop_index_ty :: VarType sizeT, loop_values :: [MetaParam sizeT], loop_body :: Stmt holeT sizeT}
   deriving (Eq, Show, Read)
 
 ifThenS :: Ident -> Stmt holeT sizeT -> Stmt holeT sizeT
@@ -167,11 +167,11 @@ whileKWithCondExpr k cond_var cond_expr body =
  where
   compute_cond = AssignS [cond_var] cond_expr
 
-forInArray :: Ident -> [MetaParam sizeT] -> Stmt holeT sizeT -> Stmt holeT sizeT
-forInArray ix ix_vals s =
+forInArray :: Ident -> VarType sizeT -> [MetaParam sizeT] -> Stmt holeT sizeT -> Stmt holeT sizeT
+forInArray ix ty ix_vals s =
   SeqS
     [ SeqS
-        [ AssignS{rets = [ix], expr = MetaValE v}
+        [ AssignS{rets = [ix], expr = MetaValE v ty}
         , s
         ]
     | v <- ix_vals
@@ -181,7 +181,7 @@ forInArray ix ix_vals s =
 desugarS :: Stmt holeT sizeT -> Maybe (Stmt holeT sizeT)
 desugarS WhileK{n_iter, cond, loop_body} = Just $ whileK n_iter cond loop_body
 desugarS WhileKWithCondExpr{n_iter, cond, cond_expr, loop_body} = Just $ whileKWithCondExpr n_iter cond cond_expr loop_body
-desugarS ForInArray{loop_index, loop_values, loop_body} = Just $ forInArray loop_index loop_values loop_body
+desugarS ForInArray{loop_index, loop_index_ty, loop_values, loop_body} = Just $ forInArray loop_index loop_index_ty loop_values loop_body
 desugarS _ = Nothing
 
 -- ================================================================================
@@ -219,7 +219,7 @@ instance (Show holeT, Show sizeT) => ToCodeString (Stmt holeT sizeT) where
     f_str (FunctionCall fname) = printf "call %s" fname
     f_str (UProcAndMeas uproc_id) = printf "call_uproc_and_meas %s" uproc_id
 
-    meta_params_str = commaList $ map toCodeString meta_params
+    meta_params_str = commaList $ map (either toCodeString id) meta_params
   toCodeLines (SeqS ss) = concatMap toCodeLines ss
   toCodeLines IfThenElseS{cond, s_true, s_false} =
     [printf "if (%s) then" cond]

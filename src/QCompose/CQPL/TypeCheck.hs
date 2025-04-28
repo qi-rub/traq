@@ -74,7 +74,18 @@ typeCheckExpr LEqE{lhs, rhs} = do
     throwError $
       printf "LEqE: mismatched types %s, %s" (show lhs_ty) (show rhs_ty)
   return [tbool]
-typeCheckExpr s = error $ "TODO typeCheckExpr: " <> show s
+typeCheckExpr MetaValE{val_ty} = return [val_ty]
+typeCheckExpr AndE{lhs, rhs} = do
+  lhs_ty <- ensureOne $ typeCheckExpr lhs
+  rhs_ty <- ensureOne $ typeCheckExpr rhs
+  ensureEqual lhs_ty rhs_ty $
+    printf "Add: mismatched types %s, %s" (show lhs_ty) (show rhs_ty)
+  return [lhs_ty]
+typeCheckExpr NotE{arg} = do
+  arg_ty <- ensureOne $ typeCheckExpr arg
+  ensureEqual arg_ty tbool $ printf "NotE: must be bool, got %s" (show arg_ty)
+  return [arg_ty]
+typeCheckExpr s = fail $ "TODO typeCheckExpr: " <> show s
 
 -- | Check a statement
 typeCheckStmt ::

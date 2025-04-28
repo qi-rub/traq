@@ -296,16 +296,22 @@ groverK ::
   -- | run the predicate
   (Ident -> Ident -> UQPL.Stmt holeT sizeT) ->
   UQPL.Stmt holeT sizeT
-groverK k (x, ty) b mk_pred = UQPL.SeqS [prep, UQPL.RepeatS k grover_iterate]
+groverK k (x, ty) b mk_pred =
+  UQPL.SeqS
+    [ prepb
+    , prepx
+    , UQPL.RepeatS k grover_iterate
+    , UQPL.adjoint prepb
+    ]
  where
   -- map b to |-> and x to uniform
-  prep :: UQPL.Stmt holeT sizeT
-  prep =
+  prepb, prepx :: UQPL.Stmt holeT sizeT
+  prepb =
     UQPL.SeqS
       [ UQPL.UnitaryS [b] UQPL.XGate
       , UQPL.UnitaryS [b] UQPL.HGate
-      , UQPL.UnitaryS [x] (UQPL.Unif ty)
       ]
+  prepx = UQPL.UnitaryS [x] (UQPL.Unif ty)
 
   grover_iterate :: UQPL.Stmt holeT sizeT
   grover_iterate =
@@ -573,15 +579,15 @@ algoQSearch ::
   sizeT ->
   -- | max fail prob
   costT ->
-  -- | unitary predicate caller
-  (Ident -> Ident -> UQPL.Stmt holeT sizeT) ->
+  -- | grover_k caller: k, x, b
+  (Either (CQPL.MetaParam sizeT) Ident -> Ident -> Ident -> CQPL.Stmt holeT sizeT) ->
   -- | cqpl predicate caller
   (Ident -> Ident -> CQPL.Stmt holeT sizeT) ->
   -- | Result register
   Ident ->
   -- | the generated QSearch procedure: body stmts and local vars
   MyWriterT ([CQPL.Stmt holeT sizeT], [(Ident, P.VarType sizeT)]) (CQPL.CompilerT primsT holeT sizeT costT) ()
-algoQSearch ty n_samples eps upred_caller pred_caller ok = do
+algoQSearch ty n_samples eps grover_k_caller pred_caller ok = do
   not_done <- allocReg "not_done" P.tbool
   q_sum <- allocReg "Q_sum" j_type
   j <- allocReg "j" j_type
@@ -614,7 +620,7 @@ algoQSearch ty n_samples eps upred_caller pred_caller ok = do
           , CQPL.ifThenS
               not_done
               ( CQPL.SeqS
-                  [ CQPL.HoleS $ TODOHole "callandmeas: grover cycle j"
+                  [ grover_k_caller (Right j) x ok
                   , pred_caller x ok
                   , CQPL.AssignS [not_done] (CQPL.AndE (CQPL.VarE not_done) (CQPL.NotE $ CQPL.VarE ok))
                   ]
@@ -626,6 +632,7 @@ algoQSearch ty n_samples eps upred_caller pred_caller ok = do
           [ CQPL.AssignS [q_sum] (CQPL.ConstE{CQPL.val = 0, CQPL.val_ty = j_type})
           , CQPL.ForInArray
               { CQPL.loop_index = j_lim
+              , CQPL.loop_index_ty = j_type
               , CQPL.loop_values = map CQPL.MetaSize sampling_ranges
               , CQPL.loop_body = quantumGroverOnce
               }
@@ -745,12 +752,19 @@ instance
             }
     writeElemAt CQPL.loweredUProcs uproc_grover_k
 
+    let grover_k_caller k x b =
+          CQPL.CallS
+            { CQPL.fun = CQPL.UProcAndMeas uproc_grover_k_name
+            , CQPL.meta_params = [k]
+            , CQPL.args = [x, b]
+            }
+
     -- emit the QSearch algorithm
     qsearch_params <- forM (args ++ [ret]) $ \x -> do
       ty <- use $ CQPL.typingCtx . Ctx.at x . singular _Just
       return (x, ty)
 
-    let upred_caller = (\x b -> UQPL.holeS $ TODOHole $ printf "unitary predicate call (%s, %s)" x b)
+    -- let upred_caller = (\x b -> UQPL.holeS $ TODOHole $ printf "unitary predicate call (%s, %s)" x b)
 
     let pred_caller =
           ( \x b ->
@@ -761,7 +775,7 @@ instance
                 }
           )
 
-    (qsearch_body, qsearch_local_vars) <- execMyWriterT $ algoQSearch s_ty 0 eps_s upred_caller pred_caller ret
+    (qsearch_body, qsearch_local_vars) <- execMyWriterT $ algoQSearch s_ty 0 eps_s grover_k_caller pred_caller ret
     qsearch_proc_name <- CQPL.newIdent $ printf "QSearch[%s]" (show eps_s)
     CQPL.addProc $
       CQPL.ProcDef

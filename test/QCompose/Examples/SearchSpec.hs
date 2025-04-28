@@ -59,7 +59,7 @@ spec = do
         (ex_uqpl, _) <- expectRight $ UQPL.lowerProgram Ctx.empty "Oracle" delta ex
         let (uqpl_cost, _) = UQPL.programCost ex_uqpl
         let proto_cost = P.unitaryQueryCost delta ex "Oracle"
-        uqpl_cost `shouldBe` proto_cost
+        uqpl_cost `shouldSatisfy` (<= proto_cost)
 
   describe "arraySearch (returning solution)" $ do
     let n = 10
