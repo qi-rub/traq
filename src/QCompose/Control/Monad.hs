@@ -61,6 +61,8 @@ import Control.Monad.Trans (lift)
 import Lens.Micro.GHC
 import Lens.Micro.Mtl
 
+import QCompose.Data.Errors
+
 -- ================================================================================
 -- RWS
 -- ================================================================================
@@ -220,10 +222,8 @@ withSandbox = withSandboxOf id
 -- ================================================================================
 
 -- | try-catch block that prepends a message to the existing error, to produce a more verbose backtrace.
-throwFrom :: (MonadError String m) => m a -> String -> m a
-throwFrom action msg =
-  action `catchError` \e ->
-    throwError $ unlines [msg, "caught while handling exception:", e]
+throwFrom :: (MonadError MyError m) => m a -> MyError -> m a
+throwFrom action msg = action `catchError` (throwError . CatchE msg)
 
 -- | lift a @Maybe@ to a value, throwing an error if @Nothing@
 maybeWithError :: (MonadError e m) => e -> Maybe a -> m a
