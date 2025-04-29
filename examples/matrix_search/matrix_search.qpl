@@ -18,106 +18,110 @@ end
 
 // Cost         : 20.0
 // Formula Cost : ()
-uproc QSearch[10, 6.656658e-8, IsEntryZero_clean[8.849225e-11]][](i : IN Fin<20>, okr : OUT Fin<2>, aux_2 : AUX Fin<2>, aux_3 : AUX Fin<2>, aux_4 : AUX Fin<10>, aux_5 : AUX Fin<2>, aux_6 : AUX Fin<2>, aux_7 : AUX Fin<2>, aux_8 : AUX Fin<2>, aux_9 : AUX Fin<2>, aux_10 : AUX Fin<2>, aux_11 : AUX Fin<2>, aux_12 : AUX Fin<2>, aux_13 : AUX Fin<2>, aux_14 : AUX Fin<2>) do
-  aux_5 *= RevEmbed[() => 0 : Fin<2>];
-  call IsEntryZero_clean[8.849225e-11](i, aux_4, aux_5, aux_2, aux_3);
-  aux_6 *= RevEmbed[() => 1 : Fin<2>];
-  call IsEntryZero_clean[8.849225e-11](i, aux_4, aux_6, aux_2, aux_3);
-  aux_7 *= RevEmbed[() => 2 : Fin<2>];
-  call IsEntryZero_clean[8.849225e-11](i, aux_4, aux_7, aux_2, aux_3);
-  aux_8 *= RevEmbed[() => 3 : Fin<2>];
-  call IsEntryZero_clean[8.849225e-11](i, aux_4, aux_8, aux_2, aux_3);
-  aux_9 *= RevEmbed[() => 4 : Fin<2>];
-  call IsEntryZero_clean[8.849225e-11](i, aux_4, aux_9, aux_2, aux_3);
-  aux_10 *= RevEmbed[() => 5 : Fin<2>];
-  call IsEntryZero_clean[8.849225e-11](i, aux_4, aux_10, aux_2, aux_3);
-  aux_11 *= RevEmbed[() => 6 : Fin<2>];
-  call IsEntryZero_clean[8.849225e-11](i, aux_4, aux_11, aux_2, aux_3);
-  aux_12 *= RevEmbed[() => 7 : Fin<2>];
-  call IsEntryZero_clean[8.849225e-11](i, aux_4, aux_12, aux_2, aux_3);
-  aux_13 *= RevEmbed[() => 8 : Fin<2>];
-  call IsEntryZero_clean[8.849225e-11](i, aux_4, aux_13, aux_2, aux_3);
-  aux_14 *= RevEmbed[() => 9 : Fin<2>];
-  call IsEntryZero_clean[8.849225e-11](i, aux_4, aux_14, aux_2, aux_3);
-  aux_5, aux_6, aux_7, aux_8, aux_9, aux_10, aux_11, aux_12, aux_13, aux_14, okr *= RevEmbed[(x) => OR_10(x)];
+uproc QSearch[10, 6.656658e-8, IsEntryZero_clean[8.849225e-11]][](i : IN Fin<20>, okr : OUT Fin<2>, aux_2 : AUX Fin<2>, aux_3 : AUX Fin<2>, ctrl_2 : AUX Fin<2>, s_arg : AUX Fin<10>, ok0 : AUX Fin<2>, ok1 : AUX Fin<2>, ok2 : AUX Fin<2>, ok3 : AUX Fin<2>, ok4 : AUX Fin<2>, ok5 : AUX Fin<2>, ok6 : AUX Fin<2>, ok7 : AUX Fin<2>, ok8 : AUX Fin<2>, ok9 : AUX Fin<2>) do
+  ctrl_2 *= X;
+  ok0 *= RevEmbed[() => 0 : Fin<2>];
+  call IsEntryZero_clean[8.849225e-11](ctrl_2, i, s_arg, ok0, aux_2, aux_3);
+  ok1 *= RevEmbed[() => 1 : Fin<2>];
+  call IsEntryZero_clean[8.849225e-11](ctrl_2, i, s_arg, ok1, aux_2, aux_3);
+  ok2 *= RevEmbed[() => 2 : Fin<2>];
+  call IsEntryZero_clean[8.849225e-11](ctrl_2, i, s_arg, ok2, aux_2, aux_3);
+  ok3 *= RevEmbed[() => 3 : Fin<2>];
+  call IsEntryZero_clean[8.849225e-11](ctrl_2, i, s_arg, ok3, aux_2, aux_3);
+  ok4 *= RevEmbed[() => 4 : Fin<2>];
+  call IsEntryZero_clean[8.849225e-11](ctrl_2, i, s_arg, ok4, aux_2, aux_3);
+  ok5 *= RevEmbed[() => 5 : Fin<2>];
+  call IsEntryZero_clean[8.849225e-11](ctrl_2, i, s_arg, ok5, aux_2, aux_3);
+  ok6 *= RevEmbed[() => 6 : Fin<2>];
+  call IsEntryZero_clean[8.849225e-11](ctrl_2, i, s_arg, ok6, aux_2, aux_3);
+  ok7 *= RevEmbed[() => 7 : Fin<2>];
+  call IsEntryZero_clean[8.849225e-11](ctrl_2, i, s_arg, ok7, aux_2, aux_3);
+  ok8 *= RevEmbed[() => 8 : Fin<2>];
+  call IsEntryZero_clean[8.849225e-11](ctrl_2, i, s_arg, ok8, aux_2, aux_3);
+  ok9 *= RevEmbed[() => 9 : Fin<2>];
+  call IsEntryZero_clean[8.849225e-11](ctrl_2, i, s_arg, ok9, aux_2, aux_3);
+  ok0, ok1, ok2, ok3, ok4, ok5, ok6, ok7, ok8, ok9, okr *= RevEmbed[(x) => OR_10(x)];
+  ctrl_2 *= X;
 end
 
 // Cost         : 20.0
 // Formula Cost : 1504.4613459538587
-uproc IsRowAllOnes[2.662663e-7][](i : IN Fin<20>, okr' : OUT Fin<2>, okr : AUX Fin<2>, aux_2 : AUX Fin<2>, aux_3 : AUX Fin<2>, aux_4 : AUX Fin<10>, aux_5 : AUX Fin<2>, aux_6 : AUX Fin<2>, aux_7 : AUX Fin<2>, aux_8 : AUX Fin<2>, aux_9 : AUX Fin<2>, aux_10 : AUX Fin<2>, aux_11 : AUX Fin<2>, aux_12 : AUX Fin<2>, aux_13 : AUX Fin<2>, aux_14 : AUX Fin<2>) do
-  call QSearch[10, 6.656658e-8, IsEntryZero_clean[8.849225e-11]](i, okr, aux_2, aux_3, aux_4, aux_5, aux_6, aux_7, aux_8, aux_9, aux_10, aux_11, aux_12, aux_13, aux_14);
+uproc IsRowAllOnes[2.662663e-7][](i : IN Fin<20>, okr' : OUT Fin<2>, okr : AUX Fin<2>, aux_2 : AUX Fin<2>, aux_3 : AUX Fin<2>, ctrl_2 : AUX Fin<2>, s_arg : AUX Fin<10>, ok0 : AUX Fin<2>, ok1 : AUX Fin<2>, ok2 : AUX Fin<2>, ok3 : AUX Fin<2>, ok4 : AUX Fin<2>, ok5 : AUX Fin<2>, ok6 : AUX Fin<2>, ok7 : AUX Fin<2>, ok8 : AUX Fin<2>, ok9 : AUX Fin<2>) do
+  call QSearch[10, 6.656658e-8, IsEntryZero_clean[8.849225e-11]](i, okr, aux_2, aux_3, ctrl_2, s_arg, ok0, ok1, ok2, ok3, ok4, ok5, ok6, ok7, ok8, ok9);
   okr, okr' *= RevEmbed[x : Fin<2> => ~x];
 end
 
 // Cost         : 40.0
 // Formula Cost : ()
-uproc IsRowAllOnes_clean[5.325326e-7][](ctrl_2 : CTRL Fin<2>, i : IN Fin<20>, okr' : OUT Fin<2>, aux_15 : AUX Fin<2>, aux_16 : AUX Fin<2>, aux_17 : AUX Fin<2>, aux_18 : AUX Fin<2>, aux_19 : AUX Fin<10>, aux_20 : AUX Fin<2>, aux_21 : AUX Fin<2>, aux_22 : AUX Fin<2>, aux_23 : AUX Fin<2>, aux_24 : AUX Fin<2>, aux_25 : AUX Fin<2>, aux_26 : AUX Fin<2>, aux_27 : AUX Fin<2>, aux_28 : AUX Fin<2>, aux_29 : AUX Fin<2>) do
-  call IsRowAllOnes[2.662663e-7](i, aux_15, aux_16, aux_17, aux_18, aux_19, aux_20, aux_21, aux_22, aux_23, aux_24, aux_25, aux_26, aux_27, aux_28, aux_29);
-  ctrl_2, aux_15, okr' *= Controlled (RevEmbedU (IdF {ty = Fin 2}));
-  call† IsRowAllOnes[2.662663e-7](i, aux_15, aux_16, aux_17, aux_18, aux_19, aux_20, aux_21, aux_22, aux_23, aux_24, aux_25, aux_26, aux_27, aux_28, aux_29);
+uproc IsRowAllOnes_clean[5.325326e-7][](ctrl_3 : CTRL Fin<2>, i : IN Fin<20>, okr' : OUT Fin<2>, aux_4 : AUX Fin<2>, aux_5 : AUX Fin<2>, aux_6 : AUX Fin<2>, aux_7 : AUX Fin<2>, aux_8 : AUX Fin<2>, aux_9 : AUX Fin<10>, aux_10 : AUX Fin<2>, aux_11 : AUX Fin<2>, aux_12 : AUX Fin<2>, aux_13 : AUX Fin<2>, aux_14 : AUX Fin<2>, aux_15 : AUX Fin<2>, aux_16 : AUX Fin<2>, aux_17 : AUX Fin<2>, aux_18 : AUX Fin<2>, aux_19 : AUX Fin<2>) do
+  call IsRowAllOnes[2.662663e-7](i, aux_4, aux_5, aux_6, aux_7, aux_8, aux_9, aux_10, aux_11, aux_12, aux_13, aux_14, aux_15, aux_16, aux_17, aux_18, aux_19);
+  ctrl_3, aux_4, okr' *= Controlled (RevEmbedU (IdF {ty = Fin 2}));
+  call† IsRowAllOnes[2.662663e-7](i, aux_4, aux_5, aux_6, aux_7, aux_8, aux_9, aux_10, aux_11, aux_12, aux_13, aux_14, aux_15, aux_16, aux_17, aux_18, aux_19);
 end
 
 // Cost         : 800.0
 // Formula Cost : ()
-uproc QSearch[20, 2.5e-4, IsRowAllOnes_clean[5.325326e-7]][](ok : OUT Fin<2>, aux_30 : AUX Fin<2>, aux_31 : AUX Fin<2>, aux_32 : AUX Fin<2>, aux_33 : AUX Fin<2>, aux_34 : AUX Fin<10>, aux_35 : AUX Fin<2>, aux_36 : AUX Fin<2>, aux_37 : AUX Fin<2>, aux_38 : AUX Fin<2>, aux_39 : AUX Fin<2>, aux_40 : AUX Fin<2>, aux_41 : AUX Fin<2>, aux_42 : AUX Fin<2>, aux_43 : AUX Fin<2>, aux_44 : AUX Fin<2>, aux_45 : AUX Fin<20>, aux_46 : AUX Fin<2>, aux_47 : AUX Fin<2>, aux_48 : AUX Fin<2>, aux_49 : AUX Fin<2>, aux_50 : AUX Fin<2>, aux_51 : AUX Fin<2>, aux_52 : AUX Fin<2>, aux_53 : AUX Fin<2>, aux_54 : AUX Fin<2>, aux_55 : AUX Fin<2>, aux_56 : AUX Fin<2>, aux_57 : AUX Fin<2>, aux_58 : AUX Fin<2>, aux_59 : AUX Fin<2>, aux_60 : AUX Fin<2>, aux_61 : AUX Fin<2>, aux_62 : AUX Fin<2>, aux_63 : AUX Fin<2>, aux_64 : AUX Fin<2>, aux_65 : AUX Fin<2>) do
-  aux_46 *= RevEmbed[() => 0 : Fin<2>];
-  call IsRowAllOnes_clean[5.325326e-7](aux_45, aux_46, aux_30, aux_31, aux_32, aux_33, aux_34, aux_35, aux_36, aux_37, aux_38, aux_39, aux_40, aux_41, aux_42, aux_43, aux_44);
-  aux_47 *= RevEmbed[() => 1 : Fin<2>];
-  call IsRowAllOnes_clean[5.325326e-7](aux_45, aux_47, aux_30, aux_31, aux_32, aux_33, aux_34, aux_35, aux_36, aux_37, aux_38, aux_39, aux_40, aux_41, aux_42, aux_43, aux_44);
-  aux_48 *= RevEmbed[() => 2 : Fin<2>];
-  call IsRowAllOnes_clean[5.325326e-7](aux_45, aux_48, aux_30, aux_31, aux_32, aux_33, aux_34, aux_35, aux_36, aux_37, aux_38, aux_39, aux_40, aux_41, aux_42, aux_43, aux_44);
-  aux_49 *= RevEmbed[() => 3 : Fin<2>];
-  call IsRowAllOnes_clean[5.325326e-7](aux_45, aux_49, aux_30, aux_31, aux_32, aux_33, aux_34, aux_35, aux_36, aux_37, aux_38, aux_39, aux_40, aux_41, aux_42, aux_43, aux_44);
-  aux_50 *= RevEmbed[() => 4 : Fin<2>];
-  call IsRowAllOnes_clean[5.325326e-7](aux_45, aux_50, aux_30, aux_31, aux_32, aux_33, aux_34, aux_35, aux_36, aux_37, aux_38, aux_39, aux_40, aux_41, aux_42, aux_43, aux_44);
-  aux_51 *= RevEmbed[() => 5 : Fin<2>];
-  call IsRowAllOnes_clean[5.325326e-7](aux_45, aux_51, aux_30, aux_31, aux_32, aux_33, aux_34, aux_35, aux_36, aux_37, aux_38, aux_39, aux_40, aux_41, aux_42, aux_43, aux_44);
-  aux_52 *= RevEmbed[() => 6 : Fin<2>];
-  call IsRowAllOnes_clean[5.325326e-7](aux_45, aux_52, aux_30, aux_31, aux_32, aux_33, aux_34, aux_35, aux_36, aux_37, aux_38, aux_39, aux_40, aux_41, aux_42, aux_43, aux_44);
-  aux_53 *= RevEmbed[() => 7 : Fin<2>];
-  call IsRowAllOnes_clean[5.325326e-7](aux_45, aux_53, aux_30, aux_31, aux_32, aux_33, aux_34, aux_35, aux_36, aux_37, aux_38, aux_39, aux_40, aux_41, aux_42, aux_43, aux_44);
-  aux_54 *= RevEmbed[() => 8 : Fin<2>];
-  call IsRowAllOnes_clean[5.325326e-7](aux_45, aux_54, aux_30, aux_31, aux_32, aux_33, aux_34, aux_35, aux_36, aux_37, aux_38, aux_39, aux_40, aux_41, aux_42, aux_43, aux_44);
-  aux_55 *= RevEmbed[() => 9 : Fin<2>];
-  call IsRowAllOnes_clean[5.325326e-7](aux_45, aux_55, aux_30, aux_31, aux_32, aux_33, aux_34, aux_35, aux_36, aux_37, aux_38, aux_39, aux_40, aux_41, aux_42, aux_43, aux_44);
-  aux_56 *= RevEmbed[() => 10 : Fin<2>];
-  call IsRowAllOnes_clean[5.325326e-7](aux_45, aux_56, aux_30, aux_31, aux_32, aux_33, aux_34, aux_35, aux_36, aux_37, aux_38, aux_39, aux_40, aux_41, aux_42, aux_43, aux_44);
-  aux_57 *= RevEmbed[() => 11 : Fin<2>];
-  call IsRowAllOnes_clean[5.325326e-7](aux_45, aux_57, aux_30, aux_31, aux_32, aux_33, aux_34, aux_35, aux_36, aux_37, aux_38, aux_39, aux_40, aux_41, aux_42, aux_43, aux_44);
-  aux_58 *= RevEmbed[() => 12 : Fin<2>];
-  call IsRowAllOnes_clean[5.325326e-7](aux_45, aux_58, aux_30, aux_31, aux_32, aux_33, aux_34, aux_35, aux_36, aux_37, aux_38, aux_39, aux_40, aux_41, aux_42, aux_43, aux_44);
-  aux_59 *= RevEmbed[() => 13 : Fin<2>];
-  call IsRowAllOnes_clean[5.325326e-7](aux_45, aux_59, aux_30, aux_31, aux_32, aux_33, aux_34, aux_35, aux_36, aux_37, aux_38, aux_39, aux_40, aux_41, aux_42, aux_43, aux_44);
-  aux_60 *= RevEmbed[() => 14 : Fin<2>];
-  call IsRowAllOnes_clean[5.325326e-7](aux_45, aux_60, aux_30, aux_31, aux_32, aux_33, aux_34, aux_35, aux_36, aux_37, aux_38, aux_39, aux_40, aux_41, aux_42, aux_43, aux_44);
-  aux_61 *= RevEmbed[() => 15 : Fin<2>];
-  call IsRowAllOnes_clean[5.325326e-7](aux_45, aux_61, aux_30, aux_31, aux_32, aux_33, aux_34, aux_35, aux_36, aux_37, aux_38, aux_39, aux_40, aux_41, aux_42, aux_43, aux_44);
-  aux_62 *= RevEmbed[() => 16 : Fin<2>];
-  call IsRowAllOnes_clean[5.325326e-7](aux_45, aux_62, aux_30, aux_31, aux_32, aux_33, aux_34, aux_35, aux_36, aux_37, aux_38, aux_39, aux_40, aux_41, aux_42, aux_43, aux_44);
-  aux_63 *= RevEmbed[() => 17 : Fin<2>];
-  call IsRowAllOnes_clean[5.325326e-7](aux_45, aux_63, aux_30, aux_31, aux_32, aux_33, aux_34, aux_35, aux_36, aux_37, aux_38, aux_39, aux_40, aux_41, aux_42, aux_43, aux_44);
-  aux_64 *= RevEmbed[() => 18 : Fin<2>];
-  call IsRowAllOnes_clean[5.325326e-7](aux_45, aux_64, aux_30, aux_31, aux_32, aux_33, aux_34, aux_35, aux_36, aux_37, aux_38, aux_39, aux_40, aux_41, aux_42, aux_43, aux_44);
-  aux_65 *= RevEmbed[() => 19 : Fin<2>];
-  call IsRowAllOnes_clean[5.325326e-7](aux_45, aux_65, aux_30, aux_31, aux_32, aux_33, aux_34, aux_35, aux_36, aux_37, aux_38, aux_39, aux_40, aux_41, aux_42, aux_43, aux_44);
-  aux_46, aux_47, aux_48, aux_49, aux_50, aux_51, aux_52, aux_53, aux_54, aux_55, aux_56, aux_57, aux_58, aux_59, aux_60, aux_61, aux_62, aux_63, aux_64, aux_65, ok *= RevEmbed[(x) => OR_20(x)];
+uproc QSearch[20, 2.5e-4, IsRowAllOnes_clean[5.325326e-7]][](ok : OUT Fin<2>, aux_20 : AUX Fin<2>, aux_21 : AUX Fin<2>, aux_22 : AUX Fin<2>, aux_23 : AUX Fin<2>, aux_24 : AUX Fin<2>, aux_25 : AUX Fin<10>, aux_26 : AUX Fin<2>, aux_27 : AUX Fin<2>, aux_28 : AUX Fin<2>, aux_29 : AUX Fin<2>, aux_30 : AUX Fin<2>, aux_31 : AUX Fin<2>, aux_32 : AUX Fin<2>, aux_33 : AUX Fin<2>, aux_34 : AUX Fin<2>, aux_35 : AUX Fin<2>, ctrl_4 : AUX Fin<2>, s_arg_1 : AUX Fin<20>, ok0_1 : AUX Fin<2>, ok1_1 : AUX Fin<2>, ok2_1 : AUX Fin<2>, ok3_1 : AUX Fin<2>, ok4_1 : AUX Fin<2>, ok5_1 : AUX Fin<2>, ok6_1 : AUX Fin<2>, ok7_1 : AUX Fin<2>, ok8_1 : AUX Fin<2>, ok9_1 : AUX Fin<2>, ok10 : AUX Fin<2>, ok11 : AUX Fin<2>, ok12 : AUX Fin<2>, ok13 : AUX Fin<2>, ok14 : AUX Fin<2>, ok15 : AUX Fin<2>, ok16 : AUX Fin<2>, ok17 : AUX Fin<2>, ok18 : AUX Fin<2>, ok19 : AUX Fin<2>) do
+  ctrl_4 *= X;
+  ok0_1 *= RevEmbed[() => 0 : Fin<2>];
+  call IsRowAllOnes_clean[5.325326e-7](ctrl_4, s_arg_1, ok0_1, aux_20, aux_21, aux_22, aux_23, aux_24, aux_25, aux_26, aux_27, aux_28, aux_29, aux_30, aux_31, aux_32, aux_33, aux_34, aux_35);
+  ok1_1 *= RevEmbed[() => 1 : Fin<2>];
+  call IsRowAllOnes_clean[5.325326e-7](ctrl_4, s_arg_1, ok1_1, aux_20, aux_21, aux_22, aux_23, aux_24, aux_25, aux_26, aux_27, aux_28, aux_29, aux_30, aux_31, aux_32, aux_33, aux_34, aux_35);
+  ok2_1 *= RevEmbed[() => 2 : Fin<2>];
+  call IsRowAllOnes_clean[5.325326e-7](ctrl_4, s_arg_1, ok2_1, aux_20, aux_21, aux_22, aux_23, aux_24, aux_25, aux_26, aux_27, aux_28, aux_29, aux_30, aux_31, aux_32, aux_33, aux_34, aux_35);
+  ok3_1 *= RevEmbed[() => 3 : Fin<2>];
+  call IsRowAllOnes_clean[5.325326e-7](ctrl_4, s_arg_1, ok3_1, aux_20, aux_21, aux_22, aux_23, aux_24, aux_25, aux_26, aux_27, aux_28, aux_29, aux_30, aux_31, aux_32, aux_33, aux_34, aux_35);
+  ok4_1 *= RevEmbed[() => 4 : Fin<2>];
+  call IsRowAllOnes_clean[5.325326e-7](ctrl_4, s_arg_1, ok4_1, aux_20, aux_21, aux_22, aux_23, aux_24, aux_25, aux_26, aux_27, aux_28, aux_29, aux_30, aux_31, aux_32, aux_33, aux_34, aux_35);
+  ok5_1 *= RevEmbed[() => 5 : Fin<2>];
+  call IsRowAllOnes_clean[5.325326e-7](ctrl_4, s_arg_1, ok5_1, aux_20, aux_21, aux_22, aux_23, aux_24, aux_25, aux_26, aux_27, aux_28, aux_29, aux_30, aux_31, aux_32, aux_33, aux_34, aux_35);
+  ok6_1 *= RevEmbed[() => 6 : Fin<2>];
+  call IsRowAllOnes_clean[5.325326e-7](ctrl_4, s_arg_1, ok6_1, aux_20, aux_21, aux_22, aux_23, aux_24, aux_25, aux_26, aux_27, aux_28, aux_29, aux_30, aux_31, aux_32, aux_33, aux_34, aux_35);
+  ok7_1 *= RevEmbed[() => 7 : Fin<2>];
+  call IsRowAllOnes_clean[5.325326e-7](ctrl_4, s_arg_1, ok7_1, aux_20, aux_21, aux_22, aux_23, aux_24, aux_25, aux_26, aux_27, aux_28, aux_29, aux_30, aux_31, aux_32, aux_33, aux_34, aux_35);
+  ok8_1 *= RevEmbed[() => 8 : Fin<2>];
+  call IsRowAllOnes_clean[5.325326e-7](ctrl_4, s_arg_1, ok8_1, aux_20, aux_21, aux_22, aux_23, aux_24, aux_25, aux_26, aux_27, aux_28, aux_29, aux_30, aux_31, aux_32, aux_33, aux_34, aux_35);
+  ok9_1 *= RevEmbed[() => 9 : Fin<2>];
+  call IsRowAllOnes_clean[5.325326e-7](ctrl_4, s_arg_1, ok9_1, aux_20, aux_21, aux_22, aux_23, aux_24, aux_25, aux_26, aux_27, aux_28, aux_29, aux_30, aux_31, aux_32, aux_33, aux_34, aux_35);
+  ok10 *= RevEmbed[() => 10 : Fin<2>];
+  call IsRowAllOnes_clean[5.325326e-7](ctrl_4, s_arg_1, ok10, aux_20, aux_21, aux_22, aux_23, aux_24, aux_25, aux_26, aux_27, aux_28, aux_29, aux_30, aux_31, aux_32, aux_33, aux_34, aux_35);
+  ok11 *= RevEmbed[() => 11 : Fin<2>];
+  call IsRowAllOnes_clean[5.325326e-7](ctrl_4, s_arg_1, ok11, aux_20, aux_21, aux_22, aux_23, aux_24, aux_25, aux_26, aux_27, aux_28, aux_29, aux_30, aux_31, aux_32, aux_33, aux_34, aux_35);
+  ok12 *= RevEmbed[() => 12 : Fin<2>];
+  call IsRowAllOnes_clean[5.325326e-7](ctrl_4, s_arg_1, ok12, aux_20, aux_21, aux_22, aux_23, aux_24, aux_25, aux_26, aux_27, aux_28, aux_29, aux_30, aux_31, aux_32, aux_33, aux_34, aux_35);
+  ok13 *= RevEmbed[() => 13 : Fin<2>];
+  call IsRowAllOnes_clean[5.325326e-7](ctrl_4, s_arg_1, ok13, aux_20, aux_21, aux_22, aux_23, aux_24, aux_25, aux_26, aux_27, aux_28, aux_29, aux_30, aux_31, aux_32, aux_33, aux_34, aux_35);
+  ok14 *= RevEmbed[() => 14 : Fin<2>];
+  call IsRowAllOnes_clean[5.325326e-7](ctrl_4, s_arg_1, ok14, aux_20, aux_21, aux_22, aux_23, aux_24, aux_25, aux_26, aux_27, aux_28, aux_29, aux_30, aux_31, aux_32, aux_33, aux_34, aux_35);
+  ok15 *= RevEmbed[() => 15 : Fin<2>];
+  call IsRowAllOnes_clean[5.325326e-7](ctrl_4, s_arg_1, ok15, aux_20, aux_21, aux_22, aux_23, aux_24, aux_25, aux_26, aux_27, aux_28, aux_29, aux_30, aux_31, aux_32, aux_33, aux_34, aux_35);
+  ok16 *= RevEmbed[() => 16 : Fin<2>];
+  call IsRowAllOnes_clean[5.325326e-7](ctrl_4, s_arg_1, ok16, aux_20, aux_21, aux_22, aux_23, aux_24, aux_25, aux_26, aux_27, aux_28, aux_29, aux_30, aux_31, aux_32, aux_33, aux_34, aux_35);
+  ok17 *= RevEmbed[() => 17 : Fin<2>];
+  call IsRowAllOnes_clean[5.325326e-7](ctrl_4, s_arg_1, ok17, aux_20, aux_21, aux_22, aux_23, aux_24, aux_25, aux_26, aux_27, aux_28, aux_29, aux_30, aux_31, aux_32, aux_33, aux_34, aux_35);
+  ok18 *= RevEmbed[() => 18 : Fin<2>];
+  call IsRowAllOnes_clean[5.325326e-7](ctrl_4, s_arg_1, ok18, aux_20, aux_21, aux_22, aux_23, aux_24, aux_25, aux_26, aux_27, aux_28, aux_29, aux_30, aux_31, aux_32, aux_33, aux_34, aux_35);
+  ok19 *= RevEmbed[() => 19 : Fin<2>];
+  call IsRowAllOnes_clean[5.325326e-7](ctrl_4, s_arg_1, ok19, aux_20, aux_21, aux_22, aux_23, aux_24, aux_25, aux_26, aux_27, aux_28, aux_29, aux_30, aux_31, aux_32, aux_33, aux_34, aux_35);
+  ok0_1, ok1_1, ok2_1, ok3_1, ok4_1, ok5_1, ok6_1, ok7_1, ok8_1, ok9_1, ok10, ok11, ok12, ok13, ok14, ok15, ok16, ok17, ok18, ok19, ok *= RevEmbed[(x) => OR_20(x)];
+  ctrl_4 *= X;
 end
 
 // Cost         : 800.0
 // Formula Cost : 1412553.462353088
-uproc HasAllOnesRow[5.0e-4][](ok : OUT Fin<2>, aux_30 : AUX Fin<2>, aux_31 : AUX Fin<2>, aux_32 : AUX Fin<2>, aux_33 : AUX Fin<2>, aux_34 : AUX Fin<10>, aux_35 : AUX Fin<2>, aux_36 : AUX Fin<2>, aux_37 : AUX Fin<2>, aux_38 : AUX Fin<2>, aux_39 : AUX Fin<2>, aux_40 : AUX Fin<2>, aux_41 : AUX Fin<2>, aux_42 : AUX Fin<2>, aux_43 : AUX Fin<2>, aux_44 : AUX Fin<2>, aux_45 : AUX Fin<20>, aux_46 : AUX Fin<2>, aux_47 : AUX Fin<2>, aux_48 : AUX Fin<2>, aux_49 : AUX Fin<2>, aux_50 : AUX Fin<2>, aux_51 : AUX Fin<2>, aux_52 : AUX Fin<2>, aux_53 : AUX Fin<2>, aux_54 : AUX Fin<2>, aux_55 : AUX Fin<2>, aux_56 : AUX Fin<2>, aux_57 : AUX Fin<2>, aux_58 : AUX Fin<2>, aux_59 : AUX Fin<2>, aux_60 : AUX Fin<2>, aux_61 : AUX Fin<2>, aux_62 : AUX Fin<2>, aux_63 : AUX Fin<2>, aux_64 : AUX Fin<2>, aux_65 : AUX Fin<2>) do
-  call QSearch[20, 2.5e-4, IsRowAllOnes_clean[5.325326e-7]](ok, aux_30, aux_31, aux_32, aux_33, aux_34, aux_35, aux_36, aux_37, aux_38, aux_39, aux_40, aux_41, aux_42, aux_43, aux_44, aux_45, aux_46, aux_47, aux_48, aux_49, aux_50, aux_51, aux_52, aux_53, aux_54, aux_55, aux_56, aux_57, aux_58, aux_59, aux_60, aux_61, aux_62, aux_63, aux_64, aux_65);
+uproc HasAllOnesRow[5.0e-4][](ok : OUT Fin<2>, aux_20 : AUX Fin<2>, aux_21 : AUX Fin<2>, aux_22 : AUX Fin<2>, aux_23 : AUX Fin<2>, aux_24 : AUX Fin<2>, aux_25 : AUX Fin<10>, aux_26 : AUX Fin<2>, aux_27 : AUX Fin<2>, aux_28 : AUX Fin<2>, aux_29 : AUX Fin<2>, aux_30 : AUX Fin<2>, aux_31 : AUX Fin<2>, aux_32 : AUX Fin<2>, aux_33 : AUX Fin<2>, aux_34 : AUX Fin<2>, aux_35 : AUX Fin<2>, ctrl_4 : AUX Fin<2>, s_arg_1 : AUX Fin<20>, ok0_1 : AUX Fin<2>, ok1_1 : AUX Fin<2>, ok2_1 : AUX Fin<2>, ok3_1 : AUX Fin<2>, ok4_1 : AUX Fin<2>, ok5_1 : AUX Fin<2>, ok6_1 : AUX Fin<2>, ok7_1 : AUX Fin<2>, ok8_1 : AUX Fin<2>, ok9_1 : AUX Fin<2>, ok10 : AUX Fin<2>, ok11 : AUX Fin<2>, ok12 : AUX Fin<2>, ok13 : AUX Fin<2>, ok14 : AUX Fin<2>, ok15 : AUX Fin<2>, ok16 : AUX Fin<2>, ok17 : AUX Fin<2>, ok18 : AUX Fin<2>, ok19 : AUX Fin<2>) do
+  call QSearch[20, 2.5e-4, IsRowAllOnes_clean[5.325326e-7]](ok, aux_20, aux_21, aux_22, aux_23, aux_24, aux_25, aux_26, aux_27, aux_28, aux_29, aux_30, aux_31, aux_32, aux_33, aux_34, aux_35, ctrl_4, s_arg_1, ok0_1, ok1_1, ok2_1, ok3_1, ok4_1, ok5_1, ok6_1, ok7_1, ok8_1, ok9_1, ok10, ok11, ok12, ok13, ok14, ok15, ok16, ok17, ok18, ok19);
 end
 
 // Cost         : 1600.0
 // Formula Cost : ()
-uproc HasAllOnesRow_clean[1.0e-3][](ok : OUT Fin<2>, aux_66 : AUX Fin<2>, aux_67 : AUX Fin<2>, aux_68 : AUX Fin<2>, aux_69 : AUX Fin<2>, aux_70 : AUX Fin<2>, aux_71 : AUX Fin<10>, aux_72 : AUX Fin<2>, aux_73 : AUX Fin<2>, aux_74 : AUX Fin<2>, aux_75 : AUX Fin<2>, aux_76 : AUX Fin<2>, aux_77 : AUX Fin<2>, aux_78 : AUX Fin<2>, aux_79 : AUX Fin<2>, aux_80 : AUX Fin<2>, aux_81 : AUX Fin<2>, aux_82 : AUX Fin<20>, aux_83 : AUX Fin<2>, aux_84 : AUX Fin<2>, aux_85 : AUX Fin<2>, aux_86 : AUX Fin<2>, aux_87 : AUX Fin<2>, aux_88 : AUX Fin<2>, aux_89 : AUX Fin<2>, aux_90 : AUX Fin<2>, aux_91 : AUX Fin<2>, aux_92 : AUX Fin<2>, aux_93 : AUX Fin<2>, aux_94 : AUX Fin<2>, aux_95 : AUX Fin<2>, aux_96 : AUX Fin<2>, aux_97 : AUX Fin<2>, aux_98 : AUX Fin<2>, aux_99 : AUX Fin<2>, aux_100 : AUX Fin<2>, aux_101 : AUX Fin<2>, aux_102 : AUX Fin<2>) do
-  call HasAllOnesRow[5.0e-4](aux_66, aux_67, aux_68, aux_69, aux_70, aux_71, aux_72, aux_73, aux_74, aux_75, aux_76, aux_77, aux_78, aux_79, aux_80, aux_81, aux_82, aux_83, aux_84, aux_85, aux_86, aux_87, aux_88, aux_89, aux_90, aux_91, aux_92, aux_93, aux_94, aux_95, aux_96, aux_97, aux_98, aux_99, aux_100, aux_101, aux_102);
-  aux_66, ok *= RevEmbed[x : Fin<2> => x];
-  call† HasAllOnesRow[5.0e-4](aux_66, aux_67, aux_68, aux_69, aux_70, aux_71, aux_72, aux_73, aux_74, aux_75, aux_76, aux_77, aux_78, aux_79, aux_80, aux_81, aux_82, aux_83, aux_84, aux_85, aux_86, aux_87, aux_88, aux_89, aux_90, aux_91, aux_92, aux_93, aux_94, aux_95, aux_96, aux_97, aux_98, aux_99, aux_100, aux_101, aux_102);
+uproc HasAllOnesRow_clean[1.0e-3][](ok : OUT Fin<2>, aux_36 : AUX Fin<2>, aux_37 : AUX Fin<2>, aux_38 : AUX Fin<2>, aux_39 : AUX Fin<2>, aux_40 : AUX Fin<2>, aux_41 : AUX Fin<2>, aux_42 : AUX Fin<10>, aux_43 : AUX Fin<2>, aux_44 : AUX Fin<2>, aux_45 : AUX Fin<2>, aux_46 : AUX Fin<2>, aux_47 : AUX Fin<2>, aux_48 : AUX Fin<2>, aux_49 : AUX Fin<2>, aux_50 : AUX Fin<2>, aux_51 : AUX Fin<2>, aux_52 : AUX Fin<2>, aux_53 : AUX Fin<2>, aux_54 : AUX Fin<20>, aux_55 : AUX Fin<2>, aux_56 : AUX Fin<2>, aux_57 : AUX Fin<2>, aux_58 : AUX Fin<2>, aux_59 : AUX Fin<2>, aux_60 : AUX Fin<2>, aux_61 : AUX Fin<2>, aux_62 : AUX Fin<2>, aux_63 : AUX Fin<2>, aux_64 : AUX Fin<2>, aux_65 : AUX Fin<2>, aux_66 : AUX Fin<2>, aux_67 : AUX Fin<2>, aux_68 : AUX Fin<2>, aux_69 : AUX Fin<2>, aux_70 : AUX Fin<2>, aux_71 : AUX Fin<2>, aux_72 : AUX Fin<2>, aux_73 : AUX Fin<2>, aux_74 : AUX Fin<2>) do
+  call HasAllOnesRow[5.0e-4](aux_36, aux_37, aux_38, aux_39, aux_40, aux_41, aux_42, aux_43, aux_44, aux_45, aux_46, aux_47, aux_48, aux_49, aux_50, aux_51, aux_52, aux_53, aux_54, aux_55, aux_56, aux_57, aux_58, aux_59, aux_60, aux_61, aux_62, aux_63, aux_64, aux_65, aux_66, aux_67, aux_68, aux_69, aux_70, aux_71, aux_72, aux_73, aux_74);
+  aux_36, ok *= RevEmbed[x : Fin<2> => x];
+  call† HasAllOnesRow[5.0e-4](aux_36, aux_37, aux_38, aux_39, aux_40, aux_41, aux_42, aux_43, aux_44, aux_45, aux_46, aux_47, aux_48, aux_49, aux_50, aux_51, aux_52, aux_53, aux_54, aux_55, aux_56, aux_57, aux_58, aux_59, aux_60, aux_61, aux_62, aux_63, aux_64, aux_65, aux_66, aux_67, aux_68, aux_69, aux_70, aux_71, aux_72, aux_73, aux_74);
 end
 
 // Actual Cost : 1600.0
 // Formula Cost: 2825106.3
-call HasAllOnesRow_clean[1.0e-3](result, aux_103, aux_104, aux_105, aux_106, aux_107, aux_108, aux_109, aux_110, aux_111, aux_112, aux_113, aux_114, aux_115, aux_116, aux_117, aux_118, aux_119, aux_120, aux_121, aux_122, aux_123, aux_124, aux_125, aux_126, aux_127, aux_128, aux_129, aux_130, aux_131, aux_132, aux_133, aux_134, aux_135, aux_136, aux_137, aux_138, aux_139);
+call HasAllOnesRow_clean[1.0e-3](result, aux_75, aux_76, aux_77, aux_78, aux_79, aux_80, aux_81, aux_82, aux_83, aux_84, aux_85, aux_86, aux_87, aux_88, aux_89, aux_90, aux_91, aux_92, aux_93, aux_94, aux_95, aux_96, aux_97, aux_98, aux_99, aux_100, aux_101, aux_102, aux_103, aux_104, aux_105, aux_106, aux_107, aux_108, aux_109, aux_110, aux_111, aux_112, aux_113);
 

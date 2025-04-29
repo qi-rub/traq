@@ -12,47 +12,49 @@ uproc IsEntryZero_clean[1.357175e-10][](ctrl_1 : CTRL Fin<2>, i0 : IN Fin<20>, j
   call† IsEntryZero[6.785875e-11](i0, j0, aux, aux_1);
 end
 
-uproc QSearch[10, 9.992682e-8, IsEntryZero_clean[1.357175e-10]][](i : IN Fin<20>, okr : OUT Fin<2>, aux_2 : AUX Fin<2>, aux_3 : AUX Fin<2>, aux_4 : AUX Fin<10>, aux_5 : AUX Fin<2>, aux_6 : AUX Fin<2>, aux_7 : AUX Fin<2>, aux_8 : AUX Fin<2>, aux_9 : AUX Fin<2>, aux_10 : AUX Fin<2>, aux_11 : AUX Fin<2>, aux_12 : AUX Fin<2>, aux_13 : AUX Fin<2>, aux_14 : AUX Fin<2>) do
-  aux_5 *= RevEmbed[() => 0 : Fin<2>];
-  call IsEntryZero_clean[1.357175e-10](i, aux_4, aux_5, aux_2, aux_3);
-  aux_6 *= RevEmbed[() => 1 : Fin<2>];
-  call IsEntryZero_clean[1.357175e-10](i, aux_4, aux_6, aux_2, aux_3);
-  aux_7 *= RevEmbed[() => 2 : Fin<2>];
-  call IsEntryZero_clean[1.357175e-10](i, aux_4, aux_7, aux_2, aux_3);
-  aux_8 *= RevEmbed[() => 3 : Fin<2>];
-  call IsEntryZero_clean[1.357175e-10](i, aux_4, aux_8, aux_2, aux_3);
-  aux_9 *= RevEmbed[() => 4 : Fin<2>];
-  call IsEntryZero_clean[1.357175e-10](i, aux_4, aux_9, aux_2, aux_3);
-  aux_10 *= RevEmbed[() => 5 : Fin<2>];
-  call IsEntryZero_clean[1.357175e-10](i, aux_4, aux_10, aux_2, aux_3);
-  aux_11 *= RevEmbed[() => 6 : Fin<2>];
-  call IsEntryZero_clean[1.357175e-10](i, aux_4, aux_11, aux_2, aux_3);
-  aux_12 *= RevEmbed[() => 7 : Fin<2>];
-  call IsEntryZero_clean[1.357175e-10](i, aux_4, aux_12, aux_2, aux_3);
-  aux_13 *= RevEmbed[() => 8 : Fin<2>];
-  call IsEntryZero_clean[1.357175e-10](i, aux_4, aux_13, aux_2, aux_3);
-  aux_14 *= RevEmbed[() => 9 : Fin<2>];
-  call IsEntryZero_clean[1.357175e-10](i, aux_4, aux_14, aux_2, aux_3);
-  aux_5, aux_6, aux_7, aux_8, aux_9, aux_10, aux_11, aux_12, aux_13, aux_14, okr *= RevEmbed[(x) => OR_10(x)];
+uproc QSearch[10, 9.992682e-8, IsEntryZero_clean[1.357175e-10]][](i : IN Fin<20>, okr : OUT Fin<2>, aux_2 : AUX Fin<2>, aux_3 : AUX Fin<2>, ctrl_2 : AUX Fin<2>, s_arg : AUX Fin<10>, ok0 : AUX Fin<2>, ok1 : AUX Fin<2>, ok2 : AUX Fin<2>, ok3 : AUX Fin<2>, ok4 : AUX Fin<2>, ok5 : AUX Fin<2>, ok6 : AUX Fin<2>, ok7 : AUX Fin<2>, ok8 : AUX Fin<2>, ok9 : AUX Fin<2>) do
+  ctrl_2 *= X;
+  ok0 *= RevEmbed[() => 0 : Fin<2>];
+  call IsEntryZero_clean[1.357175e-10](ctrl_2, i, s_arg, ok0, aux_2, aux_3);
+  ok1 *= RevEmbed[() => 1 : Fin<2>];
+  call IsEntryZero_clean[1.357175e-10](ctrl_2, i, s_arg, ok1, aux_2, aux_3);
+  ok2 *= RevEmbed[() => 2 : Fin<2>];
+  call IsEntryZero_clean[1.357175e-10](ctrl_2, i, s_arg, ok2, aux_2, aux_3);
+  ok3 *= RevEmbed[() => 3 : Fin<2>];
+  call IsEntryZero_clean[1.357175e-10](ctrl_2, i, s_arg, ok3, aux_2, aux_3);
+  ok4 *= RevEmbed[() => 4 : Fin<2>];
+  call IsEntryZero_clean[1.357175e-10](ctrl_2, i, s_arg, ok4, aux_2, aux_3);
+  ok5 *= RevEmbed[() => 5 : Fin<2>];
+  call IsEntryZero_clean[1.357175e-10](ctrl_2, i, s_arg, ok5, aux_2, aux_3);
+  ok6 *= RevEmbed[() => 6 : Fin<2>];
+  call IsEntryZero_clean[1.357175e-10](ctrl_2, i, s_arg, ok6, aux_2, aux_3);
+  ok7 *= RevEmbed[() => 7 : Fin<2>];
+  call IsEntryZero_clean[1.357175e-10](ctrl_2, i, s_arg, ok7, aux_2, aux_3);
+  ok8 *= RevEmbed[() => 8 : Fin<2>];
+  call IsEntryZero_clean[1.357175e-10](ctrl_2, i, s_arg, ok8, aux_2, aux_3);
+  ok9 *= RevEmbed[() => 9 : Fin<2>];
+  call IsEntryZero_clean[1.357175e-10](ctrl_2, i, s_arg, ok9, aux_2, aux_3);
+  ok0, ok1, ok2, ok3, ok4, ok5, ok6, ok7, ok8, ok9, okr *= RevEmbed[(x) => OR_10(x)];
+  ctrl_2 *= X;
 end
 
-uproc IsRowAllOnes[3.997073e-7][](i : IN Fin<20>, okr' : OUT Fin<2>, okr : AUX Fin<2>, aux_2 : AUX Fin<2>, aux_3 : AUX Fin<2>, aux_4 : AUX Fin<10>, aux_5 : AUX Fin<2>, aux_6 : AUX Fin<2>, aux_7 : AUX Fin<2>, aux_8 : AUX Fin<2>, aux_9 : AUX Fin<2>, aux_10 : AUX Fin<2>, aux_11 : AUX Fin<2>, aux_12 : AUX Fin<2>, aux_13 : AUX Fin<2>, aux_14 : AUX Fin<2>) do
-  call QSearch[10, 9.992682e-8, IsEntryZero_clean[1.357175e-10]](i, okr, aux_2, aux_3, aux_4, aux_5, aux_6, aux_7, aux_8, aux_9, aux_10, aux_11, aux_12, aux_13, aux_14);
+uproc IsRowAllOnes[3.997073e-7][](i : IN Fin<20>, okr' : OUT Fin<2>, okr : AUX Fin<2>, aux_2 : AUX Fin<2>, aux_3 : AUX Fin<2>, ctrl_2 : AUX Fin<2>, s_arg : AUX Fin<10>, ok0 : AUX Fin<2>, ok1 : AUX Fin<2>, ok2 : AUX Fin<2>, ok3 : AUX Fin<2>, ok4 : AUX Fin<2>, ok5 : AUX Fin<2>, ok6 : AUX Fin<2>, ok7 : AUX Fin<2>, ok8 : AUX Fin<2>, ok9 : AUX Fin<2>) do
+  call QSearch[10, 9.992682e-8, IsEntryZero_clean[1.357175e-10]](i, okr, aux_2, aux_3, ctrl_2, s_arg, ok0, ok1, ok2, ok3, ok4, ok5, ok6, ok7, ok8, ok9);
   okr, okr' *= RevEmbed[x : Fin<2> => ~x];
 end
 
-uproc IsRowAllOnes_clean[7.994146e-7][](i : IN Fin<20>, okr' : OUT Fin<2>, aux_15 : AUX Fin<2>, aux_16 : AUX Fin<2>, aux_17 : AUX Fin<2>, aux_18 : AUX Fin<2>, aux_19 : AUX Fin<10>, aux_20 : AUX Fin<2>, aux_21 : AUX Fin<2>, aux_22 : AUX Fin<2>, aux_23 : AUX Fin<2>, aux_24 : AUX Fin<2>, aux_25 : AUX Fin<2>, aux_26 : AUX Fin<2>, aux_27 : AUX Fin<2>, aux_28 : AUX Fin<2>, aux_29 : AUX Fin<2>) do
-  call IsRowAllOnes[3.997073e-7](i, aux_15, aux_16, aux_17, aux_18, aux_19, aux_20, aux_21, aux_22, aux_23, aux_24, aux_25, aux_26, aux_27, aux_28, aux_29);
-  aux_15, okr' *= RevEmbed[x : Fin<2> => x];
-  call† IsRowAllOnes[3.997073e-7](i, aux_15, aux_16, aux_17, aux_18, aux_19, aux_20, aux_21, aux_22, aux_23, aux_24, aux_25, aux_26, aux_27, aux_28, aux_29);
+uproc IsRowAllOnes_clean[7.994146e-7][](i : IN Fin<20>, okr' : OUT Fin<2>, aux_4 : AUX Fin<2>, aux_5 : AUX Fin<2>, aux_6 : AUX Fin<2>, aux_7 : AUX Fin<2>, aux_8 : AUX Fin<2>, aux_9 : AUX Fin<10>, aux_10 : AUX Fin<2>, aux_11 : AUX Fin<2>, aux_12 : AUX Fin<2>, aux_13 : AUX Fin<2>, aux_14 : AUX Fin<2>, aux_15 : AUX Fin<2>, aux_16 : AUX Fin<2>, aux_17 : AUX Fin<2>, aux_18 : AUX Fin<2>, aux_19 : AUX Fin<2>) do
+  call IsRowAllOnes[3.997073e-7](i, aux_4, aux_5, aux_6, aux_7, aux_8, aux_9, aux_10, aux_11, aux_12, aux_13, aux_14, aux_15, aux_16, aux_17, aux_18, aux_19);
+  aux_4, okr' *= RevEmbed[x : Fin<2> => x];
+  call† IsRowAllOnes[3.997073e-7](i, aux_4, aux_5, aux_6, aux_7, aux_8, aux_9, aux_10, aux_11, aux_12, aux_13, aux_14, aux_15, aux_16, aux_17, aux_18, aux_19);
 end
 
-uproc Grover[#k](x : IN Fin<20>, ok : OUT Fin<2>, aux : AUX Fin<2>, aux_1 : AUX Fin<2>, aux_2 : AUX Fin<2>, aux_3 : AUX Fin<2>, aux_4 : AUX Fin<10>, aux_5 : AUX Fin<2>, aux_6 : AUX Fin<2>, aux_7 : AUX Fin<2>, aux_8 : AUX Fin<2>, aux_9 : AUX Fin<2>, aux_10 : AUX Fin<2>, aux_11 : AUX Fin<2>, aux_12 : AUX Fin<2>, aux_13 : AUX Fin<2>, aux_14 : AUX Fin<2>) do
+uproc Grover[#k](x : IN Fin<20>, ok : OUT Fin<2>, aux : AUX Fin<2>, aux_1 : AUX Fin<2>, aux_2 : AUX Fin<2>, aux_3 : AUX Fin<2>, aux_4 : AUX Fin<2>, aux_5 : AUX Fin<10>, aux_6 : AUX Fin<2>, aux_7 : AUX Fin<2>, aux_8 : AUX Fin<2>, aux_9 : AUX Fin<2>, aux_10 : AUX Fin<2>, aux_11 : AUX Fin<2>, aux_12 : AUX Fin<2>, aux_13 : AUX Fin<2>, aux_14 : AUX Fin<2>, aux_15 : AUX Fin<2>) do
   ok *= X;
   ok *= H;
   x *= Unif[Fin<20>];
   repeat #k do
-    call IsRowAllOnes_clean[7.994146e-7](x, ok, aux, aux_1, aux_2, aux_3, aux_4, aux_5, aux_6, aux_7, aux_8, aux_9, aux_10, aux_11, aux_12, aux_13, aux_14);
+    call IsRowAllOnes_clean[7.994146e-7](x, ok, aux, aux_1, aux_2, aux_3, aux_4, aux_5, aux_6, aux_7, aux_8, aux_9, aux_10, aux_11, aux_12, aux_13, aux_14, aux_15);
     x *= Unif†[Fin<20>];
     x *= (2|0><0| - I)[Fin<20>];
     x *= Unif[Fin<20>];

@@ -13,6 +13,7 @@ module QCompose.UnitaryQPL.Lowering (
   -- ** Helpers
   newIdent,
   addProc,
+  allocAncillaWithPref,
   allocAncilla,
   ControlFlag (..),
 
@@ -117,11 +118,15 @@ newIdent prefix = do
       Just () -> throwError "next ident please!"
 
 -- | Allocate an ancilla register, and update the typing context.
-allocAncilla :: P.VarType sizeT -> CompilerT primT holeT sizeT costT Ident
-allocAncilla ty = do
-  name <- newIdent "aux"
+allocAncillaWithPref :: Ident -> P.VarType sizeT -> CompilerT primT holeT sizeT costT Ident
+allocAncillaWithPref pref ty = do
+  name <- newIdent pref
   zoom typingCtx $ Ctx.put name ty
   return name
+
+-- | Allocate an ancilla register @aux_<<n>>@, and update the typing context.
+allocAncilla :: P.VarType sizeT -> CompilerT primT holeT sizeT costT Ident
+allocAncilla = allocAncillaWithPref "aux"
 
 -- | Add a new procedure.
 addProc :: ProcDef holeT sizeT -> CompilerT primT holeT sizeT costT ()

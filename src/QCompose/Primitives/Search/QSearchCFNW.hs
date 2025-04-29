@@ -310,22 +310,25 @@ bruteForceQSearch ::
   ) =>
   -- | type of the element to search over
   P.VarType sizeT ->
-  -- | call the predicate on @x, b@
-  (Ident -> Ident -> UQPL.Stmt holeT sizeT) ->
+  -- | call the predicate on @ctrl, x, b@
+  (Ident -> Ident -> Ident -> UQPL.Stmt holeT sizeT) ->
   -- | output bit
   Ident ->
   MyWriterT [UQPL.Stmt holeT sizeT] (UQPL.CompilerT primsT holeT sizeT costT) ()
 bruteForceQSearch ty mk_pred out_bit = do
-  x <- lift $ UQPL.allocAncilla ty
+  ctrl <- lift $ UQPL.allocAncillaWithPref "ctrl" P.tbool
+  writeElem $ UQPL.UnitaryS{UQPL.unitary = UQPL.XGate, UQPL.args = [ctrl]}
+
+  x <- lift $ UQPL.allocAncillaWithPref "s_arg" ty
   bs <- forM (P.range ty) $ \v -> do
-    b <- lift $ UQPL.allocAncilla P.tbool
+    b <- lift $ UQPL.allocAncillaWithPref ("ok" ++ show v) P.tbool
 
     writeElem $
       UQPL.UnitaryS
         { UQPL.unitary = UQPL.RevEmbedU UQPL.ConstF{UQPL.ty = P.tbool, UQPL.val = v}
         , UQPL.args = [b]
         }
-    writeElem $ mk_pred x b
+    writeElem $ mk_pred ctrl x b
 
     return b
 
@@ -335,6 +338,8 @@ bruteForceQSearch ty mk_pred out_bit = do
       { UQPL.unitary = UQPL.RevEmbedU $ UQPL.MultiOrF n
       , UQPL.args = bs ++ [out_bit]
       }
+
+  writeElem $ UQPL.UnitaryS{UQPL.unitary = UQPL.XGate, UQPL.args = [ctrl]}
 
 {-# DEPRECATED useBruteForce "temporary (valid) circuit placeholder" #-}
 useBruteForce :: Bool
@@ -349,8 +354,8 @@ algoQSearchZalka ::
   ) =>
   -- | type of the element to search over
   P.VarType sizeT ->
-  -- | call the predicate on @x, b@
-  (Ident -> Ident -> UQPL.Stmt holeT sizeT) ->
+  -- | call the predicate on @ctrl, x, b@
+  (Ident -> Ident -> Ident -> UQPL.Stmt holeT sizeT) ->
   -- | max. failure probability @\eps@
   costT ->
   -- | output bit
@@ -370,7 +375,7 @@ algoQSearchZalka ty mk_pred eps _out_bit = do
       , UQPL.dagger = False
       }
 
-  q_pred_name = case mk_pred "pred_arg" "pred_res" of
+  q_pred_name = case mk_pred "pred_ctrl" "pred_arg" "pred_res" of
     UQPL.CallS{UQPL.proc_id} -> proc_id
     _ -> error "predicate is not a call!"
   P.Fin n = ty
@@ -424,11 +429,11 @@ instance
 
     -- function to call the predicate, re-using the same aux space each time.
     pred_ancilla <- mapM UQPL.allocAncilla pred_aux_tys
-    let pred_caller x b =
+    let pred_caller ctrl x b =
           UQPL.CallS
             { UQPL.proc_id = UQPL.proc_name pred_proc
             , UQPL.dagger = False
-            , UQPL.args = args ++ [x, b] ++ pred_ancilla
+            , UQPL.args = ctrl : args ++ [x, b] ++ pred_ancilla
             }
 
     -- Emit the qsearch procedure
