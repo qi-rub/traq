@@ -30,7 +30,8 @@ symbolicEx = do
 concreteEx :: IO ()
 concreteEx = do
   putStrLn "Concrete program:"
-  let (n, m) = (1000, 1000)
+  -- let (n, m) = (1000, 1000)
+  let (n, m) = (20, 10)
   let ex = matrixExampleS n m
 
   putStrLn $ replicate 80 '='

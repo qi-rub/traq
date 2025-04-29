@@ -6,9 +6,9 @@ uproc IsEntryZero[6.785875e-11][](i0 : IN Fin<20>, j0 : IN Fin<10>, e' : OUT Fin
   e, e' *= RevEmbed[x : Fin<2> => ~x];
 end
 
-uproc IsEntryZero_clean[1.357175e-10][](i0 : IN Fin<20>, j0 : IN Fin<10>, e' : OUT Fin<2>, aux : AUX Fin<2>, aux_1 : AUX Fin<2>) do
+uproc IsEntryZero_clean[1.357175e-10][](ctrl_1 : CTRL Fin<2>, i0 : IN Fin<20>, j0 : IN Fin<10>, e' : OUT Fin<2>, aux : AUX Fin<2>, aux_1 : AUX Fin<2>) do
   call IsEntryZero[6.785875e-11](i0, j0, aux, aux_1);
-  aux, e' *= RevEmbed[x : Fin<2> => x];
+  ctrl_1, aux, e' *= Controlled (RevEmbedU (IdF {ty = Fin 2}));
   call† IsEntryZero[6.785875e-11](i0, j0, aux, aux_1);
 end
 

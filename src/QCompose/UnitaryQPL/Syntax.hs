@@ -105,7 +105,7 @@ instance HasDagger (Stmt holeT sizeT) where
   adjoint (RepeatS k s) = RepeatS k (adjoint s)
   adjoint (HoleS info dagger) = HoleS info (not dagger)
 
-data ParamTag = ParamInp | ParamOut | ParamAux | ParamUnk deriving (Eq, Show, Read, Enum)
+data ParamTag = ParamCtrl | ParamInp | ParamOut | ParamAux | ParamUnk deriving (Eq, Show, Read, Enum)
 
 data ProcDef holeT sizeT = ProcDef
   { proc_name :: Ident
@@ -183,6 +183,7 @@ instance (Show holeT, Show sizeT) => ToCodeString (Stmt holeT sizeT) where
   toCodeLines (HoleS info dagger) = [printf "HOLE :: %s%s;" (show info) (showDagger dagger)]
 
 instance ToCodeString ParamTag where
+  toCodeString ParamCtrl = "CTRL"
   toCodeString ParamInp = "IN"
   toCodeString ParamOut = "OUT"
   toCodeString ParamAux = "AUX"

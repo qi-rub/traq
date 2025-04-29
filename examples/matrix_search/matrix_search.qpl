@@ -10,9 +10,9 @@ end
 
 // Cost         : 2.0
 // Formula Cost : ()
-uproc IsEntryZero_clean[8.849225e-11][](i0 : IN Fin<20>, j0 : IN Fin<10>, e' : OUT Fin<2>, aux : AUX Fin<2>, aux_1 : AUX Fin<2>) do
+uproc IsEntryZero_clean[8.849225e-11][](ctrl_1 : CTRL Fin<2>, i0 : IN Fin<20>, j0 : IN Fin<10>, e' : OUT Fin<2>, aux : AUX Fin<2>, aux_1 : AUX Fin<2>) do
   call IsEntryZero[4.4246124e-11](i0, j0, aux, aux_1);
-  aux, e' *= RevEmbed[x : Fin<2> => x];
+  ctrl_1, aux, e' *= Controlled (RevEmbedU (IdF {ty = Fin 2}));
   call† IsEntryZero[4.4246124e-11](i0, j0, aux, aux_1);
 end
 
@@ -51,9 +51,9 @@ end
 
 // Cost         : 40.0
 // Formula Cost : ()
-uproc IsRowAllOnes_clean[5.325326e-7][](i : IN Fin<20>, okr' : OUT Fin<2>, aux_15 : AUX Fin<2>, aux_16 : AUX Fin<2>, aux_17 : AUX Fin<2>, aux_18 : AUX Fin<2>, aux_19 : AUX Fin<10>, aux_20 : AUX Fin<2>, aux_21 : AUX Fin<2>, aux_22 : AUX Fin<2>, aux_23 : AUX Fin<2>, aux_24 : AUX Fin<2>, aux_25 : AUX Fin<2>, aux_26 : AUX Fin<2>, aux_27 : AUX Fin<2>, aux_28 : AUX Fin<2>, aux_29 : AUX Fin<2>) do
+uproc IsRowAllOnes_clean[5.325326e-7][](ctrl_2 : CTRL Fin<2>, i : IN Fin<20>, okr' : OUT Fin<2>, aux_15 : AUX Fin<2>, aux_16 : AUX Fin<2>, aux_17 : AUX Fin<2>, aux_18 : AUX Fin<2>, aux_19 : AUX Fin<10>, aux_20 : AUX Fin<2>, aux_21 : AUX Fin<2>, aux_22 : AUX Fin<2>, aux_23 : AUX Fin<2>, aux_24 : AUX Fin<2>, aux_25 : AUX Fin<2>, aux_26 : AUX Fin<2>, aux_27 : AUX Fin<2>, aux_28 : AUX Fin<2>, aux_29 : AUX Fin<2>) do
   call IsRowAllOnes[2.662663e-7](i, aux_15, aux_16, aux_17, aux_18, aux_19, aux_20, aux_21, aux_22, aux_23, aux_24, aux_25, aux_26, aux_27, aux_28, aux_29);
-  aux_15, okr' *= RevEmbed[x : Fin<2> => x];
+  ctrl_2, aux_15, okr' *= Controlled (RevEmbedU (IdF {ty = Fin 2}));
   call† IsRowAllOnes[2.662663e-7](i, aux_15, aux_16, aux_17, aux_18, aux_19, aux_20, aux_21, aux_22, aux_23, aux_24, aux_25, aux_26, aux_27, aux_28, aux_29);
 end
 

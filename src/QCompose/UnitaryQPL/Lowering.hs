@@ -14,6 +14,7 @@ module QCompose.UnitaryQPL.Lowering (
   newIdent,
   addProc,
   allocAncilla,
+  ControlFlag (..),
 
   -- ** Lenses
   protoFunCtx,
@@ -142,6 +143,8 @@ data LoweredProc holeT sizeT costT = LoweredProc
   -- ^ all other registers
   }
 
+data ControlFlag = WithControl | WithoutControl deriving (Eq, Show, Read, Enum)
+
 -- | Compile a single expression statement
 lowerExpr ::
   forall primsT holeT sizeT costT.
@@ -186,7 +189,7 @@ lowerExpr delta P.FunCallE{P.fun_kind = P.FunctionCall f, P.args} rets = do
   fun <-
     view (protoFunCtx . Ctx.at f)
       >>= maybeWithError ("cannot find function " <> f)
-  LoweredProc{lowered_def, inp_tys, out_tys, aux_tys} <- lowerFunDef delta fun
+  LoweredProc{lowered_def, inp_tys, out_tys, aux_tys} <- lowerFunDef WithoutControl delta fun
 
   when (length inp_tys /= length args) $
     throwError "mismatched number of args"
@@ -304,21 +307,26 @@ lowerFunDef ::
   , Show costT
   , Floating costT
   ) =>
+  -- | Controlled?
+  ControlFlag ->
   -- | precision \delta
   costT ->
   P.FunDef primsT sizeT ->
   CompilerT primsT holeT sizeT costT (LoweredProc holeT sizeT costT)
 -- lower a declaration as-is, we treat all declarations as perfect data oracles (so delta is ignored).
-lowerFunDef _ P.FunDef{P.fun_name, P.param_types, P.ret_types, P.mbody = Nothing} = do
+lowerFunDef with_ctrl _ P.FunDef{P.fun_name, P.param_types, P.ret_types, P.mbody = Nothing} = do
   let param_names = map (printf "in_%d") [0 .. length param_types]
   let ret_names = map (printf "out_%d") [0 .. length ret_types]
   is_oracle <- (fun_name ==) <$> view oracleName
+
+  ctrl_qubit <- newIdent "ctrl"
   let proc_def =
         ProcDef
           { proc_name = fun_name
           , proc_meta_params = []
           , proc_params =
-              withTag ParamInp (zip param_names param_types)
+              [(ctrl_qubit, ParamCtrl, P.tbool) | with_ctrl == WithControl]
+                ++ withTag ParamInp (zip param_names param_types)
                 ++ withTag ParamOut (zip ret_names ret_types)
           , mproc_body = Nothing
           , is_oracle
@@ -328,12 +336,13 @@ lowerFunDef _ P.FunDef{P.fun_name, P.param_types, P.ret_types, P.mbody = Nothing
   return
     LoweredProc
       { lowered_def = proc_def
-      , has_ctrl = False
+      , has_ctrl = with_ctrl == WithControl
       , inp_tys = param_types
       , out_tys = ret_types
       , aux_tys = []
       }
 lowerFunDef
+  with_ctrl
   delta
   fun@P.FunDef
     { P.fun_name
@@ -358,12 +367,15 @@ lowerFunDef
 
     let g_args = param_names ++ g_ret_names ++ g_aux_names
 
+    ctrl_qubit <- newIdent "ctrl"
+    let copy_op ty = (case with_ctrl of WithControl -> Controlled; _ -> id) (RevEmbedU $ IdF ty)
+
     -- call g, copy and uncompute g
     let proc_body =
           SeqS
             [ CallS{proc_id = g_dirty_name, dagger = False, args = g_args}
             , SeqS -- copy all the return values
-                [ UnitaryS [x, x'] (RevEmbedU $ IdF ty)
+                [ UnitaryS ([ctrl_qubit | with_ctrl == WithControl] ++ [x, x']) (copy_op ty)
                 | (x, x', ty) <- zip3 g_ret_names ret_names g_ret_tys
                 ]
             , CallS{proc_id = g_dirty_name, dagger = True, args = g_args}
@@ -375,7 +387,8 @@ lowerFunDef
             { proc_name
             , proc_meta_params = []
             , proc_params =
-                withTag ParamInp param_binds
+                [(ctrl_qubit, ParamCtrl, P.tbool) | with_ctrl == WithControl]
+                  ++ withTag ParamInp param_binds
                   ++ withTag ParamOut (zip ret_names g_ret_tys)
                   ++ withTag ParamAux (zip g_ret_names g_ret_tys ++ zip g_aux_names g_aux_tys)
             , mproc_body = Just proc_body
@@ -385,7 +398,7 @@ lowerFunDef
     return
       LoweredProc
         { lowered_def = proc_def
-        , has_ctrl = False
+        , has_ctrl = with_ctrl == WithControl
         , inp_tys = map snd param_binds
         , out_tys = g_ret_tys
         , aux_tys = g_ret_tys ++ g_aux_tys

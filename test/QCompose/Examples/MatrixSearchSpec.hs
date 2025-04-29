@@ -65,7 +65,9 @@ spec = do
 
       it "type checks" $ do
         (ex_uqpl, gamma) <- expectRight $ UQPL.lowerProgram Ctx.empty "Oracle" delta ex
-        assertRight $ UQPL.typeCheckProgram gamma ex_uqpl
+        let tc_res = UQPL.typeCheckProgram gamma ex_uqpl
+        either putStrLn (const $ pure ()) tc_res
+        assertRight tc_res
 
       it "preserves cost" $ do
         (ex_uqpl, _) <- expectRight $ UQPL.lowerProgram Ctx.empty "Oracle" delta ex

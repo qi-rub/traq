@@ -284,44 +284,6 @@ instance UQPL.HoleCost (QSearchBlackBoxes costT) costT where
     return $ n_pred_calls * pred_cost
   holeCost (TODOHole s) = error $ "no cost of unknown hole: " <> s
 
--- | Run K grover iterations
-groverK ::
-  forall holeT sizeT.
-  -- | number of rounds
-  UQPL.MetaParam sizeT ->
-  -- | the element and type to search for. @x : T@
-  (Ident, P.VarType sizeT) ->
-  -- | the output bit
-  Ident ->
-  -- | run the predicate
-  (Ident -> Ident -> UQPL.Stmt holeT sizeT) ->
-  UQPL.Stmt holeT sizeT
-groverK k (x, ty) b mk_pred =
-  UQPL.SeqS
-    [ prepb
-    , prepx
-    , UQPL.RepeatS k grover_iterate
-    , UQPL.adjoint prepb
-    ]
- where
-  -- map b to |-> and x to uniform
-  prepb, prepx :: UQPL.Stmt holeT sizeT
-  prepb =
-    UQPL.SeqS
-      [ UQPL.UnitaryS [b] UQPL.XGate
-      , UQPL.UnitaryS [b] UQPL.HGate
-      ]
-  prepx = UQPL.UnitaryS [x] (UQPL.Unif ty)
-
-  grover_iterate :: UQPL.Stmt holeT sizeT
-  grover_iterate =
-    UQPL.SeqS
-      [ mk_pred x b
-      , UQPL.UnitaryS [x] (UQPL.UnifDagger ty)
-      , UQPL.UnitaryS [x] (UQPL.Refl0 ty)
-      , UQPL.UnitaryS [x] (UQPL.Unif ty)
-      ]
-
 {- | Grover search with fail prob 0
  when the number of solutions is known
 -}
@@ -450,11 +412,12 @@ instance
     -- compile the predicate
     UQPL.LoweredProc
       { UQPL.lowered_def = pred_proc
+      , UQPL.has_ctrl = _
       , UQPL.inp_tys = pred_inp_tys
       , UQPL.out_tys = pred_out_tys
       , UQPL.aux_tys = pred_aux_tys
       } <-
-      UQPL.lowerFunDef delta_per_pred_call pred_fun
+      UQPL.lowerFunDef UQPL.WithControl delta_per_pred_call pred_fun
 
     when (pred_out_tys /= [P.tbool]) $ throwError "invalid outputs for predicate"
     when (last pred_inp_tys /= s_ty) $ throwError "mismatched search argument type"
@@ -560,6 +523,44 @@ allocReg prefix ty = do
   reg <- lift $ CQPL.newIdent prefix
   writeElemAt _2 (reg, ty)
   return reg
+
+-- | Run K grover iterations
+groverK ::
+  forall holeT sizeT.
+  -- | number of rounds
+  UQPL.MetaParam sizeT ->
+  -- | the element and type to search for. @x : T@
+  (Ident, P.VarType sizeT) ->
+  -- | the output bit
+  Ident ->
+  -- | run the predicate
+  (Ident -> Ident -> UQPL.Stmt holeT sizeT) ->
+  UQPL.Stmt holeT sizeT
+groverK k (x, ty) b mk_pred =
+  UQPL.SeqS
+    [ prepb
+    , prepx
+    , UQPL.RepeatS k grover_iterate
+    , UQPL.adjoint prepb
+    ]
+ where
+  -- map b to |-> and x to uniform
+  prepb, prepx :: UQPL.Stmt holeT sizeT
+  prepb =
+    UQPL.SeqS
+      [ UQPL.UnitaryS [b] UQPL.XGate
+      , UQPL.UnitaryS [b] UQPL.HGate
+      ]
+  prepx = UQPL.UnitaryS [x] (UQPL.Unif ty)
+
+  grover_iterate :: UQPL.Stmt holeT sizeT
+  grover_iterate =
+    UQPL.SeqS
+      [ mk_pred x b
+      , UQPL.UnitaryS [x] (UQPL.UnifDagger ty)
+      , UQPL.UnitaryS [x] (UQPL.Refl0 ty)
+      , UQPL.UnitaryS [x] (UQPL.Unif ty)
+      ]
 
 -- | Implementation of the hybrid quantum search algorithm \( \textbf{QSearch} \).
 algoQSearch ::
@@ -706,7 +707,7 @@ instance
     let delta_per_pred_call = eps_per_pred_call / 2 -- norm error in unitary predicate
 
     -- lower the unitary predicate
-    let upred_compiler = UQPL.lowerFunDef delta_per_pred_call pred_fun
+    let upred_compiler = UQPL.lowerFunDef UQPL.WithoutControl delta_per_pred_call pred_fun
     (pred_uproc, uprocs) <- do
       uenv <- view id
       ust <- use id
