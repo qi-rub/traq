@@ -26,6 +26,7 @@ library
           QCompose.CQPL.Syntax
           QCompose.CQPL.TypeCheck
           QCompose.Data.Context
+          QCompose.Data.Errors
           QCompose.Data.Symbolic
           QCompose.Data.Tree
           QCompose.Examples.MatrixSearch

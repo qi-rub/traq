@@ -41,6 +41,11 @@ module QCompose.Control.Monad (
   execMyReaderStateT,
   withInjectedState,
 
+  -- ** RW
+  MyReaderWriterT,
+  evalMyReaderWriterT,
+  execMyReaderWriterT,
+
   -- * MonadError
   throwFrom,
   maybeWithError,
@@ -60,6 +65,8 @@ import Control.Monad.RWS (
 import Control.Monad.Trans (lift)
 import Lens.Micro.GHC
 import Lens.Micro.Mtl
+
+import QCompose.Data.Errors
 
 -- ================================================================================
 -- RWS
@@ -216,14 +223,23 @@ withSandbox :: (MonadState s m) => m a -> m a
 withSandbox = withSandboxOf id
 
 -- ================================================================================
+-- Reader + Writer
+-- ================================================================================
+type MyReaderWriterT r w = MyReaderWriterStateT r w ()
+
+evalMyReaderWriterT :: (Monad m, Monoid w) => r -> MyReaderWriterT r w m a -> m a
+evalMyReaderWriterT r m = fst <$> evalMyReaderWriterStateT m r ()
+
+execMyReaderWriterT :: (Monad m, Monoid w) => r -> MyReaderWriterT r w m a -> m w
+execMyReaderWriterT r m = snd <$> evalMyReaderWriterStateT m r ()
+
+-- ================================================================================
 -- MonadError
 -- ================================================================================
 
 -- | try-catch block that prepends a message to the existing error, to produce a more verbose backtrace.
-throwFrom :: (MonadError String m) => m a -> String -> m a
-throwFrom action msg =
-  action `catchError` \e ->
-    throwError $ unlines [msg, "caught while handling exception:", e]
+throwFrom :: (MonadError MyError m) => m a -> MyError -> m a
+throwFrom action msg = action `catchError` (throwError . CatchE msg)
 
 -- | lift a @Maybe@ to a value, throwing an error if @Nothing@
 maybeWithError :: (MonadError e m) => e -> Maybe a -> m a
