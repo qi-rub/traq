@@ -94,7 +94,7 @@ _QSearchZalka n delta = 2 * nq_simple -- 2x for compute-uncompute
   max_iter = ceiling $ (pi / 4) * sqrt (fromIntegral n :: Double)
 
   n_reps :: costT
-  n_reps = 1 + logBase (1 - p) eps
+  n_reps = logBase (1 - p) eps
    where
     p = 0.3914 :: costT
 
@@ -325,47 +325,6 @@ withComputed s m = do
   writeElem $ UQPL.adjoint s
   return a
 
-{-# DEPRECATED useBruteForce, bruteForceQSearch "temporary (valid) circuit placeholder" #-}
-bruteForceQSearch ::
-  forall primsT holeT sizeT costT.
-  ( Integral sizeT
-  , RealFloat costT
-  , holeT ~ QSearchBlackBoxes costT
-  , P.TypeCheckable sizeT
-  ) =>
-  -- | output bit
-  Ident ->
-  UQSearchBuilder primsT holeT sizeT costT ()
-bruteForceQSearch out_bit = do
-  ctrl <- lift $ UQPL.allocAncillaWithPref "ctrl" P.tbool
-  writeElem $ UQPL.UnitaryS{UQPL.unitary = UQPL.XGate, UQPL.args = [ctrl]}
-
-  ty <- view $ to search_arg_type
-  x <- lift $ UQPL.allocAncillaWithPref "s_arg" ty
-  bs <- forM (P.range ty) $ \v -> do
-    b <- lift $ UQPL.allocAncillaWithPref ("ok" ++ show v) P.tbool
-
-    writeElem $
-      UQPL.UnitaryS
-        { UQPL.unitary = UQPL.RevEmbedU UQPL.ConstF{UQPL.ty = P.tbool, UQPL.val = UQPL.MetaValue v}
-        , UQPL.args = [b]
-        }
-    mk_pred <- view $ to pred_call_builder
-    writeElem $ mk_pred ctrl x b
-
-    return b
-
-  let P.Fin n = ty
-  writeElem $
-    UQPL.UnitaryS
-      { UQPL.unitary = UQPL.RevEmbedU $ UQPL.MultiOrF n
-      , UQPL.args = bs ++ [out_bit]
-      }
-
-  writeElem $ UQPL.UnitaryS{UQPL.unitary = UQPL.XGate, UQPL.args = [ctrl]}
-useBruteForce :: Bool
-useBruteForce = False
-
 addGroverIteration ::
   forall primsT holeT sizeT costT.
   ( Integral sizeT
@@ -442,13 +401,12 @@ algoQSearchZalka ::
   , holeT ~ QSearchBlackBoxes costT
   , P.TypeCheckable sizeT
   ) =>
-  -- | max. failure probability @\eps@
+  -- | max. norm error @\delta@
   costT ->
   -- | output bit
   Ident ->
   UQSearchBuilder primsT holeT sizeT costT ()
-algoQSearchZalka _ out_bit | useBruteForce = bruteForceQSearch out_bit
-algoQSearchZalka eps out_bit = do
+algoQSearchZalka delta out_bit = do
   P.Fin n <- view $ to search_arg_type
 
   out_bits <- forM [1 .. n_reps] $ \i -> do
@@ -465,6 +423,9 @@ algoQSearchZalka eps out_bit = do
  where
   max_iter :: sizeT -> sizeT
   max_iter n = ceiling $ (pi / 4) * sqrt (fromIntegral n :: Double)
+
+  eps :: costT
+  eps = (delta / 2) ^ (2 :: Int)
 
   n_reps :: Int
   n_reps = ceiling $ logBase (1 - p) eps

@@ -94,7 +94,8 @@ compile prog delta = do
                     return $ show cf
                 )
 
-        tellLn $ "// Cost         : " <> show (proc_costs ^. at pname . singular _Just)
+        let t_cost = proc_costs ^. at pname
+        tellLn $ "// Cost         : " <> maybe "()" show t_cost
         tellLn $ "// Formula Cost : " <> f_cost
       tellLn $ toCodeString p
 
@@ -108,7 +109,10 @@ main = do
 
   -- parse
   code <- readFile in_file
-  let Right prog = fmap (subsNM params) <$> P.parseProgram code
+  prog <-
+    P.parseProgram code
+      & either (fail . show) return
+      <&> fmap (subsNM params)
 
   -- compile
   out_prog <- case delta of

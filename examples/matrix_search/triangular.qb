@@ -1,5 +1,5 @@
 def Oracle(x: Fin<N>, y: Fin<M>) do
-	lt <- x < y;
+	lt <- x <= y;
 	return lt : Bool
 end
 
