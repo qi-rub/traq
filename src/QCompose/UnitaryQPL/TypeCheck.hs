@@ -58,6 +58,7 @@ unitarySignature (RevEmbedU f) = return $ revFunTys f
   revFunTys IdF{ty} = [ty, ty]
   revFunTys AddF{ty} = [ty, ty, ty]
   revFunTys LEqF{ty} = [ty, ty, tbool]
+  revFunTys LEqConstF{ty} = [ty, tbool]
   revFunTys MultiOrF{cfun_n_args} = replicate (irange cfun_n_args + 1) tbool
 unitarySignature (Controlled u) = (tbool :) <$> unitarySignature u
 unitarySignature (Refl0 ty) = return [ty]
@@ -68,6 +69,7 @@ unitarySignature (LoadData f) = do
 typeCheckStmt :: (Show holeT, TypeCheckable sizeT) => Stmt holeT sizeT -> TypeChecker holeT sizeT ()
 -- single statements
 typeCheckStmt SkipS = return ()
+typeCheckStmt (CommentS _) = return ()
 typeCheckStmt UnitaryS{unitary, args} = do
   tys <- unitarySignature unitary
   verifyArgs args tys
@@ -84,6 +86,7 @@ typeCheckStmt CallS{proc_id, args} = do
 typeCheckStmt (RepeatS _ body) = typeCheckStmt body
 typeCheckStmt (SeqS ss) = mapM_ typeCheckStmt' ss
 typeCheckStmt HoleS{} = return ()
+typeCheckStmt ForInRangeS{loop_body} = typeCheckStmt loop_body
 
 typeCheckStmt' :: (Show holeT, TypeCheckable sizeT) => Stmt holeT sizeT -> TypeChecker holeT sizeT ()
 typeCheckStmt' s = typeCheckStmt s `throwFrom` MessageE ("typecheck failed: " <> show s)

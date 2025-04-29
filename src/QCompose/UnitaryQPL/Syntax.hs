@@ -22,6 +22,10 @@ module QCompose.UnitaryQPL.Syntax (
   Program (..),
   Program',
 
+  -- ** Syntax Sugar
+  mkForInRangeS,
+  desugarS,
+
   -- * Helpers
   HasDagger (..),
 ) where
@@ -35,12 +39,22 @@ import QCompose.Prelude
 import qualified QCompose.ProtoLang as P
 import QCompose.Utils.Printing
 
+-- | Compile-time constant parameters
+data MetaParam sizeT = MetaName String | MetaSize sizeT | MetaValue Value
+  deriving (Eq, Show, Read)
+
+instance (Show sizeT) => ToCodeString (MetaParam sizeT) where
+  toCodeString (MetaName n) = "#" ++ n
+  toCodeString (MetaSize n) = show n
+  toCodeString (MetaValue n) = show n
+
 data ClassicalFun sizeT
-  = ConstF {ty :: P.VarType sizeT, val :: Integer} -- () -> val
+  = ConstF {ty :: P.VarType sizeT, val :: MetaParam sizeT} -- () -> val
   | NotF {ty :: P.VarType sizeT} -- x -> ~x
   | IdF {ty :: P.VarType sizeT} -- x -> x
   | AddF {ty :: P.VarType sizeT} -- x, y -> x + y
   | LEqF {ty :: P.VarType sizeT} -- x, y -> x <= y
+  | LEqConstF {val :: MetaParam sizeT, ty :: P.VarType sizeT} -- x -> x <= val
   | MultiOrF {cfun_n_args :: sizeT}
   deriving (Eq, Show, Read)
 
@@ -74,14 +88,6 @@ instance HasDagger (Unitary sizeT) where
   adjoint u@(RevEmbedU _) = u
   adjoint (Controlled u) = Controlled (adjoint u)
 
--- | Compile-time constant parameters
-data MetaParam sizeT = MetaName String | MetaSize sizeT
-  deriving (Eq, Show, Read)
-
-instance (Show sizeT) => ToCodeString (MetaParam sizeT) where
-  toCodeString (MetaName n) = "#" ++ n
-  toCodeString (MetaSize n) = show n
-
 data Stmt holeT sizeT
   = SkipS
   | UnitaryS {args :: [Ident], unitary :: Unitary sizeT} -- q... *= U
@@ -89,7 +95,18 @@ data Stmt holeT sizeT
   | SeqS [Stmt holeT sizeT] -- W1; W2; ...
   | RepeatS {n_iter :: MetaParam sizeT, loop_body :: Stmt holeT sizeT} -- repeat k do S;
   | HoleS {hole :: holeT, dagger :: Bool} -- temporary place holder
+  | CommentS String
+  | -- syntax sugar
+    ForInRangeS
+      { iter_meta_var :: Ident
+      , iter_lim :: MetaParam sizeT
+      , loop_body :: Stmt holeT sizeT
+      , dagger :: Bool
+      }
   deriving (Eq, Show, Read)
+
+mkForInRangeS :: Ident -> MetaParam sizeT -> Stmt holeT sizeT -> Stmt holeT sizeT
+mkForInRangeS iter_meta_var iter_lim loop_body = ForInRangeS{iter_meta_var, iter_lim, loop_body, dagger = False}
 
 holeS :: holeT -> Stmt holeT sizeT
 holeS hole = HoleS{hole, dagger = False}
@@ -98,12 +115,14 @@ holeS hole = HoleS{hole, dagger = False}
 type Stmt' = Stmt Void
 
 instance HasDagger (Stmt holeT sizeT) where
+  adjoint s@(CommentS _) = s
   adjoint SkipS = SkipS
   adjoint s@CallS{dagger} = s{dagger = not dagger}
   adjoint (SeqS ss) = SeqS . reverse $ map adjoint ss
   adjoint s@UnitaryS{unitary} = s{unitary = adjoint unitary}
   adjoint (RepeatS k s) = RepeatS k (adjoint s)
   adjoint (HoleS info dagger) = HoleS info (not dagger)
+  adjoint s@ForInRangeS{dagger} = s{dagger = not dagger}
 
 data ParamTag = ParamCtrl | ParamInp | ParamOut | ParamAux | ParamUnk deriving (Eq, Show, Read, Enum)
 
@@ -136,6 +155,13 @@ data Program holeT sizeT = Program
 type Program' = Program Void
 
 -- ================================================================================
+-- Syntax Sugar
+-- ================================================================================
+
+desugarS :: Stmt holeT sizeT -> Maybe (Stmt holeT sizeT)
+desugarS _ = Nothing
+
+-- ================================================================================
 -- Printing
 -- ================================================================================
 
@@ -151,6 +177,7 @@ instance (Show a) => ToCodeString (ClassicalFun a) where
   toCodeString IdF{ty} = showTypedIdent ("x", ty) <> " => x"
   toCodeString AddF{ty} = showTypedIdent ("x", ty) <> ", " <> showTypedIdent ("y", ty) <> " => x+y"
   toCodeString LEqF{ty} = showTypedIdent ("x", ty) <> ", " <> showTypedIdent ("y", ty) <> " => x≤y"
+  toCodeString LEqConstF{val, ty} = printf "%s => x≤%s" (showTypedIdent ("x", ty)) (toCodeString val)
   toCodeString MultiOrF{cfun_n_args} = printf "(x) => OR_%s(x)" (show cfun_n_args)
 
 instance (Show sizeT) => ToCodeString (Unitary sizeT) where
@@ -169,6 +196,7 @@ showDagger False = ""
 
 instance (Show holeT, Show sizeT) => ToCodeString (Stmt holeT sizeT) where
   toCodeLines SkipS = ["skip;"]
+  toCodeLines (CommentS c) = ["// " ++ c]
   toCodeLines UnitaryS{args, unitary} = [qc <> " *= " <> toCodeString unitary <> ";"]
    where
     qc = commaList args
@@ -181,6 +209,22 @@ instance (Show holeT, Show sizeT) => ToCodeString (Stmt holeT sizeT) where
       ++ indent (toCodeLines s)
       ++ ["end"]
   toCodeLines (HoleS info dagger) = [printf "HOLE :: %s%s;" (show info) (showDagger dagger)]
+  -- syntax sugar
+  toCodeLines ForInRangeS{iter_meta_var, iter_lim, dagger, loop_body} =
+    printf "for #%s in %s do" iter_meta_var range_str
+      : indent (toCodeLines loop_body)
+      ++ ["end"]
+   where
+    range_str :: String
+    range_str
+      | dagger = printf "%s - 1 .. 0" (toCodeString iter_lim)
+      | otherwise = printf "0 .. < %s" (toCodeString iter_lim)
+
+-- { iter_meta_var :: Ident
+-- , iter_lim :: MetaParam sizeT
+-- , loop_body :: Stmt holeT sizeT
+-- , dagger :: Bool
+-- }
 
 instance ToCodeString ParamTag where
   toCodeString ParamCtrl = "CTRL"

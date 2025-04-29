@@ -168,7 +168,7 @@ lowerExpr _ P.VarE{P.arg} [ret] = do
   ty <- zoom typingCtx $ Ctx.lookup arg
   return $ UnitaryS [arg, ret] $ RevEmbedU $ IdF ty
 lowerExpr _ P.ConstE{P.val, P.ty} [ret] =
-  return $ UnitaryS [ret] $ RevEmbedU $ ConstF ty val
+  return $ UnitaryS [ret] $ RevEmbedU $ ConstF ty (MetaValue val)
 lowerExpr _ P.UnOpE{P.un_op, P.arg} [ret] = do
   ty <- zoom typingCtx $ Ctx.lookup arg
   return $ UnitaryS [arg, ret] $ RevEmbedU $ case un_op of P.NotOp -> NotF ty

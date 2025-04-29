@@ -25,8 +25,8 @@ spec = do
         let lctx = (mempty, Ctx.empty)
         circ <-
           expectRight $
-            algoQSearchZalka (Fin n) pred_caller eps "output_bit"
-              & execMyWriterT
+            algoQSearchZalka eps "output_bit"
+              & execMyReaderWriterT UQSearchEnv{search_arg_type = Fin n, pred_call_builder = pred_caller}
               & (\m -> evalMyReaderStateT m lenv lctx)
               <&> UQPL.SeqS
         toCodeString circ `shouldSatisfy` (not . null)

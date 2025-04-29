@@ -41,6 +41,11 @@ module QCompose.Control.Monad (
   execMyReaderStateT,
   withInjectedState,
 
+  -- ** RW
+  MyReaderWriterT,
+  evalMyReaderWriterT,
+  execMyReaderWriterT,
+
   -- * MonadError
   throwFrom,
   maybeWithError,
@@ -216,6 +221,17 @@ withSandboxOf part action = do
 -- | Save the current state, run a computation and restore the saved state.
 withSandbox :: (MonadState s m) => m a -> m a
 withSandbox = withSandboxOf id
+
+-- ================================================================================
+-- Reader + Writer
+-- ================================================================================
+type MyReaderWriterT r w = MyReaderWriterStateT r w ()
+
+evalMyReaderWriterT :: (Monad m, Monoid w) => r -> MyReaderWriterT r w m a -> m a
+evalMyReaderWriterT r m = fst <$> evalMyReaderWriterStateT m r ()
+
+execMyReaderWriterT :: (Monad m, Monoid w) => r -> MyReaderWriterT r w m a -> m w
+execMyReaderWriterT r m = snd <$> evalMyReaderWriterStateT m r ()
 
 -- ================================================================================
 -- MonadError
