@@ -58,6 +58,7 @@ unitaryToCirc u _ = fail $ "invalid unitary " <> show u
 
 stmtToCirc :: (Show holeT, Show sizeT) => UQPL.Stmt holeT sizeT -> ConverterT holeT sizeT ()
 stmtToCirc UQPL.SkipS = return ()
+stmtToCirc (UQPL.CommentS _) = return ()
 stmtToCirc (UQPL.SeqS ss) = mapM_ stmtToCirc ss
 stmtToCirc UQPL.UnitaryS{unitary, args} = do
   qs <- zoom quregs $ mapM Ctx.unsafeLookup args
@@ -68,10 +69,11 @@ stmtToCirc UQPL.CallS{proc_id, dagger, args} = do
   let circ_d = if dagger then Q.reverse_generic_endo circ else circ
   qs' <- lift $ circ_d qs
   forM_ (zip args qs') $ \(x, q) -> quregs . Ctx.ins x .= q
-stmtToCirc (UQPL.RepeatS n s) = fail "TODO repeat"
+stmtToCirc (UQPL.RepeatS _ _) = fail "TODO repeat"
 stmtToCirc UQPL.HoleS{hole} = do
   q <- use $ quregs . to Ctx.elems
   lift $ Q.named_gate_at ("HOLE :: " ++ show hole) q
+stmtToCirc UQPL.ForInRangeS{} = fail "TODO ForInRange"
 
 type ProcConverterT holeT sizeT = MyStateT (Ctx.Context UnitaryCirc) Q.Circ
 

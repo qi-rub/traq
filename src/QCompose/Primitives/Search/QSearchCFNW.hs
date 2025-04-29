@@ -26,7 +26,7 @@ module QCompose.Primitives.Search.QSearchCFNW (
 ) where
 
 import Control.Applicative ((<|>))
-import Control.Monad (filterM, forM, forM_, replicateM, when)
+import Control.Monad (filterM, forM, replicateM, when)
 import Control.Monad.Except (throwError)
 import Control.Monad.Extra (anyM)
 import Control.Monad.Trans (lift)
@@ -82,12 +82,12 @@ _QSearchZalka n delta = 2 * nq_simple -- 2x for compute-uncompute
   eps = (delta / 2) ^ (2 :: Int)
 
   -- log_fac = ceiling log_fac
-  log_fac :: costT
-  log_fac = log (1 / eps) / (2 * log (4 / 3))
+  -- log_fac :: costT
+  -- log_fac = log (1 / eps) / (2 * log (4 / 3))
 
   -- number of queries of the original algorithm.
-  nq :: costT
-  nq = 5 * log_fac + pi * sqrt (fromIntegral n * log_fac)
+  -- nq :: costT
+  -- nq = 5 * log_fac + pi * sqrt (fromIntegral n * log_fac)
 
   -- Section 2.1 simple algorithm cost
   max_iter :: sizeT
@@ -449,8 +449,6 @@ algoQSearchZalka ::
   UQSearchBuilder primsT holeT sizeT costT ()
 algoQSearchZalka _ out_bit | useBruteForce = bruteForceQSearch out_bit
 algoQSearchZalka eps out_bit = do
-  mk_pred <- view $ to pred_call_builder
-
   P.Fin n <- view $ to search_arg_type
 
   out_bits <- forM [1 .. n_reps] $ \i -> do
@@ -812,8 +810,8 @@ instance
     tellAt CQPL.loweredUProcs uprocs
     let UQPL.LoweredProc
           { UQPL.inp_tys = pred_inp_tys
-          , UQPL.out_tys = pred_out_tys
           , UQPL.aux_tys = pred_aux_tys
+          -- , UQPL.out_tys = pred_out_tys
           } = pred_uproc
     let upred_proc_name = pred_uproc ^. to UQPL.lowered_def . to UQPL.proc_name
 

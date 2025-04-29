@@ -9,7 +9,6 @@ module QCompose.CQPL.TypeCheck (
 ) where
 
 import Control.Monad (forM, unless, when)
-import Control.Monad.Except (throwError)
 import Control.Monad.RWS (local)
 import Lens.Micro.GHC
 import Lens.Micro.Mtl
@@ -109,23 +108,19 @@ typeCheckStmt AssignS{rets, expr} = do
         "mismatched expression return types: expected %s, got %s"
         (show expect_ret_tys)
         (show actual_ret_tys)
-typeCheckStmt RandomS{ret, max_val} = do
-  -- ret_ty <- magnify typingCtx $ Ctx.lookup' ret
-  -- when (ret_ty /= ty) $ do
-  --   throwError $ printf "random bound must match type, expected %s got %s" (show ret_ty) (show ty)
-  return ()
+typeCheckStmt RandomS{} = return ()
 typeCheckStmt RandomDynS{max_var} = do
   view (typingCtx . Ctx.at max_var) >>= maybeWithError (Err.MessageE $ printf "cannot find variable %s" max_var)
   return ()
 -- function call
-typeCheckStmt CallS{fun = FunctionCall proc_id, meta_params, args} = do
+typeCheckStmt CallS{fun = FunctionCall proc_id, args} = do
   ProcDef{proc_param_types} <- magnify cqProcs $ do
     view (Ctx.at proc_id) >>= maybeWithError (Err.MessageE "cannot find proc")
   arg_tys <- forM args $ \var -> do
     view (typingCtx . Ctx.at var) >>= maybeWithError (Err.MessageE $ printf "cannot find %s" var)
   ensureEqual proc_param_types arg_tys "mismatched function args"
-typeCheckStmt CallS{fun = UProcAndMeas uproc_id, meta_params, args} = do
-  UQPL.ProcDef{UQPL.proc_params, UQPL.proc_meta_params} <- magnify uProcs $ do
+typeCheckStmt CallS{fun = UProcAndMeas uproc_id, args} = do
+  UQPL.ProcDef{UQPL.proc_params} <- magnify uProcs $ do
     view (Ctx.at uproc_id) >>= maybeWithError (Err.MessageE $ printf "cannot find proc %s" uproc_id)
   arg_tys <- forM args $ \var -> do
     view (typingCtx . Ctx.at var) >>= maybeWithError (Err.MessageE $ printf "cannot find %s" var)
@@ -155,8 +150,7 @@ typeCheckProc ::
 typeCheckProc ProcDef{mproc_body = Nothing} = return ()
 typeCheckProc
   ProcDef
-    { proc_meta_params
-    , proc_param_types
+    { proc_param_types
     , mproc_body = Just ProcBody{proc_param_names, proc_local_vars, proc_body_stmt}
     } = do
     when (length proc_param_types /= length proc_param_names) $ do
