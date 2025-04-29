@@ -401,7 +401,7 @@ algoQSearchZalkaRandomIterStep r = do
   -- time register
   let r_ty = P.Fin r
   r_reg <- lift $ UQPL.allocAncillaWithPref "n_iter" r_ty
-  ctrl_bit <- lift $ UQPL.allocAncillaWithPref "n_iter" P.tbool
+  ctrl_bit <- lift $ UQPL.allocAncillaWithPref "ctrl" P.tbool
   x_reg <- allocSearchArgReg
   b_reg <- lift $ UQPL.allocAncillaWithPref "pred_out" P.tbool
 
