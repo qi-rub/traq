@@ -158,10 +158,11 @@ testExample = do
   putStrLn $ replicate 40 '='
 
   -- convert to quipper
+  let circ = programToCirc gamma' uprog
+  let regs = gamma' & Ctx.elems & map vartypeToQureg
   redirectToFile "./example_quipper.pdf" $ do
-    let circ = programToCirc gamma' uprog
-    let regs = gamma' & Ctx.elems & map vartypeToQureg
     Q.print_generic Q.PDF circ regs
+  Q.print_generic Q.ASCII circ regs
 
 main :: IO ()
 main = do

@@ -327,7 +327,7 @@ lowerFunDef with_ctrl _ P.FunDef{P.fun_name, P.param_types, P.ret_types, P.mbody
   ctrl_qubit <- newIdent "ctrl"
   let proc_def =
         ProcDef
-          { proc_name = fun_name
+          { proc_name = (case with_ctrl of WithControl -> "Ctrl_"; _ -> "") ++ fun_name
           , proc_meta_params = []
           , proc_params =
               [(ctrl_qubit, ParamCtrl, P.tbool) | with_ctrl == WithControl]
@@ -363,8 +363,7 @@ lowerFunDef
     let ret_binds = zip ret_names ret_types
 
     typingCtx .= Ctx.fromList (param_binds ++ ret_binds)
-
-    proc_name <- newIdent $ printf "%s_clean[%s]" fun_name (show delta)
+    proc_name <- newIdent $ printf "%s%s_clean[%s]" (case with_ctrl of WithControl -> "Ctrl_"; _ -> "") fun_name (show delta)
 
     g_ret_names <- mapM allocAncilla g_ret_tys
 

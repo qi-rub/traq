@@ -1,0 +1,729 @@
+// Cost         : 1.0
+// Formula Cost : ()
+@Oracle
+uproc Ctrl_Oracle[](ctrl : CTRL Fin<2>, in_0 : IN Fin<20>, out_0 : OUT Fin<2>);
+
+// Cost         : 170.0
+// Formula Cost : ()
+uproc QSearch[20, 5.0e-4, Ctrl_Oracle][](ok : OUT Fin<2>, n_iter : AUX Fin<4>, ctrl_1 : AUX Fin<2>, s_arg : AUX Fin<20>, pred_out : AUX Fin<2>, n_iter_1 : AUX Fin<4>, ctrl_2 : AUX Fin<2>, s_arg_1 : AUX Fin<20>, pred_out_1 : AUX Fin<2>, n_iter_2 : AUX Fin<4>, ctrl_3 : AUX Fin<2>, s_arg_2 : AUX Fin<20>, pred_out_2 : AUX Fin<2>, n_iter_3 : AUX Fin<4>, ctrl_4 : AUX Fin<2>, s_arg_3 : AUX Fin<20>, pred_out_3 : AUX Fin<2>, n_iter_4 : AUX Fin<4>, ctrl_5 : AUX Fin<2>, s_arg_4 : AUX Fin<20>, pred_out_4 : AUX Fin<2>, n_iter_5 : AUX Fin<4>, ctrl_6 : AUX Fin<2>, s_arg_5 : AUX Fin<20>, pred_out_5 : AUX Fin<2>, n_iter_6 : AUX Fin<4>, ctrl_7 : AUX Fin<2>, s_arg_6 : AUX Fin<20>, pred_out_6 : AUX Fin<2>, n_iter_7 : AUX Fin<4>, ctrl_8 : AUX Fin<2>, s_arg_7 : AUX Fin<20>, pred_out_7 : AUX Fin<2>, n_iter_8 : AUX Fin<4>, ctrl_9 : AUX Fin<2>, s_arg_8 : AUX Fin<20>, pred_out_8 : AUX Fin<2>, n_iter_9 : AUX Fin<4>, ctrl_10 : AUX Fin<2>, s_arg_9 : AUX Fin<20>, pred_out_9 : AUX Fin<2>, n_iter_10 : AUX Fin<4>, ctrl_11 : AUX Fin<2>, s_arg_10 : AUX Fin<20>, pred_out_10 : AUX Fin<2>, n_iter_11 : AUX Fin<4>, ctrl_12 : AUX Fin<2>, s_arg_11 : AUX Fin<20>, pred_out_11 : AUX Fin<2>, n_iter_12 : AUX Fin<4>, ctrl_13 : AUX Fin<2>, s_arg_12 : AUX Fin<20>, pred_out_12 : AUX Fin<2>, n_iter_13 : AUX Fin<4>, ctrl_14 : AUX Fin<2>, s_arg_13 : AUX Fin<20>, pred_out_13 : AUX Fin<2>, n_iter_14 : AUX Fin<4>, ctrl_15 : AUX Fin<2>, s_arg_14 : AUX Fin<20>, pred_out_14 : AUX Fin<2>, n_iter_15 : AUX Fin<4>, ctrl_16 : AUX Fin<2>, s_arg_15 : AUX Fin<20>, pred_out_15 : AUX Fin<2>, n_iter_16 : AUX Fin<4>, ctrl_17 : AUX Fin<2>, s_arg_16 : AUX Fin<20>, pred_out_16 : AUX Fin<2>, n_iter_17 : AUX Fin<4>, ctrl_18 : AUX Fin<2>, s_arg_17 : AUX Fin<20>, pred_out_17 : AUX Fin<2>, n_iter_18 : AUX Fin<4>, ctrl_19 : AUX Fin<2>, s_arg_18 : AUX Fin<20>, pred_out_18 : AUX Fin<2>, n_iter_19 : AUX Fin<4>, ctrl_20 : AUX Fin<2>, s_arg_19 : AUX Fin<20>, pred_out_19 : AUX Fin<2>, n_iter_20 : AUX Fin<4>, ctrl_21 : AUX Fin<2>, s_arg_20 : AUX Fin<20>, pred_out_20 : AUX Fin<2>, n_iter_21 : AUX Fin<4>, ctrl_22 : AUX Fin<2>, s_arg_21 : AUX Fin<20>, pred_out_21 : AUX Fin<2>, n_iter_22 : AUX Fin<4>, ctrl_23 : AUX Fin<2>, s_arg_22 : AUX Fin<20>, pred_out_22 : AUX Fin<2>, n_iter_23 : AUX Fin<4>, ctrl_24 : AUX Fin<2>, s_arg_23 : AUX Fin<20>, pred_out_23 : AUX Fin<2>, n_iter_24 : AUX Fin<4>, ctrl_25 : AUX Fin<2>, s_arg_24 : AUX Fin<20>, pred_out_24 : AUX Fin<2>, n_iter_25 : AUX Fin<4>, ctrl_26 : AUX Fin<2>, s_arg_25 : AUX Fin<20>, pred_out_25 : AUX Fin<2>, n_iter_26 : AUX Fin<4>, ctrl_27 : AUX Fin<2>, s_arg_26 : AUX Fin<20>, pred_out_26 : AUX Fin<2>, n_iter_27 : AUX Fin<4>, ctrl_28 : AUX Fin<2>, s_arg_27 : AUX Fin<20>, pred_out_27 : AUX Fin<2>, n_iter_28 : AUX Fin<4>, ctrl_29 : AUX Fin<2>, s_arg_28 : AUX Fin<20>, pred_out_28 : AUX Fin<2>, n_iter_29 : AUX Fin<4>, ctrl_30 : AUX Fin<2>, s_arg_29 : AUX Fin<20>, pred_out_29 : AUX Fin<2>, n_iter_30 : AUX Fin<4>, ctrl_31 : AUX Fin<2>, s_arg_30 : AUX Fin<20>, pred_out_30 : AUX Fin<2>, n_iter_31 : AUX Fin<4>, ctrl_32 : AUX Fin<2>, s_arg_31 : AUX Fin<20>, pred_out_31 : AUX Fin<2>, n_iter_32 : AUX Fin<4>, ctrl_33 : AUX Fin<2>, s_arg_32 : AUX Fin<20>, pred_out_32 : AUX Fin<2>, n_iter_33 : AUX Fin<4>, ctrl_34 : AUX Fin<2>, s_arg_33 : AUX Fin<20>, pred_out_33 : AUX Fin<2>) do
+  // 
+  // Run 1
+  // 
+  n_iter *= Unif[Fin<4>];
+  pred_out *= X;
+  pred_out *= H;
+  s_arg *= Unif[Fin<20>];
+  for #LIM in 0 .. < 4 do
+    n_iter, ctrl_1 *= RevEmbed[x : Fin<4> => x≤#LIM];
+    call Ctrl_Oracle(ctrl_1, s_arg, pred_out);
+    s_arg *= Unif†[Fin<20>];
+    s_arg *= (2|0><0| - I)[Fin<20>];
+    s_arg *= Unif[Fin<20>];
+    n_iter, ctrl_1 *= RevEmbed[x : Fin<4> => x≤#LIM];
+  end
+  pred_out *= H;
+  pred_out *= X;
+  n_iter *= Unif†[Fin<4>];
+  ctrl_1 *= X;
+  call Ctrl_Oracle(ctrl_1, s_arg, pred_out);
+  ctrl_1 *= X;
+  // 
+  // Run 2
+  // 
+  n_iter_1 *= Unif[Fin<4>];
+  pred_out_1 *= X;
+  pred_out_1 *= H;
+  s_arg_1 *= Unif[Fin<20>];
+  for #LIM in 0 .. < 4 do
+    n_iter_1, ctrl_2 *= RevEmbed[x : Fin<4> => x≤#LIM];
+    call Ctrl_Oracle(ctrl_2, s_arg_1, pred_out_1);
+    s_arg_1 *= Unif†[Fin<20>];
+    s_arg_1 *= (2|0><0| - I)[Fin<20>];
+    s_arg_1 *= Unif[Fin<20>];
+    n_iter_1, ctrl_2 *= RevEmbed[x : Fin<4> => x≤#LIM];
+  end
+  pred_out_1 *= H;
+  pred_out_1 *= X;
+  n_iter_1 *= Unif†[Fin<4>];
+  ctrl_2 *= X;
+  call Ctrl_Oracle(ctrl_2, s_arg_1, pred_out_1);
+  ctrl_2 *= X;
+  // 
+  // Run 3
+  // 
+  n_iter_2 *= Unif[Fin<4>];
+  pred_out_2 *= X;
+  pred_out_2 *= H;
+  s_arg_2 *= Unif[Fin<20>];
+  for #LIM in 0 .. < 4 do
+    n_iter_2, ctrl_3 *= RevEmbed[x : Fin<4> => x≤#LIM];
+    call Ctrl_Oracle(ctrl_3, s_arg_2, pred_out_2);
+    s_arg_2 *= Unif†[Fin<20>];
+    s_arg_2 *= (2|0><0| - I)[Fin<20>];
+    s_arg_2 *= Unif[Fin<20>];
+    n_iter_2, ctrl_3 *= RevEmbed[x : Fin<4> => x≤#LIM];
+  end
+  pred_out_2 *= H;
+  pred_out_2 *= X;
+  n_iter_2 *= Unif†[Fin<4>];
+  ctrl_3 *= X;
+  call Ctrl_Oracle(ctrl_3, s_arg_2, pred_out_2);
+  ctrl_3 *= X;
+  // 
+  // Run 4
+  // 
+  n_iter_3 *= Unif[Fin<4>];
+  pred_out_3 *= X;
+  pred_out_3 *= H;
+  s_arg_3 *= Unif[Fin<20>];
+  for #LIM in 0 .. < 4 do
+    n_iter_3, ctrl_4 *= RevEmbed[x : Fin<4> => x≤#LIM];
+    call Ctrl_Oracle(ctrl_4, s_arg_3, pred_out_3);
+    s_arg_3 *= Unif†[Fin<20>];
+    s_arg_3 *= (2|0><0| - I)[Fin<20>];
+    s_arg_3 *= Unif[Fin<20>];
+    n_iter_3, ctrl_4 *= RevEmbed[x : Fin<4> => x≤#LIM];
+  end
+  pred_out_3 *= H;
+  pred_out_3 *= X;
+  n_iter_3 *= Unif†[Fin<4>];
+  ctrl_4 *= X;
+  call Ctrl_Oracle(ctrl_4, s_arg_3, pred_out_3);
+  ctrl_4 *= X;
+  // 
+  // Run 5
+  // 
+  n_iter_4 *= Unif[Fin<4>];
+  pred_out_4 *= X;
+  pred_out_4 *= H;
+  s_arg_4 *= Unif[Fin<20>];
+  for #LIM in 0 .. < 4 do
+    n_iter_4, ctrl_5 *= RevEmbed[x : Fin<4> => x≤#LIM];
+    call Ctrl_Oracle(ctrl_5, s_arg_4, pred_out_4);
+    s_arg_4 *= Unif†[Fin<20>];
+    s_arg_4 *= (2|0><0| - I)[Fin<20>];
+    s_arg_4 *= Unif[Fin<20>];
+    n_iter_4, ctrl_5 *= RevEmbed[x : Fin<4> => x≤#LIM];
+  end
+  pred_out_4 *= H;
+  pred_out_4 *= X;
+  n_iter_4 *= Unif†[Fin<4>];
+  ctrl_5 *= X;
+  call Ctrl_Oracle(ctrl_5, s_arg_4, pred_out_4);
+  ctrl_5 *= X;
+  // 
+  // Run 6
+  // 
+  n_iter_5 *= Unif[Fin<4>];
+  pred_out_5 *= X;
+  pred_out_5 *= H;
+  s_arg_5 *= Unif[Fin<20>];
+  for #LIM in 0 .. < 4 do
+    n_iter_5, ctrl_6 *= RevEmbed[x : Fin<4> => x≤#LIM];
+    call Ctrl_Oracle(ctrl_6, s_arg_5, pred_out_5);
+    s_arg_5 *= Unif†[Fin<20>];
+    s_arg_5 *= (2|0><0| - I)[Fin<20>];
+    s_arg_5 *= Unif[Fin<20>];
+    n_iter_5, ctrl_6 *= RevEmbed[x : Fin<4> => x≤#LIM];
+  end
+  pred_out_5 *= H;
+  pred_out_5 *= X;
+  n_iter_5 *= Unif†[Fin<4>];
+  ctrl_6 *= X;
+  call Ctrl_Oracle(ctrl_6, s_arg_5, pred_out_5);
+  ctrl_6 *= X;
+  // 
+  // Run 7
+  // 
+  n_iter_6 *= Unif[Fin<4>];
+  pred_out_6 *= X;
+  pred_out_6 *= H;
+  s_arg_6 *= Unif[Fin<20>];
+  for #LIM in 0 .. < 4 do
+    n_iter_6, ctrl_7 *= RevEmbed[x : Fin<4> => x≤#LIM];
+    call Ctrl_Oracle(ctrl_7, s_arg_6, pred_out_6);
+    s_arg_6 *= Unif†[Fin<20>];
+    s_arg_6 *= (2|0><0| - I)[Fin<20>];
+    s_arg_6 *= Unif[Fin<20>];
+    n_iter_6, ctrl_7 *= RevEmbed[x : Fin<4> => x≤#LIM];
+  end
+  pred_out_6 *= H;
+  pred_out_6 *= X;
+  n_iter_6 *= Unif†[Fin<4>];
+  ctrl_7 *= X;
+  call Ctrl_Oracle(ctrl_7, s_arg_6, pred_out_6);
+  ctrl_7 *= X;
+  // 
+  // Run 8
+  // 
+  n_iter_7 *= Unif[Fin<4>];
+  pred_out_7 *= X;
+  pred_out_7 *= H;
+  s_arg_7 *= Unif[Fin<20>];
+  for #LIM in 0 .. < 4 do
+    n_iter_7, ctrl_8 *= RevEmbed[x : Fin<4> => x≤#LIM];
+    call Ctrl_Oracle(ctrl_8, s_arg_7, pred_out_7);
+    s_arg_7 *= Unif†[Fin<20>];
+    s_arg_7 *= (2|0><0| - I)[Fin<20>];
+    s_arg_7 *= Unif[Fin<20>];
+    n_iter_7, ctrl_8 *= RevEmbed[x : Fin<4> => x≤#LIM];
+  end
+  pred_out_7 *= H;
+  pred_out_7 *= X;
+  n_iter_7 *= Unif†[Fin<4>];
+  ctrl_8 *= X;
+  call Ctrl_Oracle(ctrl_8, s_arg_7, pred_out_7);
+  ctrl_8 *= X;
+  // 
+  // Run 9
+  // 
+  n_iter_8 *= Unif[Fin<4>];
+  pred_out_8 *= X;
+  pred_out_8 *= H;
+  s_arg_8 *= Unif[Fin<20>];
+  for #LIM in 0 .. < 4 do
+    n_iter_8, ctrl_9 *= RevEmbed[x : Fin<4> => x≤#LIM];
+    call Ctrl_Oracle(ctrl_9, s_arg_8, pred_out_8);
+    s_arg_8 *= Unif†[Fin<20>];
+    s_arg_8 *= (2|0><0| - I)[Fin<20>];
+    s_arg_8 *= Unif[Fin<20>];
+    n_iter_8, ctrl_9 *= RevEmbed[x : Fin<4> => x≤#LIM];
+  end
+  pred_out_8 *= H;
+  pred_out_8 *= X;
+  n_iter_8 *= Unif†[Fin<4>];
+  ctrl_9 *= X;
+  call Ctrl_Oracle(ctrl_9, s_arg_8, pred_out_8);
+  ctrl_9 *= X;
+  // 
+  // Run 10
+  // 
+  n_iter_9 *= Unif[Fin<4>];
+  pred_out_9 *= X;
+  pred_out_9 *= H;
+  s_arg_9 *= Unif[Fin<20>];
+  for #LIM in 0 .. < 4 do
+    n_iter_9, ctrl_10 *= RevEmbed[x : Fin<4> => x≤#LIM];
+    call Ctrl_Oracle(ctrl_10, s_arg_9, pred_out_9);
+    s_arg_9 *= Unif†[Fin<20>];
+    s_arg_9 *= (2|0><0| - I)[Fin<20>];
+    s_arg_9 *= Unif[Fin<20>];
+    n_iter_9, ctrl_10 *= RevEmbed[x : Fin<4> => x≤#LIM];
+  end
+  pred_out_9 *= H;
+  pred_out_9 *= X;
+  n_iter_9 *= Unif†[Fin<4>];
+  ctrl_10 *= X;
+  call Ctrl_Oracle(ctrl_10, s_arg_9, pred_out_9);
+  ctrl_10 *= X;
+  // 
+  // Run 11
+  // 
+  n_iter_10 *= Unif[Fin<4>];
+  pred_out_10 *= X;
+  pred_out_10 *= H;
+  s_arg_10 *= Unif[Fin<20>];
+  for #LIM in 0 .. < 4 do
+    n_iter_10, ctrl_11 *= RevEmbed[x : Fin<4> => x≤#LIM];
+    call Ctrl_Oracle(ctrl_11, s_arg_10, pred_out_10);
+    s_arg_10 *= Unif†[Fin<20>];
+    s_arg_10 *= (2|0><0| - I)[Fin<20>];
+    s_arg_10 *= Unif[Fin<20>];
+    n_iter_10, ctrl_11 *= RevEmbed[x : Fin<4> => x≤#LIM];
+  end
+  pred_out_10 *= H;
+  pred_out_10 *= X;
+  n_iter_10 *= Unif†[Fin<4>];
+  ctrl_11 *= X;
+  call Ctrl_Oracle(ctrl_11, s_arg_10, pred_out_10);
+  ctrl_11 *= X;
+  // 
+  // Run 12
+  // 
+  n_iter_11 *= Unif[Fin<4>];
+  pred_out_11 *= X;
+  pred_out_11 *= H;
+  s_arg_11 *= Unif[Fin<20>];
+  for #LIM in 0 .. < 4 do
+    n_iter_11, ctrl_12 *= RevEmbed[x : Fin<4> => x≤#LIM];
+    call Ctrl_Oracle(ctrl_12, s_arg_11, pred_out_11);
+    s_arg_11 *= Unif†[Fin<20>];
+    s_arg_11 *= (2|0><0| - I)[Fin<20>];
+    s_arg_11 *= Unif[Fin<20>];
+    n_iter_11, ctrl_12 *= RevEmbed[x : Fin<4> => x≤#LIM];
+  end
+  pred_out_11 *= H;
+  pred_out_11 *= X;
+  n_iter_11 *= Unif†[Fin<4>];
+  ctrl_12 *= X;
+  call Ctrl_Oracle(ctrl_12, s_arg_11, pred_out_11);
+  ctrl_12 *= X;
+  // 
+  // Run 13
+  // 
+  n_iter_12 *= Unif[Fin<4>];
+  pred_out_12 *= X;
+  pred_out_12 *= H;
+  s_arg_12 *= Unif[Fin<20>];
+  for #LIM in 0 .. < 4 do
+    n_iter_12, ctrl_13 *= RevEmbed[x : Fin<4> => x≤#LIM];
+    call Ctrl_Oracle(ctrl_13, s_arg_12, pred_out_12);
+    s_arg_12 *= Unif†[Fin<20>];
+    s_arg_12 *= (2|0><0| - I)[Fin<20>];
+    s_arg_12 *= Unif[Fin<20>];
+    n_iter_12, ctrl_13 *= RevEmbed[x : Fin<4> => x≤#LIM];
+  end
+  pred_out_12 *= H;
+  pred_out_12 *= X;
+  n_iter_12 *= Unif†[Fin<4>];
+  ctrl_13 *= X;
+  call Ctrl_Oracle(ctrl_13, s_arg_12, pred_out_12);
+  ctrl_13 *= X;
+  // 
+  // Run 14
+  // 
+  n_iter_13 *= Unif[Fin<4>];
+  pred_out_13 *= X;
+  pred_out_13 *= H;
+  s_arg_13 *= Unif[Fin<20>];
+  for #LIM in 0 .. < 4 do
+    n_iter_13, ctrl_14 *= RevEmbed[x : Fin<4> => x≤#LIM];
+    call Ctrl_Oracle(ctrl_14, s_arg_13, pred_out_13);
+    s_arg_13 *= Unif†[Fin<20>];
+    s_arg_13 *= (2|0><0| - I)[Fin<20>];
+    s_arg_13 *= Unif[Fin<20>];
+    n_iter_13, ctrl_14 *= RevEmbed[x : Fin<4> => x≤#LIM];
+  end
+  pred_out_13 *= H;
+  pred_out_13 *= X;
+  n_iter_13 *= Unif†[Fin<4>];
+  ctrl_14 *= X;
+  call Ctrl_Oracle(ctrl_14, s_arg_13, pred_out_13);
+  ctrl_14 *= X;
+  // 
+  // Run 15
+  // 
+  n_iter_14 *= Unif[Fin<4>];
+  pred_out_14 *= X;
+  pred_out_14 *= H;
+  s_arg_14 *= Unif[Fin<20>];
+  for #LIM in 0 .. < 4 do
+    n_iter_14, ctrl_15 *= RevEmbed[x : Fin<4> => x≤#LIM];
+    call Ctrl_Oracle(ctrl_15, s_arg_14, pred_out_14);
+    s_arg_14 *= Unif†[Fin<20>];
+    s_arg_14 *= (2|0><0| - I)[Fin<20>];
+    s_arg_14 *= Unif[Fin<20>];
+    n_iter_14, ctrl_15 *= RevEmbed[x : Fin<4> => x≤#LIM];
+  end
+  pred_out_14 *= H;
+  pred_out_14 *= X;
+  n_iter_14 *= Unif†[Fin<4>];
+  ctrl_15 *= X;
+  call Ctrl_Oracle(ctrl_15, s_arg_14, pred_out_14);
+  ctrl_15 *= X;
+  // 
+  // Run 16
+  // 
+  n_iter_15 *= Unif[Fin<4>];
+  pred_out_15 *= X;
+  pred_out_15 *= H;
+  s_arg_15 *= Unif[Fin<20>];
+  for #LIM in 0 .. < 4 do
+    n_iter_15, ctrl_16 *= RevEmbed[x : Fin<4> => x≤#LIM];
+    call Ctrl_Oracle(ctrl_16, s_arg_15, pred_out_15);
+    s_arg_15 *= Unif†[Fin<20>];
+    s_arg_15 *= (2|0><0| - I)[Fin<20>];
+    s_arg_15 *= Unif[Fin<20>];
+    n_iter_15, ctrl_16 *= RevEmbed[x : Fin<4> => x≤#LIM];
+  end
+  pred_out_15 *= H;
+  pred_out_15 *= X;
+  n_iter_15 *= Unif†[Fin<4>];
+  ctrl_16 *= X;
+  call Ctrl_Oracle(ctrl_16, s_arg_15, pred_out_15);
+  ctrl_16 *= X;
+  // 
+  // Run 17
+  // 
+  n_iter_16 *= Unif[Fin<4>];
+  pred_out_16 *= X;
+  pred_out_16 *= H;
+  s_arg_16 *= Unif[Fin<20>];
+  for #LIM in 0 .. < 4 do
+    n_iter_16, ctrl_17 *= RevEmbed[x : Fin<4> => x≤#LIM];
+    call Ctrl_Oracle(ctrl_17, s_arg_16, pred_out_16);
+    s_arg_16 *= Unif†[Fin<20>];
+    s_arg_16 *= (2|0><0| - I)[Fin<20>];
+    s_arg_16 *= Unif[Fin<20>];
+    n_iter_16, ctrl_17 *= RevEmbed[x : Fin<4> => x≤#LIM];
+  end
+  pred_out_16 *= H;
+  pred_out_16 *= X;
+  n_iter_16 *= Unif†[Fin<4>];
+  ctrl_17 *= X;
+  call Ctrl_Oracle(ctrl_17, s_arg_16, pred_out_16);
+  ctrl_17 *= X;
+  // 
+  // Run 18
+  // 
+  n_iter_17 *= Unif[Fin<4>];
+  pred_out_17 *= X;
+  pred_out_17 *= H;
+  s_arg_17 *= Unif[Fin<20>];
+  for #LIM in 0 .. < 4 do
+    n_iter_17, ctrl_18 *= RevEmbed[x : Fin<4> => x≤#LIM];
+    call Ctrl_Oracle(ctrl_18, s_arg_17, pred_out_17);
+    s_arg_17 *= Unif†[Fin<20>];
+    s_arg_17 *= (2|0><0| - I)[Fin<20>];
+    s_arg_17 *= Unif[Fin<20>];
+    n_iter_17, ctrl_18 *= RevEmbed[x : Fin<4> => x≤#LIM];
+  end
+  pred_out_17 *= H;
+  pred_out_17 *= X;
+  n_iter_17 *= Unif†[Fin<4>];
+  ctrl_18 *= X;
+  call Ctrl_Oracle(ctrl_18, s_arg_17, pred_out_17);
+  ctrl_18 *= X;
+  // 
+  // Run 19
+  // 
+  n_iter_18 *= Unif[Fin<4>];
+  pred_out_18 *= X;
+  pred_out_18 *= H;
+  s_arg_18 *= Unif[Fin<20>];
+  for #LIM in 0 .. < 4 do
+    n_iter_18, ctrl_19 *= RevEmbed[x : Fin<4> => x≤#LIM];
+    call Ctrl_Oracle(ctrl_19, s_arg_18, pred_out_18);
+    s_arg_18 *= Unif†[Fin<20>];
+    s_arg_18 *= (2|0><0| - I)[Fin<20>];
+    s_arg_18 *= Unif[Fin<20>];
+    n_iter_18, ctrl_19 *= RevEmbed[x : Fin<4> => x≤#LIM];
+  end
+  pred_out_18 *= H;
+  pred_out_18 *= X;
+  n_iter_18 *= Unif†[Fin<4>];
+  ctrl_19 *= X;
+  call Ctrl_Oracle(ctrl_19, s_arg_18, pred_out_18);
+  ctrl_19 *= X;
+  // 
+  // Run 20
+  // 
+  n_iter_19 *= Unif[Fin<4>];
+  pred_out_19 *= X;
+  pred_out_19 *= H;
+  s_arg_19 *= Unif[Fin<20>];
+  for #LIM in 0 .. < 4 do
+    n_iter_19, ctrl_20 *= RevEmbed[x : Fin<4> => x≤#LIM];
+    call Ctrl_Oracle(ctrl_20, s_arg_19, pred_out_19);
+    s_arg_19 *= Unif†[Fin<20>];
+    s_arg_19 *= (2|0><0| - I)[Fin<20>];
+    s_arg_19 *= Unif[Fin<20>];
+    n_iter_19, ctrl_20 *= RevEmbed[x : Fin<4> => x≤#LIM];
+  end
+  pred_out_19 *= H;
+  pred_out_19 *= X;
+  n_iter_19 *= Unif†[Fin<4>];
+  ctrl_20 *= X;
+  call Ctrl_Oracle(ctrl_20, s_arg_19, pred_out_19);
+  ctrl_20 *= X;
+  // 
+  // Run 21
+  // 
+  n_iter_20 *= Unif[Fin<4>];
+  pred_out_20 *= X;
+  pred_out_20 *= H;
+  s_arg_20 *= Unif[Fin<20>];
+  for #LIM in 0 .. < 4 do
+    n_iter_20, ctrl_21 *= RevEmbed[x : Fin<4> => x≤#LIM];
+    call Ctrl_Oracle(ctrl_21, s_arg_20, pred_out_20);
+    s_arg_20 *= Unif†[Fin<20>];
+    s_arg_20 *= (2|0><0| - I)[Fin<20>];
+    s_arg_20 *= Unif[Fin<20>];
+    n_iter_20, ctrl_21 *= RevEmbed[x : Fin<4> => x≤#LIM];
+  end
+  pred_out_20 *= H;
+  pred_out_20 *= X;
+  n_iter_20 *= Unif†[Fin<4>];
+  ctrl_21 *= X;
+  call Ctrl_Oracle(ctrl_21, s_arg_20, pred_out_20);
+  ctrl_21 *= X;
+  // 
+  // Run 22
+  // 
+  n_iter_21 *= Unif[Fin<4>];
+  pred_out_21 *= X;
+  pred_out_21 *= H;
+  s_arg_21 *= Unif[Fin<20>];
+  for #LIM in 0 .. < 4 do
+    n_iter_21, ctrl_22 *= RevEmbed[x : Fin<4> => x≤#LIM];
+    call Ctrl_Oracle(ctrl_22, s_arg_21, pred_out_21);
+    s_arg_21 *= Unif†[Fin<20>];
+    s_arg_21 *= (2|0><0| - I)[Fin<20>];
+    s_arg_21 *= Unif[Fin<20>];
+    n_iter_21, ctrl_22 *= RevEmbed[x : Fin<4> => x≤#LIM];
+  end
+  pred_out_21 *= H;
+  pred_out_21 *= X;
+  n_iter_21 *= Unif†[Fin<4>];
+  ctrl_22 *= X;
+  call Ctrl_Oracle(ctrl_22, s_arg_21, pred_out_21);
+  ctrl_22 *= X;
+  // 
+  // Run 23
+  // 
+  n_iter_22 *= Unif[Fin<4>];
+  pred_out_22 *= X;
+  pred_out_22 *= H;
+  s_arg_22 *= Unif[Fin<20>];
+  for #LIM in 0 .. < 4 do
+    n_iter_22, ctrl_23 *= RevEmbed[x : Fin<4> => x≤#LIM];
+    call Ctrl_Oracle(ctrl_23, s_arg_22, pred_out_22);
+    s_arg_22 *= Unif†[Fin<20>];
+    s_arg_22 *= (2|0><0| - I)[Fin<20>];
+    s_arg_22 *= Unif[Fin<20>];
+    n_iter_22, ctrl_23 *= RevEmbed[x : Fin<4> => x≤#LIM];
+  end
+  pred_out_22 *= H;
+  pred_out_22 *= X;
+  n_iter_22 *= Unif†[Fin<4>];
+  ctrl_23 *= X;
+  call Ctrl_Oracle(ctrl_23, s_arg_22, pred_out_22);
+  ctrl_23 *= X;
+  // 
+  // Run 24
+  // 
+  n_iter_23 *= Unif[Fin<4>];
+  pred_out_23 *= X;
+  pred_out_23 *= H;
+  s_arg_23 *= Unif[Fin<20>];
+  for #LIM in 0 .. < 4 do
+    n_iter_23, ctrl_24 *= RevEmbed[x : Fin<4> => x≤#LIM];
+    call Ctrl_Oracle(ctrl_24, s_arg_23, pred_out_23);
+    s_arg_23 *= Unif†[Fin<20>];
+    s_arg_23 *= (2|0><0| - I)[Fin<20>];
+    s_arg_23 *= Unif[Fin<20>];
+    n_iter_23, ctrl_24 *= RevEmbed[x : Fin<4> => x≤#LIM];
+  end
+  pred_out_23 *= H;
+  pred_out_23 *= X;
+  n_iter_23 *= Unif†[Fin<4>];
+  ctrl_24 *= X;
+  call Ctrl_Oracle(ctrl_24, s_arg_23, pred_out_23);
+  ctrl_24 *= X;
+  // 
+  // Run 25
+  // 
+  n_iter_24 *= Unif[Fin<4>];
+  pred_out_24 *= X;
+  pred_out_24 *= H;
+  s_arg_24 *= Unif[Fin<20>];
+  for #LIM in 0 .. < 4 do
+    n_iter_24, ctrl_25 *= RevEmbed[x : Fin<4> => x≤#LIM];
+    call Ctrl_Oracle(ctrl_25, s_arg_24, pred_out_24);
+    s_arg_24 *= Unif†[Fin<20>];
+    s_arg_24 *= (2|0><0| - I)[Fin<20>];
+    s_arg_24 *= Unif[Fin<20>];
+    n_iter_24, ctrl_25 *= RevEmbed[x : Fin<4> => x≤#LIM];
+  end
+  pred_out_24 *= H;
+  pred_out_24 *= X;
+  n_iter_24 *= Unif†[Fin<4>];
+  ctrl_25 *= X;
+  call Ctrl_Oracle(ctrl_25, s_arg_24, pred_out_24);
+  ctrl_25 *= X;
+  // 
+  // Run 26
+  // 
+  n_iter_25 *= Unif[Fin<4>];
+  pred_out_25 *= X;
+  pred_out_25 *= H;
+  s_arg_25 *= Unif[Fin<20>];
+  for #LIM in 0 .. < 4 do
+    n_iter_25, ctrl_26 *= RevEmbed[x : Fin<4> => x≤#LIM];
+    call Ctrl_Oracle(ctrl_26, s_arg_25, pred_out_25);
+    s_arg_25 *= Unif†[Fin<20>];
+    s_arg_25 *= (2|0><0| - I)[Fin<20>];
+    s_arg_25 *= Unif[Fin<20>];
+    n_iter_25, ctrl_26 *= RevEmbed[x : Fin<4> => x≤#LIM];
+  end
+  pred_out_25 *= H;
+  pred_out_25 *= X;
+  n_iter_25 *= Unif†[Fin<4>];
+  ctrl_26 *= X;
+  call Ctrl_Oracle(ctrl_26, s_arg_25, pred_out_25);
+  ctrl_26 *= X;
+  // 
+  // Run 27
+  // 
+  n_iter_26 *= Unif[Fin<4>];
+  pred_out_26 *= X;
+  pred_out_26 *= H;
+  s_arg_26 *= Unif[Fin<20>];
+  for #LIM in 0 .. < 4 do
+    n_iter_26, ctrl_27 *= RevEmbed[x : Fin<4> => x≤#LIM];
+    call Ctrl_Oracle(ctrl_27, s_arg_26, pred_out_26);
+    s_arg_26 *= Unif†[Fin<20>];
+    s_arg_26 *= (2|0><0| - I)[Fin<20>];
+    s_arg_26 *= Unif[Fin<20>];
+    n_iter_26, ctrl_27 *= RevEmbed[x : Fin<4> => x≤#LIM];
+  end
+  pred_out_26 *= H;
+  pred_out_26 *= X;
+  n_iter_26 *= Unif†[Fin<4>];
+  ctrl_27 *= X;
+  call Ctrl_Oracle(ctrl_27, s_arg_26, pred_out_26);
+  ctrl_27 *= X;
+  // 
+  // Run 28
+  // 
+  n_iter_27 *= Unif[Fin<4>];
+  pred_out_27 *= X;
+  pred_out_27 *= H;
+  s_arg_27 *= Unif[Fin<20>];
+  for #LIM in 0 .. < 4 do
+    n_iter_27, ctrl_28 *= RevEmbed[x : Fin<4> => x≤#LIM];
+    call Ctrl_Oracle(ctrl_28, s_arg_27, pred_out_27);
+    s_arg_27 *= Unif†[Fin<20>];
+    s_arg_27 *= (2|0><0| - I)[Fin<20>];
+    s_arg_27 *= Unif[Fin<20>];
+    n_iter_27, ctrl_28 *= RevEmbed[x : Fin<4> => x≤#LIM];
+  end
+  pred_out_27 *= H;
+  pred_out_27 *= X;
+  n_iter_27 *= Unif†[Fin<4>];
+  ctrl_28 *= X;
+  call Ctrl_Oracle(ctrl_28, s_arg_27, pred_out_27);
+  ctrl_28 *= X;
+  // 
+  // Run 29
+  // 
+  n_iter_28 *= Unif[Fin<4>];
+  pred_out_28 *= X;
+  pred_out_28 *= H;
+  s_arg_28 *= Unif[Fin<20>];
+  for #LIM in 0 .. < 4 do
+    n_iter_28, ctrl_29 *= RevEmbed[x : Fin<4> => x≤#LIM];
+    call Ctrl_Oracle(ctrl_29, s_arg_28, pred_out_28);
+    s_arg_28 *= Unif†[Fin<20>];
+    s_arg_28 *= (2|0><0| - I)[Fin<20>];
+    s_arg_28 *= Unif[Fin<20>];
+    n_iter_28, ctrl_29 *= RevEmbed[x : Fin<4> => x≤#LIM];
+  end
+  pred_out_28 *= H;
+  pred_out_28 *= X;
+  n_iter_28 *= Unif†[Fin<4>];
+  ctrl_29 *= X;
+  call Ctrl_Oracle(ctrl_29, s_arg_28, pred_out_28);
+  ctrl_29 *= X;
+  // 
+  // Run 30
+  // 
+  n_iter_29 *= Unif[Fin<4>];
+  pred_out_29 *= X;
+  pred_out_29 *= H;
+  s_arg_29 *= Unif[Fin<20>];
+  for #LIM in 0 .. < 4 do
+    n_iter_29, ctrl_30 *= RevEmbed[x : Fin<4> => x≤#LIM];
+    call Ctrl_Oracle(ctrl_30, s_arg_29, pred_out_29);
+    s_arg_29 *= Unif†[Fin<20>];
+    s_arg_29 *= (2|0><0| - I)[Fin<20>];
+    s_arg_29 *= Unif[Fin<20>];
+    n_iter_29, ctrl_30 *= RevEmbed[x : Fin<4> => x≤#LIM];
+  end
+  pred_out_29 *= H;
+  pred_out_29 *= X;
+  n_iter_29 *= Unif†[Fin<4>];
+  ctrl_30 *= X;
+  call Ctrl_Oracle(ctrl_30, s_arg_29, pred_out_29);
+  ctrl_30 *= X;
+  // 
+  // Run 31
+  // 
+  n_iter_30 *= Unif[Fin<4>];
+  pred_out_30 *= X;
+  pred_out_30 *= H;
+  s_arg_30 *= Unif[Fin<20>];
+  for #LIM in 0 .. < 4 do
+    n_iter_30, ctrl_31 *= RevEmbed[x : Fin<4> => x≤#LIM];
+    call Ctrl_Oracle(ctrl_31, s_arg_30, pred_out_30);
+    s_arg_30 *= Unif†[Fin<20>];
+    s_arg_30 *= (2|0><0| - I)[Fin<20>];
+    s_arg_30 *= Unif[Fin<20>];
+    n_iter_30, ctrl_31 *= RevEmbed[x : Fin<4> => x≤#LIM];
+  end
+  pred_out_30 *= H;
+  pred_out_30 *= X;
+  n_iter_30 *= Unif†[Fin<4>];
+  ctrl_31 *= X;
+  call Ctrl_Oracle(ctrl_31, s_arg_30, pred_out_30);
+  ctrl_31 *= X;
+  // 
+  // Run 32
+  // 
+  n_iter_31 *= Unif[Fin<4>];
+  pred_out_31 *= X;
+  pred_out_31 *= H;
+  s_arg_31 *= Unif[Fin<20>];
+  for #LIM in 0 .. < 4 do
+    n_iter_31, ctrl_32 *= RevEmbed[x : Fin<4> => x≤#LIM];
+    call Ctrl_Oracle(ctrl_32, s_arg_31, pred_out_31);
+    s_arg_31 *= Unif†[Fin<20>];
+    s_arg_31 *= (2|0><0| - I)[Fin<20>];
+    s_arg_31 *= Unif[Fin<20>];
+    n_iter_31, ctrl_32 *= RevEmbed[x : Fin<4> => x≤#LIM];
+  end
+  pred_out_31 *= H;
+  pred_out_31 *= X;
+  n_iter_31 *= Unif†[Fin<4>];
+  ctrl_32 *= X;
+  call Ctrl_Oracle(ctrl_32, s_arg_31, pred_out_31);
+  ctrl_32 *= X;
+  // 
+  // Run 33
+  // 
+  n_iter_32 *= Unif[Fin<4>];
+  pred_out_32 *= X;
+  pred_out_32 *= H;
+  s_arg_32 *= Unif[Fin<20>];
+  for #LIM in 0 .. < 4 do
+    n_iter_32, ctrl_33 *= RevEmbed[x : Fin<4> => x≤#LIM];
+    call Ctrl_Oracle(ctrl_33, s_arg_32, pred_out_32);
+    s_arg_32 *= Unif†[Fin<20>];
+    s_arg_32 *= (2|0><0| - I)[Fin<20>];
+    s_arg_32 *= Unif[Fin<20>];
+    n_iter_32, ctrl_33 *= RevEmbed[x : Fin<4> => x≤#LIM];
+  end
+  pred_out_32 *= H;
+  pred_out_32 *= X;
+  n_iter_32 *= Unif†[Fin<4>];
+  ctrl_33 *= X;
+  call Ctrl_Oracle(ctrl_33, s_arg_32, pred_out_32);
+  ctrl_33 *= X;
+  // 
+  // Run 34
+  // 
+  n_iter_33 *= Unif[Fin<4>];
+  pred_out_33 *= X;
+  pred_out_33 *= H;
+  s_arg_33 *= Unif[Fin<20>];
+  for #LIM in 0 .. < 4 do
+    n_iter_33, ctrl_34 *= RevEmbed[x : Fin<4> => x≤#LIM];
+    call Ctrl_Oracle(ctrl_34, s_arg_33, pred_out_33);
+    s_arg_33 *= Unif†[Fin<20>];
+    s_arg_33 *= (2|0><0| - I)[Fin<20>];
+    s_arg_33 *= Unif[Fin<20>];
+    n_iter_33, ctrl_34 *= RevEmbed[x : Fin<4> => x≤#LIM];
+  end
+  pred_out_33 *= H;
+  pred_out_33 *= X;
+  n_iter_33 *= Unif†[Fin<4>];
+  ctrl_34 *= X;
+  call Ctrl_Oracle(ctrl_34, s_arg_33, pred_out_33);
+  ctrl_34 *= X;
+  pred_out, pred_out_1, pred_out_2, pred_out_3, pred_out_4, pred_out_5, pred_out_6, pred_out_7, pred_out_8, pred_out_9, pred_out_10, pred_out_11, pred_out_12, pred_out_13, pred_out_14, pred_out_15, pred_out_16, pred_out_17, pred_out_18, pred_out_19, pred_out_20, pred_out_21, pred_out_22, pred_out_23, pred_out_24, pred_out_25, pred_out_26, pred_out_27, pred_out_28, pred_out_29, pred_out_30, pred_out_31, pred_out_32, pred_out_33, ok *= RevEmbed[(x) => OR_34(x)];
+end
+
+// Actual Cost : 170.0
+// Formula Cost: 267.22995
+call QSearch[20, 5.0e-4, Ctrl_Oracle](ok, n_iter, ctrl_1, s_arg, pred_out, n_iter_1, ctrl_2, s_arg_1, pred_out_1, n_iter_2, ctrl_3, s_arg_2, pred_out_2, n_iter_3, ctrl_4, s_arg_3, pred_out_3, n_iter_4, ctrl_5, s_arg_4, pred_out_4, n_iter_5, ctrl_6, s_arg_5, pred_out_5, n_iter_6, ctrl_7, s_arg_6, pred_out_6, n_iter_7, ctrl_8, s_arg_7, pred_out_7, n_iter_8, ctrl_9, s_arg_8, pred_out_8, n_iter_9, ctrl_10, s_arg_9, pred_out_9, n_iter_10, ctrl_11, s_arg_10, pred_out_10, n_iter_11, ctrl_12, s_arg_11, pred_out_11, n_iter_12, ctrl_13, s_arg_12, pred_out_12, n_iter_13, ctrl_14, s_arg_13, pred_out_13, n_iter_14, ctrl_15, s_arg_14, pred_out_14, n_iter_15, ctrl_16, s_arg_15, pred_out_15, n_iter_16, ctrl_17, s_arg_16, pred_out_16, n_iter_17, ctrl_18, s_arg_17, pred_out_17, n_iter_18, ctrl_19, s_arg_18, pred_out_18, n_iter_19, ctrl_20, s_arg_19, pred_out_19, n_iter_20, ctrl_21, s_arg_20, pred_out_20, n_iter_21, ctrl_22, s_arg_21, pred_out_21, n_iter_22, ctrl_23, s_arg_22, pred_out_22, n_iter_23, ctrl_24, s_arg_23, pred_out_23, n_iter_24, ctrl_25, s_arg_24, pred_out_24, n_iter_25, ctrl_26, s_arg_25, pred_out_25, n_iter_26, ctrl_27, s_arg_26, pred_out_26, n_iter_27, ctrl_28, s_arg_27, pred_out_27, n_iter_28, ctrl_29, s_arg_28, pred_out_28, n_iter_29, ctrl_30, s_arg_29, pred_out_29, n_iter_30, ctrl_31, s_arg_30, pred_out_30, n_iter_31, ctrl_32, s_arg_31, pred_out_31, n_iter_32, ctrl_33, s_arg_32, pred_out_32, n_iter_33, ctrl_34, s_arg_33, pred_out_33);
+

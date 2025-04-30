@@ -1,0 +1,37 @@
+@Oracle
+uproc Oracle[](in_0 : IN Fin<20>, out_0 : OUT Fin<2>);
+
+uproc Grover[#k](x : IN Fin<20>, ok : OUT Fin<2>) do
+  ok *= X;
+  ok *= H;
+  x *= Unif[Fin<20>];
+  repeat #k do
+    call Oracle(x, ok);
+    x *= Unif†[Fin<20>];
+    x *= (2|0><0| - I)[Fin<20>];
+    x *= Unif[Fin<20>];
+  end
+  ok *= H;
+  ok *= X;
+end
+
+proc QSearch[5.0e-4][](ok: Fin<2>) { locals: (not_done: Fin<2>, Q_sum: Fin<42>, j: Fin<42>, j_lim: Fin<42>, x_1: Fin<20>) } do
+  repeat 7 do
+    Q_sum := 0 : Fin<42>;
+    for j_lim in [1, 1, 1, 2, 2, 2, 3, 4, 4, 4, 4, 4, 4, 4] do
+      j :=$ [1 .. j_lim];
+      Q_sum := (Q_sum + j);
+      not_done := (not_done && (Q_sum <= j_lim));
+      if (not_done) then
+        call_uproc_and_meas Grover[j](x_1, ok);
+        call_uproc_and_meas Oracle[](x_1, ok);
+        not_done := (not_done && !ok);
+      else
+        skip;
+      end
+    end
+  end
+end
+
+call QSearch[5.0e-4][](ok);
+

@@ -1,6 +1,6 @@
 module Main (main) where
 
-import Control.Monad (forM_, when)
+import Control.Monad (forM_, guard, when)
 import Control.Monad.Writer (MonadWriter, execWriterT, tell)
 import Data.Maybe (fromMaybe)
 import Lens.Micro
@@ -80,7 +80,9 @@ compile prog delta = do
                 "()"
                 ( do
                     let fname = pname & takeWhile (/= '[')
-                    let fdelta_s = pname & dropWhile (/= '[') & tail & takeWhile (/= ']')
+                    let fdelta_s_suf = pname & dropWhile (/= '[') --
+                    guard $ not $ null fdelta_s_suf
+                    let fdelta_s = fdelta_s_suf & tail & takeWhile (/= ']')
                     fdelta <- readMaybe fdelta_s :: Maybe Double
                     P.FunDef{mbody = Just body} <- prog ^. to P.funCtx . Ctx.at fname
                     let cf =
