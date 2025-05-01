@@ -93,11 +93,12 @@ data Stmt holeT sizeT
   | UnitaryS {args :: [Ident], unitary :: Unitary sizeT} -- q... *= U
   | CallS {proc_id :: Ident, dagger :: Bool, args :: [Ident]} -- call F(q...)
   | SeqS [Stmt holeT sizeT] -- W1; W2; ...
-  | RepeatS {n_iter :: MetaParam sizeT, loop_body :: Stmt holeT sizeT} -- repeat k do S;
-  | HoleS {hole :: holeT, dagger :: Bool} -- temporary place holder
+  | -- placeholders
+    HoleS {hole :: holeT, dagger :: Bool} -- temporary place holder
   | CommentS String
   | -- syntax sugar
-    ForInRangeS
+    RepeatS {n_iter :: MetaParam sizeT, loop_body :: Stmt holeT sizeT} -- repeat k do S;
+  | ForInRangeS
       { iter_meta_var :: Ident
       , iter_lim :: MetaParam sizeT
       , loop_body :: Stmt holeT sizeT
