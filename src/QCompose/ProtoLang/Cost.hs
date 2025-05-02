@@ -37,20 +37,14 @@ module QCompose.ProtoLang.Cost (
   extractUEnv,
   QuantumCostCalculator,
   QuantumCostablePrimitive (..),
-
-  -- * Analysis
-  needsEpsS,
-  needsEpsP,
 ) where
 
-import Control.Monad.Identity (Identity, runIdentity)
 import Data.Foldable (toList)
 import Lens.Micro
 import Lens.Micro.Mtl
 
 import QCompose.Control.Monad
 import qualified QCompose.Data.Context as Ctx
-import qualified QCompose.Data.Tree as Tree
 
 import Data.Void (Void, absurd)
 import QCompose.Prelude
@@ -58,7 +52,7 @@ import QCompose.ProtoLang.Eval
 import QCompose.ProtoLang.Syntax
 import QCompose.ProtoLang.TypeCheck
 
-detExtract :: Tree.Tree a -> a
+detExtract :: (Foldable t) => t a -> a
 detExtract xs = case toList xs of
   [x] -> x
   _ -> error "unexpected non-determinism"
@@ -146,12 +140,12 @@ unitaryQueryCostS delta IfThenElseS{s_true, s_false} = do
   cost_true <- unitaryQueryCostS delta s_true
   cost_false <- unitaryQueryCostS delta s_false
   return $ cost_true + cost_false
+unitaryQueryCostS _ (SeqS []) = return 0
 unitaryQueryCostS delta (SeqS [s]) = unitaryQueryCostS delta s
 unitaryQueryCostS delta (SeqS (s : ss)) = do
   cost_s <- unitaryQueryCostS (delta / 2) s
   cost_rest <- unitaryQueryCostS (delta / 2) (SeqS ss)
   return $ cost_s + cost_rest
-unitaryQueryCostS _ _ = error "invalid syntax"
 
 unitaryQueryCost ::
   forall primsT sizeT costT.
@@ -237,12 +231,12 @@ quantumMaxQueryCostS ::
 quantumMaxQueryCostS eps ExprS{expr} = quantumMaxQueryCostE eps expr
 quantumMaxQueryCostS eps IfThenElseS{s_true, s_false} =
   max <$> quantumMaxQueryCostS eps s_true <*> quantumMaxQueryCostS eps s_false
+quantumMaxQueryCostS _ (SeqS []) = return 0
 quantumMaxQueryCostS eps (SeqS [s]) = quantumMaxQueryCostS eps s
 quantumMaxQueryCostS eps (SeqS (s : ss)) = do
   cost_s <- quantumMaxQueryCostS (eps / 2) s
   cost_ss <- quantumMaxQueryCostS (eps / 2) (SeqS ss)
   return $ cost_s + cost_ss
-quantumMaxQueryCostS _ _ = error "INVALID"
 
 quantumMaxQueryCost ::
   forall primsT sizeT costT.
@@ -269,7 +263,7 @@ quantumMaxQueryCost a_eps Program{funCtx, stmt} oracle_name =
 -- Environment to compute the quantum cost (input dependent)
 type DynamicCostEnv primsT sizeT costT = (FunCtx primsT sizeT, FunInterpCtx, OracleName)
 
-type QuantumCostCalculator primsT sizeT costT = MyReaderT (DynamicCostEnv primsT sizeT costT) Maybe
+type QuantumCostCalculator primsT sizeT costT a = MyReaderT (DynamicCostEnv primsT sizeT costT) Maybe a
 
 -- | Primitives that have a input dependent expected quantum cost
 class
@@ -341,6 +335,7 @@ quantumQueryCostS eps sigma ExprS{expr} = quantumQueryCostE eps sigma expr
 quantumQueryCostS eps sigma IfThenElseS{cond, s_true, s_false} =
   let s = if sigma ^. Ctx.at cond /= Just 0 then s_true else s_false
    in quantumQueryCostS eps sigma s
+quantumQueryCostS _ _ (SeqS []) = return 0
 quantumQueryCostS eps sigma (SeqS [s]) = quantumQueryCostS eps sigma s
 quantumQueryCostS eps sigma (SeqS (s : ss)) = do
   cost_s <- quantumQueryCostS (eps / 2) sigma s
@@ -351,7 +346,6 @@ quantumQueryCostS eps sigma (SeqS (s : ss)) = do
 
   cost_ss <- quantumQueryCostS (eps / 2) sigma' (SeqS ss)
   return $ cost_s + cost_ss
-quantumQueryCostS _ _ _ = error "INVALID"
 
 quantumQueryCost ::
   forall primsT costT.
@@ -392,17 +386,3 @@ quantumQueryCostBound ::
 quantumQueryCostBound a_eps p oracle_name interp_ctx sigma =
   (1 - a_eps) * quantumQueryCost a_eps p oracle_name interp_ctx sigma
     + a_eps * quantumMaxQueryCost a_eps p oracle_name
-
--- | Compute if a statement can fail and therefore needs a failure probability to implement
-needsEpsS :: Stmt primsT sizeT -> MyReaderT (FunCtx primsT sizeT) Identity Bool
-needsEpsS IfThenElseS{s_true, s_false} = (||) <$> needsEpsS s_true <*> needsEpsS s_false
-needsEpsS (SeqS ss) = or <$> traverse needsEpsS ss
-needsEpsS ExprS{expr = FunCallE{fun_kind = FunctionCall f}} = do
-  view (to (unsafeLookupFun f) . to mbody) >>= \case
-    Just FunBody{body_stmt} -> needsEpsS body_stmt
-    Nothing -> return False
-needsEpsS _ = return False
-
--- | Compute if a program can fail and therefore needs a failure probability to implement
-needsEpsP :: Program primsT sizeT -> Bool
-needsEpsP Program{funCtx, stmt} = runIdentity $ runMyReaderT (needsEpsS stmt) funCtx
