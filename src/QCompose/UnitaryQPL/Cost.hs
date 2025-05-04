@@ -21,6 +21,7 @@ import qualified Data.Map as Map
 import Data.Void (Void, absurd)
 import Lens.Micro.GHC
 import Lens.Micro.Mtl
+import Text.Printf (printf)
 
 import QCompose.Control.Monad
 import qualified QCompose.Data.Context as Ctx
@@ -68,12 +69,12 @@ procCost ::
 procCost name = (use (at name) >>= lift) <|> calc_cost_of_oracle <|> calc_cost
  where
   calc_cost_of_oracle = do
-    ProcDef{is_oracle} <- view $ procCtx . Ctx.at name . singular _Just
+    ProcDef{is_oracle} <- view $ procCtx . Ctx.at name . unsafeFromJust (printf "could not find predicate %s" name)
     cost <- lift $ if is_oracle then Just 1 else Nothing
     at name ?= cost
     return cost
   calc_cost = do
-    ProcDef{mproc_body} <- view $ procCtx . Ctx.at name . singular _Just
+    ProcDef{mproc_body} <- view $ procCtx . Ctx.at name . unsafeFromJust (printf "could not find predicate %s" name)
     proc_body <- lift mproc_body
     cost <- stmtCost proc_body
     at name ?= cost

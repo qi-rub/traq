@@ -49,6 +49,7 @@ module QCompose.Control.Monad (
   -- * MonadError
   throwFrom,
   maybeWithError,
+  unsafeFromJust,
 ) where
 
 import Control.Monad.Except (MonadError, catchError, throwError)
@@ -244,3 +245,7 @@ throwFrom action msg = action `catchError` (throwError . CatchE msg)
 -- | lift a @Maybe@ to a value, throwing an error if @Nothing@
 maybeWithError :: (MonadError e m) => e -> Maybe a -> m a
 maybeWithError err = maybe (throwError err) return
+
+unsafeFromJust :: String -> Lens' (Maybe a) a
+unsafeFromJust err _ Nothing = error err
+unsafeFromJust _ focus (Just a) = Just <$> focus a

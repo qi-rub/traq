@@ -1,6 +1,6 @@
 -- | Based on https://hackage.haskell.org/package/numbers-3000.2.0.2
 module QCompose.Data.Symbolic (
-  Sym (..),
+  Sym,
   var,
   con,
   subst,

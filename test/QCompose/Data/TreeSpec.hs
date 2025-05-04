@@ -10,6 +10,7 @@ import QCompose.Data.Tree
 import Test.Hspec
 import Test.Hspec.QuickCheck
 import Test.QuickCheck
+import TestHelpers
 
 instance (Arbitrary a) => Arbitrary (Tree a) where
   arbitrary = sized $ \n -> chooseInt (0, n) >>= go
@@ -52,12 +53,6 @@ _empty = empty
 
 _alt :: Tree Int -> Tree Int -> Tree Int
 _alt = (<|>)
-
--- | Check if two functions are same by functional extensionality.
-shouldEqual :: (HasCallStack, Show a, Eq a) => (t -> a) -> (t -> a) -> (t -> Expectation)
-shouldEqual f g x = f x `shouldBe` g x
-
-infix 1 `shouldEqual`
 
 spec :: Spec
 spec = do

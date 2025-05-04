@@ -19,3 +19,9 @@ expectRight :: (Show a, Show e) => Either e a -> IO a
 expectRight v = do
   assertRight v
   return $ fromRight undefined v
+
+-- | Check if two functions are same by functional extensionality.
+shouldEqual :: (HasCallStack, Show a, Eq a) => (t -> a) -> (t -> a) -> (t -> Expectation)
+shouldEqual f g x = f x `shouldBe` g x
+
+infix 1 `shouldEqual`

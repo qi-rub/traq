@@ -207,6 +207,7 @@ test-suite spec
           QCompose.Examples.NonDetSpec
           QCompose.Examples.SearchSpec
           QCompose.Primitives.QSearchSpec
+          QCompose.Primitives.Search.QSearchCFNWSpec
           QCompose.ProtoLang.CostSpec
           QCompose.ProtoLang.ParserSpec
           QCompose.ProtoLang.RewritesSpec
