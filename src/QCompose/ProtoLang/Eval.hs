@@ -148,7 +148,7 @@ evalFun vals_in FunDef{mbody = Just FunBody{param_names, ret_names, body_stmt}} 
    in withInjectedState params $ do
         execStmt body_stmt
         mapM lookupS ret_names
-evalFun vals_in FunDef{fun_name, mbody = Nothing} = do
+evalFun vals_in FunDef{mbody = Nothing} = do
   interp <- view $ _2 . Ctx.at fun_name . singular _Just
   return $ interp vals_in
 

@@ -18,6 +18,7 @@ module QCompose.ProtoLang.Syntax (
   Stmt (..),
   FunBody (..),
   FunDef (..),
+  NamedFunDef (..),
   FunCtx,
   Program (..),
 ) where
@@ -70,19 +71,22 @@ data Stmt primT sizeT
   | SeqS [Stmt primT sizeT]
   deriving (Eq, Show, Read, Functor)
 
--- | A function definition in the prototype language.
+-- | The body of a function.
 data FunBody primT sizeT = FunBody
   { param_names, ret_names :: [Ident]
   , body_stmt :: Stmt primT sizeT
   }
   deriving (Eq, Show, Read, Functor)
 
+-- | A function definition or declaration in the prototype language.
 data FunDef primT sizeT = FunDef
-  { fun_name :: Ident
-  , param_types, ret_types :: [VarType sizeT]
+  { param_types, ret_types :: [VarType sizeT]
   , mbody :: Maybe (FunBody primT sizeT)
   }
   deriving (Eq, Show, Read, Functor)
+
+-- | A function with a name
+data NamedFunDef primT sizeT = NamedFunDef {fun_name :: Ident, fun_def :: FunDef primT sizeT}
 
 -- | A function context contains a list of functions
 type FunCtx primT sizeT = Ctx.Context (FunDef primT sizeT)
@@ -156,14 +160,17 @@ instance (Show sizeT, ToCodeString primT) => ToCodeString (Stmt primT sizeT) whe
       <> ["end"]
   toCodeLines (SeqS ss) = concatMap toCodeLines ss
 
-instance (Show sizeT, ToCodeString primT) => ToCodeString (FunDef primT sizeT) where
+instance (Show sizeT, ToCodeString primT) => ToCodeString (NamedFunDef primT sizeT) where
   -- def
   toCodeLines
-    FunDef
+    NamedFunDef
       { fun_name
-      , param_types
-      , ret_types
-      , mbody = Just FunBody{body_stmt, param_names, ret_names}
+      , fun_def =
+        FunDef
+          { param_types
+          , ret_types
+          , mbody = Just FunBody{body_stmt, param_names, ret_names}
+          }
       } =
       [printf "def %s(%s) do" fun_name (commaList $ zipWith showTypedVar param_names param_types)]
         <> indent
@@ -175,15 +182,19 @@ instance (Show sizeT, ToCodeString primT) => ToCodeString (FunDef primT sizeT) w
       showTypedVar :: Ident -> VarType sizeT -> String
       showTypedVar x ty = unwords [x, ":", toCodeString ty]
   -- declare
-  toCodeLines FunDef{fun_name, param_types, ret_types, mbody = Nothing} =
-    [ printf
-        "declare %s(%s) -> %s"
-        fun_name
-        (commaList $ map toCodeString param_types)
-        (commaList $ map toCodeString ret_types)
-    ]
+  toCodeLines
+    NamedFunDef
+      { fun_name
+      , fun_def = FunDef{param_types, ret_types, mbody = Nothing}
+      } =
+      [ printf
+          "declare %s(%s) -> %s"
+          fun_name
+          (commaList $ map toCodeString param_types)
+          (commaList $ map toCodeString ret_types)
+      ]
 
 instance (Show sizeT, ToCodeString primT) => ToCodeString (Program primT sizeT) where
   toCodeLines Program{funCtx, stmt} =
-    map toCodeString (Ctx.elems funCtx)
+    [toCodeString NamedFunDef{fun_name, fun_def} | (fun_name, fun_def) <- Ctx.toList funCtx]
       <> toCodeLines stmt
