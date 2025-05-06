@@ -33,8 +33,9 @@ library
           QCompose.Examples.Search
           QCompose.Prelude
           QCompose.Primitives
-          QCompose.Primitives.Max.QMax
           QCompose.Primitives.Search.Prelude
+          QCompose.Primitives.Search.QCount
+          QCompose.Primitives.Search.QMax
           QCompose.Primitives.Search.QSearchCFNW
           QCompose.Primitives.Search.Symbolic
           QCompose.ProtoLang
