@@ -57,12 +57,17 @@ _exe_opts: &exe_opts
   dependencies:
     - qcompose
     - optparse-applicative ^>= 0.18
+    - random
+    - random-shuffle
   default-extensions:
     - RecordWildCards
 
 executables:
   matrixsearch:
     main: matrixsearch.hs
+    <<: *exe_opts
+  matrixsearchqcost:
+    main: matrixsearchqcost.hs
     <<: *exe_opts
   uqplcompile:
     main: uqplcompile.hs
@@ -78,6 +83,7 @@ executables:
       - optparse-applicative ^>= 0.18
       - quipper-language == 0.9.0.0
       - quipper-libraries == 0.9.0.0
+      - random-shuffle
 
 tests:
   spec:

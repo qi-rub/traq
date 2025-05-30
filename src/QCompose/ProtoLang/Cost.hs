@@ -82,7 +82,7 @@ type UnitaryCostCalculator primsT sizeT costT = MyReaderT (StaticCostEnv primsT 
 
 -- | Primitives that have a unitary cost
 class
-  (TypeCheckablePrimitive primT sizeT) =>
+  (TypeCheckablePrimitive primT sizeT, Show costT) =>
   UnitaryCostablePrimitive primsT primT sizeT costT
   where
   unitaryQueryCostPrimitive ::
@@ -90,7 +90,7 @@ class
     primT ->
     UnitaryCostCalculator primsT sizeT costT costT
 
-instance UnitaryCostablePrimitive primsT Void sizeT costT where
+instance (Show costT) => UnitaryCostablePrimitive primsT Void sizeT costT where
   unitaryQueryCostPrimitive _ = absurd
 
 -- | Evaluate the query cost of an expression
@@ -181,7 +181,7 @@ class
     primT ->
     QuantumMaxCostCalculator primsT sizeT costT costT
 
-instance QuantumMaxCostablePrimitive primsT Void sizeT costT where
+instance (Show costT) => QuantumMaxCostablePrimitive primsT Void sizeT costT where
   quantumMaxQueryCostPrimitive _ = absurd
 
 quantumMaxQueryCostE ::
@@ -278,7 +278,7 @@ class
     [Value] ->
     QuantumCostCalculator primsT sizeT costT costT
 
-instance QuantumCostablePrimitive primsT Void sizeT costT where
+instance (Show costT) => QuantumCostablePrimitive primsT Void sizeT costT where
   quantumQueryCostPrimitive _ = absurd
 
 quantumQueryCostE ::

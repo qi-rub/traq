@@ -91,7 +91,7 @@ class
     [Ident] ->
     CompilerT primsT holeT sizeT costT (Stmt holeT sizeT)
 
-instance Lowerable primsT Void holeT sizeT costT where
+instance (Show costT) => Lowerable primsT Void holeT sizeT costT where
   lowerPrimitive _ = absurd
 
 -- | Generate a new identifier with the given prefix.

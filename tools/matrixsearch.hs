@@ -3,10 +3,13 @@
 module Main where
 
 import Control.Exception (assert)
-import qualified QCompose.Data.Symbolic as Sym
+import Control.Monad (forM_)
+import Text.Printf (printf)
 
 import qualified QCompose.Data.Context as Ctx
+import qualified QCompose.Data.Symbolic as Sym
 
+import qualified QCompose.CQPL as CQPL
 import QCompose.Prelude
 import qualified QCompose.ProtoLang as P
 import qualified QCompose.UnitaryQPL as UQPL
@@ -14,6 +17,9 @@ import QCompose.Utils.Printing
 
 import QCompose.Examples.MatrixSearch
 import QCompose.Primitives.Search.Symbolic
+
+printDivider :: IO ()
+printDivider = putStrLn $ replicate 80 '='
 
 symbolicEx :: IO ()
 symbolicEx = do
@@ -23,9 +29,20 @@ symbolicEx = do
   let m = Sym.var "M" :: Sym.Sym SizeT
   let ex = matrixExample @QSearchSym n m (P.Fin $ Sym.con 2)
 
-  let delta = Sym.var "δ" :: Sym.Sym Double
-  let u_formula_cost = P.unitaryQueryCost delta ex "Oracle"
-  print u_formula_cost
+  forM_ ["HasAllOnesRow", "IsRowAllOnes", "IsEntryZero"] $ \f -> do
+    let delta = Sym.var "δ" :: Sym.Sym Double
+    let stmt =
+          P.ExprS
+            { rets = undefined
+            , expr =
+                P.FunCallE
+                  { P.fun_kind = P.FunctionCall f
+                  , P.args = undefined
+                  }
+            }
+
+    putStrLn $ printf "Cost of %s" f
+    print $ P.unitaryQueryCost delta ex{P.stmt = stmt} "Oracle"
 
 concreteEx :: IO ()
 concreteEx = do
@@ -34,14 +51,14 @@ concreteEx = do
   let (n, m) = (20, 10)
   let ex = matrixExampleS n m
 
-  putStrLn $ replicate 80 '='
+  printDivider
   putStrLn $ toCodeString ex
 
   let delta = 0.001 :: Double
 
   let u_formula_cost = P.unitaryQueryCost delta ex "Oracle"
 
-  putStrLn $ replicate 80 '='
+  printDivider
   let (Right (exU, _)) = UQPL.lowerProgram Ctx.empty "Oracle" delta ex
   putStrLn $ toCodeString exU
 
@@ -52,10 +69,34 @@ concreteEx = do
   putStrLn $ " - Actual cost:   " <> show u_true_cost
   assert (u_true_cost == u_formula_cost) $ return ()
 
+concreteQEx :: IO ()
+concreteQEx = do
+  putStrLn "Concrete program (quantum):"
+  -- let (n, m) = (1000, 1000)
+  let (n, m) = (20, 10)
+  let ex = matrixExampleS n m
+
+  printDivider
+  putStrLn $ toCodeString ex
+
+  let delta = 0.001 :: Double
+
+  printDivider
+  let (Right (exU, _)) = CQPL.lowerProgram Ctx.empty "Oracle" delta ex
+  putStrLn $ toCodeString exU
+
 main :: IO ()
 main = do
   putStrLn "hello qcompose"
-  putStrLn ""
+
+  printDivider
   symbolicEx
-  putStrLn ""
+  printDivider
+
+  printDivider
   concreteEx
+  printDivider
+
+  printDivider
+  concreteQEx
+  printDivider

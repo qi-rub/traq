@@ -1,3 +1,4 @@
+{-# LANGUAGE BangPatterns #-}
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE MultiParamTypeClasses #-}
 {-# LANGUAGE UndecidableInstances #-}
@@ -48,6 +49,7 @@ import qualified QCompose.ProtoLang as P
 import qualified QCompose.UnitaryQPL as UQPL
 import QCompose.Utils.Printing
 
+import Data.Foldable (Foldable (toList))
 import QCompose.Primitives.Search.Prelude
 
 -- ================================================================================
@@ -61,7 +63,7 @@ _EQSearchWorst n eps = 9.2 * log (1 / eps) * sqrt (fromIntegral n)
 -- Eq. TODO REF
 _F :: forall sizeT costT. (Integral sizeT, Floating costT) => sizeT -> sizeT -> costT
 _F n t
-  | 4 * t < n = 2.0344
+  | 4 * t >= n = 2.0344
   | otherwise = 3.1 * sqrt (fromIntegral n / fromIntegral t)
 
 -- Eq. TODO REF
@@ -183,6 +185,7 @@ instance
 instance
   ( Integral sizeT
   , Floating costT
+  , Show costT
   , P.UnitaryCostablePrimitive primsT primsT sizeT costT
   ) =>
   P.UnitaryCostablePrimitive primsT QSearchCFNW sizeT costT
@@ -240,6 +243,7 @@ instance
 instance
   ( Integral sizeT
   , Floating costT
+  , Show costT
   , P.EvaluatablePrimitive primsT QSearchCFNW
   , P.QuantumCostablePrimitive primsT primsT sizeT costT
   , sizeT ~ SizeT
@@ -269,7 +273,7 @@ instance
             )
 
     let n = length space
-    let t = minimum $ fmap length sols
+    let [t] = toList $ fmap length sols
 
     -- number of predicate queries
     let qry = _EQSearch n t eps_search

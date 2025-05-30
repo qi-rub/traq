@@ -50,6 +50,7 @@ instance
 instance
   ( Integral sizeT
   , Floating costT
+  , Show costT
   , P.UnitaryCostablePrimitive primsT primsT sizeT costT
   ) =>
   P.UnitaryCostablePrimitive primsT DefaultPrims sizeT costT
