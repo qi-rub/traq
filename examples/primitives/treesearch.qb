@@ -1,0 +1,5 @@
+declare child(Fin<N>) -> (Fin<N>, Fin<N>)
+
+declare check(Fin<N>) -> Bool
+
+ok <- @treesearch[child, check]()
