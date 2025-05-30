@@ -50,6 +50,8 @@ protoLangDef =
         , -- types
           "Fin"
         , "Bool"
+        , -- operators
+          "not"
         ]
     , reservedOpNames = [":", "<-", "->"]
     }
@@ -109,9 +111,11 @@ exprP tp@TokenParser{..} =
 
   unOp :: Parser UnOp
   unOp =
-    operator >>= \case
-      "!" -> return NotOp
-      _ -> fail "invalid unary operator"
+    (reserved "not" $> NotOp)
+      <|> ( operator >>= \case
+              "!" -> return NotOp
+              _ -> fail "invalid unary operator"
+          )
 
   unOpE :: Parser (Expr primT SymbSize)
   unOpE = do

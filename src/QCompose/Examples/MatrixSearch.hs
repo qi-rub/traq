@@ -68,8 +68,8 @@ matrixExample n m tyBool =
       }
    where
     i = "i"
-    ok = "okr"
-    ok' = "okr'"
+    ok = "hasZero"
+    ok' = "okr"
 
   check_matrix :: FunDef primsT sizeT
   check_matrix =

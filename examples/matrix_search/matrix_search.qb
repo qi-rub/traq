@@ -8,8 +8,8 @@ end
 
 def IsRowAllOnes(i: Fin<N>) do
 	hasZero <- @any[IsEntryZero](i);
-	r_ok <- not hasZero;
-	return r_ok : Bool
+	okr <- not hasZero;
+	return okr : Bool
 end
 
 def HasAllOnesRow() do
