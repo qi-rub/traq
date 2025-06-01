@@ -12,8 +12,6 @@ import QCompose.Prelude
 import qualified QCompose.ProtoLang as P
 
 import QCompose.Examples.MatrixSearch
-import QCompose.Primitives.Search.QSearchCFNW (_EQSearch)
-import QCompose.Primitives.Search.Symbolic
 
 printDivider :: IO ()
 printDivider = putStrLn $ replicate 80 '='
