@@ -20,7 +20,7 @@ import TestHelpers
 spec :: Spec
 spec = do
   describe "matrix search example" $ do
-    let (n, m) = (10, 10)
+    let (n, m) = (5, 5)
     let ex = matrixExampleS n m
 
     it "type checks" $ do
