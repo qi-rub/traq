@@ -1,43 +1,40 @@
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE MultiParamTypeClasses #-}
 {-# LANGUAGE UndecidableInstances #-}
+{-# OPTIONS_GHC -Wno-unrecognised-pragmas #-}
 
 module QCompose.Primitives.Search.RandomSearch (
   RandomSearch (..),
 ) where
 
-import Control.Applicative ((<|>))
-import Control.Monad (filterM, forM, replicateM, when)
-import Control.Monad.Except (throwError)
-import Control.Monad.Extra (anyM)
-import Control.Monad.Trans (lift)
-import Control.Monad.Writer (censor, listen)
-import Data.Maybe (fromMaybe)
 import Lens.Micro
 import Lens.Micro.Mtl
-import Text.Parsec (try)
-import Text.Parsec.Token (GenTokenParser (..))
 import Text.Printf (printf)
 
-import QCompose.Control.Monad
 import qualified QCompose.Data.Context as Ctx
-import qualified QCompose.Data.Tree as Tree
 
-import qualified QCompose.CQPL as CQPL
 import QCompose.Prelude
 import qualified QCompose.ProtoLang as P
-import qualified QCompose.UnitaryQPL as UQPL
 import QCompose.Utils.Printing
 
-import Data.Foldable (Foldable (toList))
 import QCompose.Primitives.Search.Prelude
 
 -- ================================================================================
 -- Cost Formulas
 -- ================================================================================
 
+-- | Number of predicate queries to unitarily implement random search.
+_URandomSearch :: forall sizeT costT. (Integral sizeT, Floating costT) => sizeT -> costT
+{-# HLINT ignore "Eta reduce" #-}
+_URandomSearch n = fromIntegral n
+
+-- | Worst case number of predicate queries to implement random search.
 _ERandomSearchWorst :: forall sizeT costT. (Integral sizeT, Floating costT) => sizeT -> costT -> costT
-_ERandomSearchWorst n _ = 2 * n
+_ERandomSearchWorst n _ = fromIntegral $ 2 * n
+
+-- ================================================================================
+-- Primitive Implementation
+-- ================================================================================
 
 {- | Primitive implementing search using classical random sampling.
  The unitary mode does a brute-force loop.
@@ -45,43 +42,21 @@ _ERandomSearchWorst n _ = 2 * n
 newtype RandomSearch = RandomSearch {predicate :: Ident}
   deriving (Eq, Show, Read)
 
+instance HasPrimAny RandomSearch where
+  mkAny = RandomSearch
+  getPredicateOfAny = predicate
+
 instance ToCodeString RandomSearch where
   toCodeString RandomSearch{predicate} = printf "@any[%s]" predicate
 
 instance P.CanParsePrimitive RandomSearch where
-  primitiveParser tp = do
-    symbol tp "@any"
-    predicate <- brackets tp $ identifier tp
-    return RandomSearch{predicate}
+  primitiveParser = parsePrimAny "any"
 
 instance P.TypeCheckablePrimitive RandomSearch sizeT where
-  typeCheckPrimitive RandomSearch{predicate} args = do
-    P.FunDef{P.param_types, P.ret_types} <-
-      view (Ctx.at predicate)
-        >>= maybeWithError (printf "cannot find search predicate `%s`" predicate)
+  typeCheckPrimitive = typeCheckPrimAny
 
-    when (ret_types /= [P.tbool]) $
-      throwError "predicate must return a single Bool"
-
-    arg_tys <- mapM Ctx.lookup args
-    when (init param_types /= arg_tys) $
-      throwError "Invalid arguments to bind to predicate"
-
-    return [P.tbool]
-
-instance
-  (P.EvaluatablePrimitive primsT primsT) =>
-  P.EvaluatablePrimitive primsT RandomSearch
-  where
-  evalPrimitive RandomSearch{predicate} arg_vals = do
-    pred_fun <- view $ _1 . Ctx.at predicate . to (fromMaybe (error "unable to find predicate, please typecheck first!"))
-    let search_range = pred_fun ^. to P.param_types . to last . to P.range
-
-    has_sol <- flip anyM search_range $ \val -> do
-      res <- P.evalFun (arg_vals ++ [val]) pred_fun
-      return $ head res /= 0
-
-    return [P.boolToValue has_sol]
+instance (P.EvaluatablePrimitive primsT primsT) => P.EvaluatablePrimitive primsT RandomSearch where
+  evalPrimitive = evaluatePrimAny
 
 -- ================================================================================
 -- Abstract Costs
@@ -100,7 +75,7 @@ instance
     let P.Fin n = last param_types
 
     -- number of predicate queries
-    let qry = n
+    let qry = _URandomSearch n
 
     -- precision per predicate call
     let delta_per_pred_call = delta / qry
