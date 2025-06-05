@@ -4,6 +4,7 @@ import qualified QCompose.Data.Context as Ctx
 
 import QCompose.Prelude
 import QCompose.Primitives
+import QCompose.Primitives.Search.Prelude (mkAny)
 import QCompose.ProtoLang.Syntax
 
 arraySearch :: SizeT -> Program DefaultPrims SizeT

@@ -14,11 +14,11 @@ plt.figure(figsize=(10, 6))
 for eps_value in sorted(df['eps'].unique()):
     subset = grouped[grouped['eps'] == eps_value]
     plt.errorbar(
-        subset['n'], subset['mean'], yerr=subset['std'],
+        subset['n']**2, subset['mean'], yerr=subset['std'],
         label=f'eps={eps_value}', marker='o', capsize=4
     )
 
-plt.xlabel('N')
+plt.xlabel('Input Size')
 plt.ylabel('Quantum Cost')
 plt.title('Stats for random NxN matrices')
 plt.legend()

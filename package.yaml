@@ -59,6 +59,7 @@ _exe_opts: &exe_opts
     - optparse-applicative ^>= 0.18
     - random
     - random-shuffle
+    - timeit ^>= 2.0
   default-extensions:
     - RecordWildCards
 
@@ -83,7 +84,6 @@ executables:
       - optparse-applicative ^>= 0.18
       - quipper-language == 0.9.0.0
       - quipper-libraries == 0.9.0.0
-      - random-shuffle
 
 tests:
   spec:
