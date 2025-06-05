@@ -143,26 +143,8 @@ instance
   (P.EvaluatablePrimitive primsT primsT) =>
   P.EvaluatablePrimitive primsT QSearchCFNW
   where
-  evalPrimitive QSearchCFNW{predicate, return_sol = False} arg_vals = do
-    pred_fun <- view $ _1 . Ctx.at predicate . to (fromMaybe (error "unable to find predicate, please typecheck first!"))
-    let search_range = pred_fun ^. to P.param_types . to last . to P.range
-
-    has_sol <- flip anyM search_range $ \val -> do
-      res <- P.evalFun (arg_vals ++ [val]) pred_fun
-      return $ head res /= 0
-
-    return [P.boolToValue has_sol]
-  evalPrimitive QSearchCFNW{predicate, return_sol = True} arg_vals = do
-    pred_fun <- view $ _1 . Ctx.at predicate . to (fromMaybe (error "unable to find predicate, please typecheck first!"))
-    let search_range = pred_fun ^. to P.param_types . to last . to P.range
-
-    sols <- flip filterM search_range $ \val -> do
-      res <- P.evalFun (arg_vals ++ [val]) pred_fun
-      return $ head res /= 0
-
-    let has_sol = not $ null sols
-    let out_vals = if has_sol then sols else search_range
-    lift $ Tree.choice [pure [P.boolToValue has_sol, v] | v <- out_vals]
+  evalPrimitive QSearchCFNW{predicate, return_sol = False} = evaluatePrimAny predicate
+  evalPrimitive QSearchCFNW{predicate, return_sol = True} = evaluatePrimSearch predicate
 
 -- ================================================================================
 -- Abstract Costs

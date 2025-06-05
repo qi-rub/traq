@@ -1,4 +1,5 @@
 module QCompose.Primitives.Search.Prelude (
+  -- * Generic Search-like primitives
   HasPrimAny (..),
   HasPrimSearch (..),
 
@@ -13,10 +14,21 @@ module QCompose.Primitives.Search.Prelude (
   typeCheckSearchPredicate,
   typeCheckPrimAny,
   typeCheckPrimSearch,
+
+  -- ** Evaluation
+  runSearchPredicateOnAllInputs,
+  hasSolution,
+  countSolutions,
+  getSearchOutputs,
+  evaluatePrimAny,
+  evaluatePrimSearch,
+  evaluatePrimCount,
 ) where
 
-import Control.Monad (replicateM, when)
+import Control.Monad (forM, replicateM, when)
 import Control.Monad.Except (throwError)
+import Control.Monad.Trans (lift)
+import Data.Maybe (fromMaybe)
 import Lens.Micro
 import Lens.Micro.Mtl
 import Text.Parsec.String (Parser)
@@ -25,6 +37,7 @@ import Text.Printf (printf)
 
 import QCompose.Control.Monad
 import qualified QCompose.Data.Context as Ctx
+import qualified QCompose.Data.Tree as Tree
 
 import QCompose.Prelude
 import qualified QCompose.ProtoLang as P
@@ -120,3 +133,66 @@ typeCheckPrimSearch prim args = do
 -- ================================================================================
 -- Evaluation
 -- ================================================================================
+
+type SearchResult = ([Value], Bool)
+
+isSolution :: SearchResult -> Bool
+isSolution = (True ==) . snd
+
+type SearchResults = [SearchResult]
+
+hasSolution :: SearchResults -> Bool
+hasSolution = any isSolution
+
+countSolutions :: SearchResults -> Int
+countSolutions = length . filter isSolution
+
+getSearchOutputs :: SearchResults -> [[Value]]
+getSearchOutputs rets | hasSolution rets = rets & filter isSolution & map fst
+getSearchOutputs rets = map fst rets
+
+-- | Run the predicate on each input, and return the input along with the result.
+runSearchPredicateOnAllInputs ::
+  (P.EvaluatablePrimitive primsT primsT) =>
+  Ident ->
+  [Value] ->
+  P.Evaluator primsT SizeT SearchResults
+runSearchPredicateOnAllInputs predicate arg_vals = do
+  pred_fun <- view $ _1 . Ctx.at predicate . to (fromMaybe (error "unable to find predicate, please typecheck first!"))
+  let n_fixed_args = length arg_vals
+
+  let search_tys = pred_fun ^. to P.param_types . to (drop n_fixed_args)
+  let search_range = mapM P.range search_tys
+
+  forM search_range $ \s_vals -> do
+    rets <- P.evalFun (arg_vals ++ s_vals) pred_fun
+    return (s_vals, head rets /= 0)
+
+evaluatePrimAny ::
+  (P.EvaluatablePrimitive primsT primsT) =>
+  Ident ->
+  [Value] ->
+  P.Evaluator primsT SizeT [Value]
+evaluatePrimAny predicate arg_vals = do
+  res <- runSearchPredicateOnAllInputs predicate arg_vals
+  return [P.boolToValue $ hasSolution res]
+
+evaluatePrimSearch ::
+  (P.EvaluatablePrimitive primsT primsT) =>
+  Ident ->
+  [Value] ->
+  P.Evaluator primsT SizeT [Value]
+evaluatePrimSearch predicate arg_vals = do
+  res <- runSearchPredicateOnAllInputs predicate arg_vals
+  let ok = P.boolToValue $ hasSolution res
+  let outs = getSearchOutputs res
+  lift $ Tree.choice [pure (ok : v) | v <- outs]
+
+evaluatePrimCount ::
+  (P.EvaluatablePrimitive primsT primsT) =>
+  Ident ->
+  [Value] ->
+  P.Evaluator primsT SizeT [Value]
+evaluatePrimCount predicate arg_vals = do
+  res <- runSearchPredicateOnAllInputs predicate arg_vals
+  return [fromIntegral $ countSolutions res]

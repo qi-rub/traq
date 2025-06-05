@@ -69,22 +69,12 @@ instance P.CanParsePrimitive QSearchSym where
 
 -- Type check
 instance P.TypeCheckablePrimitive QSearchSym sizeT where
-  typeCheckPrimitive prim args = do
-    let predicate = prim ^. _predicate
-    P.FunDef{P.param_types, P.ret_types} <-
-      view (Ctx.at predicate)
-        >>= maybeWithError (printf "cannot find search predicate `%s`" predicate)
+  typeCheckPrimitive prim@(QAnySym _) = typeCheckPrimAny prim
+  typeCheckPrimitive prim@(QSearchSym _) = typeCheckPrimSearch prim
 
-    when (ret_types /= [P.tbool]) $
-      throwError "predicate must return a single Bool"
-
-    arg_tys <- mapM Ctx.lookup args
-    when (init param_types /= arg_tys) $
-      throwError "Invalid arguments to bind to predicate"
-
-    return $ P.tbool : [last param_types | case prim of QSearchSym _ -> True; _ -> False]
-
--- | Compute the unitary cost using the QSearch_Zalka cost formula.
+-- ================================================================================
+-- Abstract Costs (worst case)
+-- ================================================================================
 instance
   ( Show sizeT
   , Num sizeT
