@@ -18,7 +18,6 @@ import Lens.Micro
 import Lens.Micro.Mtl
 import qualified QCompose.Data.Symbolic as Sym
 import Text.Parsec (try)
-import Text.Parsec.Token (GenTokenParser (..))
 import Text.Printf (printf)
 
 import QCompose.Control.Monad (maybeWithError)
@@ -44,37 +43,34 @@ _QryQmax n eps = Sym.var $ printf "QryQmax(%s, %s)" (show n) (show eps)
 -- ================================================================================
 -- Primitive Class Implementation
 -- ================================================================================
-data QSearchSym = QSearchSym {predicate :: Ident} | QAnySym {predicate :: Ident}
+data QSearchSym = QSearchSym Ident | QAnySym Ident
   deriving (Eq, Show, Read)
 
-instance HasSearch QSearchSym where
-  mkAny = QAnySym
-  mkSearch = QSearchSym
+_predicate :: Lens' QSearchSym Ident
+_predicate focus (QSearchSym p) = QSearchSym <$> focus p
+_predicate focus (QAnySym p) = QAnySym <$> focus p
 
-  getPredicate = predicate
+instance HasPrimAny QSearchSym where
+  mkAny = QSearchSym
+  getPredicateOfAny = view _predicate
+
+instance HasPrimSearch QSearchSym where
+  mkSearch = QSearchSym
+  getPredicateOfSearch = view _predicate
 
 -- Printing
 instance ToCodeString QSearchSym where
-  toCodeString QAnySym{predicate} = printf "@any[%s]" predicate
-  toCodeString QSearchSym{predicate} = printf "@search[%s]" predicate
+  toCodeString (QAnySym predicate) = printf "@any[%s]" predicate
+  toCodeString (QSearchSym predicate) = printf "@search[%s]" predicate
 
 -- Parsing
 instance P.CanParsePrimitive QSearchSym where
-  primitiveParser tp = try parseAny <|> try parseSearch
-   where
-    parseAny = do
-      symbol tp "@any"
-      predicate <- brackets tp $ identifier tp
-      return QAnySym{predicate}
-    parseSearch = do
-      symbol tp "@search"
-      predicate <- brackets tp $ identifier tp
-      return QSearchSym{predicate}
+  primitiveParser tp = try (parsePrimAny "any" tp) <|> try (parsePrimSearch "search" tp)
 
 -- Type check
 instance P.TypeCheckablePrimitive QSearchSym sizeT where
   typeCheckPrimitive prim args = do
-    let predicate = getPredicate prim
+    let predicate = prim ^. _predicate
     P.FunDef{P.param_types, P.ret_types} <-
       view (Ctx.at predicate)
         >>= maybeWithError (printf "cannot find search predicate `%s`" predicate)
@@ -101,7 +97,7 @@ instance
   P.UnitaryCostablePrimitive primsT QSearchSym (Sym.Sym sizeT) (Sym.Sym costT)
   where
   unitaryQueryCostPrimitive delta prim = do
-    P.FunDef{P.param_types} <- view $ _1 . Ctx.at (predicate prim) . singular _Just
+    P.FunDef{P.param_types} <- view $ _1 . Ctx.at (prim ^. _predicate) . singular _Just
     let P.Fin n = last param_types
 
     -- split the precision
@@ -117,7 +113,7 @@ instance
     -- cost of each predicate call
     cost_pred <-
       P.unitaryQueryCostE delta_per_pred_call $
-        P.FunCallE{P.fun_kind = P.FunctionCall (predicate prim), P.args = undefined}
+        P.FunCallE{P.fun_kind = P.FunctionCall (prim ^. _predicate), P.args = undefined}
 
     return $ qry * cost_pred
 
@@ -133,7 +129,7 @@ instance
   P.QuantumMaxCostablePrimitive primsT QSearchSym (Sym.Sym sizeT) (Sym.Sym costT)
   where
   quantumMaxQueryCostPrimitive eps prim = do
-    P.FunDef{P.param_types} <- view $ _1 . Ctx.at (predicate prim) . singular _Just
+    P.FunDef{P.param_types} <- view $ _1 . Ctx.at (prim ^. _predicate) . singular _Just
     let P.Fin n = last param_types
 
     -- split the fail prob
@@ -150,6 +146,6 @@ instance
     -- cost of each predicate call
     cost_unitary_pred <-
       P.unitaryQueryCostE delta_per_pred_call $
-        P.FunCallE{P.fun_kind = P.FunctionCall (predicate prim), P.args = undefined}
+        P.FunCallE{P.fun_kind = P.FunctionCall (prim ^. _predicate), P.args = undefined}
 
     return $ qry * cost_unitary_pred

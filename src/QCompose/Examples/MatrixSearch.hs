@@ -4,9 +4,10 @@ import qualified QCompose.Data.Context as Ctx
 
 import QCompose.Prelude
 import QCompose.Primitives
+import QCompose.Primitives.Search.Prelude (HasPrimAny (..))
 import QCompose.ProtoLang.Syntax
 
-matrixExample :: forall primsT sizeT. (HasSearch primsT) => sizeT -> sizeT -> VarType sizeT -> Program primsT sizeT
+matrixExample :: forall primsT sizeT. (HasPrimAny primsT) => sizeT -> sizeT -> VarType sizeT -> Program primsT sizeT
 matrixExample n m tyBool =
   Program
     { funCtx = Ctx.fromListWith fun_name [oracle_decl, check_entry, check_row, check_matrix]
