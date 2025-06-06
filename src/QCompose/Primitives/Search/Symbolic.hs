@@ -12,15 +12,11 @@ module QCompose.Primitives.Search.Symbolic (
 ) where
 
 import Control.Applicative ((<|>))
-import Control.Monad (when)
-import Control.Monad.Except (throwError)
 import Lens.Micro
 import Lens.Micro.Mtl
 import qualified QCompose.Data.Symbolic as Sym
 import Text.Parsec (try)
 import Text.Printf (printf)
-
-import QCompose.Control.Monad (maybeWithError)
 
 import qualified QCompose.Data.Context as Ctx
 

@@ -37,6 +37,7 @@ library
           QCompose.Primitives.Search.QCount
           QCompose.Primitives.Search.QMax
           QCompose.Primitives.Search.QSearchCFNW
+          QCompose.Primitives.Search.RandomSearch
           QCompose.Primitives.Search.Symbolic
           QCompose.Primitives.TreeSearch
           QCompose.ProtoLang
