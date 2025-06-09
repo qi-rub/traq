@@ -70,7 +70,7 @@ instance
   ) =>
   P.UnitaryCostablePrimitive primsT RandomSearch sizeT costT
   where
-  unitaryQueryCostPrimitive delta RandomSearch{predicate} = do
+  unitaryQueryCostPrimitive delta RandomSearch{predicate} _ = do
     P.FunDef{P.param_types} <- view $ _1 . Ctx.at predicate . singular _Just
     let P.Fin n = last param_types
 

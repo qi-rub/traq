@@ -156,7 +156,7 @@ instance
   ) =>
   P.UnitaryCostablePrimitive primsT QSearchCFNW sizeT costT
   where
-  unitaryQueryCostPrimitive delta QSearchCFNW{predicate} = do
+  unitaryQueryCostPrimitive delta QSearchCFNW{predicate} _ = do
     P.FunDef{P.param_types} <- view $ _1 . Ctx.at predicate . singular _Just
     let P.Fin n = last param_types
 

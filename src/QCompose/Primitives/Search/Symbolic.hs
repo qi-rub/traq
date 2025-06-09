@@ -82,8 +82,9 @@ instance
   ) =>
   P.UnitaryCostablePrimitive primsT QSearchSym (Sym.Sym sizeT) (Sym.Sym costT)
   where
-  unitaryQueryCostPrimitive delta prim = do
+  unitaryQueryCostPrimitive delta prim _ = do
     P.FunDef{P.param_types} <- view $ _1 . Ctx.at (prim ^. _predicate) . singular _Just
+
     let P.Fin n = last param_types
 
     -- split the precision
