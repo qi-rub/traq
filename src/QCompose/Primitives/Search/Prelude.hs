@@ -169,20 +169,22 @@ runSearchPredicateOnAllInputs predicate arg_vals = do
     return (s_vals, head rets /= 0)
 
 evaluatePrimAny ::
-  (P.EvaluatablePrimitive primsT primsT) =>
-  Ident ->
+  (HasPrimAny primT, P.EvaluatablePrimitive primsT primsT) =>
+  primT ->
   [Value] ->
   P.Evaluator primsT SizeT [Value]
-evaluatePrimAny predicate arg_vals = do
+evaluatePrimAny prim arg_vals = do
+  let predicate = getPredicateOfAny prim
   res <- runSearchPredicateOnAllInputs predicate arg_vals
   return [P.boolToValue $ hasSolution res]
 
 evaluatePrimSearch ::
-  (P.EvaluatablePrimitive primsT primsT) =>
-  Ident ->
+  (HasPrimSearch primT, P.EvaluatablePrimitive primsT primsT) =>
+  primT ->
   [Value] ->
   P.Evaluator primsT SizeT [Value]
-evaluatePrimSearch predicate arg_vals = do
+evaluatePrimSearch prim arg_vals = do
+  let predicate = getPredicateOfSearch prim
   res <- runSearchPredicateOnAllInputs predicate arg_vals
   let ok = P.boolToValue $ hasSolution res
   let outs = getSearchOutputs res

@@ -115,7 +115,7 @@ instance
   ) =>
   P.UnitaryCostablePrimitive primsT QMax sizeT costT
   where
-  unitaryQueryCostPrimitive delta QMax{predicate} = do
+  unitaryQueryCostPrimitive delta QMax{predicate} _ = do
     P.FunDef{P.param_types} <- view $ _1 . Ctx.at predicate . singular _Just
     let P.Fin n = last param_types
 

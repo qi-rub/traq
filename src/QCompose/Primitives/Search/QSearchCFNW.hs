@@ -28,10 +28,8 @@ module QCompose.Primitives.Search.QSearchCFNW (
 import Control.Applicative ((<|>))
 import Control.Monad (filterM, forM, replicateM, when)
 import Control.Monad.Except (throwError)
-import Control.Monad.Extra (anyM)
 import Control.Monad.Trans (lift)
 import Control.Monad.Writer (censor, listen)
-import Data.Maybe (fromMaybe)
 import Lens.Micro
 import Lens.Micro.Mtl
 import Text.Parsec (try)
@@ -39,7 +37,6 @@ import Text.Printf (printf)
 
 import QCompose.Control.Monad
 import qualified QCompose.Data.Context as Ctx
-import qualified QCompose.Data.Tree as Tree
 
 import qualified QCompose.CQPL as CQPL
 import QCompose.Prelude
@@ -143,8 +140,8 @@ instance
   (P.EvaluatablePrimitive primsT primsT) =>
   P.EvaluatablePrimitive primsT QSearchCFNW
   where
-  evalPrimitive QSearchCFNW{predicate, return_sol = False} = evaluatePrimAny predicate
-  evalPrimitive QSearchCFNW{predicate, return_sol = True} = evaluatePrimSearch predicate
+  evalPrimitive prim@QSearchCFNW{return_sol = False} = evaluatePrimAny prim
+  evalPrimitive prim@QSearchCFNW{return_sol = True} = evaluatePrimSearch prim
 
 -- ================================================================================
 -- Abstract Costs
@@ -159,7 +156,7 @@ instance
   ) =>
   P.UnitaryCostablePrimitive primsT QSearchCFNW sizeT costT
   where
-  unitaryQueryCostPrimitive delta QSearchCFNW{predicate} = do
+  unitaryQueryCostPrimitive delta QSearchCFNW{predicate} _ = do
     P.FunDef{P.param_types} <- view $ _1 . Ctx.at predicate . singular _Just
     let P.Fin n = last param_types
 

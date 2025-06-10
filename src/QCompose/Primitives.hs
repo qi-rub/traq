@@ -15,22 +15,30 @@ import QCompose.Utils.Printing
 
 import QCompose.Primitives.Search.Prelude
 import QCompose.Primitives.Search.QSearchCFNW
+import QCompose.Primitives.Search.RandomSearch
 
-newtype DefaultPrims = QAny QSearchCFNW
+data DefaultPrims = QAny QSearchCFNW | RAny RandomSearch
   deriving (Eq, Show, Read)
 
 instance HasPrimAny DefaultPrims where
   mkAny = QAny . mkAny
+
   getPredicateOfAny (QAny q) = getPredicateOfAny q
+  getPredicateOfAny _ = error "invalid primitive"
 
 instance HasPrimSearch DefaultPrims where
   mkSearch = QAny . mkSearch
+
   getPredicateOfSearch (QAny q) = getPredicateOfSearch q
+  getPredicateOfSearch _ = error "invalid primitive"
 
 -- Printing
 instance ToCodeString DefaultPrims where
-  toCodeString (QAny q) = toCodeString q
-  toCodeLines (QAny q) = toCodeLines q
+  toCodeString (QAny prim) = toCodeString prim
+  toCodeString (RAny prim) = toCodeString prim
+
+  toCodeLines (QAny prim) = toCodeLines prim
+  toCodeLines (RAny prim) = toCodeLines prim
 
 -- Parsing
 instance P.CanParsePrimitive DefaultPrims where
@@ -38,14 +46,16 @@ instance P.CanParsePrimitive DefaultPrims where
 
 -- Type Checking
 instance P.TypeCheckablePrimitive DefaultPrims sizeT where
-  typeCheckPrimitive (QAny q) = P.typeCheckPrimitive q
+  typeCheckPrimitive (QAny prim) = P.typeCheckPrimitive prim
+  typeCheckPrimitive (RAny prim) = P.typeCheckPrimitive prim
 
 -- Evaluation
 instance
   (P.EvaluatablePrimitive primsT primsT) =>
   P.EvaluatablePrimitive primsT DefaultPrims
   where
-  evalPrimitive (QAny q) = P.evalPrimitive q
+  evalPrimitive (QAny prim) = P.evalPrimitive prim
+  evalPrimitive (RAny prim) = P.evalPrimitive prim
 
 -- Costs
 instance
@@ -56,27 +66,31 @@ instance
   ) =>
   P.UnitaryCostablePrimitive primsT DefaultPrims sizeT costT
   where
-  unitaryQueryCostPrimitive delta (QAny q) = P.unitaryQueryCostPrimitive delta q
+  unitaryQueryCostPrimitive delta (QAny prim) = P.unitaryQueryCostPrimitive delta prim
+  unitaryQueryCostPrimitive delta (RAny prim) = P.unitaryQueryCostPrimitive delta prim
 
 instance
   ( Integral sizeT
   , Floating costT
+  , Ord costT
   , P.QuantumMaxCostablePrimitive primsT primsT sizeT costT
   ) =>
   P.QuantumMaxCostablePrimitive primsT DefaultPrims sizeT costT
   where
-  quantumMaxQueryCostPrimitive delta (QAny q) = P.quantumMaxQueryCostPrimitive delta q
+  quantumMaxQueryCostPrimitive delta (QAny prim) = P.quantumMaxQueryCostPrimitive delta prim
+  quantumMaxQueryCostPrimitive delta (RAny prim) = P.quantumMaxQueryCostPrimitive delta prim
 
 instance
   ( Integral sizeT
   , Floating costT
+  , Ord costT
   , P.EvaluatablePrimitive primsT primsT
   , P.QuantumCostablePrimitive primsT primsT sizeT costT
   , sizeT ~ SizeT
   ) =>
   P.QuantumCostablePrimitive primsT DefaultPrims sizeT costT
   where
-  quantumQueryCostPrimitive delta (QAny q) = P.quantumQueryCostPrimitive delta q
+  quantumQueryCostPrimitive delta (QAny prim) = P.quantumQueryCostPrimitive delta prim
 
 -- Lowering
 instance

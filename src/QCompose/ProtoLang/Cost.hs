@@ -88,6 +88,7 @@ class
   unitaryQueryCostPrimitive ::
     costT ->
     primT ->
+    [Ident] ->
     UnitaryCostCalculator primsT sizeT costT costT
 
 instance (Show costT) => UnitaryCostablePrimitive primsT Void sizeT costT where
@@ -114,8 +115,8 @@ unitaryQueryCostE delta FunCallE{fun_kind = FunctionCall fname} = do
       case mbody of
         Nothing -> return 0 -- no cost for injected data
         Just FunBody{body_stmt} -> (2 *) <$> unitaryQueryCostS (delta / 2) body_stmt
-unitaryQueryCostE delta FunCallE{fun_kind = PrimitiveCall prim} =
-  unitaryQueryCostPrimitive delta prim
+unitaryQueryCostE delta FunCallE{fun_kind = PrimitiveCall prim, args} =
+  unitaryQueryCostPrimitive delta prim args
 -- zero-cost expressions
 unitaryQueryCostE _ VarE{} = return 0
 unitaryQueryCostE _ ConstE{} = return 0
