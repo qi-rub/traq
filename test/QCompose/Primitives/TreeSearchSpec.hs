@@ -6,7 +6,6 @@ import Text.Parsec.String
 
 import qualified QCompose.Data.Context as Ctx
 import qualified QCompose.Data.Symbolic as Sym
-import QCompose.Prelude
 import qualified QCompose.ProtoLang as P
 import QCompose.ProtoLang.Parser (programParser)
 
@@ -23,21 +22,19 @@ exampleProgram n two = P.Program{P.funCtx, P.stmt = P.SeqS [stmt]}
 
   check =
     P.FunDef
-      { P.fun_name = "check"
-      , P.param_types = [node_ty]
+      { P.param_types = [node_ty]
       , P.ret_types = [bool_ty]
       , P.mbody = Nothing
       }
 
   child =
     P.FunDef
-      { P.fun_name = "child"
-      , P.param_types = [node_ty]
+      { P.param_types = [node_ty]
       , P.ret_types = [node_ty, node_ty]
       , P.mbody = Nothing
       }
 
-  funCtx = Ctx.fromListWith P.fun_name [child, check]
+  funCtx = Ctx.fromList [("child", child), ("check", check)]
   stmt =
     P.ExprS
       { P.rets = ["ok"]

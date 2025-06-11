@@ -87,6 +87,7 @@ data FunDef primT sizeT = FunDef
 
 -- | A function with a name
 data NamedFunDef primT sizeT = NamedFunDef {fun_name :: Ident, fun_def :: FunDef primT sizeT}
+  deriving (Eq, Show, Read, Functor)
 
 -- | A function context contains a list of functions
 type FunCtx primT sizeT = Ctx.Context (FunDef primT sizeT)

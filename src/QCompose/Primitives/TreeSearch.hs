@@ -98,12 +98,12 @@ instance
 
     let nxt u =
           ( do
-              cs <- P.evalFun (child_args ++ [u]) child_fun
+              cs <- P.evalFun (child_args ++ [u]) getChildren child_fun
               return (head cs, cs !! 1)
           )
     let chk u =
           ( do
-              vs <- P.evalFun (check_args ++ [u]) check_fun
+              vs <- P.evalFun (check_args ++ [u]) checkNode check_fun
               let ok = head vs
               return $ ok /= 0
           )

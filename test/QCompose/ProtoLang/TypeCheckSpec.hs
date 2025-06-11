@@ -18,8 +18,7 @@ spec = do
     it "fun cannot return param" $ do
       let bad_fun =
             FunDef
-              { fun_name = "my_fun"
-              , param_types = [Fin 5]
+              { param_types = [Fin 5]
               , ret_types = [Fin 5]
               , mbody = Just FunBody{param_names = ["x"], ret_names = ["x"], body_stmt = SeqS []}
               } ::

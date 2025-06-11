@@ -233,7 +233,7 @@ instance
         (`runMyReaderT` env) $
           (`filterM` space)
             ( \v -> do
-                result <- P.evalFun (vs ++ [v]) predDef
+                result <- P.evalFun (vs ++ [v]) predicate predDef
                 let [b] = result
                 return $ b /= 0
             )
@@ -441,7 +441,7 @@ instance
       , UQPL.out_tys = pred_out_tys
       , UQPL.aux_tys = pred_aux_tys
       } <-
-      UQPL.lowerFunDef UQPL.WithControl delta_per_pred_call pred_fun
+      UQPL.lowerFunDef UQPL.WithControl delta_per_pred_call predicate pred_fun
 
     when (pred_out_tys /= [P.tbool]) $ throwError "invalid outputs for predicate"
     when (last pred_inp_tys /= s_ty) $ throwError "mismatched search argument type"
@@ -731,7 +731,7 @@ instance
     let delta_per_pred_call = eps_per_pred_call / 2 -- norm error in unitary predicate
 
     -- lower the unitary predicate
-    let upred_compiler = UQPL.lowerFunDef UQPL.WithoutControl delta_per_pred_call pred_fun
+    let upred_compiler = UQPL.lowerFunDef UQPL.WithoutControl delta_per_pred_call predicate pred_fun
     (pred_uproc, uprocs) <- do
       uenv <- view id
       ust <- use id

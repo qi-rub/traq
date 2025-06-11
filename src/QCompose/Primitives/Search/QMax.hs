@@ -97,7 +97,7 @@ instance
     let search_range = pred_fun ^. to P.param_types . to last . to P.range
 
     values <- forM search_range $ \val -> do
-      res <- P.evalFun (arg_vals ++ [val]) pred_fun
+      res <- P.evalFun (arg_vals ++ [val]) predicate pred_fun
       return $ head res
 
     return [maximum values]
