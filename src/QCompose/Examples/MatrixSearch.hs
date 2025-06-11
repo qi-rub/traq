@@ -10,10 +10,10 @@ import QCompose.ProtoLang.Syntax
 matrixExample :: forall primsT sizeT. (HasPrimAny primsT) => sizeT -> sizeT -> VarType sizeT -> Program primsT sizeT
 matrixExample n m tyBool =
   Program
-    { funCtx = Ctx.fromListWith fun_name [oracle_decl, check_entry, check_row, check_matrix]
+    { funCtx = Ctx.fromList [(oracle_name, oracle_decl), (check_entry_name, check_entry), (check_row_name, check_row), (check_matrix_name, check_matrix)]
     , stmt =
         ExprS
-          { expr = FunCallE{fun_kind = FunctionCall "HasAllOnesRow", args = []}
+          { expr = FunCallE{fun_kind = FunctionCall check_matrix_name, args = []}
           , rets = ["result"]
           }
     }
@@ -22,21 +22,26 @@ matrixExample n m tyBool =
   tyI = Fin n
   tyJ = Fin m
 
+  oracle_name :: Ident
+  oracle_name = "Oracle"
+
   oracle_decl :: FunDef primsT sizeT
-  oracle_decl = FunDef{fun_name = "Oracle", param_types = [tyI, tyJ], ret_types = [tyBool], mbody = Nothing}
+  oracle_decl = FunDef{param_types = [tyI, tyJ], ret_types = [tyBool], mbody = Nothing}
+
+  check_entry_name :: Ident
+  check_entry_name = "IsEntryZero"
 
   check_entry :: FunDef primsT sizeT
   check_entry =
     FunDef
-      { fun_name = "IsEntryZero"
-      , param_types = [tyI, tyJ]
+      { param_types = [tyI, tyJ]
       , mbody =
           Just
             FunBody
               { param_names = [i, j]
               , body_stmt =
                   SeqS
-                    [ ExprS{rets = [e], expr = FunCallE{fun_kind = FunctionCall "Oracle", args = [i, j]}}
+                    [ ExprS{rets = [e], expr = FunCallE{fun_kind = FunctionCall oracle_name, args = [i, j]}}
                     , ExprS{rets = [e'], expr = UnOpE{un_op = NotOp, arg = e}}
                     ]
               , ret_names = [e']
@@ -49,18 +54,20 @@ matrixExample n m tyBool =
     e = "e"
     e' = "e'"
 
+  check_row_name :: Ident
+  check_row_name = "IsRowAllOnes"
+
   check_row :: FunDef primsT sizeT
   check_row =
     FunDef
-      { fun_name = "IsRowAllOnes"
-      , param_types = [tyI]
+      { param_types = [tyI]
       , mbody =
           Just
             FunBody
               { param_names = [i]
               , body_stmt =
                   SeqS
-                    [ ExprS{rets = [ok], expr = FunCallE{fun_kind = PrimitiveCall (mkAny "IsEntryZero"), args = [i]}}
+                    [ ExprS{rets = [ok], expr = FunCallE{fun_kind = PrimitiveCall (mkAny check_entry_name), args = [i]}}
                     , ExprS{rets = [ok'], expr = UnOpE{un_op = NotOp, arg = ok}}
                     ]
               , ret_names = [ok']
@@ -72,16 +79,18 @@ matrixExample n m tyBool =
     ok = "hasZero"
     ok' = "okr"
 
+  check_matrix_name :: Ident
+  check_matrix_name = "HasAllOnesRow"
+
   check_matrix :: FunDef primsT sizeT
   check_matrix =
     FunDef
-      { fun_name = "HasAllOnesRow"
-      , param_types = []
+      { param_types = []
       , mbody =
           Just
             FunBody
               { param_names = []
-              , body_stmt = ExprS{rets = [ok], expr = FunCallE{fun_kind = PrimitiveCall (mkAny "IsRowAllOnes"), args = []}}
+              , body_stmt = ExprS{rets = [ok], expr = FunCallE{fun_kind = PrimitiveCall (mkAny check_row_name), args = []}}
               , ret_names = [ok]
               }
       , ret_types = [tyBool]

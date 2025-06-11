@@ -10,12 +10,12 @@ import QCompose.ProtoLang.Syntax
 arraySearch :: SizeT -> Program DefaultPrims SizeT
 arraySearch n =
   Program
-    { funCtx = Ctx.fromListWith fun_name [oracle_decl]
+    { funCtx = Ctx.fromList [("Oracle", oracle_decl)]
     , stmt
     }
  where
   oracle_decl :: FunDef DefaultPrims SizeT
-  oracle_decl = FunDef{fun_name = "Oracle", param_types = [Fin n], ret_types = [Fin 2], mbody = Nothing}
+  oracle_decl = FunDef{param_types = [Fin n], ret_types = [Fin 2], mbody = Nothing}
 
   stmt =
     ExprS
@@ -30,18 +30,17 @@ arraySearch n =
 arraySearchIx :: SizeT -> Program DefaultPrims SizeT
 arraySearchIx n =
   Program
-    { funCtx = Ctx.fromListWith fun_name [oracle_decl, check]
+    { funCtx = Ctx.fromList [("Oracle", oracle_decl), ("check", check)]
     , stmt
     }
  where
   oracle_decl :: FunDef DefaultPrims SizeT
-  oracle_decl = FunDef{fun_name = "Oracle", param_types = [Fin n], ret_types = [Fin 2], mbody = Nothing}
+  oracle_decl = FunDef{param_types = [Fin n], ret_types = [Fin 2], mbody = Nothing}
 
   check :: FunDef DefaultPrims SizeT
   check =
     FunDef
-      { fun_name = "check"
-      , param_types = [Fin n]
+      { param_types = [Fin n]
       , mbody =
           Just
             FunBody

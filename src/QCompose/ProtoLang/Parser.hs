@@ -151,8 +151,8 @@ stmtP tp@TokenParser{..} = SeqS <$> (someStmt <|> return [])
     expr <- exprP tp
     return ExprS{rets, expr}
 
-funDef :: (CanParsePrimitive primT) => TokenParser () -> Parser (FunDef primT SymbSize)
-funDef tp@TokenParser{..} = do
+namedFunDef :: (CanParsePrimitive primT) => TokenParser () -> Parser (NamedFunDef primT SymbSize)
+namedFunDef tp@TokenParser{..} = do
   reserved "def"
   fun_name <- identifier
   (param_names, param_types) <- unzip <$> parens (commaSep (typedTerm tp identifier))
@@ -163,9 +163,10 @@ funDef tp@TokenParser{..} = do
   (ret_names, ret_types) <- unzip <$> commaSep (typedTerm tp identifier)
   reserved "end"
   let mbody = Just FunBody{..}
-  return FunDef{..}
+  let fun_def = FunDef{..}
+  return NamedFunDef{..}
 
-funDecl :: TokenParser () -> Parser (FunDef primT SymbSize)
+funDecl :: TokenParser () -> Parser (NamedFunDef primT SymbSize)
 funDecl tp@TokenParser{..} = do
   reserved "declare"
   fun_name <- identifier
@@ -173,11 +174,13 @@ funDecl tp@TokenParser{..} = do
   reservedOp "->"
   -- single type as is, or multiple as a tuple
   ret_types <- ((: []) <$> varType tp) <|> parens (commaSep (varType tp))
-  return FunDef{mbody = Nothing, ..}
+  let fun_def = FunDef{mbody = Nothing, ..}
+  return NamedFunDef{..}
 
 program :: (CanParsePrimitive primT) => TokenParser () -> Parser (Program primT SymbSize)
 program tp@TokenParser{..} = do
-  funCtx <- Ctx.fromListWith fun_name <$> many (funDef tp <|> funDecl tp)
+  fs <- many (namedFunDef tp <|> funDecl tp)
+  let funCtx = Ctx.fromList [(fun_name f, fun_def f) | f <- fs]
   stmt <- stmtP tp
   return Program{..}
 
@@ -192,8 +195,8 @@ parseCode parser = parse (whiteSpace p *> parser p <* eof) ""
 parseProgram :: (CanParsePrimitive primT) => String -> Either ParseError (Program primT SymbSize)
 parseProgram = parseCode program
 
-parseFunDef :: (CanParsePrimitive primT) => String -> Either ParseError (FunDef primT SymbSize)
-parseFunDef = parseCode funDef
+parseFunDef :: (CanParsePrimitive primT) => String -> Either ParseError (NamedFunDef primT SymbSize)
+parseFunDef = parseCode namedFunDef
 
 parseStmt :: (CanParsePrimitive primT) => String -> Either ParseError (Stmt primT SymbSize)
 parseStmt = parseCode stmtP

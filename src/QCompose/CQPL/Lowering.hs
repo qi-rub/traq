@@ -128,11 +128,13 @@ lowerFunDef ::
   ) =>
   -- | fail prob
   costT ->
+  -- | source function name
+  Ident ->
   -- | source function
   P.FunDef primsT sizeT ->
   CompilerT primsT holeT sizeT costT Ident
 -- lower declarations as-is, ignoring fail prob
-lowerFunDef _ P.FunDef{P.fun_name, P.param_types, P.ret_types, P.mbody = Nothing} = do
+lowerFunDef _ fun_name P.FunDef{P.param_types, P.ret_types, P.mbody = Nothing} = do
   is_oracle <- (fun_name ==) <$> view oracleName
   let proc_def =
         ProcDef
@@ -144,7 +146,7 @@ lowerFunDef _ P.FunDef{P.fun_name, P.param_types, P.ret_types, P.mbody = Nothing
           }
   addProc proc_def
   return fun_name
-lowerFunDef eps P.FunDef{P.fun_name, P.param_types, P.mbody = Just body} = do
+lowerFunDef eps fun_name P.FunDef{P.param_types, P.mbody = Just body} = do
   is_oracle <- (fun_name ==) <$> view oracleName
 
   proc_name <- newIdent $ printf "%s[%s]" fun_name (show eps)
@@ -188,7 +190,7 @@ lowerFunDefByName ::
   CompilerT primsT holeT sizeT costT Ident
 lowerFunDefByName eps f = do
   fun_def <- view $ protoFunCtx . Ctx.at f . singular _Just
-  lowerFunDef eps fun_def
+  lowerFunDef eps f fun_def
 
 -- | Lower a source expression to a statement.
 lowerExpr ::

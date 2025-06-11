@@ -125,7 +125,7 @@ evalExpr FunCallE{fun_kind = FunctionCall fun, args} = do
   arg_vals <- mapM lookupS args
   funCtx <- view _1
   let fun_def = funCtx ^. Ctx.at fun . singular _Just
-  embedReaderT $ evalFun arg_vals fun_def
+  embedReaderT $ evalFun arg_vals fun fun_def
 
 -- subroutines
 evalExpr FunCallE{fun_kind = PrimitiveCall prim, args} = do
@@ -142,13 +142,21 @@ execStmt IfThenElseS{cond, s_true, s_false} = do
   execStmt s
 execStmt (SeqS ss) = mapM_ execStmt ss
 
-evalFun :: (EvaluatablePrimitive primsT primsT) => [Value] -> FunDef primsT SizeT -> Evaluator primsT SizeT [Value]
-evalFun vals_in FunDef{mbody = Just FunBody{param_names, ret_names, body_stmt}} =
+evalFun ::
+  (EvaluatablePrimitive primsT primsT) =>
+  -- | arguments
+  [Value] ->
+  -- | function name
+  Ident ->
+  -- | function
+  FunDef primsT SizeT ->
+  Evaluator primsT SizeT [Value]
+evalFun vals_in _ FunDef{mbody = Just FunBody{param_names, ret_names, body_stmt}} =
   let params = Ctx.fromList $ zip param_names vals_in
    in withInjectedState params $ do
         execStmt body_stmt
         mapM lookupS ret_names
-evalFun vals_in FunDef{fun_name, mbody = Nothing} = do
+evalFun vals_in fun_name FunDef{mbody = Nothing} = do
   interp <- view $ _2 . Ctx.at fun_name . singular _Just
   return $ interp vals_in
 

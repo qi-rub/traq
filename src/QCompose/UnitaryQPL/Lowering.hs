@@ -190,11 +190,11 @@ lowerExpr _ P.TernaryE{P.branch, P.lhs, P.rhs} [ret] = do
     ]
 
 -- function call
-lowerExpr delta P.FunCallE{P.fun_kind = P.FunctionCall f, P.args} rets = do
+lowerExpr delta P.FunCallE{P.fun_kind = P.FunctionCall fun_name, P.args} rets = do
   fun <-
-    view (protoFunCtx . Ctx.at f)
-      >>= maybeWithError ("cannot find function " <> f)
-  LoweredProc{lowered_def, inp_tys, out_tys, aux_tys} <- lowerFunDef WithoutControl delta fun
+    view (protoFunCtx . Ctx.at fun_name)
+      >>= maybeWithError ("cannot find function " <> fun_name)
+  LoweredProc{lowered_def, inp_tys, out_tys, aux_tys} <- lowerFunDef WithoutControl delta fun_name fun
 
   when (length inp_tys /= length args) $
     throwError "mismatched number of args"
@@ -257,14 +257,17 @@ lowerFunDefWithGarbage ::
   ) =>
   -- | precision \delta
   costT ->
+  -- | source function name
+  Ident ->
+  -- | function
   P.FunDef primsT sizeT ->
   CompilerT primsT holeT sizeT costT (LoweredProc holeT sizeT costT)
-lowerFunDefWithGarbage _ P.FunDef{P.mbody = Nothing} = error "TODO"
+lowerFunDefWithGarbage _ _ P.FunDef{P.mbody = Nothing} = error "TODO"
 lowerFunDefWithGarbage
   delta
+  fun_name
   P.FunDef
-    { P.fun_name
-    , P.param_types
+    { P.param_types
     , P.ret_types
     , P.mbody =
       Just P.FunBody{P.param_names, P.ret_names, P.body_stmt}
@@ -316,10 +319,13 @@ lowerFunDef ::
   ControlFlag ->
   -- | precision \delta
   costT ->
+  -- | function name
+  Ident ->
+  -- | function
   P.FunDef primsT sizeT ->
   CompilerT primsT holeT sizeT costT (LoweredProc holeT sizeT costT)
 -- lower a declaration as-is, we treat all declarations as perfect data oracles (so delta is ignored).
-lowerFunDef with_ctrl _ P.FunDef{P.fun_name, P.param_types, P.ret_types, P.mbody = Nothing} = do
+lowerFunDef with_ctrl _ fun_name P.FunDef{P.param_types, P.ret_types, P.mbody = Nothing} = do
   let param_names = map (printf "in_%d") [0 .. length param_types]
   let ret_names = map (printf "out_%d") [0 .. length ret_types]
   is_oracle <- (fun_name ==) <$> view oracleName
@@ -349,14 +355,14 @@ lowerFunDef with_ctrl _ P.FunDef{P.fun_name, P.param_types, P.ret_types, P.mbody
 lowerFunDef
   with_ctrl
   delta
+  fun_name
   fun@P.FunDef
-    { P.fun_name
-    , P.param_types
+    { P.param_types
     , P.ret_types
     , P.mbody = Just P.FunBody{P.param_names, P.ret_names}
     } = withSandboxOf typingCtx $ do
     -- get the proc call that computes with garbage
-    LoweredProc{lowered_def, aux_tys = g_aux_tys, out_tys = g_ret_tys} <- lowerFunDefWithGarbage (delta / 2) fun
+    LoweredProc{lowered_def, aux_tys = g_aux_tys, out_tys = g_ret_tys} <- lowerFunDefWithGarbage (delta / 2) fun_name fun
     let g_dirty_name = lowered_def ^. to proc_name
 
     let param_binds = zip param_names param_types

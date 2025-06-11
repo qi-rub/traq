@@ -52,21 +52,24 @@ spec = do
             ]
         )
         `shouldBe` Right
-          FunDef
+          NamedFunDef
             { fun_name = "check_entry"
-            , param_types = [Fin (Sym.var "N"), Fin (Sym.var "M")]
-            , mbody =
-                Just
-                  FunBody
-                    { param_names = ["i", "j"]
-                    , body_stmt =
-                        SeqS
-                          [ ExprS{rets = ["e"], expr = FunCallE{fun_kind = FunctionCall "Oracle", args = ["i", "j"]}}
-                          , ExprS{rets = ["e'"], expr = UnOpE{un_op = NotOp, arg = "e"}}
-                          ]
-                    , ret_names = ["e'"]
-                    }
-            , ret_types = [Fin (Sym.con 2)]
+            , fun_def =
+                FunDef
+                  { param_types = [Fin (Sym.var "N"), Fin (Sym.var "M")]
+                  , mbody =
+                      Just
+                        FunBody
+                          { param_names = ["i", "j"]
+                          , body_stmt =
+                              SeqS
+                                [ ExprS{rets = ["e"], expr = FunCallE{fun_kind = FunctionCall "Oracle", args = ["i", "j"]}}
+                                , ExprS{rets = ["e'"], expr = UnOpE{un_op = NotOp, arg = "e"}}
+                                ]
+                          , ret_names = ["e'"]
+                          }
+                  , ret_types = [Fin (Sym.con 2)]
+                  }
             }
 
   describe "parse file" $ do
