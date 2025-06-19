@@ -7,7 +7,7 @@ module QCompose.Primitives.Search.RandomSearch (
   RandomSearch (..),
 ) where
 
-import Lens.Micro
+import Lens.Micro.GHC
 import Lens.Micro.Mtl
 import Text.Printf (printf)
 

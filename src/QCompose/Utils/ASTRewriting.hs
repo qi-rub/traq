@@ -6,7 +6,7 @@ module QCompose.Utils.ASTRewriting (
   rewriteAST,
 ) where
 
-import Lens.Micro
+import Lens.Micro.GHC
 
 -- | Typeclass for the `ast` lens, which looks at immediate children
 class HasAst a where

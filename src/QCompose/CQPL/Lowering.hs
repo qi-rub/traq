@@ -26,7 +26,7 @@ import Control.Monad (msum, unless)
 import Control.Monad.Except (throwError)
 import qualified Data.Set as Set
 import Data.Void (Void, absurd)
-import Lens.Micro
+import Lens.Micro.GHC
 import Lens.Micro.Mtl
 import Text.Printf (printf)
 
@@ -271,8 +271,10 @@ lowerProgram gamma_in oracle_name eps prog@P.Program{P.funCtx, P.stmt} = do
   let config = (funCtx, oracle_name)
   let lowering_ctx =
         emptyLoweringCtx
-          & typingCtx .~ gamma_in
-          & uniqNames .~ P.allNamesP prog
+          & typingCtx
+          .~ gamma_in
+          & uniqNames
+          .~ P.allNamesP prog
 
   let compiler = lowerStmt eps stmt
   (stmtQ, lowering_ctx', outputU) <- runMyReaderWriterStateT compiler config lowering_ctx

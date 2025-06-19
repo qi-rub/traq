@@ -38,7 +38,7 @@ import Control.Monad.Except (throwError)
 import Data.List (intersect)
 import qualified Data.Set as Set
 import Data.Void (Void, absurd)
-import Lens.Micro
+import Lens.Micro.GHC
 import Lens.Micro.Mtl
 import Text.Printf (printf)
 
@@ -435,12 +435,16 @@ lowerProgram gamma_in oracle_name delta prog@P.Program{P.funCtx, P.stmt} = do
 
   let config =
         undefined
-          & protoFunCtx .~ funCtx
-          & oracleName .~ oracle_name
+          & protoFunCtx
+          .~ funCtx
+          & oracleName
+          .~ oracle_name
   let ctx =
         undefined
-          & typingCtx .~ gamma_in
-          & uniqNames .~ P.allNamesP prog
+          & typingCtx
+          .~ gamma_in
+          & uniqNames
+          .~ P.allNamesP prog
   let compiler = lowerStmt delta stmt
   (stmtU, ctx', outputU) <- runMyReaderWriterStateT compiler config ctx
   return

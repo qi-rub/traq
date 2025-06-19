@@ -2,7 +2,7 @@
 
 module QCompose.Primitives.Search.QSearchCFNWSpec (spec) where
 
-import Lens.Micro
+import Lens.Micro.GHC
 
 import QCompose.Control.Monad
 import qualified QCompose.Data.Context as Ctx

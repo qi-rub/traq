@@ -1,6 +1,6 @@
 module QCompose.Primitives.QSearchSpec (spec) where
 
-import Lens.Micro
+import Lens.Micro.GHC
 
 import QCompose.Control.Monad
 import qualified QCompose.Data.Context as Ctx

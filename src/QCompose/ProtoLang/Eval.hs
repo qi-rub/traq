@@ -25,7 +25,7 @@ module QCompose.ProtoLang.Eval (
 
 import Control.Monad (zipWithM_)
 import Control.Monad.RWS (MonadState, runRWST)
-import Lens.Micro
+import Lens.Micro.GHC
 import Lens.Micro.GHC ()
 import Lens.Micro.Mtl
 

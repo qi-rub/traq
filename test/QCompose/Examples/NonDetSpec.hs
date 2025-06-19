@@ -3,7 +3,7 @@
 module QCompose.Examples.NonDetSpec (spec) where
 
 import Data.Either (fromRight, isRight)
-import Lens.Micro
+import Lens.Micro.GHC
 import qualified QCompose.Data.Symbolic as Sym
 import Text.Parsec.String (parseFromFile)
 

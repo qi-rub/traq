@@ -60,7 +60,6 @@ library
           base >=4.10 && <5
         , containers >=0.6 && <1
         , extra >=1.8 && <2
-        , microlens ==0.4.*
         , microlens-ghc ==0.4.*
         , microlens-mtl ==0.2.*
         , mtl >=2.2.2
@@ -99,7 +98,6 @@ executable cqplcompile
           base >=4.10 && <5
         , containers >=0.6 && <1
         , extra >=1.8 && <2
-        , microlens ==0.4.*
         , microlens-ghc ==0.4.*
         , microlens-mtl ==0.2.*
         , mtl >=2.2.2
@@ -131,7 +129,6 @@ executable matrixsearch
           base >=4.10 && <5
         , containers >=0.6 && <1
         , extra >=1.8 && <2
-        , microlens ==0.4.*
         , microlens-ghc ==0.4.*
         , microlens-mtl ==0.2.*
         , mtl >=2.2.2
@@ -163,7 +160,6 @@ executable matrixsearchqcost
           base >=4.10 && <5
         , containers >=0.6 && <1
         , extra >=1.8 && <2
-        , microlens ==0.4.*
         , microlens-ghc ==0.4.*
         , microlens-mtl ==0.2.*
         , mtl >=2.2.2
@@ -195,7 +191,6 @@ executable uqplcompile
           base >=4.10 && <5
         , containers >=0.6 && <1
         , extra >=1.8 && <2
-        , microlens ==0.4.*
         , microlens-ghc ==0.4.*
         , microlens-mtl ==0.2.*
         , mtl >=2.2.2
@@ -227,7 +222,6 @@ executable uqpltoquipper
           base >=4.10 && <5
         , containers >=0.6 && <1
         , extra >=1.8 && <2
-        , microlens ==0.4.*
         , microlens-ghc ==0.4.*
         , microlens-mtl ==0.2.*
         , mtl >=2.2.2
@@ -278,7 +272,6 @@ test-suite spec
         , containers >=0.6 && <1
         , extra >=1.8 && <2
         , hspec >=2.11.0
-        , microlens ==0.4.*
         , microlens-ghc ==0.4.*
         , microlens-mtl ==0.2.*
         , mtl >=2.2.2

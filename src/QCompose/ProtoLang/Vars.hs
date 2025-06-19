@@ -10,7 +10,7 @@ module QCompose.ProtoLang.Vars (
 import Control.Monad (foldM, guard)
 import Data.Maybe (isJust, mapMaybe)
 import qualified Data.Set as Set
-import Lens.Micro
+import Lens.Micro.GHC
 
 import qualified QCompose.Data.Context as Ctx
 

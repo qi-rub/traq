@@ -41,8 +41,7 @@ import qualified Data.Foldable as Foldable
 import qualified Data.List as List
 import Text.Printf (printf)
 
-import Lens.Micro hiding (at, ix)
-import Lens.Micro.GHC ()
+import Lens.Micro.GHC hiding (at, ix)
 import Lens.Micro.Mtl
 
 import QCompose.Control.Monad (maybeWithError)

@@ -30,7 +30,7 @@ import Control.Monad (filterM, forM, replicateM, when)
 import Control.Monad.Except (throwError)
 import Control.Monad.Trans (lift)
 import Control.Monad.Writer (censor, listen)
-import Lens.Micro
+import Lens.Micro.GHC
 import Lens.Micro.Mtl
 import Text.Parsec (try)
 import Text.Printf (printf)

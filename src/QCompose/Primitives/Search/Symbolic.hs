@@ -12,7 +12,7 @@ module QCompose.Primitives.Search.Symbolic (
 ) where
 
 import Control.Applicative ((<|>))
-import Lens.Micro
+import Lens.Micro.GHC
 import Lens.Micro.Mtl
 import qualified QCompose.Data.Symbolic as Sym
 import Text.Parsec (try)

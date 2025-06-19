@@ -11,7 +11,7 @@ module QCompose.UnitaryQPL.TypeCheck (
 import Control.Monad (forM, forM_, when)
 import Control.Monad.Except (throwError)
 import Control.Monad.Reader (local)
-import Lens.Micro
+import Lens.Micro.GHC
 import Lens.Micro.Mtl
 
 import qualified QCompose.Data.Context as Ctx

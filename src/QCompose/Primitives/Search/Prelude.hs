@@ -29,7 +29,7 @@ import Control.Monad (forM, replicateM, when)
 import Control.Monad.Except (throwError)
 import Control.Monad.Trans (lift)
 import Data.Maybe (fromMaybe)
-import Lens.Micro
+import Lens.Micro.GHC
 import Lens.Micro.Mtl
 import Text.Parsec.String (Parser)
 import Text.Parsec.Token (GenTokenParser (..), TokenParser)

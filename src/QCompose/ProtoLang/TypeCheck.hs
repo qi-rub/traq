@@ -21,7 +21,7 @@ import Control.Monad.Except (MonadError, throwError)
 import Control.Monad.RWS (MonadReader)
 import Text.Printf (printf)
 
-import Lens.Micro
+import Lens.Micro.GHC
 import Lens.Micro.Mtl
 
 import qualified QCompose.Data.Context as Ctx

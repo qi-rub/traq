@@ -14,7 +14,7 @@ module QCompose.Primitives.Search.QMax () where
 import Control.Monad (forM, when)
 import Control.Monad.Except (throwError)
 import Data.Maybe (fromMaybe)
-import Lens.Micro
+import Lens.Micro.GHC
 import Lens.Micro.Mtl
 import Text.Parsec.Token (GenTokenParser (..))
 import Text.Printf (printf)
