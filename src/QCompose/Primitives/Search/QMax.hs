@@ -175,7 +175,7 @@ instance
   P.QuantumCostablePrimitive primsT QMax sizeT costT
   where
   quantumQueryCostPrimitive eps QMax{predicate} _ = do
-    P.FunDef{P.param_types} <- view $ _1 . Ctx.at predicate . singular _Just
+    P.FunDef{P.param_types} <- view $ P.extractUEnv . _1 . Ctx.at predicate . singular _Just
     let P.Fin n = last param_types
 
     -- split the fail prob

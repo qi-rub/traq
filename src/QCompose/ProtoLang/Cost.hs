@@ -262,7 +262,10 @@ quantumMaxQueryCost a_eps Program{funCtx, stmt} oracle_name =
 -- ================================================================================
 
 -- Environment to compute the quantum cost (input dependent)
-type DynamicCostEnv primsT sizeT costT = (FunCtx primsT sizeT, FunInterpCtx, OracleName)
+type DynamicCostEnv primsT sizeT costT = (StaticCostEnv primsT sizeT costT, FunInterpCtx, OracleName)
+
+extractUEnv :: Lens' (DynamicCostEnv primsT sizeT costT) (StaticCostEnv primsT sizeT costT)
+extractUEnv = _1
 
 type QuantumCostCalculator primsT sizeT costT a = MyReaderT (DynamicCostEnv primsT sizeT costT) Maybe a
 
@@ -299,7 +302,7 @@ quantumQueryCostE eps sigma FunCallE{fun_kind = FunctionCall f, args} = do
   if is_oracle
     then return 1
     else
-      view (_1 . to (unsafeLookupFun f) . to mbody) >>= \case
+      view (extractUEnv . _funCtx . to (unsafeLookupFun f) . to mbody) >>= \case
         Nothing -> return 0 -- no cost for injected data
         Just FunBody{param_names, body_stmt} -> do
           let vs = args & map (\x -> sigma ^. Ctx.at x . singular _Just)
@@ -317,10 +320,6 @@ quantumQueryCostE _ _ ConstE{} = return 0
 quantumQueryCostE _ _ UnOpE{} = return 0
 quantumQueryCostE _ _ BinOpE{} = return 0
 quantumQueryCostE _ _ TernaryE{} = return 0
-
--- TODO use proper argument names
-extractUEnv :: Lens' (DynamicCostEnv primsT sizeT costT) (StaticCostEnv primsT sizeT costT)
-extractUEnv focus (b, c, d) = (\(b', d') -> (b', c, d')) <$> focus (b, d)
 
 quantumQueryCostS ::
   forall primsT costT.
@@ -341,7 +340,7 @@ quantumQueryCostS eps sigma (SeqS [s]) = quantumQueryCostS eps sigma s
 quantumQueryCostS eps sigma (SeqS (s : ss)) = do
   cost_s <- quantumQueryCostS (eps / 2) sigma s
 
-  funCtx <- view _1
+  funCtx <- view $ extractUEnv . _funCtx
   interpCtx <- view _2
   let sigma' = detExtract $ runProgram Program{funCtx, stmt = s} interpCtx sigma
 
@@ -363,7 +362,7 @@ quantumQueryCost ::
   ProgramState ->
   costT
 quantumQueryCost a_eps Program{funCtx, stmt} oracle_name interpCtx sigma =
-  let env = (funCtx, interpCtx, oracle_name)
+  let env = ((funCtx, oracle_name), interpCtx, oracle_name)
    in quantumQueryCostS a_eps sigma stmt `runMyReaderT` env ^. singular _Just
 
 -- | The bound on the true expected runtime which fails with probability <= \eps.
