@@ -4,6 +4,7 @@ module Main where
 
 import Control.Exception (assert)
 import Control.Monad (forM_)
+import qualified Data.Map as Map
 import Text.Printf (printf)
 
 import qualified QCompose.Data.Context as Ctx
@@ -42,7 +43,7 @@ symbolicEx = do
             }
 
     putStrLn $ printf "Cost of %s" f
-    print $ P.unitaryQueryCost delta ex{P.stmt = stmt} "Oracle"
+    print $ P.unitaryQueryCost delta ex{P.stmt = stmt} (Map.singleton "Oracle" 1.0)
 
 concreteEx :: IO ()
 concreteEx = do
@@ -56,7 +57,7 @@ concreteEx = do
 
   let delta = 0.001 :: Double
 
-  let u_formula_cost = P.unitaryQueryCost delta ex "Oracle"
+  let u_formula_cost = P.unitaryQueryCost delta ex (Map.singleton "Oracle" 1.0)
 
   printDivider
   let (Right (exU, _)) = UQPL.lowerProgram Ctx.empty "Oracle" delta ex

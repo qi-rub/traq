@@ -40,7 +40,8 @@ module QCompose.ProtoLang.Cost (
 ) where
 
 import Data.Foldable (toList)
-import Lens.Micro
+import qualified Data.Map as Map
+import Lens.Micro.GHC
 import Lens.Micro.Mtl
 
 import QCompose.Control.Monad
@@ -68,14 +69,17 @@ unsafeLookupFun fname funCtx = funCtx ^. Ctx.at fname . singular _Just
 -- | Name of the oracle to compute the number of queries to.
 type OracleName = Ident
 
+-- | Tick constant for each oracle.
+type OracleTicks costT = Map.Map Ident costT
+
 -- | Environment to compute the unitary cost
-type StaticCostEnv primsT sizeT costT = (FunCtx primsT sizeT, OracleName)
+type StaticCostEnv primsT sizeT costT = (FunCtx primsT sizeT, OracleTicks costT)
 
 _funCtx :: Lens' (StaticCostEnv primsT sizeT costT) (FunCtx primsT sizeT)
 _funCtx = _1
 
-_oracleName :: Lens' (StaticCostEnv primsT sizeT costT) OracleName
-_oracleName = _2
+_oracleTicks :: Lens' (StaticCostEnv primsT sizeT costT) (OracleTicks costT)
+_oracleTicks = _2
 
 -- | Monad to compute unitary cost.
 type UnitaryCostCalculator primsT sizeT costT = MyReaderT (StaticCostEnv primsT sizeT costT) Maybe
@@ -107,10 +111,10 @@ unitaryQueryCostE ::
   Expr primsT sizeT ->
   UnitaryCostCalculator primsT sizeT costT costT
 unitaryQueryCostE delta FunCallE{fun_kind = FunctionCall fname} = do
-  is_oracle_call <- view $ _oracleName . to (== fname)
-  if is_oracle_call
-    then return 1.0
-    else do
+  mtick <- view $ _oracleTicks . at fname
+  case mtick of
+    Just tick -> return tick
+    Nothing -> do
       FunDef{mbody} <- view $ _funCtx . to (unsafeLookupFun fname)
       case mbody of
         Nothing -> return 0 -- no cost for injected data
@@ -158,11 +162,11 @@ unitaryQueryCost ::
   costT ->
   -- | program @P@
   Program primsT sizeT ->
-  -- | oracle name @O@
-  OracleName ->
+  -- | oracle ticks
+  OracleTicks costT ->
   costT
-unitaryQueryCost delta Program{funCtx, stmt} oracle_name =
-  let env = (funCtx, oracle_name)
+unitaryQueryCost delta Program{funCtx, stmt} ticks =
+  let env = (funCtx, ticks)
    in unitaryQueryCostS delta stmt `runMyReaderT` env ^. singular _Just
 
 -- ================================================================================
@@ -198,10 +202,10 @@ quantumMaxQueryCostE ::
   Expr primsT sizeT ->
   QuantumMaxCostCalculator primsT sizeT costT costT
 quantumMaxQueryCostE eps FunCallE{fun_kind = FunctionCall fname} = do
-  is_oracle_call <- view $ _oracleName . to (== fname)
-  if is_oracle_call
-    then return 1
-    else do
+  mtick <- view $ _oracleTicks . at fname
+  case mtick of
+    Just tick -> return tick
+    Nothing -> do
       FunDef{mbody} <- view $ _funCtx . to (unsafeLookupFun fname)
       case mbody of
         Nothing -> return 0 -- no cost for injected data
@@ -250,11 +254,11 @@ quantumMaxQueryCost ::
   costT ->
   -- | program `P`
   Program primsT sizeT ->
-  -- | oracle @O@
-  OracleName ->
+  -- | oracle ticks
+  OracleTicks costT ->
   costT
-quantumMaxQueryCost a_eps Program{funCtx, stmt} oracle_name =
-  let env = (funCtx, oracle_name)
+quantumMaxQueryCost a_eps Program{funCtx, stmt} ticks =
+  let env = (funCtx, ticks)
    in quantumMaxQueryCostS a_eps stmt `runMyReaderT` env ^. singular _Just
 
 -- ================================================================================
@@ -262,7 +266,10 @@ quantumMaxQueryCost a_eps Program{funCtx, stmt} oracle_name =
 -- ================================================================================
 
 -- Environment to compute the quantum cost (input dependent)
-type DynamicCostEnv primsT sizeT costT = (FunCtx primsT sizeT, FunInterpCtx, OracleName)
+type DynamicCostEnv primsT sizeT costT = (StaticCostEnv primsT sizeT costT, FunInterpCtx, OracleTicks costT)
+
+extractUEnv :: Lens' (DynamicCostEnv primsT sizeT costT) (StaticCostEnv primsT sizeT costT)
+extractUEnv = _1
 
 type QuantumCostCalculator primsT sizeT costT a = MyReaderT (DynamicCostEnv primsT sizeT costT) Maybe a
 
@@ -295,11 +302,11 @@ quantumQueryCostE ::
   Expr primsT SizeT ->
   QuantumCostCalculator primsT SizeT costT costT
 quantumQueryCostE eps sigma FunCallE{fun_kind = FunctionCall f, args} = do
-  is_oracle <- (f ==) <$> view _3
-  if is_oracle
-    then return 1
-    else
-      view (_1 . to (unsafeLookupFun f) . to mbody) >>= \case
+  mtick <- view $ _3 . at f
+  case mtick of
+    Just tick -> return tick
+    Nothing ->
+      view (extractUEnv . _funCtx . to (unsafeLookupFun f) . to mbody) >>= \case
         Nothing -> return 0 -- no cost for injected data
         Just FunBody{param_names, body_stmt} -> do
           let vs = args & map (\x -> sigma ^. Ctx.at x . singular _Just)
@@ -317,10 +324,6 @@ quantumQueryCostE _ _ ConstE{} = return 0
 quantumQueryCostE _ _ UnOpE{} = return 0
 quantumQueryCostE _ _ BinOpE{} = return 0
 quantumQueryCostE _ _ TernaryE{} = return 0
-
--- TODO use proper argument names
-extractUEnv :: Lens' (DynamicCostEnv primsT sizeT costT) (StaticCostEnv primsT sizeT costT)
-extractUEnv focus (b, c, d) = (\(b', d') -> (b', c, d')) <$> focus (b, d)
 
 quantumQueryCostS ::
   forall primsT costT.
@@ -341,7 +344,7 @@ quantumQueryCostS eps sigma (SeqS [s]) = quantumQueryCostS eps sigma s
 quantumQueryCostS eps sigma (SeqS (s : ss)) = do
   cost_s <- quantumQueryCostS (eps / 2) sigma s
 
-  funCtx <- view _1
+  funCtx <- view $ extractUEnv . _funCtx
   interpCtx <- view _2
   let sigma' = detExtract $ runProgram Program{funCtx, stmt = s} interpCtx sigma
 
@@ -355,15 +358,15 @@ quantumQueryCost ::
   costT ->
   -- | program @P@
   Program primsT SizeT ->
-  -- | oracle @O@
-  OracleName ->
+  -- | oracle ticks
+  OracleTicks costT ->
   -- | data injections
   FunInterpCtx ->
   -- | state \( \sigma \)
   ProgramState ->
   costT
-quantumQueryCost a_eps Program{funCtx, stmt} oracle_name interpCtx sigma =
-  let env = (funCtx, interpCtx, oracle_name)
+quantumQueryCost a_eps Program{funCtx, stmt} ticks interpCtx sigma =
+  let env = ((funCtx, ticks), interpCtx, ticks)
    in quantumQueryCostS a_eps sigma stmt `runMyReaderT` env ^. singular _Just
 
 -- | The bound on the true expected runtime which fails with probability <= \eps.
@@ -377,13 +380,13 @@ quantumQueryCostBound ::
   costT ->
   -- | program @P@
   Program primsT SizeT ->
-  -- | oracle @O@
-  OracleName ->
+  -- | oracle ticks
+  OracleTicks costT ->
   -- | data injections
   FunInterpCtx ->
   -- | state \( \sigma \)
   ProgramState ->
   costT
-quantumQueryCostBound a_eps p oracle_name interp_ctx sigma =
-  (1 - a_eps) * quantumQueryCost a_eps p oracle_name interp_ctx sigma
-    + a_eps * quantumMaxQueryCost a_eps p oracle_name
+quantumQueryCostBound a_eps p ticks interp_ctx sigma =
+  (1 - a_eps) * quantumQueryCost a_eps p ticks interp_ctx sigma
+    + a_eps * quantumMaxQueryCost a_eps p ticks

@@ -217,7 +217,7 @@ instance
   P.QuantumCostablePrimitive primsT QSearchCFNW sizeT costT
   where
   quantumQueryCostPrimitive eps QSearchCFNW{predicate} vs = do
-    predDef@P.FunDef{P.param_types} <- view $ _1 . Ctx.at predicate . singular _Just
+    predDef@P.FunDef{P.param_types} <- view $ P.extractUEnv . _1 . Ctx.at predicate . singular _Just
     let typ_x = last param_types
 
     -- split the fail prob
@@ -227,7 +227,7 @@ instance
     -- number of solutions
     let space = P.range typ_x
     sols <- do
-      env <- (,) <$> view _1 <*> view _2
+      env <- (,) <$> view (P.extractUEnv . _1) <*> view _2
       -- TODO this is too convoluted...
       return $
         (`runMyReaderT` env) $
