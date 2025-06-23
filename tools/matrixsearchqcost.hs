@@ -3,6 +3,7 @@
 module Main (main) where
 
 import Control.Monad
+import Lens.Micro.GHC
 import System.IO
 import System.Random
 import System.Random.Shuffle (shuffleM)
@@ -41,8 +42,9 @@ qcost eps mat = cost
   ex = matrixExampleS n m
 
   dataCtx = Ctx.singleton "Oracle" (matToBinFun mat)
+  ticks = mempty & at "Oracle" ?~ 1.0
 
-  cost = P.quantumQueryCostBound eps ex "Oracle" dataCtx Ctx.empty
+  cost = P.quantumQueryCostBound eps ex ticks dataCtx Ctx.empty
 
 randomMatrix :: SizeT -> SizeT -> IO [[Value]]
 randomMatrix n m = do
@@ -107,7 +109,8 @@ computeStatsForWorstCaseExample = do
     let eps = 0.5 :: Double
     forM_ (10 : [500, 1000 .. 10000]) $ \n -> do
       let ex = getprog n
-      let c = P.quantumQueryCostBound eps ex "Oracle" Ctx.empty Ctx.empty
+      let ticks = mempty & at "Oracle" ?~ 1.0
+      let c = P.quantumQueryCostBound eps ex ticks Ctx.empty Ctx.empty
       hPutStrLn h $ printf "%d,%.2f" n c
 
 triangular :: IO ()
@@ -123,7 +126,8 @@ triangular = do
     forM_ [5500, 6000] $ \n -> do
       putStrLn $ printf "running n: %d" n
       let ex = getprog n
-      let c = P.quantumQueryCostBound eps ex "Oracle" Ctx.empty Ctx.empty
+      let ticks = mempty & at "Oracle" ?~ 1.0
+      let c = P.quantumQueryCostBound eps ex ticks Ctx.empty Ctx.empty
       hPutStrLn h $ printf "%d,%.2f" n c
       putStrLn $ printf "cost: %.2f, ratio: %f" c (c / fromIntegral (n ^ 2))
 

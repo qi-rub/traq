@@ -1,5 +1,7 @@
 module QCompose.Examples.SearchSpec (spec) where
 
+import qualified Data.Map as Map
+
 import qualified QCompose.Data.Context as Ctx
 import qualified QCompose.Data.Tree as Tree
 
@@ -37,11 +39,11 @@ spec = do
 
     it "unitary cost for eps=0.0001" $ do
       let true_cost = ucF n (eps / 2) :: Double
-      P.unitaryQueryCost eps ex "Oracle" `shouldBe` true_cost
+      P.unitaryQueryCost eps ex (Map.singleton "Oracle" 1.0) `shouldBe` true_cost
 
     it "quantum cost for eps=0.0001" $ do
       let true_cost = ecF n 0 (eps / 2)
-      P.quantumQueryCost eps ex "Oracle" interpCtx Ctx.empty `shouldBe` true_cost
+      P.quantumQueryCost eps ex (Map.singleton "Oracle" 1.0) interpCtx Ctx.empty `shouldBe` true_cost
 
     it "generate code" $ do
       toCodeString ex `shouldSatisfy` (not . null)
@@ -58,7 +60,7 @@ spec = do
       it "preserves cost" $ do
         (ex_uqpl, _) <- expectRight $ UQPL.lowerProgram Ctx.empty "Oracle" delta ex
         let (uqpl_cost, _) = UQPL.programCost ex_uqpl
-        let proto_cost = P.unitaryQueryCost delta ex "Oracle"
+        let proto_cost = P.unitaryQueryCost delta ex (Map.singleton "Oracle" 1.0)
         uqpl_cost `shouldSatisfy` (<= proto_cost)
 
   describe "arraySearch (returning solution)" $ do

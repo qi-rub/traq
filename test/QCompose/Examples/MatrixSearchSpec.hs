@@ -2,6 +2,8 @@
 
 module QCompose.Examples.MatrixSearchSpec (spec) where
 
+import Lens.Micro.GHC
+
 import qualified QCompose.Data.Context as Ctx
 import qualified QCompose.Data.Symbolic as Sym
 
@@ -22,6 +24,7 @@ spec = do
   describe "matrix search example" $ do
     let (n, m) = (5, 5)
     let ex = matrixExampleS n m
+    let oracle_ticks = mempty & at "Oracle" ?~ 1.0
 
     it "type checks" $ do
       assertRight $ P.typeCheckProg Ctx.empty ex
@@ -42,14 +45,14 @@ spec = do
 
     it "unitary cost for delta=0.0001" $ do
       let delta = 0.0001 :: Double
-      let cu = P.unitaryQueryCost delta ex "Oracle"
+      let cu = P.unitaryQueryCost delta ex oracle_ticks
       let nu_outer = ucF n (delta / 4)
       let nu_inner = 2 * ucF m (delta / 4 / nu_outer / 8)
       cu `shouldBe` 2 * nu_outer * 2 * nu_inner
 
     it "quantum cost for eps=0.0001" $ do
       let eps = 0.0001
-      let cq = P.quantumQueryCost eps ex "Oracle" interpCtx Ctx.empty
+      let cq = P.quantumQueryCost eps ex oracle_ticks interpCtx Ctx.empty
       let nq_outer = wcF n (eps / 2)
       let nq_inner = 2 * ucF m (eps / 2 / nq_outer / 16)
       let nq_oracle = 2
@@ -72,7 +75,7 @@ spec = do
       it "preserves cost" $ do
         (ex_uqpl, _) <- expectRight $ UQPL.lowerProgram Ctx.empty "Oracle" delta ex
         let (uqpl_cost, _) = UQPL.programCost ex_uqpl
-        let proto_cost = P.unitaryQueryCost delta ex "Oracle"
+        let proto_cost = P.unitaryQueryCost delta ex oracle_ticks
         uqpl_cost `shouldSatisfy` (<= proto_cost)
 
     describe "lower to CQPL" $ do
@@ -90,6 +93,7 @@ spec = do
     let m = Sym.var "m" :: Sym.Sym Int
     let sbool = P.Fin (Sym.con 2) :: P.VarType (Sym.Sym Int)
     let ex = matrixExample @QSearchSym n m sbool
+    let oracle_ticks = mempty & at "Oracle" ?~ 1.0
 
     -- expected, worst, unitary
     let ucF = _QryU
@@ -97,7 +101,7 @@ spec = do
 
     it "unitary cost for delta=0.0001" $ do
       let delta = Sym.var "δ" :: Sym.Sym Double
-      let cu = P.unitaryQueryCost delta ex "Oracle"
+      let cu = P.unitaryQueryCost delta ex oracle_ticks
       let nu_outer = ucF n (delta / 2 / 2)
       let nu_inner = 2 * ucF m ((delta / 2 - delta / 2 / 2) / nu_outer / 2 / 2 / 2)
       let nu_oracle = 2
@@ -105,7 +109,7 @@ spec = do
 
     it "quantum cost for eps=0.0001" $ do
       let eps = Sym.var "ε" :: Sym.Sym Double
-      let cq = P.quantumMaxQueryCost eps ex "Oracle"
+      let cq = P.quantumMaxQueryCost eps ex oracle_ticks
       let nq_outer = wcF n (eps / 2)
       let nq_inner = 2 * ucF m ((eps - eps / 2) / nq_outer / 2 / 2 / 2 / 2)
       let nq_oracle = 2

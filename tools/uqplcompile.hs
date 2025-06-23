@@ -3,12 +3,12 @@ module Main (main) where
 import Control.Monad (forM_, guard, when)
 import Control.Monad.Writer (MonadWriter, execWriterT, tell)
 import Data.Maybe (fromMaybe)
-import Lens.Micro
+import Lens.Micro.GHC
 import Options.Applicative
-import qualified QCompose.Data.Symbolic as Sym
 import Text.Read (readMaybe)
 
 import qualified QCompose.Data.Context as Ctx
+import qualified QCompose.Data.Symbolic as Sym
 
 import QCompose.Prelude
 import qualified QCompose.ProtoLang as P
@@ -68,6 +68,7 @@ compile prog delta = do
   let Right (uqpl_prog, _) = UQPL.lowerProgram Ctx.empty "Oracle" delta prog
   -- get costs
   let (cost :: costT, proc_costs) = UQPL.programCost uqpl_prog
+  let oracle_ticks = mempty & at "Oracle" ?~ (fromRational 1.0 :: costT)
 
   -- print the program with the costs
   execWriterT $ do
@@ -92,7 +93,7 @@ compile prog delta = do
                               { stmt = body ^. to P.body_stmt
                               , funCtx = prog ^. to P.funCtx
                               }
-                            "Oracle"
+                            (mempty & at "Oracle" ?~ 1.0)
                     return $ show cf
                 )
 
@@ -102,7 +103,7 @@ compile prog delta = do
       tellLn $ toCodeString p
 
     tellLn $ "// Actual Cost : " <> show cost
-    tellLn $ "// Formula Cost: " ++ show (P.unitaryQueryCost delta prog "Oracle")
+    tellLn $ "// Formula Cost: " ++ show (P.unitaryQueryCost delta prog oracle_ticks)
     tellLn $ toCodeString $ uqpl_prog ^. to UQPL.stmt
 
 main :: IO ()
