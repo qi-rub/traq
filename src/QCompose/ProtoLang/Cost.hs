@@ -24,6 +24,7 @@ module QCompose.ProtoLang.Cost (
 
   -- * Types and Monad
   OracleName,
+  OracleTicks,
 
   -- ** Static
   StaticCostEnv,

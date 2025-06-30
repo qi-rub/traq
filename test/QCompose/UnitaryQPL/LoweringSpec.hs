@@ -1,5 +1,6 @@
 module QCompose.UnitaryQPL.LoweringSpec (spec) where
 
+import qualified Data.Map as Map
 import Data.Void (Void)
 import qualified QCompose.Data.Context as Ctx
 
@@ -21,7 +22,7 @@ spec = do
           expectRight $
             U.lowerProgram
               (Ctx.singleton "x" (P.Fin 10))
-              "Oracle"
+              (Map.singleton "Oracle" 1.0)
               (0 :: Double)
               P.Program
                 { P.funCtx = Ctx.empty

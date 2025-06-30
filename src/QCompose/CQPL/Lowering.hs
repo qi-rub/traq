@@ -39,13 +39,13 @@ import qualified QCompose.ProtoLang as P
 import qualified QCompose.UnitaryQPL as UQPL
 
 -- | Configuration for lowering
-type LoweringEnv primT holeT sizeT costT = (P.FunCtx primT sizeT, P.OracleName)
+type LoweringEnv primT holeT sizeT costT = (P.FunCtx primT sizeT, P.OracleTicks costT)
 
 protoFunCtx :: Lens' (LoweringEnv primT holeT sizeT costT) (P.FunCtx primT sizeT)
 protoFunCtx = _1
 
-oracleName :: Lens' (LoweringEnv primT holeT sizeT costT) P.OracleName
-oracleName = _2
+oracleTicks :: Lens' (LoweringEnv primT holeT sizeT costT) (P.OracleTicks costT)
+oracleTicks = _2
 
 {- | A global lowering context storing the source functions and generated procedures
  along with info to generate unique ancilla and variable/procedure names
@@ -253,24 +253,22 @@ lowerProgram ::
   ) =>
   -- | input bindings to the source program
   P.TypingCtx sizeT ->
-  -- | name of the oracle
-  P.OracleName ->
+  -- | tick cost of each declaration
+  P.OracleTicks costT ->
   -- | fail prob \( \varepsilon \)
   costT ->
   -- | source program
   P.Program primsT sizeT ->
   Either String (Program holeT sizeT costT, P.TypingCtx sizeT)
-lowerProgram gamma_in oracle_name eps prog@P.Program{P.funCtx, P.stmt} = do
+lowerProgram gamma_in oracle_ticks eps prog@P.Program{P.funCtx, P.stmt} = do
   unless (P.checkVarsUnique prog) $
     throwError "program does not have unique variables!"
 
-  let config = (funCtx, oracle_name)
+  let config = (funCtx, oracle_ticks)
   let lowering_ctx =
         emptyLoweringCtx
-          & typingCtx
-          .~ gamma_in
-          & uniqNames
-          .~ P.allNamesP prog
+          & (typingCtx .~ gamma_in)
+          & (uniqNames .~ P.allNamesP prog)
 
   let compiler = lowerStmt eps stmt
   (stmtQ, lowering_ctx', outputU) <- runMyReaderWriterStateT compiler config lowering_ctx
