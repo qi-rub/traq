@@ -153,12 +153,13 @@ instance (Show sizeT) => ToCodeString (Unitary sizeT) where
   toCodeString (UnifDagger ty) = "Adj-Unif[" <> toCodeString ty <> "]"
   toCodeString XGate = "X"
   toCodeString HGate = "H"
-  toCodeString (Refl0 ty) = printf "(2|0><0| - I)[%s]" (toCodeString ty)
+  toCodeString (Refl0 ty) = printf "Refl0[%s]" (toCodeString ty)
   toCodeString (LoadData f) = f
+  toCodeString (Controlled u) = "Ctrl-" <> toCodeString u
   toCodeString u = show u
 
 showDagger :: Bool -> String
-showDagger True = "†"
+showDagger True = "-adj"
 showDagger False = ""
 
 instance (Show holeT, Show sizeT) => ToCodeString (Stmt holeT sizeT) where
