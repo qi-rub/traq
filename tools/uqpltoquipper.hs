@@ -148,11 +148,10 @@ testExample = do
   let delta = 0.001 :: Double
   let gamma =
         Ctx.empty
-          & Ctx.ins "p"
-          .~ P.Fin 8
-          & Ctx.ins "q"
-          .~ P.Fin 8
-  (uprog, gamma') <- eitherToIO $ UQPL.lowerProgram @_ @Void gamma "Oracle" delta prog
+          & (Ctx.ins "p" .~ P.Fin 8)
+          & (Ctx.ins "q" .~ P.Fin 8)
+  let oracle_ticks = mempty & at "Oracle" ?~ 1.0
+  (uprog, gamma') <- eitherToIO $ UQPL.lowerProgram @_ @Void gamma oracle_ticks delta prog
 
   putStrLn $ replicate 40 '='
   putStrLn $ toCodeString uprog

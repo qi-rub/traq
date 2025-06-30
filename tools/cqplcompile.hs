@@ -1,10 +1,11 @@
 module Main (main) where
 
+import qualified Data.Map as Map
 import Options.Applicative
-import qualified QCompose.Data.Symbolic as Sym
 import Text.Read (readMaybe)
 
 import qualified QCompose.Data.Context as Ctx
+import qualified QCompose.Data.Symbolic as Sym
 
 import qualified QCompose.CQPL as CQPL
 import QCompose.Prelude
@@ -58,7 +59,8 @@ subsNM params s = Sym.unSym $ foldr subsOnce s params
 
 compile :: (RealFloat costT, Show costT) => P.Program DefaultPrims SizeT -> costT -> IO String
 compile prog eps = do
-  let Right (cqpl_prog, _) = CQPL.lowerProgram Ctx.empty "Oracle" eps prog
+  let oracle_ticks = Map.singleton "Oracle" 1.0
+  let Right (cqpl_prog, _) = CQPL.lowerProgram Ctx.empty oracle_ticks eps prog
 
   return $ toCodeString cqpl_prog
 

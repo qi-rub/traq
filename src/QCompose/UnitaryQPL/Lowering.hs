@@ -44,6 +44,7 @@ import Text.Printf (printf)
 
 import qualified QCompose.Data.Context as Ctx
 
+import Data.Maybe (fromMaybe)
 import QCompose.Control.Monad
 import QCompose.Prelude
 import qualified QCompose.ProtoLang as P
@@ -328,7 +329,7 @@ lowerFunDef ::
 lowerFunDef with_ctrl _ fun_name P.FunDef{P.param_types, P.ret_types, P.mbody = Nothing} = do
   let param_names = map (printf "in_%d") [0 .. length param_types]
   let ret_names = map (printf "out_%d") [0 .. length ret_types]
-  let tick = error "TODO pass tick mapping"
+  tick <- view $ _oracleTicks . at fun_name . to (fromMaybe 0)
 
   ctrl_qubit <- newIdent "ctrl"
   let proc_def =
@@ -339,7 +340,7 @@ lowerFunDef with_ctrl _ fun_name P.FunDef{P.param_types, P.ret_types, P.mbody = 
               [(ctrl_qubit, ParamCtrl, P.tbool) | with_ctrl == WithControl]
                 ++ withTag ParamInp (zip param_names param_types)
                 ++ withTag ParamOut (zip ret_names ret_types)
-          , proc_body_or_tick = Right tick
+          , proc_body_or_tick = Left tick
           }
 
   addProc proc_def
