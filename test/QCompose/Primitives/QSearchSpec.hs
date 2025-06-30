@@ -1,5 +1,6 @@
 module QCompose.Primitives.QSearchSpec (spec) where
 
+import qualified Data.Map as Map
 import Lens.Micro.GHC
 
 import QCompose.Control.Monad
@@ -21,7 +22,7 @@ spec = do
         let n = 10 :: Int
         let eps = 0.001 :: Float
         let pred_caller c x b = UQPL.CallS{UQPL.proc_id = "Oracle", UQPL.dagger = False, UQPL.args = [c, x, b]}
-        let lenv = (undefined, "Oracle")
+        let lenv = (undefined, Map.singleton "Oracle" 1.0)
         let lctx = (mempty, Ctx.empty)
         circ <-
           expectRight $

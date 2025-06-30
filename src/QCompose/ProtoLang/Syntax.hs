@@ -129,7 +129,7 @@ instance (Show a) => ToCodeString (VarType a) where
   toCodeString (Fin len) = "Fin<" <> show len <> ">"
 
 instance ToCodeString UnOp where
-  toCodeString NotOp = "!"
+  toCodeString NotOp = "not"
 
 instance ToCodeString BinOp where
   toCodeString AddOp = "+"
@@ -143,7 +143,7 @@ instance (ToCodeString primT) => ToCodeString (FunctionCallKind primT) where
 instance (Show sizeT, ToCodeString primT) => ToCodeString (Expr primT sizeT) where
   toCodeString VarE{arg} = arg
   toCodeString ConstE{val, ty} = unwords [show val, ":", toCodeString ty]
-  toCodeString UnOpE{un_op, arg} = toCodeString un_op <> arg
+  toCodeString UnOpE{un_op, arg} = unwords [toCodeString un_op, arg]
   toCodeString BinOpE{bin_op, lhs, rhs} =
     unwords [lhs, toCodeString bin_op, rhs]
   toCodeString TernaryE{branch, lhs, rhs} =

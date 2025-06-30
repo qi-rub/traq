@@ -1,5 +1,6 @@
 module QCompose.UnitaryQPL.LoweringSpec (spec) where
 
+import qualified Data.Map as Map
 import Data.Void (Void)
 import qualified QCompose.Data.Context as Ctx
 
@@ -21,7 +22,7 @@ spec = do
           expectRight $
             U.lowerProgram
               (Ctx.singleton "x" (P.Fin 10))
-              "Oracle"
+              (Map.singleton "Oracle" 1.0)
               (0 :: Double)
               P.Program
                 { P.funCtx = Ctx.empty
@@ -33,7 +34,7 @@ spec = do
                 { U.proc_defs = Ctx.empty
                 , U.stmt = U.UnitaryS ["x", "y"] $ U.RevEmbedU (U.IdF (P.Fin 10))
                 } ::
-                U.Program Void Int
+                U.Program Void Int Double
 
         actual `shouldBe` expected
 

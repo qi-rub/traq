@@ -2,6 +2,7 @@
 
 module QCompose.Primitives.Search.QSearchCFNWSpec (spec) where
 
+import qualified Data.Map as Map
 import Lens.Micro.GHC
 
 import QCompose.Control.Monad
@@ -37,7 +38,7 @@ spec = do
                 UQPL.CallS{UQPL.proc_id = "Oracle", UQPL.dagger = False, UQPL.args = [c, x, b]}
             }
 
-    let compile_config = (Ctx.empty, "Oracle")
+    let compile_config = (Ctx.empty, Map.singleton "Oracle" 1.0)
     let compile_ctx = (mempty, Ctx.empty)
 
     prop "matches cost" $ \params -> do
@@ -61,8 +62,7 @@ spec = do
                         { UQPL.proc_name = "Oracle"
                         , UQPL.proc_meta_params = []
                         , UQPL.proc_params = []
-                        , UQPL.mproc_body = Nothing
-                        , UQPL.is_oracle = True
+                        , UQPL.proc_body_or_tick = Left (1.0 :: Double)
                         }
                 }
 

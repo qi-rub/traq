@@ -480,8 +480,7 @@ instance
               ++ UQPL.withTag UQPL.ParamOut [(ret, P.tbool)]
               ++ UQPL.withTag UQPL.ParamAux (zip pred_ancilla pred_aux_tys)
               ++ UQPL.withTag UQPL.ParamAux qsearch_ancilla
-        , UQPL.mproc_body = Just qsearch_body
-        , UQPL.is_oracle = False
+        , UQPL.proc_body_or_tick = Right qsearch_body
         }
 
     if not shouldUncomputeQSearch
@@ -510,8 +509,8 @@ instance
                   ++ UQPL.withTag UQPL.ParamAux (zip pred_ancilla pred_aux_tys)
                   ++ UQPL.withTag UQPL.ParamAux qsearch_ancilla
                   ++ UQPL.withTag UQPL.ParamAux [(out_bit, P.tbool)]
-            , UQPL.mproc_body =
-                Just $
+            , UQPL.proc_body_or_tick =
+                Right $
                   UQPL.SeqS
                     [ UQPL.CallS
                         { UQPL.proc_id = qsearch_proc_name
@@ -525,7 +524,6 @@ instance
                         , UQPL.dagger = True
                         }
                     ]
-            , UQPL.is_oracle = False
             }
 
         return
@@ -772,8 +770,7 @@ instance
                 UQPL.withTag UQPL.ParamInp (zip (args ++ [grover_arg_name]) pred_inp_tys)
                   ++ UQPL.withTag UQPL.ParamOut [(ret, P.tbool)]
                   ++ UQPL.withTag UQPL.ParamAux (zip upred_aux_vars pred_aux_tys)
-            , UQPL.mproc_body = Just uproc_grover_k_body
-            , UQPL.is_oracle = False
+            , UQPL.proc_body_or_tick = Right uproc_grover_k_body
             }
     writeElemAt CQPL.loweredUProcs uproc_grover_k
 
@@ -807,14 +804,13 @@ instance
         { CQPL.proc_name = qsearch_proc_name
         , CQPL.proc_meta_params = []
         , CQPL.proc_param_types = map snd qsearch_params
-        , CQPL.mproc_body =
-            Just $
+        , CQPL.proc_body_or_tick =
+            Right $
               CQPL.ProcBody
                 { CQPL.proc_param_names = map fst qsearch_params
                 , CQPL.proc_local_vars = qsearch_local_vars
                 , CQPL.proc_body_stmt = CQPL.SeqS qsearch_body
                 }
-        , CQPL.is_oracle = False
         }
 
     return

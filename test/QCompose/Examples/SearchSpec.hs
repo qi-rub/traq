@@ -36,14 +36,16 @@ spec = do
     let ucF = _QSearchZalka
 
     let eps = 0.0001 :: Double
+    let uticks = Map.singleton "Oracle" 1.0
+    let ticks = Map.singleton "Oracle" 1.0
 
     it "unitary cost for eps=0.0001" $ do
       let true_cost = ucF n (eps / 2) :: Double
-      P.unitaryQueryCost eps ex (Map.singleton "Oracle" 1.0) `shouldBe` true_cost
+      P.unitaryQueryCost eps ex uticks `shouldBe` true_cost
 
     it "quantum cost for eps=0.0001" $ do
       let true_cost = ecF n 0 (eps / 2)
-      P.quantumQueryCost eps ex (Map.singleton "Oracle" 1.0) interpCtx Ctx.empty `shouldBe` true_cost
+      P.quantumQueryCost eps ex ticks interpCtx Ctx.empty `shouldBe` true_cost
 
     it "generate code" $ do
       toCodeString ex `shouldSatisfy` (not . null)
@@ -51,16 +53,16 @@ spec = do
     describe "lowers to UQPL" $ do
       let delta = 0.0001 :: Double
       it "lowers" $ do
-        assertRight $ UQPL.lowerProgram Ctx.empty "Oracle" delta ex
+        assertRight $ UQPL.lowerProgram Ctx.empty uticks delta ex
 
       it "typechecks" $ do
-        (ex_uqpl, gamma) <- expectRight $ UQPL.lowerProgram Ctx.empty "Oracle" delta ex
+        (ex_uqpl, gamma) <- expectRight $ UQPL.lowerProgram Ctx.empty uticks delta ex
         assertRight $ UQPL.typeCheckProgram gamma ex_uqpl
 
       it "preserves cost" $ do
-        (ex_uqpl, _) <- expectRight $ UQPL.lowerProgram Ctx.empty "Oracle" delta ex
+        (ex_uqpl, _) <- expectRight $ UQPL.lowerProgram Ctx.empty uticks delta ex
         let (uqpl_cost, _) = UQPL.programCost ex_uqpl
-        let proto_cost = P.unitaryQueryCost delta ex (Map.singleton "Oracle" 1.0)
+        let proto_cost = P.unitaryQueryCost delta ex uticks
         uqpl_cost `shouldSatisfy` (<= proto_cost)
 
   describe "arraySearch (returning solution)" $ do

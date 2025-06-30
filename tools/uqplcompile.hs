@@ -65,10 +65,10 @@ tellLn x = tell $ unlines [x]
 
 compile :: forall costT. (RealFloat costT, Show costT) => P.Program DefaultPrims SizeT -> costT -> IO String
 compile prog delta = do
-  let Right (uqpl_prog, _) = UQPL.lowerProgram Ctx.empty "Oracle" delta prog
+  let oracle_ticks = mempty & at "Oracle" ?~ (fromRational 1.0 :: costT)
+  let Right (uqpl_prog, _) = UQPL.lowerProgram Ctx.empty oracle_ticks delta prog
   -- get costs
   let (cost :: costT, proc_costs) = UQPL.programCost uqpl_prog
-  let oracle_ticks = mempty & at "Oracle" ?~ (fromRational 1.0 :: costT)
 
   -- print the program with the costs
   execWriterT $ do

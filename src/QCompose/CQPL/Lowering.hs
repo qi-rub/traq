@@ -39,13 +39,13 @@ import qualified QCompose.ProtoLang as P
 import qualified QCompose.UnitaryQPL as UQPL
 
 -- | Configuration for lowering
-type LoweringEnv primT holeT sizeT costT = (P.FunCtx primT sizeT, P.OracleName)
+type LoweringEnv primT holeT sizeT costT = (P.FunCtx primT sizeT, P.OracleTicks costT)
 
 protoFunCtx :: Lens' (LoweringEnv primT holeT sizeT costT) (P.FunCtx primT sizeT)
 protoFunCtx = _1
 
-oracleName :: Lens' (LoweringEnv primT holeT sizeT costT) P.OracleName
-oracleName = _2
+oracleTicks :: Lens' (LoweringEnv primT holeT sizeT costT) (P.OracleTicks costT)
+oracleTicks = _2
 
 {- | A global lowering context storing the source functions and generated procedures
  along with info to generate unique ancilla and variable/procedure names
@@ -62,19 +62,19 @@ typingCtx :: Lens' (LoweringCtx sizeT) (P.TypingCtx sizeT)
 typingCtx = _2
 
 -- | The outputs of lowering
-type LoweringOutput holeT sizeT = ([ProcDef holeT sizeT], [UQPL.ProcDef holeT sizeT])
+type LoweringOutput holeT sizeT costT = ([ProcDef holeT sizeT costT], [UQPL.ProcDef holeT sizeT costT])
 
-loweredProcs :: Lens' (LoweringOutput holeT sizeT) [ProcDef holeT sizeT]
+loweredProcs :: Lens' (LoweringOutput holeT sizeT costT) [ProcDef holeT sizeT costT]
 loweredProcs = _1
 
-loweredUProcs :: Lens' (LoweringOutput holeT sizeT) [UQPL.ProcDef holeT sizeT]
+loweredUProcs :: Lens' (LoweringOutput holeT sizeT costT) [UQPL.ProcDef holeT sizeT costT]
 loweredUProcs = _2
 
 {- | Monad to compile ProtoQB to CQPL programs.
 This should contain the _final_ typing context for the input program,
 that is, contains both the inputs and outputs of each statement.
 -}
-type CompilerT primT holeT sizeT costT = MyReaderWriterStateT (LoweringEnv primT holeT sizeT costT) (LoweringOutput holeT sizeT) (LoweringCtx sizeT) (Either String)
+type CompilerT primT holeT sizeT costT = MyReaderWriterStateT (LoweringEnv primT holeT sizeT costT) (LoweringOutput holeT sizeT costT) (LoweringCtx sizeT) (Either String)
 
 -- | Primitives that support a classical-quantum lowering.
 class
@@ -111,7 +111,7 @@ newIdent prefix = do
       Just () -> throwError "next ident please!"
 
 -- | Add a new procedure.
-addProc :: ProcDef holeT sizeT -> CompilerT primT holeT sizeT costT ()
+addProc :: ProcDef holeT sizeT costT -> CompilerT primT holeT sizeT costT ()
 addProc = writeElemAt loweredProcs
 
 -- ================================================================================
@@ -135,20 +135,17 @@ lowerFunDef ::
   CompilerT primsT holeT sizeT costT Ident
 -- lower declarations as-is, ignoring fail prob
 lowerFunDef _ fun_name P.FunDef{P.param_types, P.ret_types, P.mbody = Nothing} = do
-  is_oracle <- (fun_name ==) <$> view oracleName
+  let tick = error "TODO pass tick mapping to CQPL compiler"
   let proc_def =
         ProcDef
           { proc_name = fun_name
           , proc_meta_params = []
           , proc_param_types = param_types ++ ret_types
-          , mproc_body = Nothing
-          , is_oracle
+          , proc_body_or_tick = Left tick
           }
   addProc proc_def
   return fun_name
 lowerFunDef eps fun_name P.FunDef{P.param_types, P.mbody = Just body} = do
-  is_oracle <- (fun_name ==) <$> view oracleName
-
   proc_name <- newIdent $ printf "%s[%s]" fun_name (show eps)
 
   let P.FunBody{P.param_names, P.ret_names, P.body_stmt} = body
@@ -170,8 +167,7 @@ lowerFunDef eps fun_name P.FunDef{P.param_types, P.mbody = Just body} = do
       { proc_name
       , proc_meta_params = []
       , proc_param_types = map (\x -> proc_typing_ctx ^?! Ctx.at x . _Just) proc_param_names
-      , mproc_body = Just ProcBody{proc_param_names, proc_local_vars, proc_body_stmt}
-      , is_oracle
+      , proc_body_or_tick = Right ProcBody{proc_param_names, proc_local_vars, proc_body_stmt}
       }
   return proc_name
 
@@ -257,24 +253,22 @@ lowerProgram ::
   ) =>
   -- | input bindings to the source program
   P.TypingCtx sizeT ->
-  -- | name of the oracle
-  P.OracleName ->
+  -- | tick cost of each declaration
+  P.OracleTicks costT ->
   -- | fail prob \( \varepsilon \)
   costT ->
   -- | source program
   P.Program primsT sizeT ->
-  Either String (Program holeT sizeT, P.TypingCtx sizeT)
-lowerProgram gamma_in oracle_name eps prog@P.Program{P.funCtx, P.stmt} = do
+  Either String (Program holeT sizeT costT, P.TypingCtx sizeT)
+lowerProgram gamma_in oracle_ticks eps prog@P.Program{P.funCtx, P.stmt} = do
   unless (P.checkVarsUnique prog) $
     throwError "program does not have unique variables!"
 
-  let config = (funCtx, oracle_name)
+  let config = (funCtx, oracle_ticks)
   let lowering_ctx =
         emptyLoweringCtx
-          & typingCtx
-          .~ gamma_in
-          & uniqNames
-          .~ P.allNamesP prog
+          & (typingCtx .~ gamma_in)
+          & (uniqNames .~ P.allNamesP prog)
 
   let compiler = lowerStmt eps stmt
   (stmtQ, lowering_ctx', outputU) <- runMyReaderWriterStateT compiler config lowering_ctx

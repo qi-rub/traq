@@ -64,16 +64,16 @@ spec = do
     describe "lower to UQPL" $ do
       let delta = 0.001 :: Double
       it "lowers" $ do
-        assertRight $ UQPL.lowerProgram Ctx.empty "Oracle" delta ex
+        assertRight $ UQPL.lowerProgram Ctx.empty oracle_ticks delta ex
 
       it "type checks" $ do
-        (ex_uqpl, gamma) <- expectRight $ UQPL.lowerProgram Ctx.empty "Oracle" delta ex
+        (ex_uqpl, gamma) <- expectRight $ UQPL.lowerProgram Ctx.empty oracle_ticks delta ex
         let tc_res = UQPL.typeCheckProgram gamma ex_uqpl
         either print (const $ pure ()) tc_res
         assertRight tc_res
 
       it "preserves cost" $ do
-        (ex_uqpl, _) <- expectRight $ UQPL.lowerProgram Ctx.empty "Oracle" delta ex
+        (ex_uqpl, _) <- expectRight $ UQPL.lowerProgram Ctx.empty oracle_ticks delta ex
         let (uqpl_cost, _) = UQPL.programCost ex_uqpl
         let proto_cost = P.unitaryQueryCost delta ex oracle_ticks
         uqpl_cost `shouldSatisfy` (<= proto_cost)
@@ -81,10 +81,10 @@ spec = do
     describe "lower to CQPL" $ do
       let eps = 0.001 :: Double
       it "lowers" $ do
-        assertRight $ CQPL.lowerProgram Ctx.empty "Oracle" eps ex
+        assertRight $ CQPL.lowerProgram Ctx.empty oracle_ticks eps ex
 
       it "type checks" $ do
-        (ex_cqpl, gamma) <- expectRight $ CQPL.lowerProgram Ctx.empty "Oracle" eps ex
+        (ex_cqpl, gamma) <- expectRight $ CQPL.lowerProgram Ctx.empty oracle_ticks eps ex
         -- case CQPL.typeCheckProgram gamma ex_uqpl of Left e -> putStrLn e; _ -> return ()
         assertRight $ CQPL.typeCheckProgram gamma ex_cqpl
 

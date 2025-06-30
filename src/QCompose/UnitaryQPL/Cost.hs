@@ -33,9 +33,9 @@ import QCompose.UnitaryQPL.Syntax
 type CostMap costT = Map.Map Ident costT
 
 -- | Environment: the list of procedures, and a mapping from holes to cost.
-type CostEnv holeT sizeT costT = ProcCtx holeT sizeT
+type CostEnv holeT sizeT costT = ProcCtx holeT sizeT costT
 
-procCtx :: Lens' (CostEnv holeT sizeT costT) (ProcCtx holeT sizeT)
+procCtx :: Lens' (CostEnv holeT sizeT costT) (ProcCtx holeT sizeT costT)
 procCtx = id
 
 -- | Monad to compute unitary cost.
@@ -48,7 +48,14 @@ class HoleCost holeT costT where
 instance HoleCost Void costT where
   holeCost = absurd
 
-stmtCost :: (Integral sizeT, Floating costT, HoleCost holeT costT) => Stmt holeT sizeT -> CostCalculator holeT sizeT costT costT
+stmtCost ::
+  ( Integral sizeT
+  , Floating costT
+  , HoleCost holeT costT
+  , m ~ CostCalculator holeT sizeT costT
+  ) =>
+  Stmt holeT sizeT ->
+  m costT
 stmtCost SkipS = return 0
 stmtCost (CommentS _) = return 0
 stmtCost UnitaryS{} = return 0
@@ -63,26 +70,27 @@ stmtCost ForInRangeS{iter_lim = MetaValue k, loop_body} = (fromIntegral k *) <$>
 stmtCost ForInRangeS{iter_lim = _} = fail "unsupported meta parameter substitution"
 
 procCost ::
-  (Integral sizeT, Floating costT, HoleCost holeT costT) =>
+  ( Integral sizeT
+  , Floating costT
+  , HoleCost holeT costT
+  , m ~ CostCalculator holeT sizeT costT
+  ) =>
   Ident ->
-  CostCalculator holeT sizeT costT costT
-procCost name = (use (at name) >>= lift) <|> calc_cost_of_oracle <|> calc_cost
+  m costT
+procCost name = get_cached_cost <|> calc_cost
  where
-  calc_cost_of_oracle = do
-    ProcDef{is_oracle} <- view $ procCtx . Ctx.at name . unsafeFromJust (printf "could not find predicate %s" name)
-    cost <- lift $ if is_oracle then Just 1 else Nothing
-    at name ?= cost
-    return cost
+  get_cached_cost = use (at name) >>= lift
   calc_cost = do
-    ProcDef{mproc_body} <- view $ procCtx . Ctx.at name . unsafeFromJust (printf "could not find predicate %s" name)
-    proc_body <- lift mproc_body
-    cost <- stmtCost proc_body
+    ProcDef{proc_body_or_tick} <- view $ procCtx . Ctx.at name . unsafeFromJust (printf "could not find predicate %s" name)
+    cost <- case proc_body_or_tick of
+      Right proc_body -> stmtCost proc_body
+      Left tick -> pure tick
     at name ?= cost
     return cost
 
 programCost ::
   (Integral sizeT, Floating costT, HoleCost holeT costT) =>
-  Program holeT sizeT ->
+  Program holeT sizeT costT ->
   (costT, CostMap costT)
 programCost Program{proc_defs, stmt} =
   let env = proc_defs
