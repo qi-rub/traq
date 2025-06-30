@@ -24,26 +24,26 @@ import QCompose.ProtoLang (TypeCheckable (..), TypingCtx, VarType)
 import qualified QCompose.UnitaryQPL as UQPL
 
 -- | Env for type checking
-type CheckingCtx holeT sizeT = (ProcCtx holeT sizeT, UQPL.ProcCtx holeT sizeT, TypingCtx sizeT)
+type CheckingCtx holeT sizeT costT = (ProcCtx holeT sizeT costT, UQPL.ProcCtx holeT sizeT costT, TypingCtx sizeT)
 
-cqProcs :: Lens' (CheckingCtx holeT sizeT) (ProcCtx holeT sizeT)
+cqProcs :: Lens' (CheckingCtx holeT sizeT costT) (ProcCtx holeT sizeT costT)
 cqProcs = _1
 
-uProcs :: Lens' (CheckingCtx holeT sizeT) (UQPL.ProcCtx holeT sizeT)
+uProcs :: Lens' (CheckingCtx holeT sizeT costT) (UQPL.ProcCtx holeT sizeT costT)
 uProcs = _2
 
-typingCtx :: Lens' (CheckingCtx holeT sizeT) (TypingCtx sizeT)
+typingCtx :: Lens' (CheckingCtx holeT sizeT costT) (TypingCtx sizeT)
 typingCtx = _3
 
 -- | Monad for type checking
-type TypeChecker holeT sizeT = MyReaderT (CheckingCtx holeT sizeT) (Either Err.MyError)
+type TypeChecker holeT sizeT costT = MyReaderT (CheckingCtx holeT sizeT costT) (Either Err.MyError)
 
-ensureEqual :: (Show a, Eq a) => a -> a -> String -> TypeChecker holeT sizeT ()
+ensureEqual :: (Show a, Eq a) => a -> a -> String -> TypeChecker holeT sizeT costT ()
 ensureEqual expected actual err = do
   when (expected /= actual) $ do
     Err.throwErrorMessage $ printf "%s: expected %s, got %s" err (show expected) (show actual)
 
-ensureOne :: TypeChecker holeT sizeT [a] -> TypeChecker holeT sizeT a
+ensureOne :: (m ~ TypeChecker holeT sizeT costT) => m [a] -> m a
 ensureOne m = do
   xs <- m
   case xs of
@@ -52,10 +52,10 @@ ensureOne m = do
 
 -- | Check an expression and return the return types
 typeCheckExpr ::
-  forall sizeT holeT.
+  forall sizeT costT holeT.
   (TypeCheckable sizeT, Show holeT) =>
   Expr sizeT ->
-  TypeChecker holeT sizeT [VarType sizeT]
+  TypeChecker holeT sizeT costT [VarType sizeT]
 typeCheckExpr ConstE{val_ty} = return [val_ty]
 typeCheckExpr VarE{var} = do
   ty <- view (typingCtx . Ctx.at var) >>= maybeWithError (Err.MessageE $ printf "cannot find %s" var)
@@ -89,10 +89,10 @@ typeCheckExpr s = error $ "TODO typeCheckExpr: " <> show s
 
 -- | Check a statement
 typeCheckStmt ::
-  forall sizeT holeT.
+  forall sizeT costT holeT.
   (TypeCheckable sizeT, Show holeT) =>
   Stmt holeT sizeT ->
-  TypeChecker holeT sizeT ()
+  TypeChecker holeT sizeT costT ()
 typeCheckStmt SkipS = return ()
 typeCheckStmt (CommentS _) = return ()
 -- ignore holes
@@ -143,15 +143,15 @@ typeCheckStmt s = case desugarS s of
 
 -- | Check a procedure def
 typeCheckProc ::
-  forall sizeT holeT.
+  forall sizeT costT holeT.
   (TypeCheckable sizeT, Show holeT) =>
-  ProcDef holeT sizeT ->
-  TypeChecker holeT sizeT ()
-typeCheckProc ProcDef{mproc_body = Nothing} = return ()
+  ProcDef holeT sizeT costT ->
+  TypeChecker holeT sizeT costT ()
+typeCheckProc ProcDef{proc_body_or_tick = Left _} = return ()
 typeCheckProc
   ProcDef
     { proc_param_types
-    , mproc_body = Just ProcBody{proc_param_names, proc_local_vars, proc_body_stmt}
+    , proc_body_or_tick = Right ProcBody{proc_param_names, proc_local_vars, proc_body_stmt}
     } = do
     when (length proc_param_types /= length proc_param_names) $ do
       Err.throwErrorMessage $
@@ -171,10 +171,10 @@ typeCheckProc
 
 -- | Check an entire program given the input bindings.
 typeCheckProgram ::
-  forall sizeT holeT.
-  (TypeCheckable sizeT, Show holeT) =>
+  forall sizeT costT holeT.
+  (TypeCheckable sizeT, Show holeT, Show costT) =>
   TypingCtx sizeT ->
-  Program holeT sizeT ->
+  Program holeT sizeT costT ->
   Either Err.MyError ()
 typeCheckProgram gamma Program{proc_defs, uproc_defs, stmt} = do
   flip runMyReaderT (uproc_defs, undefined) $ do

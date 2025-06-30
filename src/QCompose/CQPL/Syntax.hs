@@ -21,6 +21,7 @@ module QCompose.CQPL.Syntax (
   desugarS,
 ) where
 
+import Lens.Micro.GHC
 import Text.Printf (printf)
 
 import qualified QCompose.Data.Context as Ctx
@@ -86,23 +87,21 @@ data ProcBody holeT sizeT = ProcBody
   deriving (Eq, Show, Read)
 
 -- | CQ Procedure
-data ProcDef holeT sizeT = ProcDef
+data ProcDef holeT sizeT costT = ProcDef
   { proc_name :: Ident
   , proc_meta_params :: [Ident]
   , proc_param_types :: [VarType sizeT]
-  , mproc_body :: Maybe (ProcBody holeT sizeT)
-  -- ^ load directly from data if omitted
-  , is_oracle :: Bool
+  , proc_body_or_tick :: Either costT (ProcBody holeT sizeT) -- Left tick | Right body
   }
   deriving (Eq, Show, Read)
 
 -- | CQ procedures
-type ProcCtx holeT sizeT = Ctx.Context (ProcDef holeT sizeT)
+type ProcCtx holeT sizeT costT = Ctx.Context (ProcDef holeT sizeT costT)
 
 -- | CQ Program
-data Program holeT sizeT = Program
-  { proc_defs :: ProcCtx holeT sizeT
-  , uproc_defs :: UQPL.ProcCtx holeT sizeT
+data Program holeT sizeT costT = Program
+  { proc_defs :: ProcCtx holeT sizeT costT
+  , uproc_defs :: UQPL.ProcCtx holeT sizeT costT
   , stmt :: Stmt holeT sizeT
   }
   deriving (Eq, Show, Read)
@@ -126,11 +125,12 @@ instance HasStmt (Stmt holeT sizeT) (Stmt holeT sizeT) where
 instance HasStmt (ProcBody holeT sizeT) (Stmt holeT sizeT) where
   _stmt focus proc_body = (\s' -> proc_body{proc_body_stmt = s'}) <$> focus (proc_body_stmt proc_body)
 
-instance HasStmt (ProcDef holeT sizeT) (Stmt holeT sizeT) where
-  _stmt focus proc_def@ProcDef{mproc_body = Just proc_body} = (\proc_body' -> proc_def{mproc_body = Just proc_body'}) <$> _stmt focus proc_body
+instance HasStmt (ProcDef holeT sizeT costT) (Stmt holeT sizeT) where
+  _stmt focus proc_def@ProcDef{proc_body_or_tick = Right proc_body} =
+    _stmt focus proc_body <&> \proc_body' -> proc_def{proc_body_or_tick = Right proc_body'}
   _stmt _ proc_def = pure proc_def
 
-instance HasStmt (Program holeT sizeT) (Stmt holeT sizeT) where
+instance HasStmt (Program holeT sizeT costT) (Stmt holeT sizeT) where
   _stmt focus (Program proc_defs uproc_defs stmt) = Program <$> traverse (_stmt focus) proc_defs <*> pure uproc_defs <*> _stmt focus stmt
 
 -- ================================================================================
@@ -168,10 +168,10 @@ whileKWithCondExpr k cond_var cond_expr body =
   compute_cond = AssignS [cond_var] cond_expr
 
 forInArray :: Ident -> VarType sizeT -> [MetaParam sizeT] -> Stmt holeT sizeT -> Stmt holeT sizeT
-forInArray ix ty ix_vals s =
+forInArray i ty ix_vals s =
   SeqS
     [ SeqS
-        [ AssignS{rets = [ix], expr = MetaValE v ty}
+        [ AssignS{rets = [i], expr = MetaValE v ty}
         , s
         ]
     | v <- ix_vals
@@ -248,17 +248,18 @@ instance (Show holeT, Show sizeT) => ToCodeString (Stmt holeT sizeT) where
       : indent (toCodeLines loop_body)
       ++ ["end"]
 
-instance (Show holeT, Show sizeT) => ToCodeString (ProcDef holeT sizeT) where
-  toCodeLines ProcDef{proc_name, proc_meta_params, proc_param_types, mproc_body = Nothing} =
+instance (Show holeT, Show sizeT, Show costT) => ToCodeString (ProcDef holeT sizeT costT) where
+  toCodeLines ProcDef{proc_name, proc_meta_params, proc_param_types, proc_body_or_tick = Left tick} =
     [ printf
-        "proc %s[%s](%s);"
+        "proc %s[%s](%s) :: tick(%s);"
         proc_name
         (commaList proc_meta_params)
         (commaList $ zipWith showTypedIxVar [1 :: Int ..] proc_param_types)
+        (show tick)
     ]
    where
     showTypedIxVar i ty = printf "x_%d: %s" i (toCodeString ty)
-  toCodeLines ProcDef{proc_name, proc_meta_params, proc_param_types, mproc_body = Just ProcBody{proc_param_names, proc_local_vars, proc_body_stmt}} =
+  toCodeLines ProcDef{proc_name, proc_meta_params, proc_param_types, proc_body_or_tick = Right ProcBody{proc_param_names, proc_local_vars, proc_body_stmt}} =
     [ printf
         "proc %s[%s](%s) { locals: (%s) } do"
         proc_name
@@ -271,7 +272,7 @@ instance (Show holeT, Show sizeT) => ToCodeString (ProcDef holeT sizeT) where
    where
     showTypedVar x ty = printf "%s: %s" x (toCodeString ty)
 
-instance (Show holeT, Show sizeT) => ToCodeString (Program holeT sizeT) where
+instance (Show holeT, Show sizeT, Show costT) => ToCodeString (Program holeT sizeT costT) where
   toCodeLines Program{proc_defs, uproc_defs, stmt} =
     map toCodeString (Ctx.elems uproc_defs)
       ++ map toCodeString (Ctx.elems proc_defs)
