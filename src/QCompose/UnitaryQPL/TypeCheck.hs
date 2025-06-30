@@ -23,16 +23,16 @@ import QCompose.ProtoLang (TypeCheckable (..), TypingCtx, VarType)
 import QCompose.UnitaryQPL.Syntax
 import Text.Printf (printf)
 
-type CheckingCtx holeT sizeT = (ProcCtx holeT sizeT, TypingCtx sizeT)
-type TypeChecker holeT sizeT = MyReaderT (CheckingCtx holeT sizeT) (Either MyError)
+type CheckingCtx holeT sizeT costT = (ProcCtx holeT sizeT costT, TypingCtx sizeT)
+type TypeChecker holeT sizeT costT = MyReaderT (CheckingCtx holeT sizeT costT) (Either MyError)
 
-procDefs :: Lens' (CheckingCtx holeT sizeT) (ProcCtx holeT sizeT)
+procDefs :: Lens' (CheckingCtx holeT sizeT costT) (ProcCtx holeT sizeT costT)
 procDefs = _1
 
-typingCtx :: Lens' (CheckingCtx holeT sizeT) (TypingCtx sizeT)
+typingCtx :: Lens' (CheckingCtx holeT sizeT costT) (TypingCtx sizeT)
 typingCtx = _2
 
-verifyArgs :: (TypeCheckable sizeT) => [Ident] -> [VarType sizeT] -> TypeChecker holeT sizeT ()
+verifyArgs :: (TypeCheckable sizeT) => [Ident] -> [VarType sizeT] -> TypeChecker holeT sizeT costT ()
 verifyArgs args tys = do
   arg_tys <- forM args $ \x -> do
     mty <- view $ typingCtx . Ctx.at x
@@ -43,7 +43,7 @@ verifyArgs args tys = do
       MessageE $
         printf "mismatched args: expected %s, got %s" (show tys) (show arg_tys)
 
-unitarySignature :: forall holeT sizeT. (TypeCheckable sizeT) => Unitary sizeT -> TypeChecker holeT sizeT [VarType sizeT]
+unitarySignature :: forall holeT costT sizeT. (TypeCheckable sizeT) => Unitary sizeT -> TypeChecker holeT sizeT costT [VarType sizeT]
 unitarySignature Toffoli = return [tbool, tbool, tbool]
 unitarySignature CNOT = return [tbool, tbool]
 unitarySignature XGate = return [tbool]
@@ -66,7 +66,7 @@ unitarySignature (LoadData f) = do
   proc_def <- view (procDefs . Ctx.at f) >>= maybeWithError (MessageE "cannot find function")
   return $ proc_def ^.. to proc_params . traverse . _3
 
-typeCheckStmt :: (Show holeT, TypeCheckable sizeT) => Stmt holeT sizeT -> TypeChecker holeT sizeT ()
+typeCheckStmt :: (Show holeT, TypeCheckable sizeT) => Stmt holeT sizeT -> TypeChecker holeT sizeT costT ()
 -- single statements
 typeCheckStmt SkipS = return ()
 typeCheckStmt (CommentS _) = return ()
@@ -88,19 +88,21 @@ typeCheckStmt (SeqS ss) = mapM_ typeCheckStmt' ss
 typeCheckStmt HoleS{} = return ()
 typeCheckStmt ForInRangeS{loop_body} = typeCheckStmt loop_body
 
-typeCheckStmt' :: (Show holeT, TypeCheckable sizeT) => Stmt holeT sizeT -> TypeChecker holeT sizeT ()
+typeCheckStmt' :: (Show holeT, TypeCheckable sizeT) => Stmt holeT sizeT -> TypeChecker holeT sizeT costT ()
 typeCheckStmt' s = typeCheckStmt s `throwFrom` MessageE ("typecheck failed: " <> show s)
 
-typeCheckProc :: (Show holeT, TypeCheckable sizeT) => ProcDef holeT sizeT -> TypeChecker holeT sizeT ()
-typeCheckProc procdef@ProcDef{proc_params, mproc_body = Just proc_body} =
+typeCheckProc :: (Show holeT, TypeCheckable sizeT, Show costT) => ProcDef holeT sizeT costT -> TypeChecker holeT sizeT costT ()
+-- definition with a body
+typeCheckProc procdef@ProcDef{proc_params, proc_body_or_tick = Right proc_body} =
   local (typingCtx .~ Ctx.fromList (proc_params & each %~ withoutTag)) $
     typeCheckStmt' proc_body
       `throwFrom` MessageE ("typecheck proc failed: " <> show procdef)
  where
   withoutTag (x, _, ty) = (x, ty)
-typeCheckProc ProcDef{mproc_body = Nothing} = return ()
+-- declaration with a tick
+typeCheckProc ProcDef{proc_body_or_tick = Left _} = return ()
 
-typeCheckProgram :: (Show holeT, TypeCheckable sizeT) => TypingCtx sizeT -> Program holeT sizeT -> Either MyError ()
+typeCheckProgram :: (Show holeT, TypeCheckable sizeT, Show costT) => TypingCtx sizeT -> Program holeT sizeT costT -> Either MyError ()
 typeCheckProgram gamma Program{proc_defs, stmt} = do
   let ctx = (proc_defs, Ctx.empty)
 

@@ -127,27 +127,26 @@ instance HasDagger (Stmt holeT sizeT) where
 
 data ParamTag = ParamCtrl | ParamInp | ParamOut | ParamAux | ParamUnk deriving (Eq, Show, Read, Enum)
 
-data ProcDef holeT sizeT = ProcDef
+data ProcDef holeT sizeT costT = ProcDef
   { proc_name :: Ident
   , proc_meta_params :: [Ident]
   , proc_params :: [(Ident, ParamTag, P.VarType sizeT)]
-  , mproc_body :: Maybe (Stmt holeT sizeT)
-  , is_oracle :: Bool
+  , proc_body_or_tick :: Either costT (Stmt holeT sizeT) -- Left tick | Right body
   }
   deriving (Eq, Show, Read)
 
 -- | A procedure context
-type ProcCtx holeT sizeT = Ctx.Context (ProcDef holeT sizeT)
+type ProcCtx holeT sizeT costT = Ctx.Context (ProcDef holeT sizeT costT)
 
 -- | Alias without holes
-type ProcDef' = ProcDef Void
+type ProcDef' sizeT costT = ProcDef Void sizeT costT
 
 -- | Alias without holes
-type ProcCtx' sizeT = ProcCtx Void sizeT
+type ProcCtx' sizeT costT = ProcCtx Void sizeT costT
 
 -- | A full program
-data Program holeT sizeT = Program
-  { proc_defs :: ProcCtx holeT sizeT
+data Program holeT sizeT costT = Program
+  { proc_defs :: ProcCtx holeT sizeT costT
   , stmt :: Stmt holeT sizeT
   }
   deriving (Eq, Show, Read)
@@ -241,20 +240,19 @@ showParamWithTag (x, tag, ty) = printf "%s : %s%s" x tag_s (toCodeString ty)
     "" -> ""
     s -> s ++ " "
 
-instance (Show holeT, Show sizeT) => ToCodeString (ProcDef holeT sizeT) where
-  toCodeLines ProcDef{proc_name, proc_meta_params, proc_params, mproc_body, is_oracle} =
-    ["@Oracle" | is_oracle]
-      ++ case mproc_body of
-        Nothing -> [printf "%s;" header]
-        Just proc_body ->
-          [printf "%s do" header]
-            <> indent (toCodeLines proc_body)
-            <> ["end"]
+instance (Show holeT, Show sizeT, Show costT) => ToCodeString (ProcDef holeT sizeT costT) where
+  toCodeLines ProcDef{proc_name, proc_meta_params, proc_params, proc_body_or_tick} =
+    case proc_body_or_tick of
+      Left tick -> [printf "%s :: tick(%s)" header (show tick)]
+      Right proc_body ->
+        [printf "%s do" header]
+          <> indent (toCodeLines proc_body)
+          <> ["end"]
    where
     mplist, plist, header :: String
     mplist = commaList $ map ("#" ++) proc_meta_params
     plist = commaList $ map showParamWithTag proc_params
     header = printf "uproc %s[%s](%s)" proc_name mplist plist
 
-instance (Show holeT, Show sizeT) => ToCodeString (Program holeT sizeT) where
+instance (Show holeT, Show sizeT, Show costT) => ToCodeString (Program holeT sizeT costT) where
   toCodeLines Program{proc_defs, stmt} = map toCodeString (Ctx.elems proc_defs) <> [toCodeString stmt]

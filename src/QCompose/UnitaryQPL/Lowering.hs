@@ -70,16 +70,16 @@ typingCtx :: Lens' (LoweringCtx sizeT) (P.TypingCtx sizeT)
 typingCtx = _2
 
 -- | The outputs of lowering
-type LoweringOutput holeT sizeT = [ProcDef holeT sizeT]
+type LoweringOutput holeT sizeT costT = [ProcDef holeT sizeT costT]
 
-loweredProcs :: Lens' (LoweringOutput holeT sizeT) [ProcDef holeT sizeT]
+loweredProcs :: Lens' (LoweringOutput holeT sizeT costT) [ProcDef holeT sizeT costT]
 loweredProcs = id
 
 {- | Monad to compile ProtoQB to UQPL programs.
 This should contain the _final_ typing context for the input program,
 that is, contains both the inputs and outputs of each statement.
 -}
-type CompilerT primT holeT sizeT costT = MyReaderWriterStateT (LoweringConfig primT holeT sizeT costT) (LoweringOutput holeT sizeT) (LoweringCtx sizeT) (Either String)
+type CompilerT primT holeT sizeT costT = MyReaderWriterStateT (LoweringConfig primT holeT sizeT costT) (LoweringOutput holeT sizeT costT) (LoweringCtx sizeT) (Either String)
 
 -- | Primitives that support a unitary lowering.
 class
@@ -129,7 +129,7 @@ allocAncilla :: P.VarType sizeT -> CompilerT primT holeT sizeT costT Ident
 allocAncilla = allocAncillaWithPref "aux"
 
 -- | Add a new procedure.
-addProc :: ProcDef holeT sizeT -> CompilerT primT holeT sizeT costT ()
+addProc :: ProcDef holeT sizeT costT -> CompilerT primT holeT sizeT costT ()
 addProc procDef = tellAt loweredProcs [procDef]
 
 -- ================================================================================
@@ -138,7 +138,7 @@ addProc procDef = tellAt loweredProcs [procDef]
 
 -- | A procDef generated from a funDef, along with the partitioned register spaces.
 data LoweredProc holeT sizeT costT = LoweredProc
-  { lowered_def :: ProcDef holeT sizeT
+  { lowered_def :: ProcDef holeT sizeT costT
   , has_ctrl :: Bool
   , inp_tys :: [P.VarType sizeT]
   -- ^ the inputs to the original fun
@@ -286,7 +286,7 @@ lowerFunDefWithGarbage
       aux_binds <- use typingCtx <&> Ctx.toList <&> filter (not . (`elem` param_names ++ ret_names) . fst)
       let all_binds = withTag ParamInp param_binds ++ withTag ParamOut ret_binds ++ withTag ParamAux aux_binds
 
-      let procDef = ProcDef{proc_name, proc_meta_params = [], proc_params = all_binds, mproc_body = Just proc_body, is_oracle = False}
+      let procDef = ProcDef{proc_name, proc_meta_params = [], proc_params = all_binds, proc_body_or_tick = Right proc_body}
       addProc procDef
 
       return
@@ -328,7 +328,7 @@ lowerFunDef ::
 lowerFunDef with_ctrl _ fun_name P.FunDef{P.param_types, P.ret_types, P.mbody = Nothing} = do
   let param_names = map (printf "in_%d") [0 .. length param_types]
   let ret_names = map (printf "out_%d") [0 .. length ret_types]
-  is_oracle <- (fun_name ==) <$> view oracleName
+  let tick = error "TODO pass tick mapping"
 
   ctrl_qubit <- newIdent "ctrl"
   let proc_def =
@@ -339,8 +339,7 @@ lowerFunDef with_ctrl _ fun_name P.FunDef{P.param_types, P.ret_types, P.mbody = 
               [(ctrl_qubit, ParamCtrl, P.tbool) | with_ctrl == WithControl]
                 ++ withTag ParamInp (zip param_names param_types)
                 ++ withTag ParamOut (zip ret_names ret_types)
-          , mproc_body = Nothing
-          , is_oracle
+          , proc_body_or_tick = Right tick
           }
 
   addProc proc_def
@@ -391,7 +390,6 @@ lowerFunDef
             , CallS{proc_id = g_dirty_name, dagger = True, args = g_args}
             ]
 
-    is_oracle <- (fun_name ==) <$> view oracleName
     let proc_def =
           ProcDef
             { proc_name
@@ -401,8 +399,7 @@ lowerFunDef
                   ++ withTag ParamInp param_binds
                   ++ withTag ParamOut (zip ret_names g_ret_tys)
                   ++ withTag ParamAux (zip g_ret_names g_ret_tys ++ zip g_aux_names g_aux_tys)
-            , mproc_body = Just proc_body
-            , is_oracle
+            , proc_body_or_tick = Right proc_body
             }
     addProc proc_def
     return
@@ -428,7 +425,7 @@ lowerProgram ::
   -- | precision \delta
   costT ->
   P.Program primsT SizeT ->
-  Either String (Program holeT SizeT, P.TypingCtx SizeT)
+  Either String (Program holeT SizeT costT, P.TypingCtx SizeT)
 lowerProgram gamma_in oracle_name delta prog@P.Program{P.funCtx, P.stmt} = do
   unless (P.checkVarsUnique prog) $
     throwError "program does not have unique variables!"
