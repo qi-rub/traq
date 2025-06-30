@@ -61,8 +61,7 @@ spec = do
                         { UQPL.proc_name = "Oracle"
                         , UQPL.proc_meta_params = []
                         , UQPL.proc_params = []
-                        , UQPL.mproc_body = Nothing
-                        , UQPL.is_oracle = True
+                        , UQPL.proc_body_or_tick = Left (1.0 :: Double)
                         }
                 }
 

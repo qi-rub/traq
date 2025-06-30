@@ -9,6 +9,7 @@ import GHC.IO.Handle
 import Lens.Micro.GHC
 import Lens.Micro.Mtl
 import System.IO
+import Text.Printf (printf)
 
 import QCompose.Control.Monad
 import qualified QCompose.Data.Context as Ctx
@@ -77,10 +78,10 @@ stmtToCirc UQPL.ForInRangeS{} = fail "TODO ForInRange"
 
 type ProcConverterT holeT sizeT = MyStateT (Ctx.Context UnitaryCirc) Q.Circ
 
-procDefToCirc :: (Show holeT, Show sizeT) => UQPL.ProcDef holeT sizeT -> ProcConverterT holeT sizeT UnitaryCirc
-procDefToCirc UQPL.ProcDef{proc_name, mproc_body = Nothing} =
-  return $ Q.named_gate proc_name
-procDefToCirc UQPL.ProcDef{proc_name, proc_params, mproc_body = Just body} = do
+procDefToCirc :: (Show holeT, Show sizeT, Show costT) => UQPL.ProcDef holeT sizeT costT -> ProcConverterT holeT sizeT UnitaryCirc
+procDefToCirc UQPL.ProcDef{proc_name, proc_body_or_tick = Left tick} =
+  return $ Q.named_gate $ printf "%s[%s]" proc_name (show tick)
+procDefToCirc UQPL.ProcDef{proc_name, proc_params, proc_body_or_tick = Right body} = do
   cs <- use id
   return $
     Q.box proc_name $ \qs -> do
@@ -89,10 +90,10 @@ procDefToCirc UQPL.ProcDef{proc_name, proc_params, mproc_body = Just body} = do
       return qs
 
 programToCirc ::
-  forall holeT sizeT.
-  (Show holeT, Show sizeT) =>
+  forall holeT sizeT costT.
+  (Show holeT, Show sizeT, Show costT) =>
   Ctx.Context (P.VarType sizeT) ->
-  UQPL.Program holeT sizeT ->
+  UQPL.Program holeT sizeT costT ->
   UnitaryCirc
 programToCirc gamma UQPL.Program{UQPL.proc_defs, UQPL.stmt} qins = do
   Q.label qins (Ctx.keys gamma)

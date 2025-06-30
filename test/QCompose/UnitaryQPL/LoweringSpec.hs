@@ -33,7 +33,7 @@ spec = do
                 { U.proc_defs = Ctx.empty
                 , U.stmt = U.UnitaryS ["x", "y"] $ U.RevEmbedU (U.IdF (P.Fin 10))
                 } ::
-                U.Program Void Int
+                U.Program Void Int Double
 
         actual `shouldBe` expected
 
