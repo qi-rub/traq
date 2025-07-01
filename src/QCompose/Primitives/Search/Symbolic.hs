@@ -83,7 +83,7 @@ instance
   P.UnitaryCostablePrimitive primsT QSearchSym (Sym.Sym sizeT) (Sym.Sym costT)
   where
   unitaryQueryCostPrimitive delta prim _ = do
-    P.FunDef{P.param_types} <- view $ _1 . Ctx.at (prim ^. _predicate) . singular _Just
+    P.FunDef{P.param_types} <- view $ P._funCtx . Ctx.at (prim ^. _predicate) . singular _Just
 
     let P.Fin n = last param_types
 
@@ -116,7 +116,7 @@ instance
   P.QuantumMaxCostablePrimitive primsT QSearchSym (Sym.Sym sizeT) (Sym.Sym costT)
   where
   quantumMaxQueryCostPrimitive eps prim = do
-    P.FunDef{P.param_types} <- view $ _1 . Ctx.at (prim ^. _predicate) . singular _Just
+    P.FunDef{P.param_types} <- view $ P._funCtx . Ctx.at (prim ^. _predicate) . singular _Just
     let P.Fin n = last param_types
 
     -- split the fail prob
@@ -132,7 +132,8 @@ instance
 
     -- cost of each predicate call
     cost_unitary_pred <-
-      P.unitaryQueryCostE delta_per_pred_call $
-        P.FunCallE{P.fun_kind = P.FunctionCall (prim ^. _predicate), P.args = undefined}
+      magnify P._unitaryCostEnv $
+        P.unitaryQueryCostE delta_per_pred_call $
+          P.FunCallE{P.fun_kind = P.FunctionCall (prim ^. _predicate), P.args = undefined}
 
     return $ qry * cost_unitary_pred

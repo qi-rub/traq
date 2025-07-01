@@ -71,7 +71,7 @@ instance
   P.UnitaryCostablePrimitive primsT RandomSearch sizeT costT
   where
   unitaryQueryCostPrimitive delta RandomSearch{predicate} _ = do
-    P.FunDef{P.param_types} <- view $ _1 . Ctx.at predicate . singular _Just
+    P.FunDef{P.param_types} <- view $ P._funCtx . Ctx.at predicate . singular _Just
     let P.Fin n = last param_types
 
     -- number of predicate queries
@@ -96,7 +96,7 @@ instance
   P.QuantumMaxCostablePrimitive primsT RandomSearch sizeT costT
   where
   quantumMaxQueryCostPrimitive eps RandomSearch{predicate} = do
-    P.FunDef{P.param_types} <- view $ _1 . Ctx.at predicate . singular _Just
+    P.FunDef{P.param_types} <- view $ P._funCtx . Ctx.at predicate . singular _Just
     let P.Fin n = last param_types
 
     -- split the fail prob

@@ -21,14 +21,20 @@ module QCompose.ProtoLang.Syntax (
   NamedFunDef (..),
   FunCtx,
   Program (..),
+
+  -- ** Lenses
+  HasFunCtx (..),
 ) where
+
+import Lens.Micro.GHC
+import Text.Printf (printf)
 
 import qualified QCompose.Data.Context as Ctx
 
 import QCompose.Prelude
+import QCompose.ProtoLang.Prelude
 import QCompose.Utils.ASTRewriting
 import QCompose.Utils.Printing
-import Text.Printf (printf)
 
 -- ================================================================================
 -- Syntax
@@ -37,6 +43,8 @@ import Text.Printf (printf)
 -- | Types
 newtype VarType sizeT = Fin sizeT -- Fin<N>
   deriving (Eq, Show, Read, Functor)
+
+type instance SizeType (VarType sizeT) = sizeT
 
 -- | Unary operations
 data UnOp = NotOp
@@ -52,6 +60,8 @@ data FunctionCallKind primT
   | PrimitiveCall {prim :: primT}
   deriving (Eq, Show, Read)
 
+type instance PrimitiveType (FunctionCallKind primT) = primT
+
 {- | An expression in the prototype language.
  It appears as the RHS of an assignment statement.
 -}
@@ -64,12 +74,18 @@ data Expr primT sizeT
   | FunCallE {fun_kind :: FunctionCallKind primT, args :: [Ident]}
   deriving (Eq, Show, Read, Functor)
 
+type instance SizeType (Expr primT sizeT) = sizeT
+type instance PrimitiveType (Expr primT sizeT) = primT
+
 -- | A statement in the prototype language.
 data Stmt primT sizeT
   = ExprS {rets :: [Ident], expr :: Expr primT sizeT}
   | IfThenElseS {cond :: Ident, s_true :: Stmt primT sizeT, s_false :: Stmt primT sizeT}
   | SeqS [Stmt primT sizeT]
   deriving (Eq, Show, Read, Functor)
+
+type instance SizeType (Stmt primT sizeT) = sizeT
+type instance PrimitiveType (Stmt primT sizeT) = primT
 
 -- | The body of a function.
 data FunBody primT sizeT = FunBody
@@ -78,6 +94,9 @@ data FunBody primT sizeT = FunBody
   }
   deriving (Eq, Show, Read, Functor)
 
+type instance SizeType (FunBody primT sizeT) = sizeT
+type instance PrimitiveType (FunBody primT sizeT) = primT
+
 -- | A function definition or declaration in the prototype language.
 data FunDef primT sizeT = FunDef
   { param_types, ret_types :: [VarType sizeT]
@@ -85,12 +104,26 @@ data FunDef primT sizeT = FunDef
   }
   deriving (Eq, Show, Read, Functor)
 
+type instance SizeType (FunDef primT sizeT) = sizeT
+type instance PrimitiveType (FunDef primT sizeT) = primT
+
 -- | A function with a name
 data NamedFunDef primT sizeT = NamedFunDef {fun_name :: Ident, fun_def :: FunDef primT sizeT}
   deriving (Eq, Show, Read, Functor)
 
+type instance SizeType (NamedFunDef primT sizeT) = sizeT
+type instance PrimitiveType (NamedFunDef primT sizeT) = primT
+
 -- | A function context contains a list of functions
 type FunCtx primT sizeT = Ctx.Context (FunDef primT sizeT)
+
+type instance SizeType (FunCtx primT sizeT) = sizeT
+type instance PrimitiveType (FunCtx primT sizeT) = primT
+
+class HasFunCtx p where
+  _funCtx :: (primT ~ PrimitiveType p, sizeT ~ SizeType p) => Lens' p (FunCtx primT sizeT)
+
+instance HasFunCtx (FunCtx primT sizeT) where _funCtx = id
 
 -- | A program is a function context with a statement (which acts like the `main`)
 data Program primT sizeT = Program
@@ -98,6 +131,12 @@ data Program primT sizeT = Program
   , stmt :: Stmt primT sizeT
   }
   deriving (Eq, Show, Read, Functor)
+
+type instance SizeType (Program primT sizeT) = sizeT
+type instance PrimitiveType (Program primT sizeT) = primT
+
+instance HasFunCtx (Program primT sizeT) where
+  _funCtx focus p@Program{funCtx} = focus funCtx <&> \funCtx' -> p{funCtx = funCtx'}
 
 -- ================================================================================
 -- Lenses
@@ -189,7 +228,7 @@ instance (Show sizeT, ToCodeString primT) => ToCodeString (NamedFunDef primT siz
       , fun_def = FunDef{param_types, ret_types, mbody = Nothing}
       } =
       [ printf
-          "declare %s(%s) -> %s"
+          "declare %s(%s) -> %s;"
           fun_name
           (commaList $ map toCodeString param_types)
           (commaList $ map toCodeString ret_types)

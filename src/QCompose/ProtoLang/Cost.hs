@@ -23,19 +23,22 @@ module QCompose.ProtoLang.Cost (
   quantumQueryCostBound,
 
   -- * Types and Monad
-  OracleName,
+
+  -- ** Data Types
   OracleTicks,
 
-  -- ** Static
-  StaticCostEnv,
+  -- ** Lenses
+  _classicalTicks,
+  _unitaryTicks,
+  _funInterpCtx,
+  _unitaryCostEnv,
+  _quantumMaxCostEnv,
+
+  -- ** Cost Monads
   UnitaryCostCalculator,
   UnitaryCostablePrimitive (..),
   QuantumMaxCostCalculator,
   QuantumMaxCostablePrimitive (..),
-
-  -- ** Dynamic
-  DynamicCostEnv,
-  extractUEnv,
   QuantumCostCalculator,
   QuantumCostablePrimitive (..),
 ) where
@@ -52,6 +55,7 @@ import qualified QCompose.Data.Context as Ctx
 
 import QCompose.Prelude
 import QCompose.ProtoLang.Eval
+import QCompose.ProtoLang.Prelude
 import QCompose.ProtoLang.Syntax
 import QCompose.ProtoLang.TypeCheck
 
@@ -60,31 +64,56 @@ detExtract xs = case toList xs of
   [x] -> x
   _ -> error "unexpected non-determinism"
 
-{-# DEPRECATED unsafeLookupFun "Remove" #-}
-unsafeLookupFun :: Ident -> FunCtx primsT sizeT -> FunDef primsT sizeT
-unsafeLookupFun fname funCtx = funCtx ^. Ctx.at fname . singular _Just
+-- ================================================================================
+-- Lenses for accessing the "tick" costs and semantics function declarations
+-- ================================================================================
+
+-- | Tick constant for each oracle.
+type OracleTicks costT = Map.Map Ident costT
+
+-- | Lens to access the classical ticks from the context
+class HasClassicalTicks p where
+  _classicalTicks :: (costT ~ CostType p) => Lens' p (OracleTicks costT)
+
+-- | Lens to access the unitary ticks from the context
+class HasUnitaryTicks p where
+  _unitaryTicks :: (costT ~ CostType p) => Lens' p (OracleTicks costT)
+
+-- | Lens to access the function interpretations (semantics)
+class HasFunInterpCtx p where
+  _funInterpCtx :: Lens' p FunInterpCtx
 
 -- ================================================================================
 -- Unitary Cost
 -- ================================================================================
 
--- | Name of the oracle to compute the number of queries to.
-type OracleName = Ident
-
--- | Tick constant for each oracle.
-type OracleTicks costT = Map.Map Ident costT
-
 -- | Environment to compute the unitary cost
-type StaticCostEnv primsT sizeT costT = (FunCtx primsT sizeT, OracleTicks costT)
+data UnitaryCostEnv primT sizeT costT = UnitaryCostEnv (FunCtx primT sizeT) (OracleTicks costT)
 
-_funCtx :: Lens' (StaticCostEnv primsT sizeT costT) (FunCtx primsT sizeT)
-_funCtx = _1
+-- Types and instances
+type instance PrimitiveType (UnitaryCostEnv primT sizeT costT) = primT
+type instance SizeType (UnitaryCostEnv primT sizeT costT) = sizeT
+type instance CostType (UnitaryCostEnv primT sizeT costT) = costT
 
-_oracleTicks :: Lens' (StaticCostEnv primsT sizeT costT) (OracleTicks costT)
-_oracleTicks = _2
+instance HasFunCtx (UnitaryCostEnv primT sizeT costT) where
+  _funCtx focus (UnitaryCostEnv f u) = focus f <&> \f' -> UnitaryCostEnv f' u
+
+instance HasUnitaryTicks (UnitaryCostEnv primT sizeT costT) where
+  _unitaryTicks focus (UnitaryCostEnv f u) = focus u <&> \u' -> UnitaryCostEnv f u'
+
+-- Subtyping Lens
+class HasUnitaryCostEnv p where
+  _unitaryCostEnv ::
+    ( primT ~ PrimitiveType p
+    , sizeT ~ SizeType p
+    , costT ~ CostType p
+    ) =>
+    Lens' p (UnitaryCostEnv primT sizeT costT)
+
+instance HasUnitaryCostEnv (UnitaryCostEnv p s c) where _unitaryCostEnv = id
 
 -- | Monad to compute unitary cost.
-type UnitaryCostCalculator primsT sizeT costT = MyReaderT (StaticCostEnv primsT sizeT costT) Maybe
+type UnitaryCostCalculator primsT sizeT costT = MyReaderT (UnitaryCostEnv primsT sizeT costT) Maybe
 
 -- | Primitives that have a unitary cost
 class
@@ -116,7 +145,7 @@ unitaryQueryCostE ::
 unitaryQueryCostE delta FunCallE{fun_kind = FunctionCall fname} = do
   FunDef{mbody} <- view $ _funCtx . Ctx.at fname . singular _Just
   case mbody of
-    Nothing -> view $ _oracleTicks . at fname . to (fromMaybe 0) -- declaration: use tick value (or 0 if not specified)
+    Nothing -> view $ _unitaryTicks . at fname . to (fromMaybe 0) -- declaration: use tick value (or 0 if not specified)
     Just FunBody{body_stmt} -> (2 *) <$> unitaryQueryCostS (delta / 2) body_stmt -- def: compute using body
 unitaryQueryCostE delta FunCallE{fun_kind = PrimitiveCall prim, args} =
   unitaryQueryCostPrimitive delta prim args
@@ -166,15 +195,46 @@ unitaryQueryCost ::
   OracleTicks costT ->
   costT
 unitaryQueryCost delta Program{funCtx, stmt} ticks =
-  let env = (funCtx, ticks)
+  let env = UnitaryCostEnv funCtx ticks
    in unitaryQueryCostS delta stmt `runMyReaderT` env ^. singular _Just
 
 -- ================================================================================
 -- Quantum Max Cost
 -- ================================================================================
 
+-- | Environment to compute the worst case quantum cost
+data QuantumMaxCostEnv primT sizeT costT
+  = QuantumMaxCostEnv
+      (UnitaryCostEnv primT sizeT costT) -- unitary enviroment
+      (OracleTicks costT) -- classical ticks
+
+-- instances
+type instance PrimitiveType (QuantumMaxCostEnv primT sizeT costT) = primT
+type instance SizeType (QuantumMaxCostEnv primT sizeT costT) = sizeT
+type instance CostType (QuantumMaxCostEnv primT sizeT costT) = costT
+
+instance HasUnitaryCostEnv (QuantumMaxCostEnv primT sizeT costT) where
+  _unitaryCostEnv focus (QuantumMaxCostEnv u t) = focus u <&> \u' -> QuantumMaxCostEnv u' t
+
+instance HasClassicalTicks (QuantumMaxCostEnv primT sizeT costT) where
+  _classicalTicks focus (QuantumMaxCostEnv u t) = focus t <&> QuantumMaxCostEnv u
+
+instance HasFunCtx (QuantumMaxCostEnv primT sizeT costT) where _funCtx = _unitaryCostEnv . _funCtx
+instance HasUnitaryTicks (QuantumMaxCostEnv primT sizeT costT) where _unitaryTicks = _unitaryCostEnv . _unitaryTicks
+
+-- lens
+class HasQuantumMaxCostEnv p where
+  _quantumMaxCostEnv ::
+    ( primT ~ PrimitiveType p
+    , sizeT ~ SizeType p
+    , costT ~ CostType p
+    ) =>
+    Lens' p (QuantumMaxCostEnv primT sizeT costT)
+
+instance HasQuantumMaxCostEnv (QuantumMaxCostEnv primT sizeT costT) where _quantumMaxCostEnv = id
+
 -- Environment to compute the max quantum cost (input independent)
-type QuantumMaxCostCalculator primsT sizeT costT = MyReaderT (StaticCostEnv primsT sizeT costT) Maybe
+type QuantumMaxCostCalculator primsT sizeT costT = MyReaderT (QuantumMaxCostEnv primsT sizeT costT) Maybe
 
 -- | Primitives that have a quantum max cost
 class
@@ -204,7 +264,7 @@ quantumMaxQueryCostE ::
 quantumMaxQueryCostE eps FunCallE{fun_kind = FunctionCall fname} = do
   FunDef{mbody} <- view $ _funCtx . Ctx.at fname . singular _Just
   case mbody of
-    Nothing -> view $ _oracleTicks . at fname . to (fromMaybe 0) -- declaration: use tick value (or 0 if not specified)
+    Nothing -> view $ _classicalTicks . at fname . to (fromMaybe 0) -- declaration: use tick value (or 0 if not specified)
     Just FunBody{body_stmt} -> quantumMaxQueryCostS eps body_stmt -- def: compute using body
 
 -- -- known cost formulas
@@ -250,11 +310,13 @@ quantumMaxQueryCost ::
   costT ->
   -- | program `P`
   Program primsT sizeT ->
-  -- | oracle ticks
+  -- | unitary ticks
+  OracleTicks costT ->
+  -- | classical ticks
   OracleTicks costT ->
   costT
-quantumMaxQueryCost a_eps Program{funCtx, stmt} ticks =
-  let env = (funCtx, ticks)
+quantumMaxQueryCost a_eps Program{funCtx, stmt} uticks cticks =
+  let env = QuantumMaxCostEnv (UnitaryCostEnv funCtx uticks) cticks
    in quantumMaxQueryCostS a_eps stmt `runMyReaderT` env ^. singular _Just
 
 -- ================================================================================
@@ -262,12 +324,24 @@ quantumMaxQueryCost a_eps Program{funCtx, stmt} ticks =
 -- ================================================================================
 
 -- Environment to compute the quantum cost (input dependent)
-type DynamicCostEnv primsT sizeT costT = (StaticCostEnv primsT sizeT costT, FunInterpCtx, OracleTicks costT)
+data QuantumCostEnv primsT sizeT costT = QuantumCostEnv (QuantumMaxCostEnv primsT sizeT costT) FunInterpCtx
 
-extractUEnv :: Lens' (DynamicCostEnv primsT sizeT costT) (StaticCostEnv primsT sizeT costT)
-extractUEnv = _1
+type instance PrimitiveType (QuantumCostEnv primsT sizeT costT) = primsT
+type instance SizeType (QuantumCostEnv primsT sizeT costT) = sizeT
+type instance CostType (QuantumCostEnv primsT sizeT costT) = costT
 
-type QuantumCostCalculator primsT sizeT costT = MyReaderT (DynamicCostEnv primsT sizeT costT) Maybe
+instance HasQuantumMaxCostEnv (QuantumCostEnv primsT sizeT costT) where
+  _quantumMaxCostEnv focus (QuantumCostEnv e f) = focus e <&> \e' -> QuantumCostEnv e' f
+
+instance HasFunInterpCtx (QuantumCostEnv primsT sizeT costT) where
+  _funInterpCtx focus (QuantumCostEnv e f) = focus f <&> QuantumCostEnv e
+
+instance HasUnitaryCostEnv (QuantumCostEnv primsT sizeT costT) where _unitaryCostEnv = _quantumMaxCostEnv . _unitaryCostEnv
+instance HasFunCtx (QuantumCostEnv primsT sizeT costT) where _funCtx = _quantumMaxCostEnv . _funCtx
+instance HasUnitaryTicks (QuantumCostEnv primsT sizeT costT) where _unitaryTicks = _quantumMaxCostEnv . _unitaryTicks
+instance HasClassicalTicks (QuantumCostEnv primsT sizeT costT) where _classicalTicks = _quantumMaxCostEnv . _classicalTicks
+
+type QuantumCostCalculator primsT sizeT costT = MyReaderT (QuantumCostEnv primsT sizeT costT) Maybe
 
 -- | Primitives that have a input dependent expected quantum cost
 class
@@ -298,18 +372,14 @@ quantumQueryCostE ::
   -- | statement @S@
   Expr primsT SizeT ->
   m costT
-quantumQueryCostE eps sigma FunCallE{fun_kind = FunctionCall f, args} = do
-  mtick <- view $ _3 . at f
-  case mtick of
-    Just tick -> return tick
-    Nothing ->
-      view (extractUEnv . _funCtx . to (unsafeLookupFun f) . to mbody) >>= \case
-        Nothing -> return 0 -- no cost for injected data
-        Just FunBody{param_names, body_stmt} -> do
-          let vs = args & map (\x -> sigma ^. Ctx.at x . singular _Just)
-          -- bind the arguments to the parameter names
-          let omega = Ctx.fromList $ zip param_names vs
-          quantumQueryCostS eps omega body_stmt
+quantumQueryCostE eps sigma FunCallE{fun_kind = FunctionCall f, args} =
+  view (_funCtx . Ctx.at f . singular _Just . to mbody) >>= \case
+    Nothing -> view $ _classicalTicks . at f . to (fromMaybe 0) -- tick value, default to 0
+    Just FunBody{param_names, body_stmt} -> do
+      let vs = args & map (\x -> sigma ^. Ctx.at x . singular _Just)
+      -- bind the arguments to the parameter names
+      let omega = Ctx.fromList $ zip param_names vs
+      quantumQueryCostS eps omega body_stmt
 
 -- -- known cost formulas
 quantumQueryCostE eps sigma FunCallE{fun_kind = PrimitiveCall prim, args} = do
@@ -344,8 +414,8 @@ quantumQueryCostS eps sigma (SeqS [s]) = quantumQueryCostS eps sigma s
 quantumQueryCostS eps sigma (SeqS (s : ss)) = do
   cost_s <- quantumQueryCostS (eps / 2) sigma s
 
-  funCtx <- view $ extractUEnv . _funCtx
-  interpCtx <- view _2
+  funCtx <- view _funCtx
+  interpCtx <- view _funInterpCtx
   let sigma' = detExtract $ runProgram Program{funCtx, stmt = s} interpCtx sigma
 
   cost_ss <- quantumQueryCostS (eps / 2) sigma' (SeqS ss)
@@ -358,15 +428,17 @@ quantumQueryCost ::
   costT ->
   -- | program @P@
   Program primsT SizeT ->
-  -- | oracle ticks
+  -- | unitary ticks
+  OracleTicks costT ->
+  -- | classical ticks
   OracleTicks costT ->
   -- | data injections
   FunInterpCtx ->
   -- | state \( \sigma \)
   ProgramState ->
   costT
-quantumQueryCost a_eps Program{funCtx, stmt} ticks interpCtx sigma =
-  let env = ((funCtx, ticks), interpCtx, ticks)
+quantumQueryCost a_eps Program{funCtx, stmt} uticks cticks interpCtx sigma =
+  let env = QuantumCostEnv (QuantumMaxCostEnv (UnitaryCostEnv funCtx uticks) cticks) interpCtx
    in quantumQueryCostS a_eps sigma stmt `runMyReaderT` env ^. singular _Just
 
 -- | The bound on the true expected runtime which fails with probability <= \eps.
@@ -380,13 +452,15 @@ quantumQueryCostBound ::
   costT ->
   -- | program @P@
   Program primsT SizeT ->
-  -- | oracle ticks
+  -- | unitary ticks
+  OracleTicks costT ->
+  -- | classical ticks
   OracleTicks costT ->
   -- | data injections
   FunInterpCtx ->
   -- | state \( \sigma \)
   ProgramState ->
   costT
-quantumQueryCostBound a_eps p ticks interp_ctx sigma =
-  (1 - a_eps) * quantumQueryCost a_eps p ticks interp_ctx sigma
-    + a_eps * quantumMaxQueryCost a_eps p ticks
+quantumQueryCostBound a_eps p uticks cticks interp_ctx sigma =
+  (1 - a_eps) * quantumQueryCost a_eps p uticks cticks interp_ctx sigma
+    + a_eps * quantumMaxQueryCost a_eps p uticks cticks

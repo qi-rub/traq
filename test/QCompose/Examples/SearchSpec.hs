@@ -45,7 +45,7 @@ spec = do
 
     it "quantum cost for eps=0.0001" $ do
       let true_cost = ecF n 0 (eps / 2)
-      P.quantumQueryCost eps ex ticks interpCtx Ctx.empty `shouldBe` true_cost
+      P.quantumQueryCost eps ex uticks ticks interpCtx Ctx.empty `shouldBe` true_cost
 
     it "generate code" $ do
       toCodeString ex `shouldSatisfy` (not . null)
