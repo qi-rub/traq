@@ -157,7 +157,7 @@ instance
   P.UnitaryCostablePrimitive primsT QSearchCFNW sizeT costT
   where
   unitaryQueryCostPrimitive delta QSearchCFNW{predicate} _ = do
-    P.FunDef{P.param_types} <- view $ _1 . Ctx.at predicate . singular _Just
+    P.FunDef{P.param_types} <- view $ P._funCtx . Ctx.at predicate . singular _Just
     let P.Fin n = last param_types
 
     -- split the precision
@@ -185,7 +185,7 @@ instance
   P.QuantumMaxCostablePrimitive primsT QSearchCFNW sizeT costT
   where
   quantumMaxQueryCostPrimitive eps QSearchCFNW{predicate} = do
-    P.FunDef{P.param_types} <- view $ _1 . Ctx.at predicate . singular _Just
+    P.FunDef{P.param_types} <- view $ P._funCtx . Ctx.at predicate . singular _Just
     let P.Fin n = last param_types
 
     -- split the fail prob
@@ -201,8 +201,9 @@ instance
 
     -- cost of each predicate call
     cost_unitary_pred <-
-      P.unitaryQueryCostE delta_per_pred_call $
-        P.FunCallE{P.fun_kind = P.FunctionCall predicate, P.args = undefined}
+      magnify P._unitaryCostEnv $
+        P.unitaryQueryCostE delta_per_pred_call $
+          P.FunCallE{P.fun_kind = P.FunctionCall predicate, P.args = undefined}
 
     return $ qry * cost_unitary_pred
 
@@ -217,7 +218,7 @@ instance
   P.QuantumCostablePrimitive primsT QSearchCFNW sizeT costT
   where
   quantumQueryCostPrimitive eps QSearchCFNW{predicate} vs = do
-    predDef@P.FunDef{P.param_types} <- view $ P.extractUEnv . _1 . Ctx.at predicate . singular _Just
+    predDef@P.FunDef{P.param_types} <- view $ P._funCtx . Ctx.at predicate . singular _Just
     let typ_x = last param_types
 
     -- split the fail prob
@@ -227,7 +228,7 @@ instance
     -- number of solutions
     let space = P.range typ_x
     sols <- do
-      env <- (,) <$> view (P.extractUEnv . _1) <*> view _2
+      env <- (,) <$> view P._funCtx <*> view P._funInterpCtx
       -- TODO this is too convoluted...
       return $
         (`runMyReaderT` env) $
@@ -249,7 +250,7 @@ instance
     let delta_per_pred_call = eps_per_pred_call / 2
 
     pred_unitary_cost <-
-      magnify P.extractUEnv $
+      magnify P._unitaryCostEnv $
         P.unitaryQueryCostE delta_per_pred_call P.FunCallE{P.fun_kind = P.FunctionCall predicate, P.args = undefined}
     return $ qry * pred_unitary_cost
 
