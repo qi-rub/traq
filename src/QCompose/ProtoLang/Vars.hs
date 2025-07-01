@@ -23,6 +23,7 @@ type VarSet = Set.Set Ident
 freeVarsBE :: BasicExpr sizeT -> VarSet
 freeVarsBE VarE{var} = Set.singleton var
 freeVarsBE ConstE{} = Set.empty
+freeVarsBE ParamE{} = Set.empty
 freeVarsBE UnOpE{operand} = freeVarsBE operand
 freeVarsBE BinOpE{lhs, rhs} = Set.unions $ map freeVarsBE [lhs, rhs]
 freeVarsBE TernaryE{branch, lhs, rhs} = Set.unions $ map freeVarsBE [branch, lhs, rhs]

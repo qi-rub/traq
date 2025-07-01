@@ -1,5 +1,7 @@
 module QCompose.Examples.MatrixSearch where
 
+import Data.String (fromString)
+
 import qualified QCompose.Data.Context as Ctx
 
 import QCompose.Prelude
@@ -42,7 +44,7 @@ matrixExample n m tyBool =
               , body_stmt =
                   SeqS
                     [ ExprS{rets = [e], expr = FunCallE{fun_kind = FunctionCall oracle_name, args = [i, j]}}
-                    , ExprS{rets = [e'], expr = UnOpE{un_op = NotOp, arg = e}}
+                    , ExprS{rets = [e'], expr = BasicExprE UnOpE{un_op = NotOp, operand = fromString e}}
                     ]
               , ret_names = [e']
               }
@@ -68,7 +70,7 @@ matrixExample n m tyBool =
               , body_stmt =
                   SeqS
                     [ ExprS{rets = [ok], expr = FunCallE{fun_kind = PrimitiveCall (mkAny check_entry_name), args = [i]}}
-                    , ExprS{rets = [ok'], expr = UnOpE{un_op = NotOp, arg = ok}}
+                    , ExprS{rets = [ok'], expr = BasicExprE UnOpE{un_op = NotOp, operand = fromString ok}}
                     ]
               , ret_names = [ok']
               }

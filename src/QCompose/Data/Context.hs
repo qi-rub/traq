@@ -121,11 +121,11 @@ merge :: Context a -> Context a -> Context a
 merge (Context m) (Context m') = Context (m' ++ m)
 -- * Conversions
 
-fromList :: [(Ident, a)] -> Context a
-fromList = Context . map (uncurry Binding) . reverse
+fromList :: (Foldable f) => f (Ident, a) -> Context a
+fromList = Context . map (uncurry Binding) . reverse . Foldable.toList
 
-fromListWith :: (a -> Ident) -> [a] -> Context a
-fromListWith f = fromList . map (\a -> (f a, a))
+fromListWith :: (Foldable f) => (a -> Ident) -> f a -> Context a
+fromListWith f = fromList . map (\a -> (f a, a)) . Foldable.toList
 
 toList :: Context a -> [(Ident, a)]
 toList c = reverse $ c ^.. _binds . _binding

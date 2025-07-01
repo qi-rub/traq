@@ -197,18 +197,12 @@ lowerExpr ::
   -- return variables
   [Ident] ->
   CompilerT primsT holeT sizeT costT (Stmt holeT sizeT)
-lowerExpr _ P.VarE{P.arg} [ret] = return $ AssignS [ret] VarE{var = arg}
-lowerExpr _ P.ConstE{P.val, P.ty} [ret] = return $ AssignS [ret] ConstE{val, val_ty = ty}
-lowerExpr _ P.UnOpE{P.un_op, P.arg} [ret] =
-  let expr = case un_op of
-        P.NotOp -> NotE (VarE arg)
-   in return $ AssignS{rets = [ret], expr}
+lowerExpr _ P.BasicExprE{P.basic_expr} rets = return $ AssignS rets basic_expr
 lowerExpr eps P.FunCallE{P.fun_kind = P.FunctionCall f, P.args} rets = do
   proc_name <- lowerFunDefByName eps f
   return $ CallS{fun = FunctionCall proc_name, args = args ++ rets, meta_params = []}
 lowerExpr eps P.FunCallE{P.fun_kind = P.PrimitiveCall prim, P.args} rets =
   lowerPrimitive eps prim args rets
-lowerExpr _ _ _ = throwError "lowering: unsupported"
 
 -- | Lower a single statement
 lowerStmt ::

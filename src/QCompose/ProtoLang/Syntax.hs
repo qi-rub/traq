@@ -9,7 +9,12 @@ module QCompose.ProtoLang.Syntax (
   VarType (..),
   UnOp (..),
   BinOp (..),
+  NAryOp (..),
   BasicExpr (..),
+  (.<=.),
+  notE,
+  (.+.),
+  (.&&.),
 
   -- ** Calls and Primitives
   FunctionCallKind (..),
@@ -27,6 +32,7 @@ module QCompose.ProtoLang.Syntax (
   HasFunCtx (..),
 ) where
 
+import Data.String (IsString (..))
 import Lens.Micro.GHC
 import Text.Printf (printf)
 
@@ -83,6 +89,19 @@ data BasicExpr sizeT
   | TernaryE {branch, lhs, rhs :: BasicExpr sizeT}
   | NAryE {op :: NAryOp, operands :: [BasicExpr sizeT]}
   deriving (Eq, Show, Read, Functor)
+
+-- Helpers for shorter expressions
+instance IsString (BasicExpr sizeT) where
+  fromString ('#' : s) = ParamE s
+  fromString s = VarE s
+
+notE :: BasicExpr sizeT -> BasicExpr sizeT
+notE = UnOpE NotOp
+
+(.<=.), (.+.), (.&&.) :: BasicExpr sizeT -> BasicExpr sizeT -> BasicExpr sizeT
+(.<=.) = BinOpE LEqOp
+(.+.) = BinOpE AddOp
+(.&&.) = BinOpE AndOp
 
 instance (Show sizeT) => ToCodeString (BasicExpr sizeT) where
   toCodeString VarE{var} = var
