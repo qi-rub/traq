@@ -29,9 +29,11 @@ symbolicEx = do
   let n = Sym.var "N" :: Sym.Sym SizeT
   let m = Sym.var "M" :: Sym.Sym SizeT
   let ex = matrixExample @QSearchSym n m (P.Fin $ Sym.con 2)
+  let strat = P.SplitUsingNeedsEps
+  let uticks = Map.singleton "Oracle" (Sym.var "c_u")
+  let cticks = Map.singleton "Oracle" (Sym.var "c_c")
 
   forM_ ["HasAllOnesRow", "IsRowAllOnes", "IsEntryZero"] $ \f -> do
-    let delta = Sym.var "δ" :: Sym.Sym Double
     let stmt =
           P.ExprS
             { rets = undefined
@@ -42,8 +44,14 @@ symbolicEx = do
                   }
             }
 
-    putStrLn $ printf "Cost of %s" f
-    print $ P.unitaryQueryCost P.SplitUsingNeedsEps delta ex{P.stmt = stmt} (Map.singleton "Oracle" 1.0)
+    let eps = Sym.var "ε" :: Sym.Sym Double
+    let delta = Sym.var "δ" :: Sym.Sym Double
+
+    putStrLn $ printf "Worst case cost of %s" f
+    putStr "  - Unitary: "
+    print $ P.unitaryQueryCost strat delta ex{P.stmt = stmt} uticks
+    putStr "  - Quantum: "
+    print $ P.quantumMaxQueryCost strat eps ex{P.stmt = stmt} uticks cticks
 
 concreteEx :: IO ()
 concreteEx = do
@@ -99,10 +107,10 @@ main = do
   symbolicEx
   printDivider
 
--- printDivider
--- concreteEx
--- printDivider
+  printDivider
+  concreteEx
+  printDivider
 
--- printDivider
--- concreteQEx
--- printDivider
+  printDivider
+  concreteQEx
+  printDivider
