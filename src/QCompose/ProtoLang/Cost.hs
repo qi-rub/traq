@@ -42,13 +42,14 @@ module QCompose.ProtoLang.Cost (
 
 import Data.Foldable (toList)
 import qualified Data.Map as Map
+import Data.Maybe (fromMaybe)
+import Data.Void (Void, absurd)
 import Lens.Micro.GHC
 import Lens.Micro.Mtl
 
 import QCompose.Control.Monad
 import qualified QCompose.Data.Context as Ctx
 
-import Data.Void (Void, absurd)
 import QCompose.Prelude
 import QCompose.ProtoLang.Eval
 import QCompose.ProtoLang.Syntax
@@ -101,25 +102,22 @@ instance (Show costT) => UnitaryCostablePrimitive primsT Void sizeT costT where
 
 -- | Evaluate the query cost of an expression
 unitaryQueryCostE ::
-  forall primsT sizeT costT.
+  forall primsT sizeT costT m.
   ( Num sizeT
   , Floating costT
   , UnitaryCostablePrimitive primsT primsT sizeT costT
+  , m ~ UnitaryCostCalculator primsT sizeT costT
   ) =>
   -- | precision
   costT ->
   -- | expression @E@
   Expr primsT sizeT ->
-  UnitaryCostCalculator primsT sizeT costT costT
+  m costT
 unitaryQueryCostE delta FunCallE{fun_kind = FunctionCall fname} = do
-  mtick <- view $ _oracleTicks . at fname
-  case mtick of
-    Just tick -> return tick
-    Nothing -> do
-      FunDef{mbody} <- view $ _funCtx . to (unsafeLookupFun fname)
-      case mbody of
-        Nothing -> return 0 -- no cost for injected data
-        Just FunBody{body_stmt} -> (2 *) <$> unitaryQueryCostS (delta / 2) body_stmt
+  FunDef{mbody} <- view $ _funCtx . Ctx.at fname . singular _Just
+  case mbody of
+    Nothing -> view $ _oracleTicks . at fname . to (fromMaybe 0) -- declaration: use tick value (or 0 if not specified)
+    Just FunBody{body_stmt} -> (2 *) <$> unitaryQueryCostS (delta / 2) body_stmt -- def: compute using body
 unitaryQueryCostE delta FunCallE{fun_kind = PrimitiveCall prim, args} =
   unitaryQueryCostPrimitive delta prim args
 -- zero-cost expressions
@@ -131,16 +129,17 @@ unitaryQueryCostE _ TernaryE{} = return 0
 
 -- Evaluate the query cost of a statement
 unitaryQueryCostS ::
-  forall primsT sizeT costT.
+  forall primsT sizeT costT m.
   ( Num sizeT
   , Floating costT
   , UnitaryCostablePrimitive primsT primsT sizeT costT
+  , m ~ UnitaryCostCalculator primsT sizeT costT
   ) =>
   -- | precision (l2-norm)
   costT ->
   -- | statement @S@
   Stmt primsT sizeT ->
-  UnitaryCostCalculator primsT sizeT costT costT
+  m costT
 unitaryQueryCostS delta ExprS{expr} = unitaryQueryCostE delta expr
 unitaryQueryCostS delta IfThenElseS{s_true, s_false} = do
   cost_true <- unitaryQueryCostS delta s_true
@@ -203,14 +202,10 @@ quantumMaxQueryCostE ::
   Expr primsT sizeT ->
   QuantumMaxCostCalculator primsT sizeT costT costT
 quantumMaxQueryCostE eps FunCallE{fun_kind = FunctionCall fname} = do
-  mtick <- view $ _oracleTicks . at fname
-  case mtick of
-    Just tick -> return tick
-    Nothing -> do
-      FunDef{mbody} <- view $ _funCtx . to (unsafeLookupFun fname)
-      case mbody of
-        Nothing -> return 0 -- no cost for injected data
-        Just FunBody{body_stmt} -> quantumMaxQueryCostS eps body_stmt
+  FunDef{mbody} <- view $ _funCtx . Ctx.at fname . singular _Just
+  case mbody of
+    Nothing -> view $ _oracleTicks . at fname . to (fromMaybe 0) -- declaration: use tick value (or 0 if not specified)
+    Just FunBody{body_stmt} -> quantumMaxQueryCostS eps body_stmt -- def: compute using body
 
 -- -- known cost formulas
 quantumMaxQueryCostE eps FunCallE{fun_kind = PrimitiveCall prim} =
@@ -272,7 +267,7 @@ type DynamicCostEnv primsT sizeT costT = (StaticCostEnv primsT sizeT costT, FunI
 extractUEnv :: Lens' (DynamicCostEnv primsT sizeT costT) (StaticCostEnv primsT sizeT costT)
 extractUEnv = _1
 
-type QuantumCostCalculator primsT sizeT costT a = MyReaderT (DynamicCostEnv primsT sizeT costT) Maybe a
+type QuantumCostCalculator primsT sizeT costT = MyReaderT (DynamicCostEnv primsT sizeT costT) Maybe
 
 -- | Primitives that have a input dependent expected quantum cost
 class
@@ -291,9 +286,10 @@ instance (Show costT) => QuantumCostablePrimitive primsT Void sizeT costT where
   quantumQueryCostPrimitive _ = absurd
 
 quantumQueryCostE ::
-  forall primsT costT.
+  forall primsT costT m.
   ( Floating costT
   , QuantumCostablePrimitive primsT primsT SizeT costT
+  , m ~ QuantumCostCalculator primsT SizeT costT
   ) =>
   -- | failure probability \( \varepsilon \)
   costT ->
@@ -301,7 +297,7 @@ quantumQueryCostE ::
   ProgramState ->
   -- | statement @S@
   Expr primsT SizeT ->
-  QuantumCostCalculator primsT SizeT costT costT
+  m costT
 quantumQueryCostE eps sigma FunCallE{fun_kind = FunctionCall f, args} = do
   mtick <- view $ _3 . at f
   case mtick of
@@ -327,8 +323,11 @@ quantumQueryCostE _ _ BinOpE{} = return 0
 quantumQueryCostE _ _ TernaryE{} = return 0
 
 quantumQueryCostS ::
-  forall primsT costT.
-  (Floating costT, QuantumCostablePrimitive primsT primsT SizeT costT) =>
+  forall primsT costT m.
+  ( Floating costT
+  , QuantumCostablePrimitive primsT primsT SizeT costT
+  , m ~ QuantumCostCalculator primsT SizeT costT
+  ) =>
   -- | failure probability \( \varepsilon \)
   costT ->
   -- | state \( \sigma \)
