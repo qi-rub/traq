@@ -43,7 +43,7 @@ symbolicEx = do
             }
 
     putStrLn $ printf "Cost of %s" f
-    print $ P.unitaryQueryCost delta ex{P.stmt = stmt} (Map.singleton "Oracle" 1.0)
+    print $ P.unitaryQueryCost P.SplitUsingNeedsEps delta ex{P.stmt = stmt} (Map.singleton "Oracle" 1.0)
 
 concreteEx :: IO ()
 concreteEx = do
@@ -58,7 +58,7 @@ concreteEx = do
   let delta = 0.001 :: Double
   let uticks = Map.singleton "Oracle" 1.0
 
-  let u_formula_cost = P.unitaryQueryCost delta ex uticks
+  let u_formula_cost = P.unitaryQueryCost P.SplitUsingNeedsEps delta ex uticks
 
   printDivider
   let (Right (exU, _)) = UQPL.lowerProgram Ctx.empty uticks delta ex
@@ -96,10 +96,10 @@ main = do
   symbolicEx
   printDivider
 
-  printDivider
-  concreteEx
-  printDivider
+-- printDivider
+-- concreteEx
+-- printDivider
 
-  printDivider
-  concreteQEx
-  printDivider
+-- printDivider
+-- concreteQEx
+-- printDivider

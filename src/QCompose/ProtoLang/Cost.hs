@@ -1,5 +1,6 @@
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE MultiParamTypeClasses #-}
+{-# LANGUAGE UndecidableInstances #-}
 
 module QCompose.ProtoLang.Cost (
   -- * Unitary Cost
@@ -41,8 +42,14 @@ module QCompose.ProtoLang.Cost (
   QuantumMaxCostablePrimitive (..),
   QuantumCostCalculator,
   QuantumCostablePrimitive (..),
+
+  -- * Precision Splitting Strategies
+  PrecisionSplittingStrategy (..),
+  HasPrecisionSplittingStrategy (..),
+  HasNeedsEps (..),
 ) where
 
+import Control.Monad.Reader (MonadReader, foldM, forM, zipWithM)
 import Data.Foldable (toList)
 import qualified Data.Map as Map
 import Data.Maybe (fromMaybe)
@@ -84,11 +91,80 @@ class HasFunInterpCtx p where
   _funInterpCtx :: Lens' p FunInterpCtx
 
 -- ================================================================================
+-- Strategy for splitting the precison (eps/delta)
+-- ================================================================================
+data PrecisionSplittingStrategy = SplitSimple | SplitUsingNeedsEps
+  deriving (Eq, Read, Show)
+
+class HasPrecisionSplittingStrategy p where
+  _precSplitStrat :: Lens' p PrecisionSplittingStrategy
+
+-- | Predicate for checking if a expr/stmt/prog can fail
+class HasNeedsEps p where
+  needsEps ::
+    ( primT ~ PrimitiveType p
+    , sizeT ~ SizeType p
+    , MonadReader (FunCtx primT sizeT) m
+    ) =>
+    p ->
+    m Bool
+
+instance HasNeedsEps Void where
+  needsEps = absurd
+
+instance HasNeedsEps (Expr primT sizeT) where
+  needsEps FunCallE{fun_kind = FunctionCall f} =
+    view (_funCtx . Ctx.at f . singular _Just) >>= needsEps
+  needsEps FunCallE{fun_kind = PrimitiveCall _} = return True
+  needsEps _ = return False
+
+instance HasNeedsEps (Stmt primT sizeT) where
+  needsEps ExprS{expr} = needsEps expr
+  needsEps (SeqS ss) = or <$> mapM needsEps ss
+  needsEps IfThenElseS{s_true, s_false} = (||) <$> needsEps s_true <*> needsEps s_false
+
+instance HasNeedsEps (FunDef primT sizeT) where
+  needsEps FunDef{mbody} = case mbody of
+    Nothing -> return False
+    Just FunBody{body_stmt} -> needsEps body_stmt
+
+splitEps ::
+  ( Floating costT
+  , Monad m'
+  , m ~ MyReaderT env m'
+  , HasFunCtx env
+  , HasPrecisionSplittingStrategy env
+  , HasNeedsEps (Stmt primT sizeT)
+  , primT ~ PrimitiveType env
+  , sizeT ~ SizeType env
+  ) =>
+  costT ->
+  [Stmt primT sizeT] ->
+  m [costT]
+splitEps _ [] = return []
+splitEps eps [_] = return [eps]
+splitEps eps ss = do
+  view _precSplitStrat >>= \case
+    SplitSimple -> split_simple
+    SplitUsingNeedsEps -> split_using_need_eps
+ where
+  split_simple = do
+    let epss = eps & iterate (/ 2) & tail & take (length ss - 1)
+    return $ epss ++ [last epss]
+
+  split_using_need_eps = do
+    flags <- forM ss $ \s -> magnify _funCtx $ needsEps s
+    let n_fail = length $ filter id flags
+
+    let eps_each = if n_fail == 0 then 0 else eps / fromIntegral n_fail
+    return $ map (\flag -> if flag then eps_each else 0) flags
+
+-- ================================================================================
 -- Unitary Cost
 -- ================================================================================
 
 -- | Environment to compute the unitary cost
-data UnitaryCostEnv primT sizeT costT = UnitaryCostEnv (FunCtx primT sizeT) (OracleTicks costT)
+data UnitaryCostEnv primT sizeT costT = UnitaryCostEnv (FunCtx primT sizeT) (OracleTicks costT) PrecisionSplittingStrategy
 
 -- Types and instances
 type instance PrimitiveType (UnitaryCostEnv primT sizeT costT) = primT
@@ -96,10 +172,13 @@ type instance SizeType (UnitaryCostEnv primT sizeT costT) = sizeT
 type instance CostType (UnitaryCostEnv primT sizeT costT) = costT
 
 instance HasFunCtx (UnitaryCostEnv primT sizeT costT) where
-  _funCtx focus (UnitaryCostEnv f u) = focus f <&> \f' -> UnitaryCostEnv f' u
+  _funCtx focus (UnitaryCostEnv f u s) = focus f <&> \f' -> UnitaryCostEnv f' u s
 
 instance HasUnitaryTicks (UnitaryCostEnv primT sizeT costT) where
-  _unitaryTicks focus (UnitaryCostEnv f u) = focus u <&> \u' -> UnitaryCostEnv f u'
+  _unitaryTicks focus (UnitaryCostEnv f u s) = focus u <&> \u' -> UnitaryCostEnv f u' s
+
+instance HasPrecisionSplittingStrategy (UnitaryCostEnv primT sizeT costT) where
+  _precSplitStrat focus (UnitaryCostEnv f u s) = focus s <&> \s' -> UnitaryCostEnv f u s'
 
 -- Subtyping Lens
 class HasUnitaryCostEnv p where
@@ -174,12 +253,10 @@ unitaryQueryCostS delta IfThenElseS{s_true, s_false} = do
   cost_true <- unitaryQueryCostS delta s_true
   cost_false <- unitaryQueryCostS delta s_false
   return $ cost_true + cost_false
-unitaryQueryCostS _ (SeqS []) = return 0
-unitaryQueryCostS delta (SeqS [s]) = unitaryQueryCostS delta s
-unitaryQueryCostS delta (SeqS (s : ss)) = do
-  cost_s <- unitaryQueryCostS (delta / 2) s
-  cost_rest <- unitaryQueryCostS (delta / 2) (SeqS ss)
-  return $ cost_s + cost_rest
+unitaryQueryCostS delta (SeqS ss) = do
+  delta_each <- splitEps delta ss
+  cs <- zipWithM unitaryQueryCostS delta_each ss
+  return $ sum cs
 
 unitaryQueryCost ::
   forall primsT sizeT costT.
@@ -187,6 +264,7 @@ unitaryQueryCost ::
   , Floating costT
   , UnitaryCostablePrimitive primsT primsT sizeT costT
   ) =>
+  PrecisionSplittingStrategy ->
   -- | precision (l2-norm)
   costT ->
   -- | program @P@
@@ -194,8 +272,8 @@ unitaryQueryCost ::
   -- | oracle ticks
   OracleTicks costT ->
   costT
-unitaryQueryCost delta Program{funCtx, stmt} ticks =
-  let env = UnitaryCostEnv funCtx ticks
+unitaryQueryCost precSplitStrat delta Program{funCtx, stmt} ticks =
+  let env = UnitaryCostEnv funCtx ticks precSplitStrat
    in unitaryQueryCostS delta stmt `runMyReaderT` env ^. singular _Just
 
 -- ================================================================================
@@ -221,6 +299,7 @@ instance HasClassicalTicks (QuantumMaxCostEnv primT sizeT costT) where
 
 instance HasFunCtx (QuantumMaxCostEnv primT sizeT costT) where _funCtx = _unitaryCostEnv . _funCtx
 instance HasUnitaryTicks (QuantumMaxCostEnv primT sizeT costT) where _unitaryTicks = _unitaryCostEnv . _unitaryTicks
+instance HasPrecisionSplittingStrategy (QuantumMaxCostEnv primT sizeT costT) where _precSplitStrat = _unitaryCostEnv . _precSplitStrat
 
 -- lens
 class HasQuantumMaxCostEnv p where
@@ -292,12 +371,10 @@ quantumMaxQueryCostS ::
 quantumMaxQueryCostS eps ExprS{expr} = quantumMaxQueryCostE eps expr
 quantumMaxQueryCostS eps IfThenElseS{s_true, s_false} =
   max <$> quantumMaxQueryCostS eps s_true <*> quantumMaxQueryCostS eps s_false
-quantumMaxQueryCostS _ (SeqS []) = return 0
-quantumMaxQueryCostS eps (SeqS [s]) = quantumMaxQueryCostS eps s
-quantumMaxQueryCostS eps (SeqS (s : ss)) = do
-  cost_s <- quantumMaxQueryCostS (eps / 2) s
-  cost_ss <- quantumMaxQueryCostS (eps / 2) (SeqS ss)
-  return $ cost_s + cost_ss
+quantumMaxQueryCostS eps (SeqS ss) = do
+  eps_each <- splitEps eps ss
+  cs <- zipWithM quantumMaxQueryCostS eps_each ss
+  return $ sum cs
 
 quantumMaxQueryCost ::
   forall primsT sizeT costT.
@@ -306,6 +383,7 @@ quantumMaxQueryCost ::
   , Floating costT
   , QuantumMaxCostablePrimitive primsT primsT sizeT costT
   ) =>
+  PrecisionSplittingStrategy ->
   -- | failure probability `eps`
   costT ->
   -- | program `P`
@@ -315,8 +393,8 @@ quantumMaxQueryCost ::
   -- | classical ticks
   OracleTicks costT ->
   costT
-quantumMaxQueryCost a_eps Program{funCtx, stmt} uticks cticks =
-  let env = QuantumMaxCostEnv (UnitaryCostEnv funCtx uticks) cticks
+quantumMaxQueryCost strat a_eps Program{funCtx, stmt} uticks cticks =
+  let env = QuantumMaxCostEnv (UnitaryCostEnv funCtx uticks strat) cticks
    in quantumMaxQueryCostS a_eps stmt `runMyReaderT` env ^. singular _Just
 
 -- ================================================================================
@@ -340,6 +418,7 @@ instance HasUnitaryCostEnv (QuantumCostEnv primsT sizeT costT) where _unitaryCos
 instance HasFunCtx (QuantumCostEnv primsT sizeT costT) where _funCtx = _quantumMaxCostEnv . _funCtx
 instance HasUnitaryTicks (QuantumCostEnv primsT sizeT costT) where _unitaryTicks = _quantumMaxCostEnv . _unitaryTicks
 instance HasClassicalTicks (QuantumCostEnv primsT sizeT costT) where _classicalTicks = _quantumMaxCostEnv . _classicalTicks
+instance HasPrecisionSplittingStrategy (QuantumCostEnv primsT sizeT costT) where _precSplitStrat = _quantumMaxCostEnv . _precSplitStrat
 
 type QuantumCostCalculator primsT sizeT costT = MyReaderT (QuantumCostEnv primsT sizeT costT) Maybe
 
@@ -409,21 +488,23 @@ quantumQueryCostS eps sigma ExprS{expr} = quantumQueryCostE eps sigma expr
 quantumQueryCostS eps sigma IfThenElseS{cond, s_true, s_false} =
   let s = if sigma ^. Ctx.at cond /= Just 0 then s_true else s_false
    in quantumQueryCostS eps sigma s
-quantumQueryCostS _ _ (SeqS []) = return 0
-quantumQueryCostS eps sigma (SeqS [s]) = quantumQueryCostS eps sigma s
-quantumQueryCostS eps sigma (SeqS (s : ss)) = do
-  cost_s <- quantumQueryCostS (eps / 2) sigma s
-
+quantumQueryCostS eps sigma (SeqS ss) = do
   funCtx <- view _funCtx
   interpCtx <- view _funInterpCtx
-  let sigma' = detExtract $ runProgram Program{funCtx, stmt = s} interpCtx sigma
+  let stepS s sigma_s = detExtract $ runProgram Program{funCtx, stmt = s} interpCtx sigma_s
 
-  cost_ss <- quantumQueryCostS (eps / 2) sigma' (SeqS ss)
-  return $ cost_s + cost_ss
+  eps_each <- splitEps eps ss
+
+  (_, cs) <- (\r -> foldM r (sigma, 0) (zip ss eps_each)) $
+    \(sigma_s, acc) (s, eps_s) -> do
+      c <- quantumQueryCostS eps_s sigma_s s
+      return (stepS s sigma_s, acc + c)
+  return cs
 
 quantumQueryCost ::
   forall primsT costT.
   (Floating costT, QuantumCostablePrimitive primsT primsT SizeT costT) =>
+  PrecisionSplittingStrategy ->
   -- | failure probability \( \varepsilon \)
   costT ->
   -- | program @P@
@@ -437,8 +518,8 @@ quantumQueryCost ::
   -- | state \( \sigma \)
   ProgramState ->
   costT
-quantumQueryCost a_eps Program{funCtx, stmt} uticks cticks interpCtx sigma =
-  let env = QuantumCostEnv (QuantumMaxCostEnv (UnitaryCostEnv funCtx uticks) cticks) interpCtx
+quantumQueryCost strat a_eps Program{funCtx, stmt} uticks cticks interpCtx sigma =
+  let env = QuantumCostEnv (QuantumMaxCostEnv (UnitaryCostEnv funCtx uticks strat) cticks) interpCtx
    in quantumQueryCostS a_eps sigma stmt `runMyReaderT` env ^. singular _Just
 
 -- | The bound on the true expected runtime which fails with probability <= \eps.
@@ -448,6 +529,7 @@ quantumQueryCostBound ::
   , Floating costT
   , QuantumCostablePrimitive primsT primsT SizeT costT
   ) =>
+  PrecisionSplittingStrategy ->
   -- | failure probability \( \varepsilon \)
   costT ->
   -- | program @P@
@@ -461,6 +543,6 @@ quantumQueryCostBound ::
   -- | state \( \sigma \)
   ProgramState ->
   costT
-quantumQueryCostBound a_eps p uticks cticks interp_ctx sigma =
-  (1 - a_eps) * quantumQueryCost a_eps p uticks cticks interp_ctx sigma
-    + a_eps * quantumMaxQueryCost a_eps p uticks cticks
+quantumQueryCostBound strat a_eps p uticks cticks interp_ctx sigma =
+  (1 - a_eps) * quantumQueryCost strat a_eps p uticks cticks interp_ctx sigma
+    + a_eps * quantumMaxQueryCost strat a_eps p uticks cticks

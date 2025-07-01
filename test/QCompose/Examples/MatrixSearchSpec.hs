@@ -46,14 +46,14 @@ spec = do
 
     it "unitary cost for delta=0.0001" $ do
       let delta = 0.0001 :: Double
-      let cu = P.unitaryQueryCost delta ex uticks
+      let cu = P.unitaryQueryCost P.SplitSimple delta ex uticks
       let nu_outer = ucF n (delta / 4)
       let nu_inner = 2 * ucF m (delta / 4 / nu_outer / 8)
       cu `shouldBe` 2 * nu_outer * 2 * nu_inner
 
     it "quantum cost for eps=0.0001" $ do
       let eps = 0.0001
-      let cq = P.quantumQueryCost eps ex cticks uticks interpCtx Ctx.empty
+      let cq = P.quantumQueryCost P.SplitSimple eps ex cticks uticks interpCtx Ctx.empty
       let nq_outer = wcF n (eps / 2)
       let nq_inner = 2 * ucF m (eps / 2 / nq_outer / 16)
       let nq_oracle = 2
@@ -76,7 +76,7 @@ spec = do
       it "preserves cost" $ do
         (ex_uqpl, _) <- expectRight $ UQPL.lowerProgram Ctx.empty uticks delta ex
         let (uqpl_cost, _) = UQPL.programCost ex_uqpl
-        let proto_cost = P.unitaryQueryCost delta ex uticks
+        let proto_cost = P.unitaryQueryCost P.SplitSimple delta ex uticks
         uqpl_cost `shouldSatisfy` (<= proto_cost)
 
     describe "lower to CQPL" $ do
@@ -101,18 +101,34 @@ spec = do
     let ucF = _QryU
     let wcF = _QryQmax
 
-    it "unitary cost for delta=0.0001" $ do
+    it "unitary cost" $ do
       let delta = Sym.var "δ" :: Sym.Sym Double
-      let cu = P.unitaryQueryCost delta ex uticks
+      let cu = P.unitaryQueryCost P.SplitSimple delta ex uticks
       let nu_outer = ucF n (delta / 2 / 2)
       let nu_inner = 2 * ucF m ((delta / 2 - delta / 2 / 2) / nu_outer / 2 / 2 / 2)
       let nu_oracle = 2
       cu `shouldBe` 2 * nu_outer * nu_inner * nu_oracle
 
-    it "quantum cost for eps=0.0001" $ do
+    it "unitary cost (optimized precision splitting)" $ do
+      let delta = Sym.var "δ" :: Sym.Sym Double
+      let cu = P.unitaryQueryCost P.SplitUsingNeedsEps delta ex uticks
+      let nu_outer = ucF n (delta / 2 / 2)
+      let nu_inner = 2 * ucF m ((delta / 2 - delta / 2 / 2) / nu_outer / 2)
+      let nu_oracle = 2
+      cu `shouldBe` 2 * nu_outer * nu_inner * nu_oracle
+
+    it "quantum worst case cost" $ do
       let eps = Sym.var "ε" :: Sym.Sym Double
-      let cq = P.quantumMaxQueryCost eps ex uticks cticks
+      let cq = P.quantumMaxQueryCost P.SplitSimple eps ex uticks cticks
       let nq_outer = wcF n (eps / 2)
       let nq_inner = 2 * ucF m ((eps - eps / 2) / nq_outer / 2 / 2 / 2 / 2)
+      let nq_oracle = 2
+      cq `shouldBe` nq_outer * nq_inner * nq_oracle
+
+    it "quantum worst case cost (optimized precision splitting)" $ do
+      let eps = Sym.var "ε" :: Sym.Sym Double
+      let cq = P.quantumMaxQueryCost P.SplitUsingNeedsEps eps ex uticks cticks
+      let nq_outer = wcF n (eps / 2)
+      let nq_inner = 2 * ucF m ((eps - eps / 2) / nq_outer / 2 / 2)
       let nq_oracle = 2
       cq `shouldBe` nq_outer * nq_inner * nq_oracle

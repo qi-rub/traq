@@ -88,6 +88,7 @@ compile prog delta = do
                     P.FunDef{mbody = Just body} <- prog ^. to P.funCtx . Ctx.at fname
                     let cf =
                           P.unitaryQueryCost
+                            P.SplitSimple
                             fdelta
                             P.Program
                               { stmt = body ^. to P.body_stmt
@@ -103,7 +104,7 @@ compile prog delta = do
       tellLn $ toCodeString p
 
     tellLn $ "// Actual Cost : " <> show cost
-    tellLn $ "// Formula Cost: " ++ show (P.unitaryQueryCost delta prog oracle_ticks)
+    tellLn $ "// Formula Cost: " ++ show (P.unitaryQueryCost P.SplitSimple delta prog oracle_ticks)
     tellLn $ toCodeString $ uqpl_prog ^. to UQPL.stmt
 
 main :: IO ()
