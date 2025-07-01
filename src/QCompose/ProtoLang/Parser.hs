@@ -127,8 +127,8 @@ basicExprP tp@TokenParser{..} =
 
 exprP :: forall primT. (CanParsePrimitive primT) => TokenParser () -> Parser (Expr primT SymbSize)
 exprP tp@TokenParser{..} =
-  choice . map try $
-    [ funCallE
+  choice
+    [ try funCallE
     , BasicExprE <$> basicExprP tp
     ]
  where

@@ -28,7 +28,7 @@ spec = do
       let prog =
             Program
               { funCtx = Ctx.empty
-              , stmt = ExprS{rets = ["y"], expr = VarE "x"}
+              , stmt = ExprS{rets = ["y"], expr = BasicExprE $ VarE "x"}
               } ::
               Program Void Int
       let gamma = Ctx.fromList [("x", Fin 2)]

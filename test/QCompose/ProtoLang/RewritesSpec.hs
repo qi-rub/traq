@@ -12,7 +12,7 @@ spec :: Spec
 spec = do
   describe "flattenSeq" $ do
     it "flattens simple" $ do
-      let s = ExprS{rets = ["x"], expr = VarE{arg = "y"}} :: Stmt Void Int
+      let s = ExprS{rets = ["x"], expr = BasicExprE VarE{var = "y"}} :: Stmt Void Int
       rewriteAST flattenSeq s `shouldBe` s
       rewriteAST flattenSeq (SeqS [s]) `shouldBe` s
     it "flattens skip" $ do
