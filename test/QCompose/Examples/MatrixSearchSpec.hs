@@ -5,6 +5,7 @@ module QCompose.Examples.MatrixSearchSpec (spec) where
 import Lens.Micro.GHC
 
 import qualified QCompose.Data.Context as Ctx
+import QCompose.Data.Default
 import qualified QCompose.Data.Symbolic as Sym
 
 import qualified QCompose.CQPL as CQPL
@@ -65,16 +66,16 @@ spec = do
     describe "lower to UQPL" $ do
       let delta = 0.001 :: Double
       it "lowers" $ do
-        assertRight $ UQPL.lowerProgram Ctx.empty uticks delta ex
+        assertRight $ UQPL.lowerProgram default_ Ctx.empty uticks delta ex
 
       it "type checks" $ do
-        (ex_uqpl, gamma) <- expectRight $ UQPL.lowerProgram Ctx.empty uticks delta ex
+        (ex_uqpl, gamma) <- expectRight $ UQPL.lowerProgram default_ Ctx.empty uticks delta ex
         let tc_res = UQPL.typeCheckProgram gamma ex_uqpl
         either print (const $ pure ()) tc_res
         assertRight tc_res
 
       it "preserves cost" $ do
-        (ex_uqpl, _) <- expectRight $ UQPL.lowerProgram Ctx.empty uticks delta ex
+        (ex_uqpl, _) <- expectRight $ UQPL.lowerProgram default_ Ctx.empty uticks delta ex
         let (uqpl_cost, _) = UQPL.programCost ex_uqpl
         let proto_cost = P.unitaryQueryCost P.SplitSimple delta ex uticks
         uqpl_cost `shouldSatisfy` (<= proto_cost)
@@ -82,10 +83,10 @@ spec = do
     describe "lower to CQPL" $ do
       let eps = 0.001 :: Double
       it "lowers" $ do
-        assertRight $ CQPL.lowerProgram Ctx.empty uticks eps ex
+        assertRight $ CQPL.lowerProgram default_ Ctx.empty uticks cticks eps ex
 
       it "type checks" $ do
-        (ex_cqpl, gamma) <- expectRight $ CQPL.lowerProgram Ctx.empty uticks eps ex
+        (ex_cqpl, gamma) <- expectRight $ CQPL.lowerProgram default_ Ctx.empty uticks cticks eps ex
         -- case CQPL.typeCheckProgram gamma ex_uqpl of Left e -> putStrLn e; _ -> return ()
         assertRight $ CQPL.typeCheckProgram gamma ex_cqpl
 

@@ -420,7 +420,7 @@ instance
   lowerPrimitive delta QSearchCFNW{predicate, return_sol = False} args [ret] = do
     -- the predicate
     pred_fun@P.FunDef{P.param_types} <-
-      view (_1 . Ctx.at predicate)
+      view (P._funCtx . Ctx.at predicate)
         >>= maybeWithError ("cannot find predicate " <> predicate)
 
     -- size of the search space
@@ -714,7 +714,7 @@ instance
   lowerPrimitive eps QSearchCFNW{predicate, return_sol = False} args [ret] = do
     -- the predicate
     pred_fun@P.FunDef{P.param_types} <-
-      view (_1 . Ctx.at predicate)
+      view (P._funCtx . Ctx.at predicate)
         >>= maybeWithError ("cannot find predicate " <> predicate)
 
     -- size of the search space
@@ -732,7 +732,7 @@ instance
     -- lower the unitary predicate
     let upred_compiler = UQPL.lowerFunDef UQPL.WithoutControl delta_per_pred_call predicate pred_fun
     (pred_uproc, uprocs) <- do
-      uenv <- view id
+      uenv <- view P._unitaryCostEnv
       ust <- use id
       (a, _, w) <- lift $ runMyReaderWriterStateT upred_compiler uenv ust
       return (a, w)

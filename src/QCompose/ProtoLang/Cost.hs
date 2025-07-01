@@ -24,6 +24,9 @@ module QCompose.ProtoLang.Cost (
   quantumQueryCostBound,
 
   -- * Types and Monad
+  UnitaryCostEnv (..),
+  QuantumMaxCostEnv (..),
+  QuantumCostEnv (..),
 
   -- ** Data Types
   OracleTicks,
@@ -47,6 +50,7 @@ module QCompose.ProtoLang.Cost (
   PrecisionSplittingStrategy (..),
   HasPrecisionSplittingStrategy (..),
   HasNeedsEps (..),
+  splitEps,
 ) where
 
 import Control.Monad.Reader (MonadReader, foldM, forM, zipWithM)
@@ -59,6 +63,7 @@ import Lens.Micro.Mtl
 
 import QCompose.Control.Monad
 import qualified QCompose.Data.Context as Ctx
+import QCompose.Data.Default
 
 import QCompose.Prelude
 import QCompose.ProtoLang.Eval
@@ -96,6 +101,9 @@ class HasFunInterpCtx p where
 data PrecisionSplittingStrategy = SplitSimple | SplitUsingNeedsEps
   deriving (Eq, Read, Show)
 
+instance HasDefault PrecisionSplittingStrategy where
+  default_ = SplitSimple
+
 class HasPrecisionSplittingStrategy p where
   _precSplitStrat :: Lens' p PrecisionSplittingStrategy
 
@@ -131,7 +139,8 @@ instance HasNeedsEps (FunDef primT sizeT) where
 splitEps ::
   ( Floating costT
   , Monad m'
-  , m ~ MyReaderT env m'
+  , Monoid w
+  , m ~ MyReaderWriterStateT env w s m'
   , HasFunCtx env
   , HasPrecisionSplittingStrategy env
   , HasNeedsEps (Stmt primT sizeT)
@@ -165,6 +174,9 @@ splitEps eps ss = do
 
 -- | Environment to compute the unitary cost
 data UnitaryCostEnv primT sizeT costT = UnitaryCostEnv (FunCtx primT sizeT) (OracleTicks costT) PrecisionSplittingStrategy
+
+instance HasDefault (UnitaryCostEnv primT sizeT costT) where
+  default_ = UnitaryCostEnv default_ default_ default_
 
 -- Types and instances
 type instance PrimitiveType (UnitaryCostEnv primT sizeT costT) = primT
@@ -272,8 +284,12 @@ unitaryQueryCost ::
   -- | oracle ticks
   OracleTicks costT ->
   costT
-unitaryQueryCost precSplitStrat delta Program{funCtx, stmt} ticks =
-  let env = UnitaryCostEnv funCtx ticks precSplitStrat
+unitaryQueryCost strat delta Program{funCtx, stmt} ticks =
+  let env =
+        default_
+          & (_funCtx .~ funCtx)
+          & (_unitaryTicks .~ ticks)
+          & (_precSplitStrat .~ strat)
    in unitaryQueryCostS delta stmt `runMyReaderT` env ^. singular _Just
 
 -- ================================================================================
@@ -285,6 +301,9 @@ data QuantumMaxCostEnv primT sizeT costT
   = QuantumMaxCostEnv
       (UnitaryCostEnv primT sizeT costT) -- unitary enviroment
       (OracleTicks costT) -- classical ticks
+
+instance HasDefault (QuantumMaxCostEnv primT sizeT costT) where
+  default_ = QuantumMaxCostEnv default_ default_
 
 -- instances
 type instance PrimitiveType (QuantumMaxCostEnv primT sizeT costT) = primT
@@ -394,7 +413,12 @@ quantumMaxQueryCost ::
   OracleTicks costT ->
   costT
 quantumMaxQueryCost strat a_eps Program{funCtx, stmt} uticks cticks =
-  let env = QuantumMaxCostEnv (UnitaryCostEnv funCtx uticks strat) cticks
+  let env =
+        default_
+          & (_funCtx .~ funCtx)
+          & (_unitaryTicks .~ uticks)
+          & (_classicalTicks .~ cticks)
+          & (_precSplitStrat .~ strat)
    in quantumMaxQueryCostS a_eps stmt `runMyReaderT` env ^. singular _Just
 
 -- ================================================================================
@@ -402,7 +426,13 @@ quantumMaxQueryCost strat a_eps Program{funCtx, stmt} uticks cticks =
 -- ================================================================================
 
 -- Environment to compute the quantum cost (input dependent)
-data QuantumCostEnv primsT sizeT costT = QuantumCostEnv (QuantumMaxCostEnv primsT sizeT costT) FunInterpCtx
+data QuantumCostEnv primsT sizeT costT
+  = QuantumCostEnv
+      (QuantumMaxCostEnv primsT sizeT costT)
+      FunInterpCtx
+
+instance HasDefault (QuantumCostEnv primT sizeT costT) where
+  default_ = QuantumCostEnv default_ default_
 
 type instance PrimitiveType (QuantumCostEnv primsT sizeT costT) = primsT
 type instance SizeType (QuantumCostEnv primsT sizeT costT) = sizeT
@@ -519,7 +549,13 @@ quantumQueryCost ::
   ProgramState ->
   costT
 quantumQueryCost strat a_eps Program{funCtx, stmt} uticks cticks interpCtx sigma =
-  let env = QuantumCostEnv (QuantumMaxCostEnv (UnitaryCostEnv funCtx uticks strat) cticks) interpCtx
+  let env =
+        default_
+          & (_funCtx .~ funCtx)
+          & (_unitaryTicks .~ uticks)
+          & (_classicalTicks .~ cticks)
+          & (_precSplitStrat .~ strat)
+          & (_funInterpCtx .~ interpCtx)
    in quantumQueryCostS a_eps sigma stmt `runMyReaderT` env ^. singular _Just
 
 -- | The bound on the true expected runtime which fails with probability <= \eps.

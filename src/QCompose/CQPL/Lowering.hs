@@ -22,7 +22,7 @@ module QCompose.CQPL.Lowering (
   Lowerable (..),
 ) where
 
-import Control.Monad (msum, unless)
+import Control.Monad (msum, unless, zipWithM)
 import Control.Monad.Except (throwError)
 import qualified Data.Set as Set
 import Data.Void (Void, absurd)
@@ -39,13 +39,7 @@ import qualified QCompose.ProtoLang as P
 import qualified QCompose.UnitaryQPL as UQPL
 
 -- | Configuration for lowering
-type LoweringEnv primT holeT sizeT costT = (P.FunCtx primT sizeT, P.OracleTicks costT)
-
-protoFunCtx :: Lens' (LoweringEnv primT holeT sizeT costT) (P.FunCtx primT sizeT)
-protoFunCtx = _1
-
-oracleTicks :: Lens' (LoweringEnv primT holeT sizeT costT) (P.OracleTicks costT)
-oracleTicks = _2
+type LoweringEnv primT sizeT costT = P.QuantumMaxCostEnv primT sizeT costT
 
 {- | A global lowering context storing the source functions and generated procedures
  along with info to generate unique ancilla and variable/procedure names
@@ -74,7 +68,7 @@ loweredUProcs = _2
 This should contain the _final_ typing context for the input program,
 that is, contains both the inputs and outputs of each statement.
 -}
-type CompilerT primT holeT sizeT costT = MyReaderWriterStateT (LoweringEnv primT holeT sizeT costT) (LoweringOutput holeT sizeT costT) (LoweringCtx sizeT) (Either String)
+type CompilerT primT holeT sizeT costT = MyReaderWriterStateT (LoweringEnv primT sizeT costT) (LoweringOutput holeT sizeT costT) (LoweringCtx sizeT) (Either String)
 
 -- | Primitives that support a classical-quantum lowering.
 class
@@ -185,7 +179,7 @@ lowerFunDefByName ::
   Ident ->
   CompilerT primsT holeT sizeT costT Ident
 lowerFunDefByName eps f = do
-  fun_def <- view $ protoFunCtx . Ctx.at f . singular _Just
+  fun_def <- view $ P._funCtx . Ctx.at f . singular _Just
   lowerFunDef eps f fun_def
 
 -- | Lower a source expression to a statement.
@@ -229,16 +223,13 @@ lowerStmt ::
   CompilerT primsT holeT sizeT costT (Stmt holeT sizeT)
 -- single statement
 lowerStmt eps s@P.ExprS{P.rets, P.expr} = do
-  censored . magnify protoFunCtx . zoom typingCtx $ P.checkStmt s
+  censored . magnify P._funCtx . zoom typingCtx $ P.checkStmt s
   lowerExpr eps expr rets
 
 -- compound statements
-lowerStmt _ (P.SeqS []) = return SkipS
-lowerStmt eps (P.SeqS [s]) = lowerStmt eps s
-lowerStmt eps (P.SeqS (s : ss)) = do
-  s' <- lowerStmt (eps / 2) s
-  ss' <- lowerStmt (eps / 2) (P.SeqS ss)
-  return $ SeqS [s', ss']
+lowerStmt eps (P.SeqS ss) = do
+  epss <- P.splitEps eps ss
+  SeqS <$> zipWithM lowerStmt epss ss
 
 -- unsupported
 lowerStmt _ _ = throwError "lowering: unsupported"
@@ -251,20 +242,23 @@ lowerProgram ::
   , Show costT
   , Floating costT
   ) =>
+  P.PrecisionSplittingStrategy ->
   -- | input bindings to the source program
   P.TypingCtx sizeT ->
-  -- | tick cost of each declaration
+  -- | unitary ticks
+  P.OracleTicks costT ->
+  -- | classical ticks
   P.OracleTicks costT ->
   -- | fail prob \( \varepsilon \)
   costT ->
   -- | source program
   P.Program primsT sizeT ->
   Either String (Program holeT sizeT costT, P.TypingCtx sizeT)
-lowerProgram gamma_in oracle_ticks eps prog@P.Program{P.funCtx, P.stmt} = do
+lowerProgram strat gamma_in uticks cticks eps prog@P.Program{P.funCtx, P.stmt} = do
   unless (P.checkVarsUnique prog) $
     throwError "program does not have unique variables!"
 
-  let config = (funCtx, oracle_ticks)
+  let config = P.QuantumMaxCostEnv (P.UnitaryCostEnv funCtx uticks strat) cticks
   let lowering_ctx =
         emptyLoweringCtx
           & (typingCtx .~ gamma_in)
