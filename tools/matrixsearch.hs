@@ -57,11 +57,12 @@ concreteEx = do
 
   let delta = 0.001 :: Double
   let uticks = Map.singleton "Oracle" 1.0
+  let strat = P.SplitUsingNeedsEps
 
-  let u_formula_cost = P.unitaryQueryCost P.SplitUsingNeedsEps delta ex uticks
+  let u_formula_cost = P.unitaryQueryCost strat delta ex uticks
 
   printDivider
-  let (Right (exU, _)) = UQPL.lowerProgram Ctx.empty uticks delta ex
+  let (Right (exU, _)) = UQPL.lowerProgram strat Ctx.empty uticks delta ex
   putStrLn $ toCodeString exU
 
   let (u_true_cost, _) = UQPL.programCost exU
@@ -82,10 +83,12 @@ concreteQEx = do
   putStrLn $ toCodeString ex
 
   let delta = 0.001 :: Double
-  let ticks = Map.singleton "Oracle" 1.0
+  let uticks = Map.singleton "Oracle" 1.0
+  let cticks = Map.singleton "Oracle" 1.0
+  let strat = P.SplitUsingNeedsEps
 
   printDivider
-  let (Right (exU, _)) = CQPL.lowerProgram Ctx.empty ticks delta ex
+  let (Right (exU, _)) = CQPL.lowerProgram strat Ctx.empty uticks cticks delta ex
   putStrLn $ toCodeString exU
 
 main :: IO ()
