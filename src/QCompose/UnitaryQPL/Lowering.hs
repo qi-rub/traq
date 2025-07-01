@@ -18,7 +18,6 @@ module QCompose.UnitaryQPL.Lowering (
   ControlFlag (..),
 
   -- ** Lenses
-  protoFunCtx,
   typingCtx,
 
   -- * Compilation
@@ -33,7 +32,7 @@ module QCompose.UnitaryQPL.Lowering (
   withTag,
 ) where
 
-import Control.Monad (forM, msum, unless, when)
+import Control.Monad (forM, msum, unless, when, zipWithM)
 import Control.Monad.Except (throwError)
 import Data.List (intersect)
 import qualified Data.Set as Set
@@ -43,6 +42,7 @@ import Lens.Micro.Mtl
 import Text.Printf (printf)
 
 import qualified QCompose.Data.Context as Ctx
+import QCompose.Data.Default
 
 import Data.Maybe (fromMaybe)
 import QCompose.Control.Monad
@@ -51,13 +51,7 @@ import qualified QCompose.ProtoLang as P
 import QCompose.UnitaryQPL.Syntax
 
 -- | Configuration for lowering
-type LoweringConfig primT holeT sizeT costT = (P.FunCtx primT sizeT, P.OracleTicks costT)
-
-protoFunCtx :: Lens' (LoweringConfig primT holeT sizeT costT) (P.FunCtx primT sizeT)
-protoFunCtx = _1
-
-_oracleTicks :: Lens' (LoweringConfig primT holeT sizeT costT) (P.OracleTicks costT)
-_oracleTicks = _2
+type LoweringConfig primT sizeT costT = P.UnitaryCostEnv primT sizeT costT
 
 {- | A global lowering context storing the source functions and generated procedures
  along with info to generate unique ancilla and variable/procedure names
@@ -80,7 +74,7 @@ loweredProcs = id
 This should contain the _final_ typing context for the input program,
 that is, contains both the inputs and outputs of each statement.
 -}
-type CompilerT primT holeT sizeT costT = MyReaderWriterStateT (LoweringConfig primT holeT sizeT costT) (LoweringOutput holeT sizeT costT) (LoweringCtx sizeT) (Either String)
+type CompilerT primT holeT sizeT costT = MyReaderWriterStateT (LoweringConfig primT sizeT costT) (LoweringOutput holeT sizeT costT) (LoweringCtx sizeT) (Either String)
 
 -- | Primitives that support a unitary lowering.
 class
@@ -193,7 +187,7 @@ lowerExpr _ P.TernaryE{P.branch, P.lhs, P.rhs} [ret] = do
 -- function call
 lowerExpr delta P.FunCallE{P.fun_kind = P.FunctionCall fun_name, P.args} rets = do
   fun <-
-    view (protoFunCtx . Ctx.at fun_name)
+    view (P._funCtx . Ctx.at fun_name)
       >>= maybeWithError ("cannot find function " <> fun_name)
   LoweredProc{lowered_def, inp_tys, out_tys, aux_tys} <- lowerFunDef WithoutControl delta fun_name fun
 
@@ -228,16 +222,13 @@ lowerStmt ::
   CompilerT primsT holeT sizeT costT (Stmt holeT sizeT)
 -- single statement
 lowerStmt delta s@P.ExprS{P.rets, P.expr} = do
-  censored . magnify protoFunCtx . zoom typingCtx $ P.checkStmt s
+  censored . magnify P._funCtx . zoom typingCtx $ P.checkStmt s
   lowerExpr delta expr rets
 
 -- compound statements
-lowerStmt _ (P.SeqS []) = return SkipS
-lowerStmt delta (P.SeqS [s]) = lowerStmt delta s
-lowerStmt delta (P.SeqS (s : ss)) = do
-  s' <- lowerStmt (delta / 2) s
-  ss' <- lowerStmt (delta / 2) (P.SeqS ss)
-  return $ SeqS [s', ss']
+lowerStmt delta (P.SeqS ss) = do
+  deltas <- P.splitEps delta ss
+  SeqS <$> zipWithM lowerStmt deltas ss
 
 -- unsupported
 lowerStmt _ _ = error "lowering: unsupported"
@@ -329,7 +320,7 @@ lowerFunDef ::
 lowerFunDef with_ctrl _ fun_name P.FunDef{P.param_types, P.ret_types, P.mbody = Nothing} = do
   let param_names = map (printf "in_%d") [0 .. length param_types]
   let ret_names = map (printf "out_%d") [0 .. length ret_types]
-  tick <- view $ _oracleTicks . at fun_name . to (fromMaybe 0)
+  tick <- view $ P._unitaryTicks . at fun_name . to (fromMaybe 0)
 
   ctrl_qubit <- newIdent "ctrl"
   let proc_def =
@@ -419,6 +410,7 @@ lowerProgram ::
   , Show costT
   , Floating costT
   ) =>
+  P.PrecisionSplittingStrategy ->
   -- | All variable bindings
   P.TypingCtx SizeT ->
   -- | the costs of each declaration
@@ -427,16 +419,17 @@ lowerProgram ::
   costT ->
   P.Program primsT SizeT ->
   Either String (Program holeT SizeT costT, P.TypingCtx SizeT)
-lowerProgram gamma_in oracle_ticks delta prog@P.Program{P.funCtx, P.stmt} = do
+lowerProgram strat gamma_in oracle_ticks delta prog@P.Program{P.funCtx, P.stmt} = do
   unless (P.checkVarsUnique prog) $
     throwError "program does not have unique variables!"
 
   let config =
-        undefined
-          & (protoFunCtx .~ funCtx)
-          & (_oracleTicks .~ oracle_ticks)
+        default_
+          & (P._funCtx .~ funCtx)
+          & (P._unitaryTicks .~ oracle_ticks)
+          & (P._precSplitStrat .~ strat)
   let ctx =
-        undefined
+        default_
           & (typingCtx .~ gamma_in)
           & (uniqNames .~ P.allNamesP prog)
   let compiler = lowerStmt delta stmt

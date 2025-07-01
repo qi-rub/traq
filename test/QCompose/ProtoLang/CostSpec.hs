@@ -31,7 +31,7 @@ spec = do
               , "i <- const 10 : Fin<100>;"
               , "res <- f(i)"
               ]
-      let c = unitaryQueryCost 0.001 prog (Map.singleton "Oracle" 1.0)
+      let c = unitaryQueryCost SplitSimple 0.001 prog (Map.singleton "Oracle" 1.0)
       c `shouldBe` (2 :: Double)
 
     it "search with no oracle" $ do
@@ -44,7 +44,7 @@ spec = do
               , "end"
               , "res <- @any[f]()"
               ]
-      let c = unitaryQueryCost 0.001 prog (Map.singleton "Oracle" 1.0)
+      let c = unitaryQueryCost SplitSimple 0.001 prog (Map.singleton "Oracle" 1.0)
       c `shouldBe` (0 :: Double)
 
     it "search with 1x oracle" $ do
@@ -57,5 +57,5 @@ spec = do
               , "end"
               , "res <- @any[f]()"
               ]
-      let c = unitaryQueryCost 0.001 prog (Map.singleton "Oracle" 1.0)
+      let c = unitaryQueryCost SplitSimple 0.001 prog (Map.singleton "Oracle" 1.0)
       (c :: Double) `shouldBe` 2 * _QSearchZalka (100 :: Int) (0.001 / 2)

@@ -45,6 +45,7 @@ import Lens.Micro.GHC hiding (at, ix)
 import Lens.Micro.Mtl
 
 import QCompose.Control.Monad (maybeWithError)
+import QCompose.Data.Default
 
 type Ident = String
 
@@ -100,6 +101,9 @@ ix k focus = \(Context m) -> Context <$> go m
 
 empty :: Context a
 empty = Context []
+
+instance HasDefault (Context a) where
+  default_ = empty
 
 null :: Context a -> Bool
 null (Context m) = Prelude.null m

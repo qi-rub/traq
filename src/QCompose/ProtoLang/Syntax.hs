@@ -80,7 +80,7 @@ type instance PrimitiveType (Expr primT sizeT) = primT
 -- | A statement in the prototype language.
 data Stmt primT sizeT
   = ExprS {rets :: [Ident], expr :: Expr primT sizeT}
-  | IfThenElseS {cond :: Ident, s_true :: Stmt primT sizeT, s_false :: Stmt primT sizeT}
+  | IfThenElseS {cond :: Ident, s_true, s_false :: Stmt primT sizeT}
   | SeqS [Stmt primT sizeT]
   deriving (Eq, Show, Read, Functor)
 

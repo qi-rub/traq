@@ -5,6 +5,7 @@ module QCompose.Examples.MatrixSearchSpec (spec) where
 import Lens.Micro.GHC
 
 import qualified QCompose.Data.Context as Ctx
+import QCompose.Data.Default
 import qualified QCompose.Data.Symbolic as Sym
 
 import qualified QCompose.CQPL as CQPL
@@ -46,14 +47,14 @@ spec = do
 
     it "unitary cost for delta=0.0001" $ do
       let delta = 0.0001 :: Double
-      let cu = P.unitaryQueryCost delta ex uticks
+      let cu = P.unitaryQueryCost P.SplitSimple delta ex uticks
       let nu_outer = ucF n (delta / 4)
       let nu_inner = 2 * ucF m (delta / 4 / nu_outer / 8)
       cu `shouldBe` 2 * nu_outer * 2 * nu_inner
 
     it "quantum cost for eps=0.0001" $ do
       let eps = 0.0001
-      let cq = P.quantumQueryCost eps ex cticks uticks interpCtx Ctx.empty
+      let cq = P.quantumQueryCost P.SplitSimple eps ex cticks uticks interpCtx Ctx.empty
       let nq_outer = wcF n (eps / 2)
       let nq_inner = 2 * ucF m (eps / 2 / nq_outer / 16)
       let nq_oracle = 2
@@ -65,27 +66,27 @@ spec = do
     describe "lower to UQPL" $ do
       let delta = 0.001 :: Double
       it "lowers" $ do
-        assertRight $ UQPL.lowerProgram Ctx.empty uticks delta ex
+        assertRight $ UQPL.lowerProgram default_ Ctx.empty uticks delta ex
 
       it "type checks" $ do
-        (ex_uqpl, gamma) <- expectRight $ UQPL.lowerProgram Ctx.empty uticks delta ex
+        (ex_uqpl, gamma) <- expectRight $ UQPL.lowerProgram default_ Ctx.empty uticks delta ex
         let tc_res = UQPL.typeCheckProgram gamma ex_uqpl
         either print (const $ pure ()) tc_res
         assertRight tc_res
 
       it "preserves cost" $ do
-        (ex_uqpl, _) <- expectRight $ UQPL.lowerProgram Ctx.empty uticks delta ex
+        (ex_uqpl, _) <- expectRight $ UQPL.lowerProgram default_ Ctx.empty uticks delta ex
         let (uqpl_cost, _) = UQPL.programCost ex_uqpl
-        let proto_cost = P.unitaryQueryCost delta ex uticks
+        let proto_cost = P.unitaryQueryCost P.SplitSimple delta ex uticks
         uqpl_cost `shouldSatisfy` (<= proto_cost)
 
     describe "lower to CQPL" $ do
       let eps = 0.001 :: Double
       it "lowers" $ do
-        assertRight $ CQPL.lowerProgram Ctx.empty uticks eps ex
+        assertRight $ CQPL.lowerProgram default_ Ctx.empty uticks cticks eps ex
 
       it "type checks" $ do
-        (ex_cqpl, gamma) <- expectRight $ CQPL.lowerProgram Ctx.empty uticks eps ex
+        (ex_cqpl, gamma) <- expectRight $ CQPL.lowerProgram default_ Ctx.empty uticks cticks eps ex
         -- case CQPL.typeCheckProgram gamma ex_uqpl of Left e -> putStrLn e; _ -> return ()
         assertRight $ CQPL.typeCheckProgram gamma ex_cqpl
 
@@ -101,18 +102,34 @@ spec = do
     let ucF = _QryU
     let wcF = _QryQmax
 
-    it "unitary cost for delta=0.0001" $ do
+    it "unitary cost" $ do
       let delta = Sym.var "δ" :: Sym.Sym Double
-      let cu = P.unitaryQueryCost delta ex uticks
+      let cu = P.unitaryQueryCost P.SplitSimple delta ex uticks
       let nu_outer = ucF n (delta / 2 / 2)
       let nu_inner = 2 * ucF m ((delta / 2 - delta / 2 / 2) / nu_outer / 2 / 2 / 2)
       let nu_oracle = 2
       cu `shouldBe` 2 * nu_outer * nu_inner * nu_oracle
 
-    it "quantum cost for eps=0.0001" $ do
+    it "unitary cost (optimized precision splitting)" $ do
+      let delta = Sym.var "δ" :: Sym.Sym Double
+      let cu = P.unitaryQueryCost P.SplitUsingNeedsEps delta ex uticks
+      let nu_outer = ucF n (delta / 2 / 2)
+      let nu_inner = 2 * ucF m ((delta / 2 - delta / 2 / 2) / nu_outer / 2)
+      let nu_oracle = 2
+      cu `shouldBe` 2 * nu_outer * nu_inner * nu_oracle
+
+    it "quantum worst case cost" $ do
       let eps = Sym.var "ε" :: Sym.Sym Double
-      let cq = P.quantumMaxQueryCost eps ex uticks cticks
+      let cq = P.quantumMaxQueryCost P.SplitSimple eps ex uticks cticks
       let nq_outer = wcF n (eps / 2)
       let nq_inner = 2 * ucF m ((eps - eps / 2) / nq_outer / 2 / 2 / 2 / 2)
+      let nq_oracle = 2
+      cq `shouldBe` nq_outer * nq_inner * nq_oracle
+
+    it "quantum worst case cost (optimized precision splitting)" $ do
+      let eps = Sym.var "ε" :: Sym.Sym Double
+      let cq = P.quantumMaxQueryCost P.SplitUsingNeedsEps eps ex uticks cticks
+      let nq_outer = wcF n (eps / 2)
+      let nq_inner = 2 * ucF m ((eps - eps / 2) / nq_outer / 2 / 2)
       let nq_oracle = 2
       cq `shouldBe` nq_outer * nq_inner * nq_oracle

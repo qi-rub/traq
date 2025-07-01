@@ -29,9 +29,11 @@ symbolicEx = do
   let n = Sym.var "N" :: Sym.Sym SizeT
   let m = Sym.var "M" :: Sym.Sym SizeT
   let ex = matrixExample @QSearchSym n m (P.Fin $ Sym.con 2)
+  let strat = P.SplitUsingNeedsEps
+  let uticks = Map.singleton "Oracle" (Sym.var "c_u")
+  let cticks = Map.singleton "Oracle" (Sym.var "c_c")
 
   forM_ ["HasAllOnesRow", "IsRowAllOnes", "IsEntryZero"] $ \f -> do
-    let delta = Sym.var "δ" :: Sym.Sym Double
     let stmt =
           P.ExprS
             { rets = undefined
@@ -42,8 +44,14 @@ symbolicEx = do
                   }
             }
 
-    putStrLn $ printf "Cost of %s" f
-    print $ P.unitaryQueryCost delta ex{P.stmt = stmt} (Map.singleton "Oracle" 1.0)
+    let eps = Sym.var "ε" :: Sym.Sym Double
+    let delta = Sym.var "δ" :: Sym.Sym Double
+
+    putStrLn $ printf "Worst case cost of %s" f
+    putStr "  - Unitary: "
+    print $ P.unitaryQueryCost strat delta ex{P.stmt = stmt} uticks
+    putStr "  - Quantum: "
+    print $ P.quantumMaxQueryCost strat eps ex{P.stmt = stmt} uticks cticks
 
 concreteEx :: IO ()
 concreteEx = do
@@ -57,11 +65,12 @@ concreteEx = do
 
   let delta = 0.001 :: Double
   let uticks = Map.singleton "Oracle" 1.0
+  let strat = P.SplitUsingNeedsEps
 
-  let u_formula_cost = P.unitaryQueryCost delta ex uticks
+  let u_formula_cost = P.unitaryQueryCost strat delta ex uticks
 
   printDivider
-  let (Right (exU, _)) = UQPL.lowerProgram Ctx.empty uticks delta ex
+  let (Right (exU, _)) = UQPL.lowerProgram strat Ctx.empty uticks delta ex
   putStrLn $ toCodeString exU
 
   let (u_true_cost, _) = UQPL.programCost exU
@@ -82,10 +91,12 @@ concreteQEx = do
   putStrLn $ toCodeString ex
 
   let delta = 0.001 :: Double
-  let ticks = Map.singleton "Oracle" 1.0
+  let uticks = Map.singleton "Oracle" 1.0
+  let cticks = Map.singleton "Oracle" 1.0
+  let strat = P.SplitUsingNeedsEps
 
   printDivider
-  let (Right (exU, _)) = CQPL.lowerProgram Ctx.empty ticks delta ex
+  let (Right (exU, _)) = CQPL.lowerProgram strat Ctx.empty uticks cticks delta ex
   putStrLn $ toCodeString exU
 
 main :: IO ()

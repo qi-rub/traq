@@ -13,6 +13,7 @@ import Text.Printf (printf)
 
 import QCompose.Control.Monad
 import qualified QCompose.Data.Context as Ctx
+import QCompose.Data.Default
 import qualified QCompose.Data.Symbolic as Sym
 
 import QCompose.Prelude
@@ -151,7 +152,7 @@ testExample = do
           & (Ctx.ins "p" .~ P.Fin 8)
           & (Ctx.ins "q" .~ P.Fin 8)
   let oracle_ticks = mempty & at "Oracle" ?~ 1.0
-  (uprog, gamma') <- eitherToIO $ UQPL.lowerProgram @_ @Void gamma oracle_ticks delta prog
+  (uprog, gamma') <- eitherToIO $ UQPL.lowerProgram @_ @Void default_ gamma oracle_ticks delta prog
 
   putStrLn $ replicate 40 '='
   putStrLn $ toCodeString uprog

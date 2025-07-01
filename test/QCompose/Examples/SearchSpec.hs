@@ -3,6 +3,7 @@ module QCompose.Examples.SearchSpec (spec) where
 import qualified Data.Map as Map
 
 import qualified QCompose.Data.Context as Ctx
+import QCompose.Data.Default
 import qualified QCompose.Data.Tree as Tree
 
 import QCompose.Prelude
@@ -41,11 +42,11 @@ spec = do
 
     it "unitary cost for eps=0.0001" $ do
       let true_cost = ucF n (eps / 2) :: Double
-      P.unitaryQueryCost eps ex uticks `shouldBe` true_cost
+      P.unitaryQueryCost P.SplitSimple eps ex uticks `shouldBe` true_cost
 
     it "quantum cost for eps=0.0001" $ do
       let true_cost = ecF n 0 (eps / 2)
-      P.quantumQueryCost eps ex uticks ticks interpCtx Ctx.empty `shouldBe` true_cost
+      P.quantumQueryCost P.SplitSimple eps ex uticks ticks interpCtx Ctx.empty `shouldBe` true_cost
 
     it "generate code" $ do
       toCodeString ex `shouldSatisfy` (not . null)
@@ -53,16 +54,16 @@ spec = do
     describe "lowers to UQPL" $ do
       let delta = 0.0001 :: Double
       it "lowers" $ do
-        assertRight $ UQPL.lowerProgram Ctx.empty uticks delta ex
+        assertRight $ UQPL.lowerProgram default_ default_ uticks delta ex
 
       it "typechecks" $ do
-        (ex_uqpl, gamma) <- expectRight $ UQPL.lowerProgram Ctx.empty uticks delta ex
+        (ex_uqpl, gamma) <- expectRight $ UQPL.lowerProgram default_ Ctx.empty uticks delta ex
         assertRight $ UQPL.typeCheckProgram gamma ex_uqpl
 
       it "preserves cost" $ do
-        (ex_uqpl, _) <- expectRight $ UQPL.lowerProgram Ctx.empty uticks delta ex
+        (ex_uqpl, _) <- expectRight $ UQPL.lowerProgram default_ Ctx.empty uticks delta ex
         let (uqpl_cost, _) = UQPL.programCost ex_uqpl
-        let proto_cost = P.unitaryQueryCost delta ex uticks
+        let proto_cost = P.unitaryQueryCost P.SplitSimple delta ex uticks
         uqpl_cost `shouldSatisfy` (<= proto_cost)
 
   describe "arraySearch (returning solution)" $ do

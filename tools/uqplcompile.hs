@@ -8,6 +8,7 @@ import Options.Applicative
 import Text.Read (readMaybe)
 
 import qualified QCompose.Data.Context as Ctx
+import QCompose.Data.Default
 import qualified QCompose.Data.Symbolic as Sym
 
 import QCompose.Prelude
@@ -66,7 +67,7 @@ tellLn x = tell $ unlines [x]
 compile :: forall costT. (RealFloat costT, Show costT) => P.Program DefaultPrims SizeT -> costT -> IO String
 compile prog delta = do
   let oracle_ticks = mempty & at "Oracle" ?~ (fromRational 1.0 :: costT)
-  let Right (uqpl_prog, _) = UQPL.lowerProgram Ctx.empty oracle_ticks delta prog
+  let Right (uqpl_prog, _) = UQPL.lowerProgram default_ Ctx.empty oracle_ticks delta prog
   -- get costs
   let (cost :: costT, proc_costs) = UQPL.programCost uqpl_prog
 
@@ -88,6 +89,7 @@ compile prog delta = do
                     P.FunDef{mbody = Just body} <- prog ^. to P.funCtx . Ctx.at fname
                     let cf =
                           P.unitaryQueryCost
+                            P.SplitSimple
                             fdelta
                             P.Program
                               { stmt = body ^. to P.body_stmt
@@ -103,7 +105,7 @@ compile prog delta = do
       tellLn $ toCodeString p
 
     tellLn $ "// Actual Cost : " <> show cost
-    tellLn $ "// Formula Cost: " ++ show (P.unitaryQueryCost delta prog oracle_ticks)
+    tellLn $ "// Formula Cost: " ++ show (P.unitaryQueryCost P.SplitSimple delta prog oracle_ticks)
     tellLn $ toCodeString $ uqpl_prog ^. to UQPL.stmt
 
 main :: IO ()

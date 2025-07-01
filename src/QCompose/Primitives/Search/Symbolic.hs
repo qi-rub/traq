@@ -83,12 +83,18 @@ instance
   P.UnitaryCostablePrimitive primsT QSearchSym (Sym.Sym sizeT) (Sym.Sym costT)
   where
   unitaryQueryCostPrimitive delta prim _ = do
-    P.FunDef{P.param_types} <- view $ P._funCtx . Ctx.at (prim ^. _predicate) . singular _Just
+    fun_def@P.FunDef{P.param_types} <- view $ P._funCtx . Ctx.at (prim ^. _predicate) . singular _Just
 
     let P.Fin n = last param_types
 
     -- split the precision
-    let delta_search = delta / 2
+    delta_search <-
+      view P._precSplitStrat >>= \case
+        P.SplitSimple -> return $ delta / 2
+        P.SplitUsingNeedsEps -> magnify P._funCtx $ do
+          P.needsEps fun_def >>= \case
+            True -> return $ delta / 2
+            False -> return delta
     let delta_pred = delta - delta_search
 
     -- number of predicate queries
@@ -116,11 +122,17 @@ instance
   P.QuantumMaxCostablePrimitive primsT QSearchSym (Sym.Sym sizeT) (Sym.Sym costT)
   where
   quantumMaxQueryCostPrimitive eps prim = do
-    P.FunDef{P.param_types} <- view $ P._funCtx . Ctx.at (prim ^. _predicate) . singular _Just
+    fun_def@P.FunDef{P.param_types} <- view $ P._funCtx . Ctx.at (prim ^. _predicate) . singular _Just
     let P.Fin n = last param_types
 
     -- split the fail prob
-    let eps_search = eps / 2
+    eps_search <-
+      view P._precSplitStrat >>= \case
+        P.SplitSimple -> return $ eps / 2
+        P.SplitUsingNeedsEps -> magnify P._funCtx $ do
+          P.needsEps fun_def >>= \case
+            True -> return $ eps / 2
+            False -> return eps
     let eps_pred = eps - eps_search
 
     -- number of predicate queries

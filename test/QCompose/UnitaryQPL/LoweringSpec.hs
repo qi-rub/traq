@@ -21,6 +21,7 @@ spec = do
         (actual, gamma) <-
           expectRight $
             U.lowerProgram
+              P.SplitSimple
               (Ctx.singleton "x" (P.Fin 10))
               (Map.singleton "Oracle" 1.0)
               (0 :: Double)

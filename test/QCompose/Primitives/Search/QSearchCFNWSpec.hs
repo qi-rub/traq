@@ -4,9 +4,11 @@ module QCompose.Primitives.Search.QSearchCFNWSpec (spec) where
 
 import qualified Data.Map as Map
 import Lens.Micro.GHC
+import Lens.Micro.Mtl
 
 import QCompose.Control.Monad
 import qualified QCompose.Data.Context as Ctx
+import QCompose.Data.Default
 import QCompose.Prelude
 
 import QCompose.Primitives.Search.QSearchCFNW
@@ -38,18 +40,15 @@ spec = do
                 UQPL.CallS{UQPL.proc_id = "Oracle", UQPL.dagger = False, UQPL.args = [c, x, b]}
             }
 
-    let compile_config = (Ctx.empty, Map.singleton "Oracle" 1.0)
-    let compile_ctx = (mempty, Ctx.empty)
-
     prop "matches cost" $ \params -> do
       let n = space_size params
       let delta = precision params
-
+      let compile_config = default_ & (P._unitaryTicks . at "Oracle" ?~ 1.0)
       n > 1 ==> do
         (ss, []) <-
           algoQSearchZalka @QSearchCFNW @_ @SizeT delta "result"
             & execMyReaderWriterT (qsearch_env n)
-            & (\act -> evalMyReaderWriterStateT act compile_config compile_ctx)
+            & (\act -> evalMyReaderWriterStateT act compile_config default_)
             & expectRight
 
         let uprog =
