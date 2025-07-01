@@ -9,6 +9,7 @@ module QCompose.ProtoLang.Syntax (
   VarType (..),
   UnOp (..),
   BinOp (..),
+  BasicExpr (..),
 
   -- ** Calls and Primitives
   FunctionCallKind (..),
@@ -37,7 +38,7 @@ import QCompose.Utils.ASTRewriting
 import QCompose.Utils.Printing
 
 -- ================================================================================
--- Syntax
+-- Common Syntax
 -- ================================================================================
 
 -- | Types
@@ -46,13 +47,85 @@ newtype VarType sizeT = Fin sizeT -- Fin<N>
 
 type instance SizeType (VarType sizeT) = sizeT
 
+instance (Show a) => ToCodeString (VarType a) where
+  toCodeString (Fin len) = "Fin<" <> show len <> ">"
+
 -- | Unary operations
 data UnOp = NotOp
   deriving (Eq, Show, Read)
 
+instance ToCodeString UnOp where
+  toCodeString NotOp = "not "
+
 -- | Binary operations
 data BinOp = AddOp | LEqOp | AndOp
   deriving (Eq, Show, Read)
+
+instance ToCodeString BinOp where
+  toCodeString AddOp = "+"
+  toCodeString LEqOp = "<="
+  toCodeString AndOp = "&&"
+
+-- | Operations which take multiple arguments
+data NAryOp = MultiOrOp
+  deriving (Eq, Show, Read)
+
+instance ToCodeString NAryOp where
+  toCodeString MultiOrOp = "or"
+
+-- | Basic arithmetic and logical expressions
+data BasicExpr sizeT
+  = VarE {var :: Ident}
+  | ParamE {param :: Ident} -- compile-time constant parameter
+  | ConstE {val :: Value, ty :: VarType sizeT}
+  | UnOpE {un_op :: UnOp, operand :: BasicExpr sizeT}
+  | BinOpE {bin_op :: BinOp, lhs, rhs :: BasicExpr sizeT}
+  | TernaryE {branch, lhs, rhs :: BasicExpr sizeT}
+  | NAryE {op :: NAryOp, operands :: [BasicExpr sizeT]}
+  deriving (Eq, Show, Read, Functor)
+
+instance (Show sizeT) => ToCodeString (BasicExpr sizeT) where
+  toCodeString VarE{var} = var
+  toCodeString ParamE{param} = printf "#%s" param
+  toCodeString ConstE{val, ty} = unwords [show val, ":", toCodeString ty]
+  toCodeString UnOpE{un_op, operand} = toCodeString un_op <> toCodeString operand
+  toCodeString BinOpE{bin_op, lhs, rhs} =
+    "(" <> unwords [toCodeString lhs, toCodeString bin_op, toCodeString rhs] <> ")"
+  toCodeString TernaryE{branch, lhs, rhs} =
+    "(" <> unwords ("ifte" : map toCodeString [branch, lhs, rhs]) <> ")"
+  toCodeString NAryE{op, operands} = toCodeString op <> "(" <> commaList (map toCodeString operands) <> ")"
+
+-- -- | Expressions (RHS of an assignment operation)
+-- data Expr sizeT
+--   = ConstE {val :: Value, val_ty :: VarType sizeT}
+--   | MetaValE {meta_val :: MetaParam sizeT, val_ty :: VarType sizeT}
+--   | VarE {var :: Ident}
+--   | AddE {lhs, rhs :: Expr sizeT}
+--   | MulE {lhs, rhs :: Expr sizeT}
+--   | LEqE {lhs, rhs :: Expr sizeT}
+--   | AndE {lhs, rhs :: Expr sizeT}
+--   | NotE {arg :: Expr sizeT}
+--   | MinE {lhs, rhs :: Expr sizeT}
+--   deriving (Eq, Show, Read)
+-- instance (Show sizeT) => ToCodeString (P.BasicExpr sizeT) where
+--   toCodeString ConstE{val, val_ty} = show val <> " : " <> toCodeString val_ty
+--   toCodeString MetaValE{meta_val} = toCodeString meta_val
+--   toCodeString VarE{var} = var
+--   toCodeString AddE{lhs, rhs} = parenBinExpr "+" lhs rhs
+--   toCodeString MulE{lhs, rhs} = parenBinExpr "*" lhs rhs
+--   toCodeString LEqE{lhs, rhs} = parenBinExpr "<=" lhs rhs
+--   toCodeString AndE{lhs, rhs} = parenBinExpr "&&" lhs rhs
+--   toCodeString NotE{arg} = "!" ++ toCodeString arg
+--   toCodeString MinE{lhs, rhs} =
+--     "min(" ++ toCodeString lhs ++ ", " ++ toCodeString rhs ++ ")"
+
+-- parenBinExpr :: (Show sizeT) => String -> P.BasicExpr sizeT -> P.BasicExpr sizeT -> String
+-- parenBinExpr op_sym lhs rhs =
+--   "(" ++ unwords [toCodeString lhs, op_sym, toCodeString rhs] ++ ")"
+
+-- ================================================================================
+-- Syntax
+-- ================================================================================
 
 -- | Either call an existing function, or an existing primitive.
 data FunctionCallKind primT
@@ -66,11 +139,7 @@ type instance PrimitiveType (FunctionCallKind primT) = primT
  It appears as the RHS of an assignment statement.
 -}
 data Expr primT sizeT
-  = VarE {arg :: Ident}
-  | ConstE {val :: Value, ty :: VarType sizeT}
-  | UnOpE {un_op :: UnOp, arg :: Ident}
-  | BinOpE {bin_op :: BinOp, lhs :: Ident, rhs :: Ident}
-  | TernaryE {branch, lhs, rhs :: Ident}
+  = BasicExprE {basic_expr :: BasicExpr sizeT}
   | FunCallE {fun_kind :: FunctionCallKind primT, args :: [Ident]}
   deriving (Eq, Show, Read, Functor)
 
@@ -164,29 +233,12 @@ instance HasStmt (Program primT sizeT) (Stmt primT sizeT) where
 -- Printing
 -- ================================================================================
 
-instance (Show a) => ToCodeString (VarType a) where
-  toCodeString (Fin len) = "Fin<" <> show len <> ">"
-
-instance ToCodeString UnOp where
-  toCodeString NotOp = "not"
-
-instance ToCodeString BinOp where
-  toCodeString AddOp = "+"
-  toCodeString LEqOp = "<="
-  toCodeString AndOp = "/\\"
-
 instance (ToCodeString primT) => ToCodeString (FunctionCallKind primT) where
   toCodeString (FunctionCall f) = f
   toCodeString (PrimitiveCall prim) = toCodeString prim
 
 instance (Show sizeT, ToCodeString primT) => ToCodeString (Expr primT sizeT) where
-  toCodeString VarE{arg} = arg
-  toCodeString ConstE{val, ty} = unwords [show val, ":", toCodeString ty]
-  toCodeString UnOpE{un_op, arg} = unwords [toCodeString un_op, arg]
-  toCodeString BinOpE{bin_op, lhs, rhs} =
-    unwords [lhs, toCodeString bin_op, rhs]
-  toCodeString TernaryE{branch, lhs, rhs} =
-    unwords ["ifte", branch, lhs, rhs]
+  toCodeString BasicExprE{basic_expr} = toCodeString basic_expr
   toCodeString FunCallE{fun_kind, args} =
     unwords [toCodeString fun_kind <> "(" <> commaList args <> ")"]
 

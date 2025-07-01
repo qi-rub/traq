@@ -10,7 +10,7 @@ module QCompose.UnitaryQPL.TypeCheck (
 
 import Control.Monad (forM, forM_, when)
 import Control.Monad.Except (throwError)
-import Control.Monad.Reader (local)
+import Control.Monad.Reader (local, runReaderT)
 import Lens.Micro.GHC
 import Lens.Micro.Mtl
 
@@ -20,6 +20,7 @@ import QCompose.Data.Errors
 import QCompose.Control.Monad
 import QCompose.Prelude
 import QCompose.ProtoLang (TypeCheckable (..), TypingCtx, VarType)
+import qualified QCompose.ProtoLang as P
 import QCompose.UnitaryQPL.Syntax
 import Text.Printf (printf)
 
@@ -43,26 +44,22 @@ verifyArgs args tys = do
       MessageE $
         printf "mismatched args: expected %s, got %s" (show tys) (show arg_tys)
 
-unitarySignature :: forall holeT costT sizeT. (TypeCheckable sizeT) => Unitary sizeT -> TypeChecker holeT sizeT costT [VarType sizeT]
-unitarySignature Toffoli = return [tbool, tbool, tbool]
-unitarySignature CNOT = return [tbool, tbool]
-unitarySignature XGate = return [tbool]
-unitarySignature HGate = return [tbool]
-unitarySignature (Unif ty) = return [ty]
-unitarySignature (UnifDagger ty) = return [ty]
-unitarySignature (RevEmbedU f) = return $ revFunTys f
- where
-  revFunTys :: ClassicalFun sizeT -> [VarType sizeT]
-  revFunTys ConstF{ty} = [ty]
-  revFunTys NotF{ty} = [ty, ty]
-  revFunTys IdF{ty} = [ty, ty]
-  revFunTys AddF{ty} = [ty, ty, ty]
-  revFunTys LEqF{ty} = [ty, ty, tbool]
-  revFunTys LEqConstF{ty} = [ty, tbool]
-  revFunTys MultiOrF{cfun_n_args} = replicate (irange cfun_n_args + 1) tbool
-unitarySignature (Controlled u) = (tbool :) <$> unitarySignature u
-unitarySignature (Refl0 ty) = return [ty]
-unitarySignature (LoadData f) = do
+unitarySignature :: forall holeT costT sizeT. (TypeCheckable sizeT) => Unitary sizeT -> [VarType sizeT] -> TypeChecker holeT sizeT costT [VarType sizeT]
+unitarySignature Toffoli _ = return [tbool, tbool, tbool]
+unitarySignature CNOT _ = return [tbool, tbool]
+unitarySignature XGate _ = return [tbool]
+unitarySignature HGate _ = return [tbool]
+unitarySignature (Unif ty) _ = return [ty]
+unitarySignature (UnifDagger ty) _ = return [ty]
+unitarySignature (RevEmbedU xs e) arg_tys = do
+  let gamma = Ctx.fromList $ zip xs arg_tys
+  let res = runReaderT (P.checkBasicExpr e) gamma
+  case res of
+    Left err -> throwError $ MessageE err
+    Right ret_tys -> return $ arg_tys ++ ret_tys
+unitarySignature (Controlled u) arg_tys = (tbool :) <$> unitarySignature u (tail arg_tys)
+unitarySignature (Refl0 ty) _ = return [ty]
+unitarySignature (LoadData f) _ = do
   proc_def <- view (procDefs . Ctx.at f) >>= maybeWithError (MessageE "cannot find function")
   return $ proc_def ^.. to proc_params . traverse . _3
 
@@ -71,7 +68,10 @@ typeCheckStmt :: (Show holeT, TypeCheckable sizeT) => Stmt holeT sizeT -> TypeCh
 typeCheckStmt SkipS = return ()
 typeCheckStmt (CommentS _) = return ()
 typeCheckStmt UnitaryS{unitary, args} = do
-  tys <- unitarySignature unitary
+  arg_tys <- forM args $ \x -> do
+    mty <- view $ typingCtx . Ctx.at x
+    maybeWithError (MessageE $ printf "cannot find argument %s" x) mty
+  tys <- unitarySignature unitary arg_tys
   verifyArgs args tys
 typeCheckStmt CallS{proc_id, args} = do
   proc_param_tys <-

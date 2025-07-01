@@ -2,6 +2,10 @@
 {-# LANGUAGE MultiParamTypeClasses #-}
 
 module QCompose.ProtoLang.Eval (
+  -- * Evaluating Basic Expressions
+  ProgramState,
+  evalBasicExpr,
+
   -- * Evaluations
   evalExpr,
   execStmt,
@@ -10,7 +14,6 @@ module QCompose.ProtoLang.Eval (
 
   -- * Values
   range,
-  ProgramState,
   boolToValue,
 
   -- * Types and Monad
@@ -24,21 +27,72 @@ module QCompose.ProtoLang.Eval (
 ) where
 
 import Control.Monad (zipWithM_)
-import Control.Monad.RWS (MonadState, runRWST)
+import Control.Monad.RWS (MonadState, MonadTrans (lift), runRWST)
+import Control.Monad.Reader (MonadReader, runReader)
+import Data.Void (Void, absurd)
 import Lens.Micro.GHC
-import Lens.Micro.GHC ()
 import Lens.Micro.Mtl
 
 import QCompose.Control.Monad
 import qualified QCompose.Data.Context as Ctx
 import qualified QCompose.Data.Tree as Tree
 
-import Data.Void (Void, absurd)
 import QCompose.Prelude
 import QCompose.ProtoLang.Syntax
 
+-- ================================================================================
+-- Evaluating Basic Expressions
+-- ================================================================================
+
 -- | The deterministic state of the program
 type ProgramState = Ctx.Context Value
+
+boolToValue :: Bool -> Value
+boolToValue True = 1
+boolToValue False = 0
+
+valueToBool :: Value -> Bool
+valueToBool 0 = False
+valueToBool _ = True
+
+evalUnOp :: UnOp -> Value -> Value
+evalUnOp NotOp 0 = 1
+evalUnOp NotOp _ = 0
+
+evalBinOp :: BinOp -> Value -> Value -> Value
+evalBinOp AddOp x y = x + y
+evalBinOp LEqOp x y
+  | x <= y = 1
+  | otherwise = 0
+evalBinOp AndOp 0 _ = 0
+evalBinOp AndOp _ 0 = 0
+evalBinOp AndOp _ _ = 1
+
+evalBasicExpr :: (MonadReader ProgramState m) => BasicExpr sizeT -> m [Value]
+evalBasicExpr = undefined
+
+-- -- basic expressions
+-- evalExpr VarE{arg} = do
+--   v <- lookupS arg
+--   return [v]
+-- evalExpr ConstE{val} = return [val]
+-- evalExpr UnOpE{un_op, arg} = do
+--   arg_val <- lookupS arg
+--   let ret_val = evalUnOp un_op arg_val
+--   return [ret_val]
+-- evalExpr BinOpE{bin_op, lhs, rhs} = do
+--   lhs_val <- lookupS lhs
+--   rhs_val <- lookupS rhs
+--   let ret_val = evalBinOp bin_op lhs_val rhs_val
+--   return [ret_val]
+-- evalExpr TernaryE{branch, lhs, rhs} = do
+--   b <- lookupS branch
+--   v <- lookupS $ if valueToBool b then lhs else rhs
+--   return [v]
+
+-- ================================================================================
+-- Evaluating ProtoLang Programs
+-- ================================================================================
 
 -- | Inject runtime data into a program
 type FunInterp = [Value] -> [Value]
@@ -76,50 +130,16 @@ lookupS = Ctx.unsafeLookup
 putS :: (MonadState ProgramState m) => Ident -> Value -> m ()
 putS = Ctx.unsafePut
 
-boolToValue :: Bool -> Value
-boolToValue True = 1
-boolToValue False = 0
-
-valueToBool :: Value -> Bool
-valueToBool 0 = False
-valueToBool _ = True
-
-evalUnOp :: UnOp -> Value -> Value
-evalUnOp NotOp 0 = 1
-evalUnOp NotOp _ = 0
-
-evalBinOp :: BinOp -> Value -> Value -> Value
-evalBinOp AddOp x y = x + y
-evalBinOp LEqOp x y
-  | x <= y = 1
-  | otherwise = 0
-evalBinOp AndOp 0 _ = 0
-evalBinOp AndOp _ 0 = 0
-evalBinOp AndOp _ _ = 1
-
 evalExpr ::
   forall primsT.
   (EvaluatablePrimitive primsT primsT) =>
   Expr primsT SizeT ->
   Executor primsT SizeT [Value]
--- basic expressions
-evalExpr VarE{arg} = do
-  v <- lookupS arg
-  return [v]
-evalExpr ConstE{val} = return [val]
-evalExpr UnOpE{un_op, arg} = do
-  arg_val <- lookupS arg
-  let ret_val = evalUnOp un_op arg_val
-  return [ret_val]
-evalExpr BinOpE{bin_op, lhs, rhs} = do
-  lhs_val <- lookupS lhs
-  rhs_val <- lookupS rhs
-  let ret_val = evalBinOp bin_op lhs_val rhs_val
-  return [ret_val]
-evalExpr TernaryE{branch, lhs, rhs} = do
-  b <- lookupS branch
-  v <- lookupS $ if valueToBool b then lhs else rhs
-  return [v]
+evalExpr BasicExprE{basic_expr} = do
+  sigma <- use id
+  let xs = runReader (evalBasicExpr basic_expr) sigma
+  return xs
+
 -- function calls
 evalExpr FunCallE{fun_kind = FunctionCall fun, args} = do
   arg_vals <- mapM lookupS args

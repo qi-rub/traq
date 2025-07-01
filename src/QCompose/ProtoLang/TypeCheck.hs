@@ -10,6 +10,7 @@ module QCompose.ProtoLang.TypeCheck (
   TypeCheckablePrimitive (..),
 
   -- * Checkers
+  checkBasicExpr,
   checkExpr,
   checkStmt,
   typeCheckFun,
@@ -17,7 +18,7 @@ module QCompose.ProtoLang.TypeCheck (
 ) where
 
 import Control.Monad (forM_, unless, when, zipWithM_)
-import Control.Monad.Except (MonadError, throwError)
+import Control.Monad.Except (MonadError, MonadTrans (lift), throwError)
 import Control.Monad.RWS (MonadReader)
 import Text.Printf (printf)
 
@@ -30,6 +31,10 @@ import Data.Void (Void, absurd)
 import QCompose.Control.Monad
 import QCompose.Prelude
 import QCompose.ProtoLang.Syntax
+
+-- ================================================================================
+-- Typecheckable size types
+-- ================================================================================
 
 -- | SizeT that can be type-checked. Needs to have a boolean type, and max of two types.
 class (Eq sizeT, Show sizeT, Num sizeT) => TypeCheckable sizeT where
@@ -47,11 +52,67 @@ instance TypeCheckable Int where
   tmax (Fin n) (Fin m) = Fin (max n m)
   irange n = n
 
--- | Environment for type checking
-type TypingEnv primT sizeT = FunCtx primT sizeT
-
 -- | A context mapping variables to their types.
 type TypingCtx sizeT = Ctx.Context (VarType sizeT)
+
+-- ================================================================================
+-- Typing inference for basic expressions
+-- ================================================================================
+checkBasicExpr ::
+  forall sizeT m.
+  ( TypeCheckable sizeT
+  , MonadError String m
+  , MonadReader (TypingCtx sizeT) m
+  ) =>
+  BasicExpr sizeT ->
+  m [VarType sizeT]
+checkBasicExpr = undefined
+
+-- -- x
+-- checkExpr VarE{arg} = do
+--   ty <- Ctx.lookup arg
+--   return [ty]
+-- -- const v : t
+-- checkExpr ConstE{ty} = return [ty]
+-- -- `op` x
+-- checkExpr UnOpE{un_op, arg} = do
+--   arg_ty <- Ctx.lookup arg
+--   ty <- case un_op of
+--     NotOp -> do
+--       unless (arg_ty == tbool) $ throwError ("`not` requires bool, got " <> show arg_ty)
+--       return tbool
+--   return [ty]
+-- -- x `op` y
+-- checkExpr BinOpE{bin_op, lhs, rhs} = do
+--   ty_lhs <- Ctx.lookup lhs
+--   ty_rhs <- Ctx.lookup rhs
+--   ty <- case bin_op of
+--     AndOp -> do
+--       unless (ty_lhs == tbool && ty_rhs == tbool) $
+--         throwError ("`and` requires bools, got " <> show [ty_lhs, ty_rhs])
+--       return tbool
+--     LEqOp -> return tbool
+--     AddOp -> return $ tmax ty_lhs ty_rhs
+--   return [ty]
+-- -- ifte b x y
+-- checkExpr TernaryE{branch, lhs, rhs} = do
+--   ty_branch <- Ctx.lookup branch
+--   unless (ty_branch == tbool) $
+--     throwError (printf "`ifte` requires bool to branch, got %s" (show ty_branch))
+
+--   ty_lhs <- Ctx.lookup lhs
+--   ty_rhs <- Ctx.lookup rhs
+--   unless (ty_lhs == ty_rhs) $
+--     throwError ("`ifte` requires same lhs and rhs type, got " <> show [ty_lhs, ty_rhs])
+
+--   return [ty_lhs]
+
+-- ================================================================================
+-- Typing inference for ProtoLang statements and programs
+-- ================================================================================
+
+-- | Environment for type checking
+type TypingEnv primT sizeT = FunCtx primT sizeT
 
 -- | The TypeChecker monad
 type TypeChecker primT sizeT = MyReaderStateT (TypingEnv primT sizeT) (TypingCtx sizeT) (Either String)
@@ -84,45 +145,9 @@ checkExpr ::
   ) =>
   Expr primT sizeT ->
   TypeChecker primT sizeT [VarType sizeT]
--- x
-checkExpr VarE{arg} = do
-  ty <- Ctx.lookup arg
-  return [ty]
--- const v : t
-checkExpr ConstE{ty} = return [ty]
--- `op` x
-checkExpr UnOpE{un_op, arg} = do
-  arg_ty <- Ctx.lookup arg
-  ty <- case un_op of
-    NotOp -> do
-      unless (arg_ty == tbool) $ throwError ("`not` requires bool, got " <> show arg_ty)
-      return tbool
-  return [ty]
--- x `op` y
-checkExpr BinOpE{bin_op, lhs, rhs} = do
-  ty_lhs <- Ctx.lookup lhs
-  ty_rhs <- Ctx.lookup rhs
-  ty <- case bin_op of
-    AndOp -> do
-      unless (ty_lhs == tbool && ty_rhs == tbool) $
-        throwError ("`and` requires bools, got " <> show [ty_lhs, ty_rhs])
-      return tbool
-    LEqOp -> return tbool
-    AddOp -> return $ tmax ty_lhs ty_rhs
-  return [ty]
--- ifte b x y
-checkExpr TernaryE{branch, lhs, rhs} = do
-  ty_branch <- Ctx.lookup branch
-  unless (ty_branch == tbool) $
-    throwError (printf "`ifte` requires bool to branch, got %s" (show ty_branch))
-
-  ty_lhs <- Ctx.lookup lhs
-  ty_rhs <- Ctx.lookup rhs
-  unless (ty_lhs == ty_rhs) $
-    throwError ("`ifte` requires same lhs and rhs type, got " <> show [ty_lhs, ty_rhs])
-
-  return [ty_lhs]
-
+checkExpr BasicExprE{basic_expr} = do
+  gamma <- use id
+  lift $ flip runMyReaderT gamma $ checkBasicExpr basic_expr
 -- f(x, ...)
 checkExpr FunCallE{fun_kind = FunctionCall fun, args} = do
   FunDef{param_types, ret_types} <- lookupFunE fun

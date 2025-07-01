@@ -241,11 +241,7 @@ unitaryQueryCostE delta FunCallE{fun_kind = FunctionCall fname} = do
 unitaryQueryCostE delta FunCallE{fun_kind = PrimitiveCall prim, args} =
   unitaryQueryCostPrimitive delta prim args
 -- zero-cost expressions
-unitaryQueryCostE _ VarE{} = return 0
-unitaryQueryCostE _ ConstE{} = return 0
-unitaryQueryCostE _ UnOpE{} = return 0
-unitaryQueryCostE _ BinOpE{} = return 0
-unitaryQueryCostE _ TernaryE{} = return 0
+unitaryQueryCostE _ BasicExprE{} = return 0
 
 -- Evaluate the query cost of a statement
 unitaryQueryCostS ::
@@ -369,11 +365,7 @@ quantumMaxQueryCostE eps FunCallE{fun_kind = FunctionCall fname} = do
 quantumMaxQueryCostE eps FunCallE{fun_kind = PrimitiveCall prim} =
   quantumMaxQueryCostPrimitive eps prim
 -- -- zero-cost expressions
-quantumMaxQueryCostE _ VarE{} = return 0
-quantumMaxQueryCostE _ ConstE{} = return 0
-quantumMaxQueryCostE _ UnOpE{} = return 0
-quantumMaxQueryCostE _ BinOpE{} = return 0
-quantumMaxQueryCostE _ TernaryE{} = return 0
+quantumMaxQueryCostE _ BasicExprE{} = return 0
 
 quantumMaxQueryCostS ::
   forall primsT sizeT costT.
@@ -495,11 +487,7 @@ quantumQueryCostE eps sigma FunCallE{fun_kind = PrimitiveCall prim, args} = do
   let vals = [sigma ^. Ctx.at x . singular _Just | x <- args]
   quantumQueryCostPrimitive eps prim vals
 -- -- zero-cost expressions
-quantumQueryCostE _ _ VarE{} = return 0
-quantumQueryCostE _ _ ConstE{} = return 0
-quantumQueryCostE _ _ UnOpE{} = return 0
-quantumQueryCostE _ _ BinOpE{} = return 0
-quantumQueryCostE _ _ TernaryE{} = return 0
+quantumQueryCostE _ _ BasicExprE{} = return 0
 
 quantumQueryCostS ::
   forall primsT costT m.
