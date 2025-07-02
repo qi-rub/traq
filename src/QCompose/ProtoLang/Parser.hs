@@ -78,60 +78,25 @@ varType tp@TokenParser{..} = boolType <|> finType
 typedTerm :: TokenParser () -> Parser a -> Parser (a, VarType SymbSize)
 typedTerm tp@TokenParser{..} pa = (,) <$> pa <*> (reservedOp ":" *> varType tp)
 
-basicExprP :: TokenParser () -> Parser (BasicExpr SymbSize)
-basicExprP tp@TokenParser{..} =
+exprP :: forall primT. (CanParsePrimitive primT) => TokenParser () -> Parser (Expr primT SymbSize)
+exprP tp@TokenParser{..} =
   choice . map try $
-    [ unOpE
+    [ funCallE
+    , unOpE
     , binOpE
     , constE
     , varE
     ]
  where
-  varE :: Parser (BasicExpr SymbSize)
-  varE = VarE <$> identifier
+  varE :: Parser (Expr primT SymbSize)
+  varE = BasicExprE . VarE <$> identifier
 
-  constE :: Parser (BasicExpr SymbSize)
+  constE :: Parser (Expr primT SymbSize)
   constE = do
     reserved "const"
     (val, ty) <- typedTerm tp integer
-    return ConstE{val, ty}
+    return $ BasicExprE ConstE{val, ty}
 
-  unOp :: Parser UnOp
-  unOp =
-    (reserved "not" $> NotOp)
-      <|> ( operator >>= \case
-              "!" -> return NotOp
-              _ -> fail "invalid unary operator"
-          )
-
-  unOpE :: Parser (BasicExpr SymbSize)
-  unOpE = do
-    un_op <- unOp
-    operand <- basicExprP tp
-    return UnOpE{un_op, operand}
-
-  binOp :: Parser BinOp
-  binOp =
-    operator >>= \case
-      "+" -> return AddOp
-      "<=" -> return LEqOp
-      "&&" -> return AndOp
-      _ -> fail "invalid binary operator"
-
-  binOpE :: Parser (BasicExpr SymbSize)
-  binOpE = do
-    lhs <- basicExprP tp
-    bin_op <- binOp
-    rhs <- basicExprP tp
-    return BinOpE{bin_op, lhs, rhs}
-
-exprP :: forall primT. (CanParsePrimitive primT) => TokenParser () -> Parser (Expr primT SymbSize)
-exprP tp@TokenParser{..} =
-  choice
-    [ try funCallE
-    , BasicExprE <$> basicExprP tp
-    ]
- where
   funCallKind :: Parser (FunctionCallKind primT)
   funCallKind = primitiveCall <|> functionCall
    where
@@ -143,6 +108,35 @@ exprP tp@TokenParser{..} =
     fun_kind <- funCallKind
     args <- parens $ commaSep identifier
     return FunCallE{fun_kind, args}
+
+  unOp :: Parser UnOp
+  unOp =
+    (reserved "not" $> NotOp)
+      <|> ( operator >>= \case
+              "!" -> return NotOp
+              _ -> fail "invalid unary operator"
+          )
+
+  unOpE :: Parser (Expr primT SymbSize)
+  unOpE = do
+    un_op <- unOp
+    operand <- VarE <$> identifier
+    return $ BasicExprE UnOpE{un_op, operand}
+
+  binOp :: Parser BinOp
+  binOp =
+    operator >>= \case
+      "+" -> return AddOp
+      "<=" -> return LEqOp
+      "&&" -> return AndOp
+      _ -> fail "invalid binary operator"
+
+  binOpE :: Parser (Expr primT SymbSize)
+  binOpE = do
+    lhs <- VarE <$> identifier
+    bin_op <- binOp
+    rhs <- VarE <$> identifier
+    return $ BasicExprE BinOpE{bin_op, lhs, rhs}
 
 stmtP :: forall primT. (CanParsePrimitive primT) => TokenParser () -> Parser (Stmt primT SymbSize)
 stmtP tp@TokenParser{..} = SeqS <$> (someStmt <|> return [])

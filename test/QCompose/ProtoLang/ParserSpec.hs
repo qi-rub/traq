@@ -21,7 +21,7 @@ import TestHelpers
 spec :: Spec
 spec = do
   describe "parse statement" $ do
-    fit "parses assign" $ do
+    it "parses assign" $ do
       (parseStmt @Void) "x' <- x" `shouldBe` Right (SeqS [ExprS{rets = ["x'"], expr = BasicExprE "x"}])
     it "parses seq assign" $ do
       parseStmt @Void "x' <- x; y' <- const 3 : Fin<4>"
