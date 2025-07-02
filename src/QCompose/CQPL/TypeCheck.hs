@@ -19,6 +19,7 @@ import Text.Printf (printf)
 
 import QCompose.Control.Monad
 import qualified QCompose.Data.Context as Ctx
+import QCompose.Data.Default
 import qualified QCompose.Data.Errors as Err
 
 import QCompose.CQPL.Syntax
@@ -148,7 +149,8 @@ typeCheckProgram ::
   Program holeT sizeT costT ->
   Either Err.MyError ()
 typeCheckProgram gamma Program{proc_defs, uproc_defs, stmt} = do
-  flip runMyReaderT (uproc_defs, undefined) $ do
+  let uqplTypingEnv = default_ & UQPL._procCtx .~ uproc_defs
+  flip runMyReaderT uqplTypingEnv $ do
     mapM_ UQPL.typeCheckProc $ Ctx.elems uproc_defs
 
   flip runMyReaderT (proc_defs, uproc_defs, undefined) $ do

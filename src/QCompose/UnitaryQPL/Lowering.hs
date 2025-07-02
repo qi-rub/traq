@@ -162,7 +162,7 @@ lowerExpr ::
 -- basic expressions are lowered to their unitary embedding
 lowerExpr _ P.BasicExprE{P.basic_expr} rets = do
   let args = toList $ P.freeVarsBE basic_expr
-  return $ UnitaryS (args ++ rets) $ RevEmbedU args basic_expr
+  return $ UnitaryS{args = args ++ rets, unitary = RevEmbedU args basic_expr}
 
 -- function call
 lowerExpr delta P.FunCallE{P.fun_kind = P.FunctionCall fun_name, P.args} rets = do

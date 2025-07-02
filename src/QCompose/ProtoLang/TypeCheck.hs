@@ -2,10 +2,15 @@
 {-# LANGUAGE MultiParamTypeClasses #-}
 
 module QCompose.ProtoLang.TypeCheck (
+  -- * Typing Context
+  TypingCtx,
+  HasTypingCtx (..),
+
+  -- * Typeable size types
+  TypeCheckable (..),
+
   -- * Types
   TypingEnv,
-  TypingCtx,
-  TypeCheckable (..),
   TypeChecker,
   TypeCheckablePrimitive (..),
 
@@ -20,17 +25,31 @@ module QCompose.ProtoLang.TypeCheck (
 import Control.Monad (forM_, unless, when, zipWithM_)
 import Control.Monad.Except (MonadError, MonadTrans (lift), throwError)
 import Control.Monad.RWS (MonadReader)
-import Text.Printf (printf)
-
+import Data.Void (Void, absurd)
 import Lens.Micro.GHC
 import Lens.Micro.Mtl
+import Text.Printf (printf)
 
+import QCompose.Control.Monad
 import qualified QCompose.Data.Context as Ctx
 
-import Data.Void (Void, absurd)
-import QCompose.Control.Monad
 import QCompose.Prelude
+import QCompose.ProtoLang.Prelude
 import QCompose.ProtoLang.Syntax
+
+-- ================================================================================
+-- Typing Context
+-- ================================================================================
+
+-- | A context mapping variables to their types.
+type TypingCtx sizeT = Ctx.Context (VarType sizeT)
+
+type instance SizeType (TypingCtx sizeT) = sizeT
+
+class HasTypingCtx p where
+  _typingCtx :: (sizeT ~ SizeType p) => Lens' p (TypingCtx sizeT)
+
+instance HasTypingCtx (TypingCtx sizeT) where _typingCtx = id
 
 -- ================================================================================
 -- Typecheckable size types
@@ -52,9 +71,6 @@ instance TypeCheckable Int where
   tmax (Fin n) (Fin m) = Fin (max n m)
   irange n = n
 
--- | A context mapping variables to their types.
-type TypingCtx sizeT = Ctx.Context (VarType sizeT)
-
 -- ================================================================================
 -- Typing inference for basic expressions
 -- ================================================================================
@@ -68,7 +84,12 @@ checkBasicExpr ::
   BasicExpr sizeT ->
   m (VarType sizeT)
 checkBasicExpr VarE{var} = Ctx.lookup' var
-checkBasicExpr ParamE{} = error "unsupported: typechecking for parameters"
+checkBasicExpr ParamE{param} = do
+  -- TODO use a separate context for params
+  -- throwError $ printf "unsupported: typechecking for parameters (got: #%s)" param
+  -- gamma <- view id
+  -- throwError $ printf "UNSUPPORTED #%s : %s" param (show gamma)
+  Ctx.lookup' $ '#' : param
 checkBasicExpr ConstE{ty} = return ty
 checkBasicExpr UnOpE{un_op, operand} = do
   arg_ty <- checkBasicExpr operand

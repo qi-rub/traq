@@ -27,9 +27,8 @@ import Text.Printf (printf)
 import qualified QCompose.Data.Context as Ctx
 
 import QCompose.Prelude
-import QCompose.ProtoLang (VarType)
+import QCompose.ProtoLang (MetaParam (..), VarType)
 import qualified QCompose.ProtoLang as P
-import QCompose.UnitaryQPL (MetaParam (..))
 import qualified QCompose.UnitaryQPL as UQPL
 import QCompose.Utils.ASTRewriting
 import QCompose.Utils.Printing

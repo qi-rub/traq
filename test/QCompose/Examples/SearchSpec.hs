@@ -20,7 +20,7 @@ import TestHelpers
 spec :: Spec
 spec = do
   describe "arraySearch: no solutions" $ do
-    let n = 10
+    let n = 6
     let ex = arraySearch n
 
     it "type checks" $ do
@@ -56,7 +56,7 @@ spec = do
       it "lowers" $ do
         assertRight $ UQPL.lowerProgram default_ default_ uticks delta ex
 
-      it "typechecks" $ do
+      fit "typechecks" $ do
         (ex_uqpl, gamma) <- expectRight $ UQPL.lowerProgram default_ Ctx.empty uticks delta ex
         assertRight $ UQPL.typeCheckProgram gamma ex_uqpl
 

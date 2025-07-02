@@ -114,34 +114,6 @@ instance (Show sizeT) => ToCodeString (BasicExpr sizeT) where
     "(" <> unwords ("ifte" : map toCodeString [branch, lhs, rhs]) <> ")"
   toCodeString NAryE{op, operands} = toCodeString op <> "(" <> commaList (map toCodeString operands) <> ")"
 
--- -- | Expressions (RHS of an assignment operation)
--- data Expr sizeT
---   = ConstE {val :: Value, val_ty :: VarType sizeT}
---   | MetaValE {meta_val :: MetaParam sizeT, val_ty :: VarType sizeT}
---   | VarE {var :: Ident}
---   | AddE {lhs, rhs :: Expr sizeT}
---   | MulE {lhs, rhs :: Expr sizeT}
---   | LEqE {lhs, rhs :: Expr sizeT}
---   | AndE {lhs, rhs :: Expr sizeT}
---   | NotE {arg :: Expr sizeT}
---   | MinE {lhs, rhs :: Expr sizeT}
---   deriving (Eq, Show, Read)
--- instance (Show sizeT) => ToCodeString (P.BasicExpr sizeT) where
---   toCodeString ConstE{val, val_ty} = show val <> " : " <> toCodeString val_ty
---   toCodeString MetaValE{meta_val} = toCodeString meta_val
---   toCodeString VarE{var} = var
---   toCodeString AddE{lhs, rhs} = parenBinExpr "+" lhs rhs
---   toCodeString MulE{lhs, rhs} = parenBinExpr "*" lhs rhs
---   toCodeString LEqE{lhs, rhs} = parenBinExpr "<=" lhs rhs
---   toCodeString AndE{lhs, rhs} = parenBinExpr "&&" lhs rhs
---   toCodeString NotE{arg} = "!" ++ toCodeString arg
---   toCodeString MinE{lhs, rhs} =
---     "min(" ++ toCodeString lhs ++ ", " ++ toCodeString rhs ++ ")"
-
--- parenBinExpr :: (Show sizeT) => String -> P.BasicExpr sizeT -> P.BasicExpr sizeT -> String
--- parenBinExpr op_sym lhs rhs =
---   "(" ++ unwords [toCodeString lhs, op_sym, toCodeString rhs] ++ ")"
-
 -- ================================================================================
 -- Syntax
 -- ================================================================================

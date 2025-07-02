@@ -5,7 +5,6 @@ module QCompose.UnitaryQPL.Syntax (
   Unitary (..),
 
   -- ** Statements
-  MetaParam (..),
   Stmt (..),
   holeS,
   Stmt',
@@ -37,15 +36,6 @@ import qualified QCompose.Data.Context as Ctx
 import QCompose.Prelude
 import qualified QCompose.ProtoLang as P
 import QCompose.Utils.Printing
-
--- | Compile-time constant parameters
-data MetaParam sizeT = MetaName String | MetaSize sizeT | MetaValue Value
-  deriving (Eq, Show, Read)
-
-instance (Show sizeT) => ToCodeString (MetaParam sizeT) where
-  toCodeString (MetaName n) = "#" ++ n
-  toCodeString (MetaSize n) = show n
-  toCodeString (MetaValue n) = show n
 
 data Unitary sizeT
   = Toffoli
@@ -86,16 +76,16 @@ data Stmt holeT sizeT
     HoleS {hole :: holeT, dagger :: Bool} -- temporary place holder
   | CommentS String
   | -- syntax sugar
-    RepeatS {n_iter :: MetaParam sizeT, loop_body :: Stmt holeT sizeT} -- repeat k do S;
+    RepeatS {n_iter :: P.MetaParam sizeT, loop_body :: Stmt holeT sizeT} -- repeat k do S;
   | ForInRangeS
       { iter_meta_var :: Ident
-      , iter_lim :: MetaParam sizeT
+      , iter_lim :: P.MetaParam sizeT
       , loop_body :: Stmt holeT sizeT
       , dagger :: Bool
       }
   deriving (Eq, Show, Read)
 
-mkForInRangeS :: Ident -> MetaParam sizeT -> Stmt holeT sizeT -> Stmt holeT sizeT
+mkForInRangeS :: Ident -> P.MetaParam sizeT -> Stmt holeT sizeT -> Stmt holeT sizeT
 mkForInRangeS iter_meta_var iter_lim loop_body = ForInRangeS{iter_meta_var, iter_lim, loop_body, dagger = False}
 
 holeS :: holeT -> Stmt holeT sizeT

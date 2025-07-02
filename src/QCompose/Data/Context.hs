@@ -73,6 +73,12 @@ instance Traversable Context where
    where
     f' (Binding x v) = Binding x <$> f v
 
+instance Semigroup (Context a) where
+  (Context xs) <> (Context ys) = Context (ys ++ xs)
+
+instance Monoid (Context a) where
+  mempty = Context []
+
 _ctx :: Lens' (Context a) [Binding a]
 _ctx focus (Context m) = Context <$> focus m
 
@@ -101,10 +107,10 @@ ix k focus = \(Context m) -> Context <$> go m
 -- Primary Functions
 
 empty :: Context a
-empty = Context []
+empty = mempty
 
 instance HasDefault (Context a) where
-  default_ = empty
+  default_ = mempty
 
 null :: Context a -> Bool
 null (Context m) = Prelude.null m

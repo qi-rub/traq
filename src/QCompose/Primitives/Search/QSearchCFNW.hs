@@ -362,7 +362,7 @@ algoQSearchZalkaRandomIterStep r = do
           listen $
             withComputed calc_ctrl $ do
               addGroverIteration ctrl_bit x_reg b_reg
-      writeElem $ UQPL.mkForInRangeS meta_ix_name (UQPL.MetaSize r) (UQPL.SeqS grover_body)
+      writeElem $ UQPL.mkForInRangeS meta_ix_name (P.MetaSize r) (UQPL.SeqS grover_body)
 
   withComputed (UQPL.UnitaryS [ctrl_bit] UQPL.XGate) $
     addPredCall ctrl_bit x_reg b_reg
@@ -555,7 +555,7 @@ allocReg prefix ty = do
 groverK ::
   forall holeT sizeT.
   -- | number of rounds
-  UQPL.MetaParam sizeT ->
+  P.MetaParam sizeT ->
   -- | the element and type to search for. @x : T@
   (Ident, P.VarType sizeT) ->
   -- | the output bit
@@ -627,7 +627,7 @@ algoQSearch ty n_samples eps grover_k_caller pred_caller ok = do
     let classicalSampling =
           CQPL.WhileKWithCondExpr (CQPL.MetaSize n_samples) not_done (notE (fromString ok)) $
             CQPL.SeqS
-              [ CQPL.RandomS x (UQPL.MetaSize n)
+              [ CQPL.RandomS x (P.MetaSize n)
               , pred_caller x ok
               ]
     writeElemAt _1 classicalSampling
@@ -751,7 +751,7 @@ instance
     uproc_grover_k_name <- CQPL.newIdent "Grover"
     upred_aux_vars <- replicateM (length pred_aux_tys) $ CQPL.newIdent "aux"
     grover_arg_name <- CQPL.newIdent "x"
-    let meta_k = UQPL.MetaName "k"
+    let meta_k = P.MetaName "k"
     let uproc_grover_k_body =
           groverK
             meta_k
