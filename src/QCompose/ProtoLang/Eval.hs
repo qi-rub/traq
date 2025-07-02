@@ -27,7 +27,7 @@ module QCompose.ProtoLang.Eval (
 ) where
 
 import Control.Monad (zipWithM_)
-import Control.Monad.RWS (MonadState, MonadTrans (lift), runRWST)
+import Control.Monad.RWS (MonadState, runRWST)
 import Control.Monad.Reader (MonadReader, runReader)
 import Data.Void (Void, absurd)
 import Lens.Micro.GHC
@@ -68,27 +68,26 @@ evalBinOp AndOp 0 _ = 0
 evalBinOp AndOp _ 0 = 0
 evalBinOp AndOp _ _ = 1
 
-evalBasicExpr :: (MonadReader ProgramState m) => BasicExpr sizeT -> m [Value]
-evalBasicExpr = undefined
+evalOp :: NAryOp -> [Value] -> Value
+evalOp MultiOrOp = boolToValue . any valueToBool
 
--- -- basic expressions
--- evalExpr VarE{arg} = do
---   v <- lookupS arg
---   return [v]
--- evalExpr ConstE{val} = return [val]
--- evalExpr UnOpE{un_op, arg} = do
---   arg_val <- lookupS arg
---   let ret_val = evalUnOp un_op arg_val
---   return [ret_val]
--- evalExpr BinOpE{bin_op, lhs, rhs} = do
---   lhs_val <- lookupS lhs
---   rhs_val <- lookupS rhs
---   let ret_val = evalBinOp bin_op lhs_val rhs_val
---   return [ret_val]
--- evalExpr TernaryE{branch, lhs, rhs} = do
---   b <- lookupS branch
---   v <- lookupS $ if valueToBool b then lhs else rhs
---   return [v]
+evalBasicExpr :: (MonadReader ProgramState m) => BasicExpr sizeT -> m Value
+evalBasicExpr VarE{var} = Ctx.unsafeLookupE var
+evalBasicExpr ConstE{val} = return val
+evalBasicExpr UnOpE{un_op, operand} = do
+  arg_val <- evalBasicExpr operand
+  return $ evalUnOp un_op arg_val
+evalBasicExpr BinOpE{bin_op, lhs, rhs} = do
+  lhs_val <- evalBasicExpr lhs
+  rhs_val <- evalBasicExpr rhs
+  return $ evalBinOp bin_op lhs_val rhs_val
+evalBasicExpr TernaryE{branch, lhs, rhs} = do
+  b <- evalBasicExpr branch
+  evalBasicExpr $ if valueToBool b then lhs else rhs
+evalBasicExpr NAryE{op, operands} = do
+  vals <- mapM evalBasicExpr operands
+  return $ evalOp op vals
+evalBasicExpr ParamE{} = error "unsupported: parameters"
 
 -- ================================================================================
 -- Evaluating ProtoLang Programs
@@ -137,8 +136,8 @@ evalExpr ::
   Executor primsT SizeT [Value]
 evalExpr BasicExprE{basic_expr} = do
   sigma <- use id
-  let xs = runReader (evalBasicExpr basic_expr) sigma
-  return xs
+  let val = runReader (evalBasicExpr basic_expr) sigma
+  return [val]
 
 -- function calls
 evalExpr FunCallE{fun_kind = FunctionCall fun, args} = do

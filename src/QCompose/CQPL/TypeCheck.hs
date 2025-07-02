@@ -67,7 +67,7 @@ typeCheckStmt AssignS{rets, expr} = do
   actual_ret_tys <-
     case runReaderT ?? gamma $ P.checkBasicExpr expr of
       Left err -> Err.throwErrorMessage err
-      Right tys -> return tys
+      Right ty -> return [ty]
 
   expect_ret_tys <- forM rets $ \var -> do
     view (typingCtx . Ctx.at var)

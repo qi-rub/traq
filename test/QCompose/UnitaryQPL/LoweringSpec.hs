@@ -35,14 +35,14 @@ spec = do
         let expected =
               U.Program
                 { U.proc_defs = Ctx.empty
-                , U.stmt = U.UnitaryS ["x", "y"] $ U.RevEmbedU ["a"] "a"
+                , U.stmt = U.UnitaryS ["x", "y"] $ U.RevEmbedU ["x"] "x"
                 } ::
                 U.Program Void Int Double
 
         actual `shouldBe` expected
 
         toCodeString actual
-          `shouldBe` "x, y *= RevEmbed[x : Fin<10> => x];\n\n"
+          `shouldBe` "x, y *= Embed[(x) => x];\n\n"
 
         gamma `shouldBe` Ctx.fromList [("x", P.Fin 10), ("y", P.Fin 10)]
 

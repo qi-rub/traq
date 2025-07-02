@@ -25,6 +25,7 @@ module QCompose.Data.Context (
 
   -- * Monadic functions
   unsafeLookup,
+  unsafeLookupE,
   lookup,
   lookup',
   unsafePut,
@@ -145,6 +146,9 @@ elems = map snd . toList
 
 unsafeLookup :: (MonadState (Context a) m) => Ident -> m a
 unsafeLookup x = use $ at x . singular _Just
+
+unsafeLookupE :: (MonadReader (Context a) m) => Ident -> m a
+unsafeLookupE x = view $ at x . singular _Just
 
 lookup :: (MonadError String m, MonadState (Context a) m) => Ident -> m a
 lookup x = use (at x) >>= maybeWithError (printf "cannot find variable `%s`" x)
