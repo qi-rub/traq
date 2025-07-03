@@ -1,4 +1,4 @@
-Traq: Estimating Quantum Cost of Classical Programs [![CI](https://github.com/qi-rub/proto-qubrabench/actions/workflows/ci.yml/badge.svg)](https://github.com/qi-rub/proto-qubrabench/actions/workflows/ci.yml)
+Traq: Estimating Quantum Cost of Classical Programs [![CI](https://github.com/qi-rub/hs-traq/actions/workflows/ci.yml/badge.svg)](https://github.com/qi-rub/hs-traq/actions/workflows/ci.yml)
 ================
 
 A Haskell tool to estimate data-dependent expected quantum costs of high-level classical programs.
