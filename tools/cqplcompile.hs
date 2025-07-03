@@ -4,16 +4,16 @@ import qualified Data.Map as Map
 import Options.Applicative
 import Text.Read (readMaybe)
 
-import qualified QCompose.Data.Context as Ctx
-import QCompose.Data.Default
-import qualified QCompose.Data.Symbolic as Sym
+import qualified Traq.Data.Context as Ctx
+import Traq.Data.Default
+import qualified Traq.Data.Symbolic as Sym
 
-import qualified QCompose.CQPL as CQPL
-import QCompose.Prelude
-import qualified QCompose.ProtoLang as P
-import QCompose.Utils.Printing
+import qualified Traq.CQPL as CQPL
+import Traq.Prelude
+import qualified Traq.ProtoLang as P
+import Traq.Utils.Printing
 
-import QCompose.Primitives (DefaultPrims)
+import Traq.Primitives (DefaultPrims)
 
 data Options = Options
   { in_file :: FilePath

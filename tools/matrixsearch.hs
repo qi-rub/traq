@@ -7,17 +7,17 @@ import Control.Monad (forM_)
 import qualified Data.Map as Map
 import Text.Printf (printf)
 
-import qualified QCompose.Data.Context as Ctx
-import qualified QCompose.Data.Symbolic as Sym
+import qualified Traq.Data.Context as Ctx
+import qualified Traq.Data.Symbolic as Sym
 
-import qualified QCompose.CQPL as CQPL
-import QCompose.Prelude
-import qualified QCompose.ProtoLang as P
-import qualified QCompose.UnitaryQPL as UQPL
-import QCompose.Utils.Printing
+import qualified Traq.CQPL as CQPL
+import Traq.Prelude
+import qualified Traq.ProtoLang as P
+import qualified Traq.UnitaryQPL as UQPL
+import Traq.Utils.Printing
 
-import QCompose.Examples.MatrixSearch
-import QCompose.Primitives.Search.Symbolic
+import Traq.Examples.MatrixSearch
+import Traq.Primitives.Search.Symbolic
 
 printDivider :: IO ()
 printDivider = putStrLn $ replicate 80 '='
