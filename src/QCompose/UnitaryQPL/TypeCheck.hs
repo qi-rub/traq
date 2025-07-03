@@ -56,11 +56,11 @@ verifyArgs args tys = do
 
   when (length arg_tys /= length tys) $
     Err.throwErrorMessage $
-      printf "mismatched number of args: expected %d, got %d" (length tys) (length arg_tys)
+      printf "mismatched number of args: inferred %d, actual %d" (length tys) (length arg_tys)
 
   when (arg_tys /= tys) $
     Err.throwErrorMessage $
-      printf "mismatched args: expected %s, got %s" (show tys) (show arg_tys)
+      printf "mismatched args: inferred %s, actual %s" (show tys) (show arg_tys)
 
 unitarySignature :: forall holeT costT sizeT. (TypeCheckable sizeT) => Unitary sizeT -> [VarType sizeT] -> TypeChecker holeT sizeT costT [VarType sizeT]
 unitarySignature Toffoli _ = return [tbool, tbool, tbool]
@@ -88,7 +88,7 @@ unitarySignature (LoadData f) _ = do
   proc_def <- view (_procCtx . Ctx.at f) >>= maybeWithError (Err.MessageE "cannot find function")
   return $ proc_def ^.. to proc_params . traverse . _3
 
-typeCheckStmt :: (Show holeT, TypeCheckable sizeT) => Stmt holeT sizeT -> TypeChecker holeT sizeT costT ()
+typeCheckStmt :: forall holeT sizeT costT. (Show holeT, TypeCheckable sizeT) => Stmt holeT sizeT -> TypeChecker holeT sizeT costT ()
 -- single statements
 typeCheckStmt SkipS = return ()
 typeCheckStmt HoleS{} = return ()

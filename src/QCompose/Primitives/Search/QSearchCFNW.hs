@@ -389,7 +389,7 @@ algoQSearchZalka delta out_bit = do
     writeElem $ UQPL.CommentS ""
     algoQSearchZalkaRandomIterStep (max_iter n)
 
-  let as = ["a" <> show i | i <- [0 .. length out_bits]]
+  let as = ["a" <> show i | i <- [1 .. length out_bits]]
   writeElem $
     UQPL.UnitaryS
       { UQPL.args = out_bits ++ [out_bit]

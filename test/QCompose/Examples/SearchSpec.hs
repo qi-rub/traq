@@ -56,7 +56,7 @@ spec = do
       it "lowers" $ do
         assertRight $ UQPL.lowerProgram default_ default_ uticks delta ex
 
-      fit "typechecks" $ do
+      it "typechecks" $ do
         (ex_uqpl, gamma) <- expectRight $ UQPL.lowerProgram default_ Ctx.empty uticks delta ex
         assertRight $ UQPL.typeCheckProgram gamma ex_uqpl
 
