@@ -158,5 +158,5 @@ jobs:
         with:
           publish_branch: gh-pages
           github_token: ${{ secrets.GITHUB_TOKEN }}
-          publish_dir: ./dist-newstyle/build/x86_64-linux/ghc-8.6.5/qcompose-0.1.0.0/doc/html/
+          publish_dir: ./dist-newstyle/build/x86_64-linux/ghc-8.6.5/traq-*/doc/html/
           force_orphan: true
