@@ -255,6 +255,7 @@ test-suite spec
           QCompose.ProtoLang.TypeCheckSpec
           QCompose.ProtoLang.VarsSpec
           QCompose.UnitaryQPL.LoweringSpec
+          QCompose.UnitaryQPL.TypeCheckSpec
           TestHelpers
     hs-source-dirs:
           test
