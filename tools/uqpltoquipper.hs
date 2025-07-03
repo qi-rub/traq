@@ -12,15 +12,15 @@ import Lens.Micro.Mtl
 import System.IO
 import Text.Printf (printf)
 
-import QCompose.Control.Monad
-import qualified QCompose.Data.Context as Ctx
-import QCompose.Data.Default
-import qualified QCompose.Data.Symbolic as Sym
+import Traq.Control.Monad
+import qualified Traq.Data.Context as Ctx
+import Traq.Data.Default
+import qualified Traq.Data.Symbolic as Sym
 
-import QCompose.Prelude
-import qualified QCompose.ProtoLang as P
-import qualified QCompose.UnitaryQPL as UQPL
-import QCompose.Utils.Printing (toCodeString)
+import Traq.Prelude
+import qualified Traq.ProtoLang as P
+import qualified Traq.UnitaryQPL as UQPL
+import Traq.Utils.Printing (toCodeString)
 
 import qualified Quipper as Q
 import qualified Quipper.Libraries.Qureg as Q

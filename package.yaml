@@ -1,6 +1,6 @@
 spec-version: 0.36.0
 
-name: qcompose
+name: traq
 
 # The package version.
 # See the Haskell package versioning policy (PVP) for standards
@@ -14,10 +14,12 @@ version: 0.1.0.0
 
 author: Anurudh Peduri <anurudhp97@gmail.com>
 maintainer: Anurudh Peduri <anurudhp97@gmail.com>
-synopsis: Proto-Qubrabench
+synopsis: Traq - Estimating Quantum Cost of Classical Programs
 description:
-  A prototype implementation of the `qubrabench` benchmarking library,
-  with a concrete cost semantics and lowerings to various target programs.
+  A prototype implementation of the `Traq` framework,
+  with concrete and symbolic quantum cost analysis of classical programs,
+  and compilation to a classical-quantum target language (CQPL).
+  Provides the formal underpinnings of the qubrabench benchmarking library.
 category: Math
 
 extra-doc-files:
@@ -54,7 +56,7 @@ library:
 _exe_opts: &exe_opts
   source-dirs: tools
   dependencies:
-    - qcompose
+    - traq
     - optparse-applicative ^>= 0.18
     - random
     - random-shuffle
@@ -79,7 +81,7 @@ executables:
     main: uqpltoquipper.hs
     <<: *exe_opts
     dependencies:
-      - qcompose 
+      - traq 
       - optparse-applicative ^>= 0.18
       - quipper-language == 0.9.0.0
       - quipper-libraries == 0.9.0.0
@@ -90,7 +92,7 @@ tests:
       source-dirs:
         - test
       dependencies:
-        - qcompose
+        - traq
         - hspec >= 2.11.0
         - QuickCheck
       cpp-options: -DTEST

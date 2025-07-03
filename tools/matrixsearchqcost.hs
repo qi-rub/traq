@@ -11,14 +11,14 @@ import System.TimeIt (timeIt)
 import Text.Parsec.String (parseFromFile)
 import Text.Printf (printf)
 
-import qualified QCompose.Data.Context as Ctx
-import qualified QCompose.Data.Symbolic as Sym
+import qualified Traq.Data.Context as Ctx
+import qualified Traq.Data.Symbolic as Sym
 
-import QCompose.Prelude
-import QCompose.Primitives (DefaultPrims)
-import qualified QCompose.ProtoLang as P
+import Traq.Prelude
+import Traq.Primitives (DefaultPrims)
+import qualified Traq.ProtoLang as P
 
-import QCompose.Examples.MatrixSearch
+import Traq.Examples.MatrixSearch
 
 printDivider :: IO ()
 printDivider = putStrLn $ replicate 80 '='
