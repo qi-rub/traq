@@ -27,6 +27,7 @@ import QCompose.Control.Monad
 import qualified QCompose.Data.Context as Ctx
 
 import QCompose.Prelude
+import qualified QCompose.ProtoLang as P
 import QCompose.UnitaryQPL.Syntax
 
 -- | Cache the costs of each procedure
@@ -61,12 +62,12 @@ stmtCost (CommentS _) = return 0
 stmtCost UnitaryS{} = return 0
 stmtCost CallS{proc_id} = procCost proc_id
 stmtCost (SeqS ss) = sum <$> mapM stmtCost ss
-stmtCost RepeatS{n_iter = MetaSize k, loop_body} = (fromIntegral k *) <$> stmtCost loop_body
-stmtCost RepeatS{n_iter = MetaValue k, loop_body} = (fromIntegral k *) <$> stmtCost loop_body
-stmtCost RepeatS{n_iter = MetaName _} = fail "unsupported meta parameter substitution"
+stmtCost RepeatS{n_iter = P.MetaSize k, loop_body} = (fromIntegral k *) <$> stmtCost loop_body
+stmtCost RepeatS{n_iter = P.MetaValue k, loop_body} = (fromIntegral k *) <$> stmtCost loop_body
+stmtCost RepeatS{n_iter = P.MetaName _} = fail "unsupported meta parameter substitution"
 stmtCost HoleS{hole} = holeCost hole
-stmtCost ForInRangeS{iter_lim = MetaSize k, loop_body} = (fromIntegral k *) <$> stmtCost loop_body
-stmtCost ForInRangeS{iter_lim = MetaValue k, loop_body} = (fromIntegral k *) <$> stmtCost loop_body
+stmtCost ForInRangeS{iter_lim = P.MetaSize k, loop_body} = (fromIntegral k *) <$> stmtCost loop_body
+stmtCost ForInRangeS{iter_lim = P.MetaValue k, loop_body} = (fromIntegral k *) <$> stmtCost loop_body
 stmtCost ForInRangeS{iter_lim = _} = fail "unsupported meta parameter substitution"
 
 procCost ::

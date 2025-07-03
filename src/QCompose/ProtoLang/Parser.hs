@@ -89,13 +89,13 @@ exprP tp@TokenParser{..} =
     ]
  where
   varE :: Parser (Expr primT SymbSize)
-  varE = VarE <$> identifier
+  varE = BasicExprE . VarE <$> identifier
 
   constE :: Parser (Expr primT SymbSize)
   constE = do
     reserved "const"
     (val, ty) <- typedTerm tp integer
-    return ConstE{val, ty}
+    return $ BasicExprE ConstE{val, ty}
 
   funCallKind :: Parser (FunctionCallKind primT)
   funCallKind = primitiveCall <|> functionCall
@@ -120,8 +120,8 @@ exprP tp@TokenParser{..} =
   unOpE :: Parser (Expr primT SymbSize)
   unOpE = do
     un_op <- unOp
-    arg <- identifier
-    return UnOpE{un_op, arg}
+    operand <- VarE <$> identifier
+    return $ BasicExprE UnOpE{un_op, operand}
 
   binOp :: Parser BinOp
   binOp =
@@ -133,10 +133,10 @@ exprP tp@TokenParser{..} =
 
   binOpE :: Parser (Expr primT SymbSize)
   binOpE = do
-    lhs <- identifier
+    lhs <- VarE <$> identifier
     bin_op <- binOp
-    rhs <- identifier
-    return BinOpE{bin_op, lhs, rhs}
+    rhs <- VarE <$> identifier
+    return $ BasicExprE BinOpE{bin_op, lhs, rhs}
 
 stmtP :: forall primT. (CanParsePrimitive primT) => TokenParser () -> Parser (Stmt primT SymbSize)
 stmtP tp@TokenParser{..} = SeqS <$> (someStmt <|> return [])

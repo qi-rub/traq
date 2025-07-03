@@ -27,4 +27,4 @@ spec = do
       let ex = Sym.unSym <$> ex_
       let ticks = Map.singleton "Oracle" 1.0
       (cq :: Program' SizeT Double, _) <- expectRight $ lowerProgram default_ Ctx.empty ticks ticks eps ex
-      cq ^. to stmt `shouldBe` SeqS [AssignS ["x"] (ConstE 0 (P.Fin 10))]
+      cq ^. to stmt `shouldBe` SeqS [AssignS ["x"] (P.ConstE 0 (P.Fin 10))]

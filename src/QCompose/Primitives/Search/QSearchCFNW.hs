@@ -1,5 +1,6 @@
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE MultiParamTypeClasses #-}
+{-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE UndecidableInstances #-}
 
 {- |
@@ -30,6 +31,7 @@ import Control.Monad (filterM, forM, replicateM, when)
 import Control.Monad.Except (throwError)
 import Control.Monad.Trans (lift)
 import Control.Monad.Writer (censor, listen)
+import Data.String (fromString)
 import Lens.Micro.GHC
 import Lens.Micro.Mtl
 import Text.Parsec (try)
@@ -40,6 +42,7 @@ import qualified QCompose.Data.Context as Ctx
 
 import qualified QCompose.CQPL as CQPL
 import QCompose.Prelude
+import QCompose.ProtoLang (notE, (.&&.), (.+.), (.<=.))
 import qualified QCompose.ProtoLang as P
 import qualified QCompose.UnitaryQPL as UQPL
 import QCompose.Utils.Printing
@@ -353,13 +356,13 @@ algoQSearchZalkaRandomIterStep r = do
       -- controlled iterate
       let meta_ix_name = "LIM"
       let calc_ctrl =
-            UQPL.UnitaryS [r_reg, ctrl_bit] $ UQPL.RevEmbedU $ UQPL.LEqConstF (UQPL.MetaName meta_ix_name) r_ty
+            UQPL.UnitaryS [r_reg, ctrl_bit] $ UQPL.RevEmbedU ["a"] $ "a" .<=. "#LIM"
       ((), grover_body) <-
         censor (const mempty) $
           listen $
             withComputed calc_ctrl $ do
               addGroverIteration ctrl_bit x_reg b_reg
-      writeElem $ UQPL.mkForInRangeS meta_ix_name (UQPL.MetaSize r) (UQPL.SeqS grover_body)
+      writeElem $ UQPL.mkForInRangeS meta_ix_name (P.MetaSize r) (UQPL.SeqS grover_body)
 
   withComputed (UQPL.UnitaryS [ctrl_bit] UQPL.XGate) $
     addPredCall ctrl_bit x_reg b_reg
@@ -386,10 +389,11 @@ algoQSearchZalka delta out_bit = do
     writeElem $ UQPL.CommentS ""
     algoQSearchZalkaRandomIterStep (max_iter n)
 
+  let as = ["a" <> show i | i <- [1 .. length out_bits]]
   writeElem $
     UQPL.UnitaryS
       { UQPL.args = out_bits ++ [out_bit]
-      , UQPL.unitary = UQPL.RevEmbedU $ UQPL.MultiOrF (fromIntegral n_reps)
+      , UQPL.unitary = UQPL.RevEmbedU as $ P.NAryE P.MultiOrOp (map fromString as)
       }
  where
   max_iter :: sizeT -> sizeT
@@ -518,7 +522,7 @@ instance
                         , UQPL.args = args ++ [out_bit] ++ pred_ancilla ++ map fst qsearch_ancilla
                         , UQPL.dagger = False
                         }
-                    , UQPL.UnitaryS [out_bit, ret] (UQPL.RevEmbedU $ UQPL.IdF P.tbool)
+                    , UQPL.UnitaryS [out_bit, ret] (UQPL.RevEmbedU ["a"] "a")
                     , UQPL.CallS
                         { UQPL.proc_id = qsearch_proc_name
                         , UQPL.args = args ++ [out_bit] ++ pred_ancilla ++ map fst qsearch_ancilla
@@ -551,7 +555,7 @@ allocReg prefix ty = do
 groverK ::
   forall holeT sizeT.
   -- | number of rounds
-  UQPL.MetaParam sizeT ->
+  P.MetaParam sizeT ->
   -- | the element and type to search for. @x : T@
   (Ident, P.VarType sizeT) ->
   -- | the output bit
@@ -621,9 +625,9 @@ algoQSearch ty n_samples eps grover_k_caller pred_caller ok = do
   -- classical sampling
   when (n_samples /= 0) $ do
     let classicalSampling =
-          CQPL.WhileKWithCondExpr (CQPL.MetaSize n_samples) not_done (CQPL.NotE $ CQPL.VarE ok) $
+          CQPL.WhileKWithCondExpr (CQPL.MetaSize n_samples) not_done (notE (fromString ok)) $
             CQPL.SeqS
-              [ CQPL.RandomS x (UQPL.MetaSize n)
+              [ CQPL.RandomS x (P.MetaSize n)
               , pred_caller x ok
               ]
     writeElemAt _1 classicalSampling
@@ -634,30 +638,27 @@ algoQSearch ty n_samples eps grover_k_caller pred_caller ok = do
   let quantumGroverOnce =
         CQPL.SeqS
           [ CQPL.RandomDynS j j_lim
-          , CQPL.AssignS [q_sum] (CQPL.AddE (CQPL.VarE q_sum) (CQPL.VarE j))
+          , CQPL.AssignS [q_sum] (fromString q_sum .+. fromString j)
           , CQPL.AssignS
               [not_done]
-              ( CQPL.AndE
-                  (CQPL.VarE not_done)
-                  (CQPL.LEqE (CQPL.VarE q_sum) (CQPL.VarE j_lim))
-              )
+              (fromString not_done .&&. (fromString q_sum .<=. fromString j_lim))
           , CQPL.ifThenS
               not_done
               ( CQPL.SeqS
                   [ grover_k_caller (Right j) x ok
                   , pred_caller x ok
-                  , CQPL.AssignS [not_done] (CQPL.AndE (CQPL.VarE not_done) (CQPL.NotE $ CQPL.VarE ok))
+                  , CQPL.AssignS [not_done] (fromString not_done .&&. fromString ok)
                   ]
               )
           ]
 
   let quantumSamplingOneRound =
         CQPL.SeqS
-          [ CQPL.AssignS [q_sum] (CQPL.ConstE{CQPL.val = 0, CQPL.val_ty = j_type})
+          [ CQPL.AssignS [q_sum] (P.ConstE{P.val = 0, P.ty = j_type})
           , CQPL.ForInArray
               { CQPL.loop_index = j_lim
               , CQPL.loop_index_ty = j_type
-              , CQPL.loop_values = map CQPL.MetaSize sampling_ranges
+              , CQPL.loop_values = [P.ConstE (fromIntegral j) j_type | j <- sampling_ranges]
               , CQPL.loop_body = quantumGroverOnce
               }
           ]
@@ -750,7 +751,7 @@ instance
     uproc_grover_k_name <- CQPL.newIdent "Grover"
     upred_aux_vars <- replicateM (length pred_aux_tys) $ CQPL.newIdent "aux"
     grover_arg_name <- CQPL.newIdent "x"
-    let meta_k = UQPL.MetaName "k"
+    let meta_k = P.MetaName "k"
     let uproc_grover_k_body =
           groverK
             meta_k

@@ -1,3 +1,4 @@
+{-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE TypeApplications #-}
 
 module QCompose.ProtoLang.ParserSpec (spec) where
@@ -21,13 +22,13 @@ spec :: Spec
 spec = do
   describe "parse statement" $ do
     it "parses assign" $ do
-      (parseStmt @Void) "x' <- x" `shouldBe` Right (SeqS [ExprS{rets = ["x'"], expr = VarE{arg = "x"}}])
+      (parseStmt @Void) "x' <- x" `shouldBe` Right (SeqS [ExprS{rets = ["x'"], expr = BasicExprE "x"}])
     it "parses seq assign" $ do
       parseStmt @Void "x' <- x; y' <- const 3 : Fin<4>"
         `shouldBe` Right
           ( SeqS
-              [ ExprS{rets = ["x'"], expr = VarE{arg = "x"}}
-              , ExprS{rets = ["y'"], expr = ConstE{val = 3, ty = Fin (Sym.con 4)}}
+              [ ExprS{rets = ["x'"], expr = BasicExprE "x"}
+              , ExprS{rets = ["y'"], expr = BasicExprE ConstE{val = 3, ty = Fin (Sym.con 4)}}
               ]
           )
     it "parses function call" $ do
@@ -64,7 +65,7 @@ spec = do
                           , body_stmt =
                               SeqS
                                 [ ExprS{rets = ["e"], expr = FunCallE{fun_kind = FunctionCall "Oracle", args = ["i", "j"]}}
-                                , ExprS{rets = ["e'"], expr = UnOpE{un_op = NotOp, arg = "e"}}
+                                , ExprS{rets = ["e'"], expr = BasicExprE UnOpE{un_op = NotOp, operand = "e"}}
                                 ]
                           , ret_names = ["e'"]
                           }

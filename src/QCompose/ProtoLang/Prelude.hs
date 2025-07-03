@@ -2,7 +2,13 @@ module QCompose.ProtoLang.Prelude (
   SizeType,
   CostType,
   PrimitiveType,
+
+  -- * Meta-parameters
+  MetaParam (..),
 ) where
+
+import QCompose.Prelude
+import QCompose.Utils.Printing
 
 -- | The size type (usually some Integral) of a given type.
 type family SizeType p
@@ -12,3 +18,12 @@ type family CostType p
 
 -- | The bag of primitives used by a given type
 type family PrimitiveType p
+
+-- | Compile-time constant parameters
+data MetaParam sizeT = MetaName String | MetaSize sizeT | MetaValue Value
+  deriving (Eq, Show, Read)
+
+instance (Show sizeT) => ToCodeString (MetaParam sizeT) where
+  toCodeString (MetaName n) = "#" ++ n
+  toCodeString (MetaSize n) = show n
+  toCodeString (MetaValue n) = show n

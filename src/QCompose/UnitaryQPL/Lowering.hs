@@ -44,6 +44,7 @@ import Text.Printf (printf)
 import qualified QCompose.Data.Context as Ctx
 import QCompose.Data.Default
 
+import Data.Foldable (Foldable (toList))
 import Data.Maybe (fromMaybe)
 import QCompose.Control.Monad
 import QCompose.Prelude
@@ -158,31 +159,10 @@ lowerExpr ::
   -- | returns
   [Ident] ->
   CompilerT primsT holeT sizeT costT (Stmt holeT sizeT)
--- basic expressions
-lowerExpr _ P.VarE{P.arg} [ret] = do
-  ty <- zoom typingCtx $ Ctx.lookup arg
-  return $ UnitaryS [arg, ret] $ RevEmbedU $ IdF ty
-lowerExpr _ P.ConstE{P.val, P.ty} [ret] =
-  return $ UnitaryS [ret] $ RevEmbedU $ ConstF ty (MetaValue val)
-lowerExpr _ P.UnOpE{P.un_op, P.arg} [ret] = do
-  ty <- zoom typingCtx $ Ctx.lookup arg
-  return $ UnitaryS [arg, ret] $ RevEmbedU $ case un_op of P.NotOp -> NotF ty
-lowerExpr _ P.BinOpE{P.bin_op, P.lhs, P.rhs} [ret] = do
-  ty <- zoom typingCtx $ Ctx.lookup lhs
-  return $
-    UnitaryS [lhs, rhs, ret] $ case bin_op of
-      P.AddOp -> RevEmbedU $ AddF ty
-      P.LEqOp -> RevEmbedU $ LEqF ty
-      P.AndOp -> Toffoli
-lowerExpr _ P.TernaryE{P.branch, P.lhs, P.rhs} [ret] = do
-  ty <- zoom typingCtx $ Ctx.lookup lhs
-  let c_copy = Controlled $ RevEmbedU $ IdF ty
-  return . SeqS $
-    [ UnitaryS [branch] XGate
-    , UnitaryS [branch, lhs, ret] c_copy
-    , UnitaryS [branch] XGate
-    , UnitaryS [branch, rhs, ret] c_copy
-    ]
+-- basic expressions are lowered to their unitary embedding
+lowerExpr _ P.BasicExprE{P.basic_expr} rets = do
+  let args = toList $ P.freeVarsBE basic_expr
+  return $ UnitaryS{args = args ++ rets, unitary = RevEmbedU args basic_expr}
 
 -- function call
 lowerExpr delta P.FunCallE{P.fun_kind = P.FunctionCall fun_name, P.args} rets = do
@@ -206,8 +186,6 @@ lowerExpr delta P.FunCallE{P.fun_kind = P.FunctionCall fun_name, P.args} rets = 
 -- primitive call
 lowerExpr delta P.FunCallE{P.fun_kind = P.PrimitiveCall prim, P.args} rets =
   lowerPrimitive delta prim args rets
--- error out in all other cases
-lowerExpr _ _ _ = throwError "cannot compile unsupported expression"
 
 -- | Compile a statement (simple or compound)
 lowerStmt ::
@@ -369,7 +347,7 @@ lowerFunDef
     let g_args = param_names ++ g_ret_names ++ g_aux_names
 
     ctrl_qubit <- newIdent "ctrl"
-    let copy_op ty = (case with_ctrl of WithControl -> Controlled; _ -> id) (RevEmbedU $ IdF ty)
+    let copy_op ty = (case with_ctrl of WithControl -> Controlled; _ -> id) (RevEmbedU ["a"] (P.VarE "a"))
 
     -- call g, copy and uncompute g
     let proc_body =

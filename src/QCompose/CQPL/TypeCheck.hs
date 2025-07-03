@@ -10,17 +10,21 @@ module QCompose.CQPL.TypeCheck (
 
 import Control.Monad (forM, unless, when)
 import Control.Monad.RWS (local)
+import Control.Monad.Reader (runReaderT)
+import Data.Foldable (toList)
+import Data.List (intersect)
 import Lens.Micro.GHC
 import Lens.Micro.Mtl
 import Text.Printf (printf)
 
 import QCompose.Control.Monad
 import qualified QCompose.Data.Context as Ctx
+import QCompose.Data.Default
 import qualified QCompose.Data.Errors as Err
 
-import Data.List (intersect)
 import QCompose.CQPL.Syntax
-import QCompose.ProtoLang (TypeCheckable (..), TypingCtx, VarType)
+import QCompose.ProtoLang (TypeCheckable (..), TypingCtx)
+import qualified QCompose.ProtoLang as P
 import qualified QCompose.UnitaryQPL as UQPL
 
 -- | Env for type checking
@@ -43,50 +47,6 @@ ensureEqual expected actual err = do
   when (expected /= actual) $ do
     Err.throwErrorMessage $ printf "%s: expected %s, got %s" err (show expected) (show actual)
 
-ensureOne :: (m ~ TypeChecker holeT sizeT costT) => m [a] -> m a
-ensureOne m = do
-  xs <- m
-  case xs of
-    [x] -> return x
-    _ -> Err.throwErrorMessage $ printf "expected one value, got %d" (show (length xs))
-
--- | Check an expression and return the return types
-typeCheckExpr ::
-  forall sizeT costT holeT.
-  (TypeCheckable sizeT, Show holeT) =>
-  Expr sizeT ->
-  TypeChecker holeT sizeT costT [VarType sizeT]
-typeCheckExpr ConstE{val_ty} = return [val_ty]
-typeCheckExpr VarE{var} = do
-  ty <- view (typingCtx . Ctx.at var) >>= maybeWithError (Err.MessageE $ printf "cannot find %s" var)
-  return [ty]
-typeCheckExpr AddE{lhs, rhs} = do
-  lhs_ty <- ensureOne $ typeCheckExpr lhs
-  rhs_ty <- ensureOne $ typeCheckExpr rhs
-  when (lhs_ty /= rhs_ty) $
-    Err.throwErrorMessage $
-      printf "Add: mismatched types %s, %s" (show lhs_ty) (show rhs_ty)
-  return [lhs_ty]
-typeCheckExpr LEqE{lhs, rhs} = do
-  lhs_ty <- ensureOne $ typeCheckExpr lhs
-  rhs_ty <- ensureOne $ typeCheckExpr rhs
-  when (lhs_ty /= rhs_ty) $
-    Err.throwErrorMessage $
-      printf "LEqE: mismatched types %s, %s" (show lhs_ty) (show rhs_ty)
-  return [tbool]
-typeCheckExpr MetaValE{val_ty} = return [val_ty]
-typeCheckExpr AndE{lhs, rhs} = do
-  lhs_ty <- ensureOne $ typeCheckExpr lhs
-  rhs_ty <- ensureOne $ typeCheckExpr rhs
-  ensureEqual lhs_ty rhs_ty $
-    printf "Add: mismatched types %s, %s" (show lhs_ty) (show rhs_ty)
-  return [lhs_ty]
-typeCheckExpr NotE{arg} = do
-  arg_ty <- ensureOne $ typeCheckExpr arg
-  ensureEqual arg_ty tbool $ printf "NotE: must be bool, got %s" (show arg_ty)
-  return [arg_ty]
-typeCheckExpr s = error $ "TODO typeCheckExpr: " <> show s
-
 -- | Check a statement
 typeCheckStmt ::
   forall sizeT costT holeT.
@@ -99,9 +59,21 @@ typeCheckStmt (CommentS _) = return ()
 typeCheckStmt (HoleS _) = return ()
 -- Simple statements
 typeCheckStmt AssignS{rets, expr} = do
+  let expr_vars = toList $ P.freeVarsBE expr
+  expr_var_tys <- forM expr_vars $ \var -> do
+    view (typingCtx . Ctx.at var)
+      >>= maybeWithError (Err.MessageE $ printf "cannot find %s" var)
+  let gamma = Ctx.fromList $ zip expr_vars expr_var_tys
+
+  actual_ret_tys <-
+    case runReaderT ?? gamma $ P.checkBasicExpr expr of
+      Left err -> Err.throwErrorMessage err
+      Right ty -> return [ty]
+
   expect_ret_tys <- forM rets $ \var -> do
-    view (typingCtx . Ctx.at var) >>= maybeWithError (Err.MessageE $ printf "cannot find %s" var)
-  actual_ret_tys <- typeCheckExpr expr
+    view (typingCtx . Ctx.at var)
+      >>= maybeWithError (Err.MessageE $ printf "cannot find %s" var)
+
   when (expect_ret_tys /= actual_ret_tys) $ do
     Err.throwErrorMessage $
       printf
@@ -177,7 +149,8 @@ typeCheckProgram ::
   Program holeT sizeT costT ->
   Either Err.MyError ()
 typeCheckProgram gamma Program{proc_defs, uproc_defs, stmt} = do
-  flip runMyReaderT (uproc_defs, undefined) $ do
+  let uqplTypingEnv = default_ & UQPL._procCtx .~ uproc_defs
+  flip runMyReaderT uqplTypingEnv $ do
     mapM_ UQPL.typeCheckProc $ Ctx.elems uproc_defs
 
   flip runMyReaderT (proc_defs, uproc_defs, undefined) $ do

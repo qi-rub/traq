@@ -36,8 +36,8 @@ symbolicEx = do
   forM_ ["HasAllOnesRow", "IsRowAllOnes", "IsEntryZero"] $ \f -> do
     let stmt =
           P.ExprS
-            { rets = undefined
-            , expr =
+            { P.rets = undefined
+            , P.expr =
                 P.FunCallE
                   { P.fun_kind = P.FunctionCall f
                   , P.args = undefined

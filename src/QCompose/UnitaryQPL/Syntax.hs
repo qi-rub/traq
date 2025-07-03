@@ -2,11 +2,9 @@ module QCompose.UnitaryQPL.Syntax (
   -- * Syntax
 
   -- ** Inbuilt functions and unitaries
-  ClassicalFun (..),
   Unitary (..),
 
   -- ** Statements
-  MetaParam (..),
   Stmt (..),
   holeS,
   Stmt',
@@ -30,33 +28,14 @@ module QCompose.UnitaryQPL.Syntax (
   HasDagger (..),
 ) where
 
+import Data.Void (Void)
 import Text.Printf (printf)
 
 import qualified QCompose.Data.Context as Ctx
 
-import Data.Void (Void)
 import QCompose.Prelude
 import qualified QCompose.ProtoLang as P
 import QCompose.Utils.Printing
-
--- | Compile-time constant parameters
-data MetaParam sizeT = MetaName String | MetaSize sizeT | MetaValue Value
-  deriving (Eq, Show, Read)
-
-instance (Show sizeT) => ToCodeString (MetaParam sizeT) where
-  toCodeString (MetaName n) = "#" ++ n
-  toCodeString (MetaSize n) = show n
-  toCodeString (MetaValue n) = show n
-
-data ClassicalFun sizeT
-  = ConstF {ty :: P.VarType sizeT, val :: MetaParam sizeT} -- () -> val
-  | NotF {ty :: P.VarType sizeT} -- x -> ~x
-  | IdF {ty :: P.VarType sizeT} -- x -> x
-  | AddF {ty :: P.VarType sizeT} -- x, y -> x + y
-  | LEqF {ty :: P.VarType sizeT} -- x, y -> x <= y
-  | LEqConstF {val :: MetaParam sizeT, ty :: P.VarType sizeT} -- x -> x <= val
-  | MultiOrF {cfun_n_args :: sizeT}
-  deriving (Eq, Show, Read)
 
 data Unitary sizeT
   = Toffoli
@@ -69,7 +48,7 @@ data Unitary sizeT
   | UnifDagger (P.VarType sizeT)
   | -- | reflect about |0>_T
     Refl0 (P.VarType sizeT)
-  | RevEmbedU (ClassicalFun sizeT)
+  | RevEmbedU [Ident] (P.BasicExpr sizeT)
   | Controlled (Unitary sizeT)
   deriving (Eq, Show, Read)
 
@@ -85,7 +64,7 @@ instance HasDagger (Unitary sizeT) where
   adjoint XGate = XGate
   adjoint (LoadData f) = LoadData f
   adjoint u@(Refl0 _) = u
-  adjoint u@(RevEmbedU _) = u
+  adjoint u@(RevEmbedU _ _) = u
   adjoint (Controlled u) = Controlled (adjoint u)
 
 data Stmt holeT sizeT
@@ -97,16 +76,16 @@ data Stmt holeT sizeT
     HoleS {hole :: holeT, dagger :: Bool} -- temporary place holder
   | CommentS String
   | -- syntax sugar
-    RepeatS {n_iter :: MetaParam sizeT, loop_body :: Stmt holeT sizeT} -- repeat k do S;
+    RepeatS {n_iter :: P.MetaParam sizeT, loop_body :: Stmt holeT sizeT} -- repeat k do S;
   | ForInRangeS
       { iter_meta_var :: Ident
-      , iter_lim :: MetaParam sizeT
+      , iter_lim :: P.MetaParam sizeT
       , loop_body :: Stmt holeT sizeT
       , dagger :: Bool
       }
   deriving (Eq, Show, Read)
 
-mkForInRangeS :: Ident -> MetaParam sizeT -> Stmt holeT sizeT -> Stmt holeT sizeT
+mkForInRangeS :: Ident -> P.MetaParam sizeT -> Stmt holeT sizeT -> Stmt holeT sizeT
 mkForInRangeS iter_meta_var iter_lim loop_body = ForInRangeS{iter_meta_var, iter_lim, loop_body, dagger = False}
 
 holeS :: holeT -> Stmt holeT sizeT
@@ -165,25 +144,10 @@ desugarS _ = Nothing
 -- Printing
 -- ================================================================================
 
-showTypedIdent :: (Show a) => (String, P.VarType a) -> String
-showTypedIdent (ident, ty) = ident <> " : " <> toCodeString ty
-
-showTypedValue :: (Show a, Show v) => (v, P.VarType a) -> String
-showTypedValue (v, ty) = show v <> " : " <> toCodeString ty
-
-instance (Show a) => ToCodeString (ClassicalFun a) where
-  toCodeString ConstF{val, ty} = "() => " <> showTypedValue (val, ty)
-  toCodeString NotF{ty} = showTypedIdent ("x", ty) <> " => ~x"
-  toCodeString IdF{ty} = showTypedIdent ("x", ty) <> " => x"
-  toCodeString AddF{ty} = showTypedIdent ("x", ty) <> ", " <> showTypedIdent ("y", ty) <> " => x+y"
-  toCodeString LEqF{ty} = showTypedIdent ("x", ty) <> ", " <> showTypedIdent ("y", ty) <> " => x≤y"
-  toCodeString LEqConstF{val, ty} = printf "%s => x≤%s" (showTypedIdent ("x", ty)) (toCodeString val)
-  toCodeString MultiOrF{cfun_n_args} = printf "(x) => OR_%s(x)" (show cfun_n_args)
-
 instance (Show sizeT) => ToCodeString (Unitary sizeT) where
-  toCodeString (RevEmbedU f) = "RevEmbed[" <> toCodeString f <> "]"
+  toCodeString (RevEmbedU xs e) = printf "Embed[(%s) => %s]" (commaList xs) (toCodeString e)
   toCodeString (Unif ty) = "Unif[" <> toCodeString ty <> "]"
-  toCodeString (UnifDagger ty) = "Unif†[" <> toCodeString ty <> "]"
+  toCodeString (UnifDagger ty) = "Adj-Unif[" <> toCodeString ty <> "]"
   toCodeString XGate = "X"
   toCodeString HGate = "H"
   toCodeString (Refl0 ty) = printf "(2|0><0| - I)[%s]" (toCodeString ty)

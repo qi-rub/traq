@@ -1,3 +1,4 @@
+{-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE TypeApplications #-}
 
 module Main where
@@ -51,11 +52,12 @@ unitaryToCirc UQPL.Toffoli [a, b, c] = do
   let [qb] = Q.qulist_of_qureg_te b
   let [qc] = Q.qulist_of_qureg_te c
   Q.gate_X_at qc `Q.controlled` (qa, qb)
-unitaryToCirc (UQPL.RevEmbedU UQPL.IdF{}) [arg, res] =
-  zipWithM_
-    Q.controlled_not_at
-    (Q.qulist_of_qureg_te arg)
-    (Q.qulist_of_qureg_te res)
+unitaryToCirc (UQPL.RevEmbedU [a] (P.VarE a')) [arg, res]
+  | a == a' =
+      zipWithM_
+        Q.controlled_not_at
+        (Q.qulist_of_qureg_te arg)
+        (Q.qulist_of_qureg_te res)
 unitaryToCirc u _ = fail $ "invalid unitary " <> show u
 
 stmtToCirc :: (Show holeT, Show sizeT) => UQPL.Stmt holeT sizeT -> ConverterT holeT sizeT ()

@@ -1,4 +1,5 @@
 module QCompose.ProtoLang.Vars (
+  freeVarsBE,
   VarSet,
   freeVars,
   -- outVars,
@@ -19,13 +20,18 @@ import QCompose.ProtoLang.Syntax
 
 type VarSet = Set.Set Ident
 
+freeVarsBE :: BasicExpr sizeT -> VarSet
+freeVarsBE VarE{var} = Set.singleton var
+freeVarsBE ConstE{} = Set.empty
+freeVarsBE ParamE{} = Set.empty
+freeVarsBE UnOpE{operand} = freeVarsBE operand
+freeVarsBE BinOpE{lhs, rhs} = Set.unions $ map freeVarsBE [lhs, rhs]
+freeVarsBE TernaryE{branch, lhs, rhs} = Set.unions $ map freeVarsBE [branch, lhs, rhs]
+freeVarsBE NAryE{operands} = Set.unions $ map freeVarsBE operands
+
 -- | The set of free (unbound) variables in an expression
 freeVarsE :: Expr primT sizeT -> VarSet
-freeVarsE VarE{arg} = Set.singleton arg
-freeVarsE ConstE{} = Set.empty
-freeVarsE UnOpE{arg} = Set.singleton arg
-freeVarsE BinOpE{lhs, rhs} = Set.fromList [lhs, rhs]
-freeVarsE TernaryE{branch, lhs, rhs} = Set.fromList [branch, lhs, rhs]
+freeVarsE BasicExprE{basic_expr} = freeVarsBE basic_expr
 freeVarsE FunCallE{args} = Set.fromList args
 
 -- | The set of free (unbound) variables

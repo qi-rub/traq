@@ -25,6 +25,7 @@ module QCompose.Data.Context (
 
   -- * Monadic functions
   unsafeLookup,
+  unsafeLookupE,
   lookup,
   lookup',
   unsafePut,
@@ -72,6 +73,12 @@ instance Traversable Context where
    where
     f' (Binding x v) = Binding x <$> f v
 
+instance Semigroup (Context a) where
+  (Context xs) <> (Context ys) = Context (ys ++ xs)
+
+instance Monoid (Context a) where
+  mempty = Context []
+
 _ctx :: Lens' (Context a) [Binding a]
 _ctx focus (Context m) = Context <$> focus m
 
@@ -100,10 +107,10 @@ ix k focus = \(Context m) -> Context <$> go m
 -- Primary Functions
 
 empty :: Context a
-empty = Context []
+empty = mempty
 
 instance HasDefault (Context a) where
-  default_ = empty
+  default_ = mempty
 
 null :: Context a -> Bool
 null (Context m) = Prelude.null m
@@ -121,11 +128,11 @@ merge :: Context a -> Context a -> Context a
 merge (Context m) (Context m') = Context (m' ++ m)
 -- * Conversions
 
-fromList :: [(Ident, a)] -> Context a
-fromList = Context . map (uncurry Binding) . reverse
+fromList :: (Foldable f) => f (Ident, a) -> Context a
+fromList = Context . map (uncurry Binding) . reverse . Foldable.toList
 
-fromListWith :: (a -> Ident) -> [a] -> Context a
-fromListWith f = fromList . map (\a -> (f a, a))
+fromListWith :: (Foldable f) => (a -> Ident) -> f a -> Context a
+fromListWith f = fromList . map (\a -> (f a, a)) . Foldable.toList
 
 toList :: Context a -> [(Ident, a)]
 toList c = reverse $ c ^.. _binds . _binding
@@ -145,6 +152,9 @@ elems = map snd . toList
 
 unsafeLookup :: (MonadState (Context a) m) => Ident -> m a
 unsafeLookup x = use $ at x . singular _Just
+
+unsafeLookupE :: (MonadReader (Context a) m) => Ident -> m a
+unsafeLookupE x = view $ at x . singular _Just
 
 lookup :: (MonadError String m, MonadState (Context a) m) => Ident -> m a
 lookup x = use (at x) >>= maybeWithError (printf "cannot find variable `%s`" x)

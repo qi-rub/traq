@@ -1,3 +1,5 @@
+{-# LANGUAGE OverloadedStrings #-}
+
 module QCompose.UnitaryQPL.LoweringSpec (spec) where
 
 import qualified Data.Map as Map
@@ -16,7 +18,7 @@ spec = do
   describe "lowerStmt" $ do
     it "assign" $
       do
-        let s = P.ExprS{P.rets = ["y"], P.expr = P.VarE{P.arg = "x"}} :: P.Stmt Void Int
+        let s = P.ExprS{P.rets = ["y"], P.expr = P.BasicExprE P.VarE{P.var = "x"}} :: P.Stmt Void Int
 
         (actual, gamma) <-
           expectRight $
@@ -33,14 +35,14 @@ spec = do
         let expected =
               U.Program
                 { U.proc_defs = Ctx.empty
-                , U.stmt = U.UnitaryS ["x", "y"] $ U.RevEmbedU (U.IdF (P.Fin 10))
+                , U.stmt = U.UnitaryS ["x", "y"] $ U.RevEmbedU ["x"] "x"
                 } ::
                 U.Program Void Int Double
 
         actual `shouldBe` expected
 
         toCodeString actual
-          `shouldBe` "x, y *= RevEmbed[x : Fin<10> => x];\n\n"
+          `shouldBe` "x, y *= Embed[(x) => x];\n\n"
 
         gamma `shouldBe` Ctx.fromList [("x", P.Fin 10), ("y", P.Fin 10)]
 

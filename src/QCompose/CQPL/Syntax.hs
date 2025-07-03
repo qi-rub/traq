@@ -5,7 +5,6 @@ module QCompose.CQPL.Syntax (
 
   -- ** Expressions and Statements
   MetaParam (..),
-  Expr (..),
   FunctionCall (..),
   Stmt (..),
 
@@ -21,15 +20,15 @@ module QCompose.CQPL.Syntax (
   desugarS,
 ) where
 
+import Data.Void (Void)
 import Lens.Micro.GHC
 import Text.Printf (printf)
 
 import qualified QCompose.Data.Context as Ctx
 
-import Data.Void (Void)
 import QCompose.Prelude
-import QCompose.ProtoLang (VarType)
-import QCompose.UnitaryQPL (MetaParam (..))
+import QCompose.ProtoLang (MetaParam (..), VarType)
+import qualified QCompose.ProtoLang as P
 import qualified QCompose.UnitaryQPL as UQPL
 import QCompose.Utils.ASTRewriting
 import QCompose.Utils.Printing
@@ -37,19 +36,6 @@ import QCompose.Utils.Printing
 -- ================================================================================
 -- Syntax
 -- ================================================================================
-
--- | Expressions (RHS of an assignment operation)
-data Expr sizeT
-  = ConstE {val :: Value, val_ty :: VarType sizeT}
-  | MetaValE {meta_val :: MetaParam sizeT, val_ty :: VarType sizeT}
-  | VarE {var :: Ident}
-  | AddE {lhs, rhs :: Expr sizeT}
-  | MulE {lhs, rhs :: Expr sizeT}
-  | LEqE {lhs, rhs :: Expr sizeT}
-  | AndE {lhs, rhs :: Expr sizeT}
-  | NotE {arg :: Expr sizeT}
-  | MinE {lhs, rhs :: Expr sizeT}
-  deriving (Eq, Show, Read)
 
 -- | Type of function call
 data FunctionCall
@@ -61,7 +47,7 @@ data FunctionCall
 data Stmt holeT sizeT
   = SkipS
   | CommentS String
-  | AssignS {rets :: [Ident], expr :: Expr sizeT}
+  | AssignS {rets :: [Ident], expr :: P.BasicExpr sizeT}
   | RandomS {ret :: Ident, max_val :: MetaParam sizeT}
   | RandomDynS {ret :: Ident, max_var :: Ident}
   | CallS {fun :: FunctionCall, meta_params :: [Either (MetaParam sizeT) Ident], args :: [Ident]}
@@ -71,8 +57,8 @@ data Stmt holeT sizeT
   | HoleS holeT
   | -- syntax sugar
     WhileK {n_iter :: MetaParam sizeT, cond :: Ident, loop_body :: Stmt holeT sizeT}
-  | WhileKWithCondExpr {n_iter :: MetaParam sizeT, cond :: Ident, cond_expr :: Expr sizeT, loop_body :: Stmt holeT sizeT}
-  | ForInArray {loop_index :: Ident, loop_index_ty :: VarType sizeT, loop_values :: [MetaParam sizeT], loop_body :: Stmt holeT sizeT}
+  | WhileKWithCondExpr {n_iter :: MetaParam sizeT, cond :: Ident, cond_expr :: P.BasicExpr sizeT, loop_body :: Stmt holeT sizeT}
+  | ForInArray {loop_index :: Ident, loop_index_ty :: VarType sizeT, loop_values :: [P.BasicExpr sizeT], loop_body :: Stmt holeT sizeT}
   deriving (Eq, Show, Read)
 
 ifThenS :: Ident -> Stmt holeT sizeT -> Stmt holeT sizeT
@@ -155,7 +141,7 @@ whileKWithCondExpr ::
   -- | loop condition variable
   Ident ->
   -- | loop condition expression
-  Expr sizeT ->
+  P.BasicExpr sizeT ->
   -- | loop body
   Stmt holeT sizeT ->
   Stmt holeT sizeT
@@ -167,11 +153,11 @@ whileKWithCondExpr k cond_var cond_expr body =
  where
   compute_cond = AssignS [cond_var] cond_expr
 
-forInArray :: Ident -> VarType sizeT -> [MetaParam sizeT] -> Stmt holeT sizeT -> Stmt holeT sizeT
-forInArray i ty ix_vals s =
+forInArray :: Ident -> VarType sizeT -> [P.BasicExpr sizeT] -> Stmt holeT sizeT -> Stmt holeT sizeT
+forInArray i _ty ix_vals s =
   SeqS
     [ SeqS
-        [ AssignS{rets = [i], expr = MetaValE v ty}
+        [ AssignS{rets = [i], expr = v}
         , s
         ]
     | v <- ix_vals
@@ -187,22 +173,6 @@ desugarS _ = Nothing
 -- ================================================================================
 -- Code printing
 -- ================================================================================
-
-parenBinExpr :: (Show sizeT) => String -> Expr sizeT -> Expr sizeT -> String
-parenBinExpr op_sym lhs rhs =
-  "(" ++ unwords [toCodeString lhs, op_sym, toCodeString rhs] ++ ")"
-
-instance (Show sizeT) => ToCodeString (Expr sizeT) where
-  toCodeString ConstE{val, val_ty} = show val <> " : " <> toCodeString val_ty
-  toCodeString MetaValE{meta_val} = toCodeString meta_val
-  toCodeString VarE{var} = var
-  toCodeString AddE{lhs, rhs} = parenBinExpr "+" lhs rhs
-  toCodeString MulE{lhs, rhs} = parenBinExpr "*" lhs rhs
-  toCodeString LEqE{lhs, rhs} = parenBinExpr "<=" lhs rhs
-  toCodeString AndE{lhs, rhs} = parenBinExpr "&&" lhs rhs
-  toCodeString NotE{arg} = "!" ++ toCodeString arg
-  toCodeString MinE{lhs, rhs} =
-    "min(" ++ toCodeString lhs ++ ", " ++ toCodeString rhs ++ ")"
 
 instance (Show holeT, Show sizeT) => ToCodeString (Stmt holeT sizeT) where
   toCodeLines SkipS = ["skip;"]

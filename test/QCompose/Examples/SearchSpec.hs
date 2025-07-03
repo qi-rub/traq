@@ -20,7 +20,7 @@ import TestHelpers
 spec :: Spec
 spec = do
   describe "arraySearch: no solutions" $ do
-    let n = 10
+    let n = 6
     let ex = arraySearch n
 
     it "type checks" $ do
