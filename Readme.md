@@ -1,7 +1,7 @@
-Proto-qubrabench [![CI](https://github.com/qi-rub/proto-qubrabench/actions/workflows/ci.yml/badge.svg)](https://github.com/qi-rub/proto-qubrabench/actions/workflows/ci.yml)
+Traq: Estimating Quantum Cost of Classical Programs [![CI](https://github.com/qi-rub/proto-qubrabench/actions/workflows/ci.yml/badge.svg)](https://github.com/qi-rub/proto-qubrabench/actions/workflows/ci.yml)
 ================
 
-A Haskell implementation of the proto-qubrabench language, along with its cost models and lowerings.
+A Haskell tool to estimate data-dependent expected quantum costs of high-level classical programs.
 
 Install
 -------
