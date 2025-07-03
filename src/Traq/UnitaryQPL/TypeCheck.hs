@@ -117,6 +117,7 @@ typeCheckStmt ForInRangeS{iter_meta_var, iter_lim, loop_body} = do
         _ -> error "unsupported loop limit"
   local (P._typingCtx . Ctx.ins ('#' : iter_meta_var) .~ iter_lim_ty) $ do
     typeCheckStmt' loop_body
+typeCheckStmt WithComputedS{with_stmt, body_stmt} = mapM_ typeCheckStmt' [with_stmt, body_stmt]
 
 typeCheckStmt' :: (Show holeT, TypeCheckable sizeT) => Stmt holeT sizeT -> TypeChecker holeT sizeT costT ()
 typeCheckStmt' s = do

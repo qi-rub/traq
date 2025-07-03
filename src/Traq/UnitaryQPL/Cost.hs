@@ -69,6 +69,10 @@ stmtCost HoleS{hole} = holeCost hole
 stmtCost ForInRangeS{iter_lim = P.MetaSize k, loop_body} = (fromIntegral k *) <$> stmtCost loop_body
 stmtCost ForInRangeS{iter_lim = P.MetaValue k, loop_body} = (fromIntegral k *) <$> stmtCost loop_body
 stmtCost ForInRangeS{iter_lim = _} = fail "unsupported meta parameter substitution"
+stmtCost WithComputedS{with_stmt, body_stmt} = do
+  wc <- stmtCost with_stmt
+  bc <- stmtCost body_stmt
+  return $ 2 * wc + bc
 
 procCost ::
   ( Integral sizeT

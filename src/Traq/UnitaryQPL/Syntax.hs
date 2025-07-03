@@ -83,6 +83,7 @@ data Stmt holeT sizeT
       , loop_body :: Stmt holeT sizeT
       , dagger :: Bool
       }
+  | WithComputedS {with_stmt, body_stmt :: Stmt holeT sizeT}
   deriving (Eq, Show, Read)
 
 mkForInRangeS :: Ident -> P.MetaParam sizeT -> Stmt holeT sizeT -> Stmt holeT sizeT
@@ -103,6 +104,7 @@ instance HasDagger (Stmt holeT sizeT) where
   adjoint (RepeatS k s) = RepeatS k (adjoint s)
   adjoint (HoleS info dagger) = HoleS info (not dagger)
   adjoint s@ForInRangeS{dagger} = s{dagger = not dagger}
+  adjoint s@WithComputedS{body_stmt} = s{body_stmt = adjoint body_stmt}
 
 data ParamTag = ParamCtrl | ParamInp | ParamOut | ParamAux | ParamUnk deriving (Eq, Show, Read, Enum)
 
@@ -138,6 +140,7 @@ type Program' = Program Void
 -- ================================================================================
 
 desugarS :: Stmt holeT sizeT -> Maybe (Stmt holeT sizeT)
+desugarS WithComputedS{with_stmt, body_stmt} = Just $ SeqS [with_stmt, body_stmt, adjoint with_stmt]
 desugarS _ = Nothing
 
 -- ================================================================================
@@ -183,12 +186,8 @@ instance (Show holeT, Show sizeT) => ToCodeString (Stmt holeT sizeT) where
     range_str
       | dagger = printf "%s - 1 .. 0" (toCodeString iter_lim)
       | otherwise = printf "0 .. < %s" (toCodeString iter_lim)
-
--- { iter_meta_var :: Ident
--- , iter_lim :: MetaParam sizeT
--- , loop_body :: Stmt holeT sizeT
--- , dagger :: Bool
--- }
+  toCodeLines WithComputedS{with_stmt, body_stmt} =
+    "with {" : indent (toCodeLines with_stmt) ++ ["} do {"] ++ indent (toCodeLines body_stmt) ++ ["}"]
 
 instance ToCodeString ParamTag where
   toCodeString ParamCtrl = "CTRL"
