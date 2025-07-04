@@ -1,3 +1,4 @@
+{-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE TypeApplications #-}
 
 module Main (main) where
@@ -23,28 +24,44 @@ import Traq.Examples.MatrixSearch
 printDivider :: IO ()
 printDivider = putStrLn $ replicate 80 '='
 
-matToBinFun :: [[Value]] -> ([Value] -> [Value])
-matToBinFun mat [i, j] = [mat !! fromIntegral i !! fromIntegral j]
-matToBinFun _ _ = error "unsupported"
+class MatrixType t where
+  nRows, nCols :: t -> Int
+
+  toValueFun :: t -> [Value] -> [Value]
+
+instance MatrixType (Value, Value, Value -> Value -> Bool) where
+  nRows (n, _, _) = fromIntegral n
+  nCols (_, m, _) = fromIntegral m
+
+  toValueFun (_, _, mat) [i, j] = [if mat i j then 1 else 0]
+  toValueFun _ _ = error "unsupported"
+
+instance MatrixType [[Value]] where
+  nRows mat = length mat
+  nCols mat = length $ head mat
+
+  toValueFun mat [i, j] = [mat !! fromIntegral i !! fromIntegral j]
+  toValueFun _ _ = error "unsupported"
 
 -- | Get the input-dependent quantum query cost.
 qcost ::
+  (MatrixType matT) =>
   -- | eps (max. fail probability)
   Double ->
   -- | matrix
-  [[Value]] ->
+  matT ->
   Double
 qcost eps mat = cost
  where
-  n = length mat
-  m = length $ head mat
+  n = nRows mat
+  m = nCols mat
 
   ex = matrixExampleS n m
 
-  dataCtx = Ctx.singleton "Oracle" (matToBinFun mat)
+  dataCtx = Ctx.singleton "Oracle" (toValueFun mat)
   ticks = mempty & at "Oracle" ?~ 1.0
 
-  cost = P.quantumQueryCostBound P.SplitSimple eps ex ticks ticks dataCtx Ctx.empty
+  cost = P.quantumQueryCost P.SplitUsingNeedsEps eps ex ticks ticks dataCtx Ctx.empty
 
 randomMatrix :: SizeT -> SizeT -> IO [[Value]]
 randomMatrix n m = do
@@ -98,6 +115,20 @@ computeStatsForPlantedRandomMatrices =
           let c = qcost eps mat
           hPutStrLn h $ printf "%f,%d,%d,%d,%d,%.2f" eps n m g z c
 
+computeStatsForWorstCaseMatrices :: IO ()
+computeStatsForWorstCaseMatrices =
+  withFile "examples/matrix_search/stats/worstcase.csv" WriteMode $ \h -> do
+    hPutStrLn h "n,cost"
+    let eps = 0.001
+    forM_ ((10 :: Value) : [500, 1000 .. 4000]) $ \n -> do
+      putStrLn $ ">> n = " <> show n
+      let m = n
+      let c = qcost eps (n, m, matfun)
+      hPutStrLn h $ printf "%d,%.2f" n c
+ where
+  matfun :: Value -> Value -> Bool
+  matfun i _ = i == 0
+
 computeStatsForWorstCaseExample :: IO ()
 computeStatsForWorstCaseExample = do
   Right sprog <- parseFromFile (P.programParser @DefaultPrims) "examples/matrix_search/worstcase.qb"
@@ -110,7 +141,7 @@ computeStatsForWorstCaseExample = do
     forM_ (10 : [500, 1000 .. 10000]) $ \n -> do
       let ex = getprog n
       let ticks = mempty & at "Oracle" ?~ 1.0
-      let c = P.quantumQueryCostBound P.SplitSimple eps ex ticks ticks Ctx.empty Ctx.empty
+      let c = P.quantumQueryCost P.SplitSimple eps ex ticks ticks Ctx.empty Ctx.empty
       hPutStrLn h $ printf "%d,%.2f" n c
 
 triangular :: IO ()
@@ -127,7 +158,7 @@ triangular = do
       putStrLn $ printf "running n: %d" n
       let ex = getprog n
       let ticks = mempty & at "Oracle" ?~ 1.0
-      let c = P.quantumQueryCostBound P.SplitSimple eps ex ticks ticks Ctx.empty Ctx.empty
+      let c = P.quantumQueryCost P.SplitSimple eps ex ticks ticks Ctx.empty Ctx.empty
       hPutStrLn h $ printf "%d,%.2f" n c
       putStrLn $ printf "cost: %.2f, ratio: %f" c (c / fromIntegral (n ^ (2 :: Int)))
 
@@ -143,8 +174,7 @@ main = do
 
   -- computeStatsForRandomMatrices
   -- computeStatsForPlantedRandomMatrices
-
-  timeIt computeStatsForWorstCaseExample
-
+  timeIt computeStatsForWorstCaseMatrices
+  -- timeIt computeStatsForWorstCaseExample
   -- timeIt triangular
   putStrLn "done"
