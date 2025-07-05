@@ -200,7 +200,7 @@ lowerStmt ::
   CompilerT primsT holeT sizeT costT (Stmt holeT sizeT)
 -- single statement
 lowerStmt delta s@P.ExprS{P.rets, P.expr} = do
-  censored . magnify P._funCtx . zoom typingCtx $ P.checkStmt s
+  censored . magnify P._funCtx . zoom typingCtx $ P.typeCheckStmt s
   lowerExpr delta expr rets
 
 -- compound statements

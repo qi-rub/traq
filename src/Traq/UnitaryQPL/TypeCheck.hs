@@ -78,7 +78,7 @@ unitarySignature (RevEmbedU xs e) arg_tys = do
     forM all_gamma $ \(x, ty) ->
       when (head x == '#') $
         Ctx.ins x .= ty
-  let res = runReaderT (P.checkBasicExpr e) gamma'
+  let res = runReaderT (P.typeCheckBasicExpr e) gamma'
   case res of
     Left err -> Err.throwErrorMessage err
     Right ret_ty -> return $ in_tys ++ [ret_ty]

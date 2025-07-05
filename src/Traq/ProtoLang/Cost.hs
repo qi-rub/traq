@@ -24,9 +24,9 @@ module Traq.ProtoLang.Cost (
   quantumQueryCostBound,
 
   -- * Types and Monad
-  UnitaryCostEnv (..),
-  QuantumMaxCostEnv (..),
-  QuantumCostEnv (..),
+  UnitaryCostEnv,
+  QuantumMaxCostEnv,
+  QuantumCostEnv,
 
   -- ** Data Types
   OracleTicks,

@@ -66,7 +66,7 @@ typeCheckStmt AssignS{rets, expr} = do
   let gamma = Ctx.fromList $ zip expr_vars expr_var_tys
 
   actual_ret_tys <-
-    case runReaderT ?? gamma $ P.checkBasicExpr expr of
+    case runReaderT ?? gamma $ P.typeCheckBasicExpr expr of
       Left err -> Err.throwErrorMessage err
       Right ty -> return [ty]
 

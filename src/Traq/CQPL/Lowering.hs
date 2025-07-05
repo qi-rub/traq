@@ -32,6 +32,7 @@ import Text.Printf (printf)
 
 import Traq.Control.Monad
 import qualified Traq.Data.Context as Ctx
+import Traq.Data.Default
 
 import Traq.CQPL.Syntax
 import Traq.Prelude
@@ -217,7 +218,7 @@ lowerStmt ::
   CompilerT primsT holeT sizeT costT (Stmt holeT sizeT)
 -- single statement
 lowerStmt eps s@P.ExprS{P.rets, P.expr} = do
-  censored . magnify P._funCtx . zoom typingCtx $ P.checkStmt s
+  censored . magnify P._funCtx . zoom typingCtx $ P.typeCheckStmt s
   lowerExpr eps expr rets
 
 -- compound statements
@@ -252,7 +253,12 @@ lowerProgram strat gamma_in uticks cticks eps prog@P.Program{P.funCtx, P.stmt} =
   unless (P.checkVarsUnique prog) $
     throwError "program does not have unique variables!"
 
-  let config = P.QuantumMaxCostEnv (P.UnitaryCostEnv funCtx uticks strat) cticks
+  let config =
+        default_
+          & (P._funCtx .~ funCtx)
+          & (P._unitaryTicks .~ uticks)
+          & (P._classicalTicks .~ cticks)
+          & (P._precSplitStrat .~ strat)
   let lowering_ctx =
         emptyLoweringCtx
           & (typingCtx .~ gamma_in)
