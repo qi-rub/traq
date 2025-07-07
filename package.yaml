@@ -47,6 +47,7 @@ default-extensions:
   - RankNTypes
   - FlexibleContexts
   - TypeFamilies
+  - TypeOperators
 
 library:
   source-dirs: src

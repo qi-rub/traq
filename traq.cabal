@@ -70,6 +70,7 @@ library
       RankNTypes
       FlexibleContexts
       TypeFamilies
+      TypeOperators
       Safe
   ghc-options: -Wall
   build-depends:
@@ -96,6 +97,7 @@ executable cqplcompile
       RankNTypes
       FlexibleContexts
       TypeFamilies
+      TypeOperators
       RecordWildCards
   ghc-options: -Wall
   build-depends:
@@ -127,6 +129,7 @@ executable matrixsearch
       RankNTypes
       FlexibleContexts
       TypeFamilies
+      TypeOperators
       RecordWildCards
   ghc-options: -Wall
   build-depends:
@@ -158,6 +161,7 @@ executable matrixsearchqcost
       RankNTypes
       FlexibleContexts
       TypeFamilies
+      TypeOperators
       RecordWildCards
   ghc-options: -Wall
   build-depends:
@@ -189,6 +193,7 @@ executable uqplcompile
       RankNTypes
       FlexibleContexts
       TypeFamilies
+      TypeOperators
       RecordWildCards
   ghc-options: -Wall
   build-depends:
@@ -239,6 +244,7 @@ test-suite spec
       RankNTypes
       FlexibleContexts
       TypeFamilies
+      TypeOperators
   ghc-options: -Wall
   cpp-options: -DTEST
   build-tool-depends:
