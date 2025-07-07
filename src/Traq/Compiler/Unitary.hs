@@ -1,7 +1,7 @@
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE MultiParamTypeClasses #-}
 
-module Traq.UnitaryQPL.Lowering (
+module Traq.Compiler.Unitary (
   -- * Types
   CompilerT,
 
@@ -17,9 +17,6 @@ module Traq.UnitaryQPL.Lowering (
   allocAncilla,
   ControlFlag (..),
 
-  -- ** Lenses
-  typingCtx,
-
   -- * Compilation
   Lowerable (..),
   LoweredProc (..),
@@ -32,10 +29,9 @@ module Traq.UnitaryQPL.Lowering (
   withTag,
 ) where
 
-import Control.Monad (forM, msum, unless, when, zipWithM)
+import Control.Monad (forM, unless, when, zipWithM)
 import Control.Monad.Except (throwError)
 import Data.List (intersect)
-import qualified Data.Set as Set
 import Data.Void (Void, absurd)
 import Lens.Micro.GHC
 import Lens.Micro.Mtl
@@ -46,6 +42,7 @@ import Traq.Data.Default
 
 import Data.Foldable (Foldable (toList))
 import Data.Maybe (fromMaybe)
+import Traq.Compiler.Utils
 import Traq.Control.Monad
 import Traq.Prelude
 import qualified Traq.ProtoLang as P
@@ -53,17 +50,6 @@ import Traq.UnitaryQPL.Syntax
 
 -- | Configuration for lowering
 type LoweringConfig primT sizeT costT = P.UnitaryCostEnv primT sizeT costT
-
-{- | A global lowering context storing the source functions and generated procedures
- along with info to generate unique ancilla and variable/procedure names
--}
-type LoweringCtx sizeT = (Set.Set Ident, P.TypingCtx sizeT)
-
-uniqNames :: Lens' (LoweringCtx sizeT) (Set.Set Ident)
-uniqNames = _1
-
-typingCtx :: Lens' (LoweringCtx sizeT) (P.TypingCtx sizeT)
-typingCtx = _2
 
 -- | The outputs of lowering
 type LoweringOutput holeT sizeT costT = [ProcDef holeT sizeT costT]
@@ -89,7 +75,7 @@ class
     [Ident] ->
     -- | rets
     [Ident] ->
-    CompilerT primsT holeT sizeT costT (Stmt holeT sizeT)
+    CompilerT primsT holeT sizeT costT (UStmt holeT sizeT)
 
 instance (Show costT) => Lowerable primsT Void holeT sizeT costT where
   lowerPrimitive _ = absurd
@@ -98,26 +84,11 @@ instance (Show costT) => Lowerable primsT Void holeT sizeT costT where
 -- Helpers
 -- ================================================================================
 
-newIdent :: Ident -> CompilerT primT holeT sizeT costT Ident
-newIdent prefix = do
-  ident <-
-    msum . map checked $
-      prefix : map ((prefix <>) . ("_" <>) . show) [1 :: Int ..]
-  uniqNames . at ident ?= ()
-  return ident
- where
-  checked :: Ident -> CompilerT primT holeT sizeT costT Ident
-  checked name = do
-    already_exists <- use (uniqNames . at name)
-    case already_exists of
-      Nothing -> return name
-      Just () -> throwError "next ident please!"
-
 -- | Allocate an ancilla register, and update the typing context.
 allocAncillaWithPref :: Ident -> P.VarType sizeT -> CompilerT primT holeT sizeT costT Ident
 allocAncillaWithPref pref ty = do
   name <- newIdent pref
-  zoom typingCtx $ Ctx.put name ty
+  zoom P._typingCtx $ Ctx.put name ty
   return name
 
 -- | Allocate an ancilla register @aux_<<n>>@, and update the typing context.
@@ -158,7 +129,7 @@ lowerExpr ::
   P.Expr primsT sizeT ->
   -- | returns
   [Ident] ->
-  CompilerT primsT holeT sizeT costT (Stmt holeT sizeT)
+  CompilerT primsT holeT sizeT costT (UStmt holeT sizeT)
 -- basic expressions are lowered to their unitary embedding
 lowerExpr _ P.BasicExprE{P.basic_expr} rets = do
   let args = toList $ P.freeVarsBE basic_expr
@@ -178,7 +149,7 @@ lowerExpr delta P.FunCallE{P.fun_kind = P.FunctionCall fun_name, P.args} rets = 
 
   aux_args <- forM aux_tys allocAncilla
   return
-    CallS
+    UCallS
       { proc_id = proc_name lowered_def
       , args = args ++ rets ++ aux_args
       , dagger = False
@@ -197,16 +168,16 @@ lowerStmt ::
   ) =>
   costT ->
   P.Stmt primsT sizeT ->
-  CompilerT primsT holeT sizeT costT (Stmt holeT sizeT)
+  CompilerT primsT holeT sizeT costT (UStmt holeT sizeT)
 -- single statement
 lowerStmt delta s@P.ExprS{P.rets, P.expr} = do
-  censored . magnify P._funCtx . zoom typingCtx $ P.typeCheckStmt s
+  censored . magnify P._funCtx . zoom P._typingCtx $ P.typeCheckStmt s
   lowerExpr delta expr rets
 
 -- compound statements
 lowerStmt delta (P.SeqS ss) = do
   deltas <- P.splitEps delta ss
-  SeqS <$> zipWithM lowerStmt deltas ss
+  USeqS <$> zipWithM lowerStmt deltas ss
 
 -- unsupported
 lowerStmt _ _ = error "lowering: unsupported"
@@ -232,7 +203,33 @@ lowerFunDefWithGarbage ::
   -- | function
   P.FunDef primsT sizeT ->
   CompilerT primsT holeT sizeT costT (LoweredProc holeT sizeT costT)
-lowerFunDefWithGarbage _ _ P.FunDef{P.mbody = Nothing} = error "TODO"
+lowerFunDefWithGarbage _ fun_name P.FunDef{P.param_types, P.ret_types, P.mbody = Nothing} = do
+  let param_names = map (printf "in_%d") [0 .. length param_types - 1]
+  let ret_names = map (printf "out_%d") [0 .. length ret_types - 1]
+  tick <- view $ P._unitaryTicks . at fun_name . to (fromMaybe 0)
+
+  proc_name <- newIdent fun_name
+
+  let proc_def =
+        UProcDef
+          { info_comment = ""
+          , proc_name
+          , proc_meta_params = []
+          , proc_params =
+              withTag ParamInp (zip param_names param_types)
+                ++ withTag ParamOut (zip ret_names ret_types)
+          , proc_body_or_tick = Left tick
+          }
+
+  addProc proc_def
+  return
+    LoweredProc
+      { lowered_def = proc_def
+      , has_ctrl = False
+      , inp_tys = param_types
+      , out_tys = ret_types
+      , aux_tys = []
+      }
 lowerFunDefWithGarbage
   delta
   fun_name
@@ -242,21 +239,29 @@ lowerFunDefWithGarbage
     , P.mbody =
       Just P.FunBody{P.param_names, P.ret_names, P.body_stmt}
     } =
-    withSandboxOf typingCtx $ do
-      proc_name <- newIdent $ printf "%s[%s]" fun_name (show delta)
+    withSandboxOf P._typingCtx $ do
+      proc_name <- newIdent fun_name
+      let info_comment = printf "%s[%s]" fun_name (show delta)
 
       let param_binds = zip param_names param_types
       let ret_binds = zip ret_names ret_types
 
-      typingCtx .= Ctx.fromList param_binds
+      P._typingCtx .= Ctx.fromList param_binds
       proc_body <- lowerStmt delta body_stmt
       when (param_names `intersect` ret_names /= []) $
         throwError "function should not return parameters!"
 
-      aux_binds <- use typingCtx <&> Ctx.toList <&> filter (not . (`elem` param_names ++ ret_names) . fst)
+      aux_binds <- use P._typingCtx <&> Ctx.toList <&> filter (not . (`elem` param_names ++ ret_names) . fst)
       let all_binds = withTag ParamInp param_binds ++ withTag ParamOut ret_binds ++ withTag ParamAux aux_binds
 
-      let procDef = ProcDef{proc_name, proc_meta_params = [], proc_params = all_binds, proc_body_or_tick = Right proc_body}
+      let procDef =
+            UProcDef
+              { info_comment
+              , proc_name
+              , proc_meta_params = []
+              , proc_params = all_binds
+              , proc_body_or_tick = Right proc_body
+              }
       addProc procDef
 
       return
@@ -294,33 +299,6 @@ lowerFunDef ::
   -- | function
   P.FunDef primsT sizeT ->
   CompilerT primsT holeT sizeT costT (LoweredProc holeT sizeT costT)
--- lower a declaration as-is, we treat all declarations as perfect data oracles (so delta is ignored).
-lowerFunDef with_ctrl _ fun_name P.FunDef{P.param_types, P.ret_types, P.mbody = Nothing} = do
-  let param_names = map (printf "in_%d") [0 .. length param_types]
-  let ret_names = map (printf "out_%d") [0 .. length ret_types]
-  tick <- view $ P._unitaryTicks . at fun_name . to (fromMaybe 0)
-
-  ctrl_qubit <- newIdent "ctrl"
-  let proc_def =
-        ProcDef
-          { proc_name = (case with_ctrl of WithControl -> "Ctrl_"; _ -> "") ++ fun_name
-          , proc_meta_params = []
-          , proc_params =
-              [(ctrl_qubit, ParamCtrl, P.tbool) | with_ctrl == WithControl]
-                ++ withTag ParamInp (zip param_names param_types)
-                ++ withTag ParamOut (zip ret_names ret_types)
-          , proc_body_or_tick = Left tick
-          }
-
-  addProc proc_def
-  return
-    LoweredProc
-      { lowered_def = proc_def
-      , has_ctrl = with_ctrl == WithControl
-      , inp_tys = param_types
-      , out_tys = ret_types
-      , aux_tys = []
-      }
 lowerFunDef
   with_ctrl
   delta
@@ -328,17 +306,25 @@ lowerFunDef
   fun@P.FunDef
     { P.param_types
     , P.ret_types
-    , P.mbody = Just P.FunBody{P.param_names, P.ret_names}
-    } = withSandboxOf typingCtx $ do
+    , P.mbody
+    } = withSandboxOf P._typingCtx $ do
     -- get the proc call that computes with garbage
     LoweredProc{lowered_def, aux_tys = g_aux_tys, out_tys = g_ret_tys} <- lowerFunDefWithGarbage (delta / 2) fun_name fun
     let g_dirty_name = lowered_def ^. to proc_name
 
+    let param_names = case mbody of
+          Just P.FunBody{P.param_names} -> param_names
+          Nothing -> map (printf "in_%d") [0 .. length param_types - 1]
+    let ret_names = case mbody of
+          Just P.FunBody{P.ret_names} -> ret_names
+          Nothing -> map (printf "out_%d") [0 .. length ret_types - 1]
+
     let param_binds = zip param_names param_types
     let ret_binds = zip ret_names ret_types
 
-    typingCtx .= Ctx.fromList (param_binds ++ ret_binds)
-    proc_name <- newIdent $ printf "%s%s_clean[%s]" (case with_ctrl of WithControl -> "Ctrl_"; _ -> "") fun_name (show delta)
+    P._typingCtx .= Ctx.fromList (param_binds ++ ret_binds)
+    proc_name <- newIdent fun_name
+    let info_comment = printf "%sClean[%s, %s]" (case with_ctrl of WithControl -> "Ctrl_"; _ -> "") fun_name (show delta)
 
     g_ret_names <- mapM allocAncilla g_ret_tys
 
@@ -347,22 +333,23 @@ lowerFunDef
     let g_args = param_names ++ g_ret_names ++ g_aux_names
 
     ctrl_qubit <- newIdent "ctrl"
-    let copy_op ty = (case with_ctrl of WithControl -> Controlled; _ -> id) (RevEmbedU ["a"] (P.VarE "a"))
+    let copy_op = (case with_ctrl of WithControl -> Controlled; _ -> id) (RevEmbedU ["a"] (P.VarE "a"))
 
     -- call g, copy and uncompute g
     let proc_body =
-          SeqS
-            [ CallS{proc_id = g_dirty_name, dagger = False, args = g_args}
-            , SeqS -- copy all the return values
-                [ UnitaryS ([ctrl_qubit | with_ctrl == WithControl] ++ [x, x']) (copy_op ty)
-                | (x, x', ty) <- zip3 g_ret_names ret_names g_ret_tys
+          USeqS
+            [ UCallS{proc_id = g_dirty_name, dagger = False, args = g_args}
+            , USeqS -- copy all the return values
+                [ UnitaryS ([ctrl_qubit | with_ctrl == WithControl] ++ [x, x']) copy_op
+                | (x, x') <- zip g_ret_names ret_names
                 ]
-            , CallS{proc_id = g_dirty_name, dagger = True, args = g_args}
+            , UCallS{proc_id = g_dirty_name, dagger = True, args = g_args}
             ]
 
     let proc_def =
-          ProcDef
-            { proc_name
+          UProcDef
+            { info_comment
+            , proc_name
             , proc_meta_params = []
             , proc_params =
                 [(ctrl_qubit, ParamCtrl, P.tbool) | with_ctrl == WithControl]
@@ -408,8 +395,8 @@ lowerProgram strat gamma_in oracle_ticks delta prog@P.Program{P.funCtx, P.stmt} 
           & (P._precSplitStrat .~ strat)
   let ctx =
         default_
-          & (typingCtx .~ gamma_in)
-          & (uniqNames .~ P.allNamesP prog)
+          & (P._typingCtx .~ gamma_in)
+          & (_uniqNamesCtx .~ P.allNamesP prog)
   let compiler = lowerStmt delta stmt
   (stmtU, ctx', outputU) <- runMyReaderWriterStateT compiler config ctx
   return
@@ -417,5 +404,5 @@ lowerProgram strat gamma_in oracle_ticks delta prog@P.Program{P.funCtx, P.stmt} 
         { proc_defs = outputU ^. loweredProcs . to (Ctx.fromListWith proc_name)
         , stmt = stmtU
         }
-    , ctx' ^. typingCtx
+    , ctx' ^. P._typingCtx
     )

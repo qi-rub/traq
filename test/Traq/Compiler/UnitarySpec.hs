@@ -1,11 +1,12 @@
 {-# LANGUAGE OverloadedStrings #-}
 
-module Traq.UnitaryQPL.LoweringSpec (spec) where
+module Traq.Compiler.UnitarySpec (spec) where
 
 import qualified Data.Map as Map
 import Data.Void (Void)
 import qualified Traq.Data.Context as Ctx
 
+import Traq.Compiler.Unitary
 import qualified Traq.ProtoLang as P
 import qualified Traq.UnitaryQPL as U
 import Traq.Utils.Printing
@@ -22,7 +23,7 @@ spec = do
 
         (actual, gamma) <-
           expectRight $
-            U.lowerProgram
+            lowerProgram
               P.SplitSimple
               (Ctx.singleton "x" (P.Fin 10))
               (Map.singleton "Oracle" 1.0)

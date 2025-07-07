@@ -1,7 +1,7 @@
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE MultiParamTypeClasses #-}
 
-module Traq.CQPL.Lowering (
+module Traq.Compiler.Quantum (
   -- * Compilation
   lowerProgram,
   newIdent,
@@ -16,15 +16,13 @@ module Traq.CQPL.Lowering (
   -- * Lenses
   loweredProcs,
   loweredUProcs,
-  typingCtx,
 
   -- * Primitive implementations
   Lowerable (..),
 ) where
 
-import Control.Monad (msum, unless, zipWithM)
+import Control.Monad (unless, zipWithM)
 import Control.Monad.Except (throwError)
-import qualified Data.Set as Set
 import Data.Void (Void, absurd)
 import Lens.Micro.GHC
 import Lens.Micro.Mtl
@@ -35,26 +33,14 @@ import qualified Traq.Data.Context as Ctx
 import Traq.Data.Default
 
 import Traq.CQPL.Syntax
+import qualified Traq.Compiler.Unitary as UQPL
+import Traq.Compiler.Utils
 import Traq.Prelude
 import qualified Traq.ProtoLang as P
 import qualified Traq.UnitaryQPL as UQPL
 
 -- | Configuration for lowering
 type LoweringEnv primT sizeT costT = P.QuantumMaxCostEnv primT sizeT costT
-
-{- | A global lowering context storing the source functions and generated procedures
- along with info to generate unique ancilla and variable/procedure names
--}
-type LoweringCtx sizeT = (Set.Set Ident, P.TypingCtx sizeT)
-
-emptyLoweringCtx :: LoweringCtx sizeT
-emptyLoweringCtx = (Set.empty, Ctx.empty)
-
-uniqNames :: Lens' (LoweringCtx sizeT) (Set.Set Ident)
-uniqNames = _1
-
-typingCtx :: Lens' (LoweringCtx sizeT) (P.TypingCtx sizeT)
-typingCtx = _2
 
 -- | The outputs of lowering
 type LoweringOutput holeT sizeT costT = ([ProcDef holeT sizeT costT], [UQPL.ProcDef holeT sizeT costT])
@@ -88,22 +74,6 @@ class
 
 instance (Show costT) => Lowerable primsT Void holeT sizeT costT where
   lowerPrimitive _ = absurd
-
--- | Generate a new identifier with the given prefix.
-newIdent :: forall primT holeT sizeT costT. Ident -> CompilerT primT holeT sizeT costT Ident
-newIdent prefix = do
-  ident <-
-    msum . map checked $
-      prefix : map ((prefix <>) . ("_" <>) . show) [1 :: Int ..]
-  uniqNames . at ident ?= ()
-  return ident
- where
-  checked :: Ident -> CompilerT primT holeT sizeT costT Ident
-  checked name = do
-    already_exists <- use (uniqNames . at name)
-    case already_exists of
-      Nothing -> return name
-      Just () -> throwError "next ident please!"
 
 -- | Add a new procedure.
 addProc :: ProcDef holeT sizeT costT -> CompilerT primT holeT sizeT costT ()
@@ -146,9 +116,9 @@ lowerFunDef eps fun_name P.FunDef{P.param_types, P.mbody = Just body} = do
   let P.FunBody{P.param_names, P.ret_names, P.body_stmt} = body
 
   (proc_body_stmt, proc_typing_ctx) <- withSandbox $ do
-    typingCtx .= Ctx.fromList (zip param_names param_types)
+    P._typingCtx .= Ctx.fromList (zip param_names param_types)
     b <- lowerStmt eps body_stmt
-    c <- use typingCtx
+    c <- use P._typingCtx
     return (b, c)
 
   let proc_param_names = param_names ++ ret_names
@@ -218,7 +188,7 @@ lowerStmt ::
   CompilerT primsT holeT sizeT costT (Stmt holeT sizeT)
 -- single statement
 lowerStmt eps s@P.ExprS{P.rets, P.expr} = do
-  censored . magnify P._funCtx . zoom typingCtx $ P.typeCheckStmt s
+  censored . magnify P._funCtx . zoom P._typingCtx $ P.typeCheckStmt s
   lowerExpr eps expr rets
 
 -- compound statements
@@ -260,9 +230,9 @@ lowerProgram strat gamma_in uticks cticks eps prog@P.Program{P.funCtx, P.stmt} =
           & (P._classicalTicks .~ cticks)
           & (P._precSplitStrat .~ strat)
   let lowering_ctx =
-        emptyLoweringCtx
-          & (typingCtx .~ gamma_in)
-          & (uniqNames .~ P.allNamesP prog)
+        default_
+          & (P._typingCtx .~ gamma_in)
+          & (_uniqNamesCtx .~ P.allNamesP prog)
 
   let compiler = lowerStmt eps stmt
   (stmtQ, lowering_ctx', outputU) <- runMyReaderWriterStateT compiler config lowering_ctx
@@ -273,5 +243,5 @@ lowerProgram strat gamma_in uticks cticks eps prog@P.Program{P.funCtx, P.stmt} =
         , uproc_defs = outputU ^. loweredUProcs . to (Ctx.fromListWith UQPL.proc_name)
         , stmt = stmtQ
         }
-    , lowering_ctx' ^. typingCtx
+    , lowering_ctx' ^. P._typingCtx
     )

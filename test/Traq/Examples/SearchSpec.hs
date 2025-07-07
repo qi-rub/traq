@@ -6,6 +6,7 @@ import qualified Traq.Data.Context as Ctx
 import Traq.Data.Default
 import qualified Traq.Data.Tree as Tree
 
+import qualified Traq.Compiler.Unitary as UQPL
 import Traq.Prelude
 import qualified Traq.ProtoLang as P
 import qualified Traq.UnitaryQPL as UQPL
@@ -41,11 +42,11 @@ spec = do
     let ticks = Map.singleton "Oracle" 1.0
 
     it "unitary cost for eps=0.0001" $ do
-      let true_cost = ucF n (eps / 2) :: Double
+      let true_cost = 2 * ucF n (eps / 2) :: Double
       P.unitaryQueryCost P.SplitSimple eps ex uticks `shouldBe` true_cost
 
     it "quantum cost for eps=0.0001" $ do
-      let true_cost = ecF n 0 (eps / 2)
+      let true_cost = 2 * ecF n 0 (eps / 2)
       P.quantumQueryCost P.SplitSimple eps ex uticks ticks interpCtx Ctx.empty `shouldBe` true_cost
 
     it "generate code" $ do

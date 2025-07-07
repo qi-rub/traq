@@ -9,6 +9,8 @@ import Traq.Data.Default
 import qualified Traq.Data.Symbolic as Sym
 
 import qualified Traq.CQPL as CQPL
+import qualified Traq.Compiler.Quantum as CQPL
+import qualified Traq.Compiler.Unitary as UQPL
 import qualified Traq.ProtoLang as P
 import qualified Traq.UnitaryQPL as UQPL
 import Traq.Utils.Printing
@@ -50,7 +52,7 @@ spec = do
       let cu = P.unitaryQueryCost P.SplitSimple delta ex uticks
       let nu_outer = ucF n (delta / 4)
       let nu_inner = 2 * ucF m (delta / 4 / nu_outer / 8)
-      cu `shouldBe` 2 * nu_outer * 2 * nu_inner
+      cu `shouldBe` 2 * 2 * nu_outer * 2 * nu_inner
 
     it "quantum cost for eps=0.0001" $ do
       let eps = 0.0001
@@ -58,7 +60,7 @@ spec = do
       let nq_outer = wcF n (eps / 2)
       let nq_inner = 2 * ucF m (eps / 2 / nq_outer / 16)
       let nq_oracle = 2
-      cq `shouldBe` nq_outer * nq_inner * nq_oracle
+      cq `shouldBe` 2 * nq_outer * nq_inner * nq_oracle
 
     it "generate code" $ do
       toCodeString ex `shouldSatisfy` (not . null)
@@ -108,7 +110,7 @@ spec = do
       let nu_outer = ucF n (delta / 2 / 2)
       let nu_inner = 2 * ucF m ((delta / 2 - delta / 2 / 2) / nu_outer / 2 / 2 / 2)
       let nu_oracle = 2
-      cu `shouldBe` 2 * nu_outer * nu_inner * nu_oracle
+      cu `shouldBe` 4 * nu_outer * nu_inner * nu_oracle
 
     it "unitary cost (optimized precision splitting)" $ do
       let delta = Sym.var "δ" :: Sym.Sym Double
@@ -116,7 +118,7 @@ spec = do
       let nu_outer = ucF n (delta / 2 / 2)
       let nu_inner = 2 * ucF m ((delta / 2 - delta / 2 / 2) / nu_outer / 2)
       let nu_oracle = 2
-      cu `shouldBe` 2 * nu_outer * nu_inner * nu_oracle
+      cu `shouldBe` 4 * nu_outer * nu_inner * nu_oracle
 
     it "quantum worst case cost" $ do
       let eps = Sym.var "ε" :: Sym.Sym Double
@@ -124,7 +126,7 @@ spec = do
       let nq_outer = wcF n (eps / 2)
       let nq_inner = 2 * ucF m ((eps - eps / 2) / nq_outer / 2 / 2 / 2 / 2)
       let nq_oracle = 2
-      cq `shouldBe` nq_outer * nq_inner * nq_oracle
+      cq `shouldBe` 2 * nq_outer * nq_inner * nq_oracle
 
     it "quantum worst case cost (optimized precision splitting)" $ do
       let eps = Sym.var "ε" :: Sym.Sym Double
@@ -132,4 +134,4 @@ spec = do
       let nq_outer = wcF n (eps / 2)
       let nq_inner = 2 * ucF m ((eps - eps / 2) / nq_outer / 2 / 2)
       let nq_oracle = 2
-      cq `shouldBe` nq_outer * nq_inner * nq_oracle
+      cq `shouldBe` 2 * nq_outer * nq_inner * nq_oracle

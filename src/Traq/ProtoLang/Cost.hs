@@ -235,9 +235,10 @@ unitaryQueryCostE ::
   m costT
 unitaryQueryCostE delta FunCallE{fun_kind = FunctionCall fname} = do
   FunDef{mbody} <- view $ _funCtx . Ctx.at fname . singular _Just
-  case mbody of
+  cost_half <- case mbody of
     Nothing -> view $ _unitaryTicks . at fname . to (fromMaybe 0) -- declaration: use tick value (or 0 if not specified)
-    Just FunBody{body_stmt} -> (2 *) <$> unitaryQueryCostS (delta / 2) body_stmt -- def: compute using body
+    Just FunBody{body_stmt} -> unitaryQueryCostS (delta / 2) body_stmt -- def: compute using body
+  return $ 2 * cost_half
 unitaryQueryCostE delta FunCallE{fun_kind = PrimitiveCall prim, args} =
   unitaryQueryCostPrimitive delta prim args
 -- zero-cost expressions

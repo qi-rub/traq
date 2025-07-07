@@ -5,9 +5,9 @@ module Traq.UnitaryQPL.Syntax (
   Unitary (..),
 
   -- ** Statements
-  Stmt (..),
+  UStmt (..),
   holeS,
-  Stmt',
+  UStmt',
 
   -- ** Procedures
   ParamTag (..),
@@ -44,75 +44,76 @@ data Unitary sizeT
   | HGate
   | LoadData Ident
   | -- | maps \( |0\rangle \) to \( \frac1{\sqrt{|\Sigma_T|}} \sum_{x \in \Sigma_T} |x\rangle \)
-    Unif (P.VarType sizeT)
-  | UnifDagger (P.VarType sizeT)
+    Unif
   | -- | reflect about |0>_T
-    Refl0 (P.VarType sizeT)
+    Refl0
   | RevEmbedU [Ident] (P.BasicExpr sizeT)
   | Controlled (Unitary sizeT)
+  | Adjoint (Unitary sizeT)
   deriving (Eq, Show, Read)
 
 class HasDagger a where
   adjoint :: a -> a
 
 instance HasDagger (Unitary sizeT) where
-  adjoint (Unif ty) = UnifDagger ty
-  adjoint (UnifDagger ty) = Unif ty
   adjoint Toffoli = Toffoli
   adjoint CNOT = CNOT
   adjoint HGate = HGate
   adjoint XGate = XGate
   adjoint (LoadData f) = LoadData f
-  adjoint u@(Refl0 _) = u
+  adjoint Refl0 = Refl0
   adjoint u@(RevEmbedU _ _) = u
   adjoint (Controlled u) = Controlled (adjoint u)
+  adjoint (Adjoint u) = u
+  adjoint u = Adjoint u
 
-data Stmt holeT sizeT
-  = SkipS
+data UStmt holeT sizeT
+  = USkipS
   | UnitaryS {args :: [Ident], unitary :: Unitary sizeT} -- q... *= U
-  | CallS {proc_id :: Ident, dagger :: Bool, args :: [Ident]} -- call F(q...)
-  | SeqS [Stmt holeT sizeT] -- W1; W2; ...
+  | UCallS {proc_id :: Ident, dagger :: Bool, args :: [Ident]} -- call F(q...)
+  | USeqS [UStmt holeT sizeT] -- W1; W2; ...
   | -- placeholders
-    HoleS {hole :: holeT, dagger :: Bool} -- temporary place holder
-  | CommentS String
+    UHoleS {hole :: holeT, dagger :: Bool} -- temporary place holder
+  | UCommentS String
   | -- syntax sugar
-    RepeatS {n_iter :: P.MetaParam sizeT, loop_body :: Stmt holeT sizeT} -- repeat k do S;
-  | ForInRangeS
+    URepeatS {n_iter :: P.MetaParam sizeT, loop_body :: UStmt holeT sizeT} -- repeat k do S;
+  | UForInRangeS
       { iter_meta_var :: Ident
       , iter_lim :: P.MetaParam sizeT
-      , loop_body :: Stmt holeT sizeT
+      , loop_body :: UStmt holeT sizeT
       , dagger :: Bool
       }
-  | WithComputedS {with_stmt, body_stmt :: Stmt holeT sizeT}
+  | UWithComputedS {with_stmt, body_stmt :: UStmt holeT sizeT}
   deriving (Eq, Show, Read)
 
-mkForInRangeS :: Ident -> P.MetaParam sizeT -> Stmt holeT sizeT -> Stmt holeT sizeT
-mkForInRangeS iter_meta_var iter_lim loop_body = ForInRangeS{iter_meta_var, iter_lim, loop_body, dagger = False}
+mkForInRangeS :: Ident -> P.MetaParam sizeT -> UStmt holeT sizeT -> UStmt holeT sizeT
+mkForInRangeS iter_meta_var iter_lim loop_body = UForInRangeS{iter_meta_var, iter_lim, loop_body, dagger = False}
 
-holeS :: holeT -> Stmt holeT sizeT
-holeS hole = HoleS{hole, dagger = False}
+holeS :: holeT -> UStmt holeT sizeT
+holeS hole = UHoleS{hole, dagger = False}
 
 -- | Alias for statement without holes
-type Stmt' = Stmt Void
+type UStmt' = UStmt Void
 
-instance HasDagger (Stmt holeT sizeT) where
-  adjoint s@(CommentS _) = s
-  adjoint SkipS = SkipS
-  adjoint s@CallS{dagger} = s{dagger = not dagger}
-  adjoint (SeqS ss) = SeqS . reverse $ map adjoint ss
+instance HasDagger (UStmt holeT sizeT) where
+  adjoint s@(UCommentS _) = s
+  adjoint USkipS = USkipS
+  adjoint s@UCallS{dagger} = s{dagger = not dagger}
+  adjoint (USeqS ss) = USeqS . reverse $ map adjoint ss
   adjoint s@UnitaryS{unitary} = s{unitary = adjoint unitary}
-  adjoint (RepeatS k s) = RepeatS k (adjoint s)
-  adjoint (HoleS info dagger) = HoleS info (not dagger)
-  adjoint s@ForInRangeS{dagger} = s{dagger = not dagger}
-  adjoint s@WithComputedS{body_stmt} = s{body_stmt = adjoint body_stmt}
+  adjoint (URepeatS k s) = URepeatS k (adjoint s)
+  adjoint (UHoleS info dagger) = UHoleS info (not dagger)
+  adjoint s@UForInRangeS{dagger} = s{dagger = not dagger}
+  adjoint s@UWithComputedS{body_stmt} = s{body_stmt = adjoint body_stmt}
 
 data ParamTag = ParamCtrl | ParamInp | ParamOut | ParamAux | ParamUnk deriving (Eq, Show, Read, Enum)
 
-data ProcDef holeT sizeT costT = ProcDef
-  { proc_name :: Ident
+data ProcDef holeT sizeT costT = UProcDef
+  { info_comment :: String
+  , proc_name :: Ident
   , proc_meta_params :: [Ident]
   , proc_params :: [(Ident, ParamTag, P.VarType sizeT)]
-  , proc_body_or_tick :: Either costT (Stmt holeT sizeT) -- Left tick | Right body
+  , proc_body_or_tick :: Either costT (UStmt holeT sizeT) -- Left tick | Right body
   }
   deriving (Eq, Show, Read)
 
@@ -128,7 +129,7 @@ type ProcCtx' sizeT costT = ProcCtx Void sizeT costT
 -- | A full program
 data Program holeT sizeT costT = Program
   { proc_defs :: ProcCtx holeT sizeT costT
-  , stmt :: Stmt holeT sizeT
+  , stmt :: UStmt holeT sizeT
   }
   deriving (Eq, Show, Read)
 
@@ -139,8 +140,8 @@ type Program' = Program Void
 -- Syntax Sugar
 -- ================================================================================
 
-desugarS :: Stmt holeT sizeT -> Maybe (Stmt holeT sizeT)
-desugarS WithComputedS{with_stmt, body_stmt} = Just $ SeqS [with_stmt, body_stmt, adjoint with_stmt]
+desugarS :: UStmt holeT sizeT -> Maybe (UStmt holeT sizeT)
+desugarS UWithComputedS{with_stmt, body_stmt} = Just $ USeqS [with_stmt, body_stmt, adjoint with_stmt]
 desugarS _ = Nothing
 
 -- ================================================================================
@@ -149,36 +150,36 @@ desugarS _ = Nothing
 
 instance (Show sizeT) => ToCodeString (Unitary sizeT) where
   toCodeString (RevEmbedU xs e) = printf "Embed[(%s) => %s]" (commaList xs) (toCodeString e)
-  toCodeString (Unif ty) = "Unif[" <> toCodeString ty <> "]"
-  toCodeString (UnifDagger ty) = "Adj-Unif[" <> toCodeString ty <> "]"
+  toCodeString Unif = "Unif"
   toCodeString XGate = "X"
   toCodeString HGate = "H"
-  toCodeString (Refl0 ty) = printf "Refl0[%s]" (toCodeString ty)
+  toCodeString Refl0 = printf "Refl0"
   toCodeString (LoadData f) = f
   toCodeString (Controlled u) = "Ctrl-" <> toCodeString u
+  toCodeString (Adjoint u) = "Adj-" <> toCodeString u
   toCodeString u = show u
 
 showDagger :: Bool -> String
 showDagger True = "-adj"
 showDagger False = ""
 
-instance (Show holeT, Show sizeT) => ToCodeString (Stmt holeT sizeT) where
-  toCodeLines SkipS = ["skip;"]
-  toCodeLines (CommentS c) = ["// " ++ c]
+instance (Show holeT, Show sizeT) => ToCodeString (UStmt holeT sizeT) where
+  toCodeLines USkipS = ["skip;"]
+  toCodeLines (UCommentS c) = ["// " ++ c]
   toCodeLines UnitaryS{args, unitary} = [qc <> " *= " <> toCodeString unitary <> ";"]
    where
     qc = commaList args
-  toCodeLines CallS{proc_id, dagger, args} = [printf "call%s %s(%s);" (showDagger dagger) proc_id qc]
+  toCodeLines UCallS{proc_id, dagger, args} = [printf "call%s %s(%s);" (showDagger dagger) proc_id qc]
    where
     qc = commaList args
-  toCodeLines (SeqS ps) = concatMap toCodeLines ps
-  toCodeLines (RepeatS k s) =
+  toCodeLines (USeqS ps) = concatMap toCodeLines ps
+  toCodeLines (URepeatS k s) =
     [printf "repeat %s do" (toCodeString k)]
       ++ indent (toCodeLines s)
       ++ ["end"]
-  toCodeLines (HoleS info dagger) = [printf "HOLE :: %s%s;" (show info) (showDagger dagger)]
+  toCodeLines (UHoleS info dagger) = [printf "HOLE :: %s%s;" (show info) (showDagger dagger)]
   -- syntax sugar
-  toCodeLines ForInRangeS{iter_meta_var, iter_lim, dagger, loop_body} =
+  toCodeLines UForInRangeS{iter_meta_var, iter_lim, dagger, loop_body} =
     printf "for #%s in %s do" iter_meta_var range_str
       : indent (toCodeLines loop_body)
       ++ ["end"]
@@ -187,7 +188,7 @@ instance (Show holeT, Show sizeT) => ToCodeString (Stmt holeT sizeT) where
     range_str
       | dagger = printf "%s - 1 .. 0" (toCodeString iter_lim)
       | otherwise = printf "0 .. < %s" (toCodeString iter_lim)
-  toCodeLines WithComputedS{with_stmt, body_stmt} =
+  toCodeLines UWithComputedS{with_stmt, body_stmt} =
     "with {" : indent (toCodeLines with_stmt) ++ ["} do {"] ++ indent (toCodeLines body_stmt) ++ ["}"]
 
 instance ToCodeString ParamTag where
@@ -205,18 +206,21 @@ showParamWithTag (x, tag, ty) = printf "%s : %s%s" x tag_s (toCodeString ty)
     s -> s ++ " "
 
 instance (Show holeT, Show sizeT, Show costT) => ToCodeString (ProcDef holeT sizeT costT) where
-  toCodeLines ProcDef{proc_name, proc_meta_params, proc_params, proc_body_or_tick} =
-    case proc_body_or_tick of
-      Left tick -> [printf "%s :: tick(%s)" header (show tick)]
-      Right proc_body ->
-        [printf "%s do" header]
-          <> indent (toCodeLines proc_body)
-          <> ["end"]
+  toCodeLines UProcDef{info_comment, proc_name, proc_meta_params, proc_params, proc_body_or_tick} =
+    ("// " <> info_comment)
+      : ( case proc_body_or_tick of
+            Left tick -> [printf "%s :: tick(%s)" header (show tick)]
+            Right proc_body ->
+              [printf "%s do" header]
+                <> indent (toCodeLines proc_body)
+                <> ["end"]
+        )
    where
     mplist, plist, header :: String
     mplist = commaList $ map ("#" ++) proc_meta_params
+    b_mplist = if null mplist then "" else "[" ++ mplist ++ "]"
     plist = commaList $ map showParamWithTag proc_params
-    header = printf "uproc %s[%s](%s)" proc_name mplist plist
+    header = printf "uproc %s%s(%s)" proc_name b_mplist plist
 
 instance (Show holeT, Show sizeT, Show costT) => ToCodeString (Program holeT sizeT costT) where
   toCodeLines Program{proc_defs, stmt} = map toCodeString (Ctx.elems proc_defs) <> [toCodeString stmt]

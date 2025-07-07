@@ -20,9 +20,12 @@ extra-doc-files:
 
 library
   exposed-modules:
+      Traq.Compiler
+      Traq.Compiler.Quantum
+      Traq.Compiler.Unitary
+      Traq.Compiler.Utils
       Traq.Control.Monad
       Traq.CQPL
-      Traq.CQPL.Lowering
       Traq.CQPL.Syntax
       Traq.CQPL.TypeCheck
       Traq.Data.Context
@@ -52,7 +55,6 @@ library
       Traq.ProtoLang.Vars
       Traq.UnitaryQPL
       Traq.UnitaryQPL.Cost
-      Traq.UnitaryQPL.Lowering
       Traq.UnitaryQPL.Rewrites
       Traq.UnitaryQPL.Syntax
       Traq.UnitaryQPL.TypeCheck
@@ -241,7 +243,8 @@ test-suite spec
   main-is: Spec.hs
   other-modules:
       TestHelpers
-      Traq.CQPL.LoweringSpec
+      Traq.Compiler.QuantumSpec
+      Traq.Compiler.UnitarySpec
       Traq.Data.SymbolicSpec
       Traq.Data.TreeSpec
       Traq.Examples.MatrixSearchSpec
@@ -255,7 +258,6 @@ test-suite spec
       Traq.ProtoLang.RewritesSpec
       Traq.ProtoLang.TypeCheckSpec
       Traq.ProtoLang.VarsSpec
-      Traq.UnitaryQPL.LoweringSpec
       Traq.UnitaryQPL.TypeCheckSpec
   hs-source-dirs:
       test

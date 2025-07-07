@@ -20,6 +20,15 @@ unsafeParseProgram = fmap Sym.unSym . either (error . show) id . parseProgram
 spec :: Spec
 spec = do
   describe "unitary cost of statements" $ do
+    it "call oracle" $ do
+      let prog =
+            unsafeParseProgram . unlines $
+              [ "declare Oracle(Fin<100>) -> Bool"
+              , "i <- const 10 : Fin<100>;"
+              , "res <- Oracle(i)"
+              ]
+      let c = unitaryQueryCost SplitSimple 0.001 prog (Map.singleton "Oracle" 1.0)
+      c `shouldBe` (2 :: Double)
     it "fun call of oracle" $ do
       let prog =
             unsafeParseProgram . unlines $
@@ -32,7 +41,7 @@ spec = do
               , "res <- f(i)"
               ]
       let c = unitaryQueryCost SplitSimple 0.001 prog (Map.singleton "Oracle" 1.0)
-      c `shouldBe` (2 :: Double)
+      c `shouldBe` (4 :: Double)
 
     it "search with no oracle" $ do
       let prog =
@@ -51,11 +60,7 @@ spec = do
       let prog =
             unsafeParseProgram . unlines $
               [ "declare Oracle(Fin<100>) -> Bool"
-              , "def f(i : Fin<100>) do"
-              , "  b <- Oracle(i);"
-              , "  return b : Fin<2>"
-              , "end"
-              , "res <- @any[f]()"
+              , "res <- @any[Oracle]()"
               ]
       let c = unitaryQueryCost SplitSimple 0.001 prog (Map.singleton "Oracle" 1.0)
       (c :: Double) `shouldBe` 2 * _QSearchZalka (100 :: Int) (0.001 / 2)

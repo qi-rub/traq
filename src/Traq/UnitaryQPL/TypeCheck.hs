@@ -48,12 +48,9 @@ instance P.HasTypingCtx (CheckingCtx holeT sizeT costT) where
 -- ================================================================================
 type TypeChecker holeT sizeT costT = MyReaderT (CheckingCtx holeT sizeT costT) (Either Err.MyError)
 
-verifyArgs :: (TypeCheckable sizeT) => [Ident] -> [VarType sizeT] -> TypeChecker holeT sizeT costT ()
-verifyArgs args tys = do
-  arg_tys <- forM args $ \x -> do
-    mty <- view $ P._typingCtx . Ctx.at x
-    maybeWithError (Err.MessageE $ printf "cannot find argument %s" x) mty
-
+-- | Verify that the argument types match the deduced types
+verifyArgTys :: (TypeCheckable sizeT) => [VarType sizeT] -> [VarType sizeT] -> TypeChecker holeT sizeT costT ()
+verifyArgTys arg_tys tys = do
   when (length arg_tys /= length tys) $
     Err.throwErrorMessage $
       printf "mismatched number of args: inferred %d, actual %d" (length tys) (length arg_tys)
@@ -62,15 +59,23 @@ verifyArgs args tys = do
     Err.throwErrorMessage $
       printf "mismatched args: inferred %s, actual %s" (show tys) (show arg_tys)
 
-unitarySignature :: forall holeT costT sizeT. (TypeCheckable sizeT) => Unitary sizeT -> [VarType sizeT] -> TypeChecker holeT sizeT costT [VarType sizeT]
-unitarySignature Toffoli _ = return [tbool, tbool, tbool]
-unitarySignature CNOT _ = return [tbool, tbool]
-unitarySignature XGate _ = return [tbool]
-unitarySignature HGate _ = return [tbool]
-unitarySignature (Unif ty) _ = return [ty]
-unitarySignature (UnifDagger ty) _ = return [ty]
-unitarySignature (RevEmbedU xs e) arg_tys = do
-  let in_tys = take (length xs) arg_tys
+-- | Verify that the arguments match the deduced types
+verifyArgs :: (TypeCheckable sizeT) => [Ident] -> [VarType sizeT] -> TypeChecker holeT sizeT costT ()
+verifyArgs args tys = do
+  arg_tys <- forM args $ \x -> do
+    mty <- view $ P._typingCtx . Ctx.at x
+    maybeWithError (Err.MessageE $ printf "cannot find argument %s" x) mty
+  verifyArgTys arg_tys tys
+
+typeCheckUnitary :: forall holeT costT sizeT. (TypeCheckable sizeT) => Unitary sizeT -> [VarType sizeT] -> TypeChecker holeT sizeT costT ()
+typeCheckUnitary Toffoli tys = verifyArgTys tys [tbool, tbool, tbool]
+typeCheckUnitary CNOT tys = verifyArgTys tys [tbool, tbool]
+typeCheckUnitary XGate tys = verifyArgTys tys [tbool]
+typeCheckUnitary HGate tys = verifyArgTys tys [tbool]
+typeCheckUnitary Unif _ = return ()
+typeCheckUnitary Refl0 _ = return ()
+typeCheckUnitary (RevEmbedU xs e) tys = do
+  let in_tys = take (length xs) tys
   let gamma = Ctx.fromList $ zip xs in_tys
   -- TODO use separate context for metaparams
   gamma' <- execStateT ?? gamma $ do
@@ -81,25 +86,27 @@ unitarySignature (RevEmbedU xs e) arg_tys = do
   let res = runReaderT (P.typeCheckBasicExpr e) gamma'
   case res of
     Left err -> Err.throwErrorMessage err
-    Right ret_ty -> return $ in_tys ++ [ret_ty]
-unitarySignature (Controlled u) arg_tys = (tbool :) <$> unitarySignature u (tail arg_tys)
-unitarySignature (Refl0 ty) _ = return [ty]
-unitarySignature (LoadData f) _ = do
+    Right ret_ty -> verifyArgTys (drop (length xs) tys) [ret_ty]
+typeCheckUnitary (Controlled u) tys = do
+  verifyArgTys [head tys] [tbool]
+  typeCheckUnitary u (tail tys)
+typeCheckUnitary (Adjoint u) tys = typeCheckUnitary u tys
+typeCheckUnitary (LoadData f) tys = do
   proc_def <- view (_procCtx . Ctx.at f) >>= maybeWithError (Err.MessageE "cannot find function")
-  return $ proc_def ^.. to proc_params . traverse . _3
+  let inferred_tys = proc_def ^.. to proc_params . traverse . _3
+  verifyArgTys tys inferred_tys
 
-typeCheckStmt :: forall holeT sizeT costT. (Show holeT, TypeCheckable sizeT) => Stmt holeT sizeT -> TypeChecker holeT sizeT costT ()
+typeCheckStmt :: forall holeT sizeT costT. (Show holeT, TypeCheckable sizeT) => UStmt holeT sizeT -> TypeChecker holeT sizeT costT ()
 -- single statements
-typeCheckStmt SkipS = return ()
-typeCheckStmt HoleS{} = return ()
-typeCheckStmt (CommentS _) = return ()
+typeCheckStmt USkipS = return ()
+typeCheckStmt UHoleS{} = return ()
+typeCheckStmt (UCommentS _) = return ()
 typeCheckStmt UnitaryS{unitary, args} = do
   arg_tys <- forM args $ \x -> do
     mty <- view $ P._typingCtx . Ctx.at x
     maybeWithError (Err.MessageE $ printf "cannot find argument %s" x) mty
-  tys <- unitarySignature unitary arg_tys
-  verifyArgs args tys
-typeCheckStmt CallS{proc_id, args} = do
+  typeCheckUnitary unitary arg_tys
+typeCheckStmt UCallS{proc_id, args} = do
   proc_param_tys <-
     view $
       _procCtx
@@ -109,17 +116,17 @@ typeCheckStmt CallS{proc_id, args} = do
         . to (map $ view _3)
   verifyArgs args proc_param_tys
 -- compound statements
-typeCheckStmt (SeqS ss) = mapM_ typeCheckStmt' ss
-typeCheckStmt (RepeatS _ body) = typeCheckStmt' body
-typeCheckStmt ForInRangeS{iter_meta_var, iter_lim, loop_body} = do
+typeCheckStmt (USeqS ss) = mapM_ typeCheckStmt' ss
+typeCheckStmt (URepeatS _ body) = typeCheckStmt' body
+typeCheckStmt UForInRangeS{iter_meta_var, iter_lim, loop_body} = do
   let iter_lim_ty = case iter_lim of
         P.MetaSize n -> P.Fin n
         _ -> error "unsupported loop limit"
   local (P._typingCtx . Ctx.ins ('#' : iter_meta_var) .~ iter_lim_ty) $ do
     typeCheckStmt' loop_body
-typeCheckStmt WithComputedS{with_stmt, body_stmt} = mapM_ typeCheckStmt' [with_stmt, body_stmt]
+typeCheckStmt UWithComputedS{with_stmt, body_stmt} = mapM_ typeCheckStmt' [with_stmt, body_stmt]
 
-typeCheckStmt' :: (Show holeT, TypeCheckable sizeT) => Stmt holeT sizeT -> TypeChecker holeT sizeT costT ()
+typeCheckStmt' :: (Show holeT, TypeCheckable sizeT) => UStmt holeT sizeT -> TypeChecker holeT sizeT costT ()
 typeCheckStmt' s = do
   gamma <- view P._typingCtx
   typeCheckStmt s
@@ -128,7 +135,7 @@ typeCheckStmt' s = do
 
 typeCheckProc :: (Show holeT, TypeCheckable sizeT, Show costT) => ProcDef holeT sizeT costT -> TypeChecker holeT sizeT costT ()
 -- definition with a body
-typeCheckProc procdef@ProcDef{proc_params, proc_body_or_tick = Right proc_body} =
+typeCheckProc procdef@UProcDef{proc_params, proc_body_or_tick = Right proc_body} =
   local (P._typingCtx .~ Ctx.fromList (proc_params & each %~ withoutTag)) $ do
     gamma <- view P._typingCtx
     typeCheckStmt' proc_body
@@ -137,7 +144,7 @@ typeCheckProc procdef@ProcDef{proc_params, proc_body_or_tick = Right proc_body} 
  where
   withoutTag (x, _, ty) = (x, ty)
 -- declaration with a tick
-typeCheckProc ProcDef{proc_body_or_tick = Left _} = return ()
+typeCheckProc UProcDef{proc_body_or_tick = Left _} = return ()
 
 typeCheckProgram :: (Show holeT, TypeCheckable sizeT, Show costT) => TypingCtx sizeT -> Program holeT sizeT costT -> Either Err.MyError ()
 typeCheckProgram gamma Program{proc_defs, stmt} = do

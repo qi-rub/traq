@@ -92,7 +92,7 @@ typeCheckStmt CallS{fun = FunctionCall proc_id, args} = do
     view (typingCtx . Ctx.at var) >>= maybeWithError (Err.MessageE $ printf "cannot find %s" var)
   ensureEqual proc_param_types arg_tys "mismatched function args"
 typeCheckStmt CallS{fun = UProcAndMeas uproc_id, args} = do
-  UQPL.ProcDef{UQPL.proc_params} <- magnify uProcs $ do
+  UQPL.UProcDef{UQPL.proc_params} <- magnify uProcs $ do
     view (Ctx.at uproc_id) >>= maybeWithError (Err.MessageE $ printf "cannot find proc %s" uproc_id)
   arg_tys <- forM args $ \var -> do
     view (typingCtx . Ctx.at var) >>= maybeWithError (Err.MessageE $ printf "cannot find %s" var)

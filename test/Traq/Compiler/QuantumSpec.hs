@@ -1,6 +1,6 @@
 {-# LANGUAGE TypeApplications #-}
 
-module Traq.CQPL.LoweringSpec (spec) where
+module Traq.Compiler.QuantumSpec (spec) where
 
 import qualified Data.Map as Map
 import Data.Void
@@ -10,8 +10,8 @@ import qualified Traq.Data.Context as Ctx
 import Traq.Data.Default
 import qualified Traq.Data.Symbolic as Sym
 
-import Traq.CQPL.Lowering
 import Traq.CQPL.Syntax
+import Traq.Compiler.Quantum
 import Traq.Prelude
 import qualified Traq.ProtoLang as P
 

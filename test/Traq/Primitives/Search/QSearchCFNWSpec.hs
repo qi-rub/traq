@@ -37,36 +37,34 @@ spec = do
           UQSearchEnv
             { search_arg_type = P.Fin n
             , pred_call_builder = \c x b ->
-                UQPL.CallS{UQPL.proc_id = "Oracle", UQPL.dagger = False, UQPL.args = [c, x, b]}
+                UQPL.UCallS{UQPL.proc_id = "Oracle", UQPL.dagger = False, UQPL.args = [c, x, b]}
             }
 
     prop "matches cost" $ \params -> do
       let n = space_size params
       let delta = precision params
       let compile_config = default_ & (P._unitaryTicks . at "Oracle" ?~ 1.0)
-      n
-        > 1
-        ==> do
-          (ss, []) <-
-            algoQSearchZalka @QSearchCFNW @_ @SizeT delta "result"
-              & execMyReaderWriterT (qsearch_env n)
-              & (\act -> evalMyReaderWriterStateT act compile_config default_)
-              & expectRight
+      (n > 1) ==> do
+        (ss, []) <-
+          algoQSearchZalka @QSearchCFNW @_ @SizeT delta "result"
+            & execMyReaderWriterT (qsearch_env n)
+            & (\act -> evalMyReaderWriterStateT act compile_config default_)
+            & expectRight
 
-          let uprog =
-                UQPL.Program
-                  { UQPL.stmt = UQPL.SeqS ss
-                  , UQPL.proc_defs =
-                      Ctx.singleton
-                        "Oracle"
-                        UQPL.ProcDef
-                          { UQPL.proc_name = "Oracle"
-                          , UQPL.proc_meta_params = []
-                          , UQPL.proc_params = []
-                          , UQPL.proc_body_or_tick = Left (1.0 :: Double)
-                          }
-                  }
+        let uprog =
+              UQPL.Program
+                { UQPL.stmt = UQPL.USeqS ss
+                , UQPL.proc_defs =
+                    Ctx.singleton
+                      "Oracle"
+                      UQPL.UProcDef
+                        { UQPL.proc_name = "Oracle"
+                        , UQPL.proc_meta_params = []
+                        , UQPL.proc_params = []
+                        , UQPL.proc_body_or_tick = Left (1.0 :: Double)
+                        }
+                }
 
-          let (actual_cost, _) = UQPL.programCost @_ @Double uprog
-          let formula_cost = _QSearchZalka n delta
-          actual_cost `shouldSatisfy` (<= formula_cost)
+        let (actual_cost, _) = UQPL.programCost @_ @Double uprog
+        let formula_cost = _QSearchZalka n delta
+        actual_cost `shouldSatisfy` (<= formula_cost)
