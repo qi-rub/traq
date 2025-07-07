@@ -29,7 +29,7 @@ module Traq.UnitaryQPL.Lowering (
   withTag,
 ) where
 
-import Control.Monad (forM, msum, unless, when, zipWithM)
+import Control.Monad (forM, unless, when, zipWithM)
 import Control.Monad.Except (throwError)
 import Data.List (intersect)
 import Data.Void (Void, absurd)
@@ -83,21 +83,6 @@ instance (Show costT) => Lowerable primsT Void holeT sizeT costT where
 -- ================================================================================
 -- Helpers
 -- ================================================================================
-
-newIdent :: Ident -> CompilerT primT holeT sizeT costT Ident
-newIdent prefix = do
-  ident <-
-    msum . map checked $
-      prefix : map ((prefix <>) . ("_" <>) . show) [1 :: Int ..]
-  _uniqNamesCtx . at ident ?= ()
-  return ident
- where
-  checked :: Ident -> CompilerT primT holeT sizeT costT Ident
-  checked name = do
-    already_exists <- use (_uniqNamesCtx . at name)
-    case already_exists of
-      Nothing -> return name
-      Just () -> throwError "next ident please!"
 
 -- | Allocate an ancilla register, and update the typing context.
 allocAncillaWithPref :: Ident -> P.VarType sizeT -> CompilerT primT holeT sizeT costT Ident

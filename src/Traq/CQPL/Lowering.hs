@@ -21,9 +21,8 @@ module Traq.CQPL.Lowering (
   Lowerable (..),
 ) where
 
-import Control.Monad (msum, unless, zipWithM)
+import Control.Monad (unless, zipWithM)
 import Control.Monad.Except (throwError)
-import qualified Data.Set as Set
 import Data.Void (Void, absurd)
 import Lens.Micro.GHC
 import Lens.Micro.Mtl
@@ -74,22 +73,6 @@ class
 
 instance (Show costT) => Lowerable primsT Void holeT sizeT costT where
   lowerPrimitive _ = absurd
-
--- | Generate a new identifier with the given prefix.
-newIdent :: forall primT holeT sizeT costT. Ident -> CompilerT primT holeT sizeT costT Ident
-newIdent prefix = do
-  ident <-
-    msum . map checked $
-      prefix : map ((prefix <>) . ("_" <>) . show) [1 :: Int ..]
-  _uniqNamesCtx . at ident ?= ()
-  return ident
- where
-  checked :: Ident -> CompilerT primT holeT sizeT costT Ident
-  checked name = do
-    already_exists <- use (_uniqNamesCtx . at name)
-    case already_exists of
-      Nothing -> return name
-      Just () -> throwError "next ident please!"
 
 -- | Add a new procedure.
 addProc :: ProcDef holeT sizeT costT -> CompilerT primT holeT sizeT costT ()
