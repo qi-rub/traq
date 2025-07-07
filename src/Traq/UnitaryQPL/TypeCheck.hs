@@ -72,10 +72,10 @@ typeCheckUnitary Toffoli tys = verifyArgTys tys [tbool, tbool, tbool]
 typeCheckUnitary CNOT tys = verifyArgTys tys [tbool, tbool]
 typeCheckUnitary XGate tys = verifyArgTys tys [tbool]
 typeCheckUnitary HGate tys = verifyArgTys tys [tbool]
-typeCheckUnitary (Unif ty) tys = verifyArgTys tys [ty]
-typeCheckUnitary (UnifDagger ty) tys = verifyArgTys tys [ty]
-typeCheckUnitary (RevEmbedU xs e) arg_tys = do
-  let in_tys = take (length xs) arg_tys
+typeCheckUnitary Unif _ = return ()
+typeCheckUnitary Refl0 _ = return ()
+typeCheckUnitary (RevEmbedU xs e) tys = do
+  let in_tys = take (length xs) tys
   let gamma = Ctx.fromList $ zip xs in_tys
   -- TODO use separate context for metaparams
   gamma' <- execStateT ?? gamma $ do
@@ -86,11 +86,11 @@ typeCheckUnitary (RevEmbedU xs e) arg_tys = do
   let res = runReaderT (P.typeCheckBasicExpr e) gamma'
   case res of
     Left err -> Err.throwErrorMessage err
-    Right ret_ty -> verifyArgTys (drop (length xs) arg_tys) [ret_ty]
-typeCheckUnitary (Controlled u) arg_tys = do
-  verifyArgTys [head arg_tys] [tbool]
-  typeCheckUnitary u (tail arg_tys)
-typeCheckUnitary (Refl0 ty) tys = verifyArgTys tys [ty]
+    Right ret_ty -> verifyArgTys (drop (length xs) tys) [ret_ty]
+typeCheckUnitary (Controlled u) tys = do
+  verifyArgTys [head tys] [tbool]
+  typeCheckUnitary u (tail tys)
+typeCheckUnitary (Adjoint u) tys = typeCheckUnitary u tys
 typeCheckUnitary (LoadData f) tys = do
   proc_def <- view (_procCtx . Ctx.at f) >>= maybeWithError (Err.MessageE "cannot find function")
   let inferred_tys = proc_def ^.. to proc_params . traverse . _3

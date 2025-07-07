@@ -44,28 +44,28 @@ data Unitary sizeT
   | HGate
   | LoadData Ident
   | -- | maps \( |0\rangle \) to \( \frac1{\sqrt{|\Sigma_T|}} \sum_{x \in \Sigma_T} |x\rangle \)
-    Unif (P.VarType sizeT)
-  | UnifDagger (P.VarType sizeT)
+    Unif
   | -- | reflect about |0>_T
-    Refl0 (P.VarType sizeT)
+    Refl0
   | RevEmbedU [Ident] (P.BasicExpr sizeT)
   | Controlled (Unitary sizeT)
+  | Adjoint (Unitary sizeT)
   deriving (Eq, Show, Read)
 
 class HasDagger a where
   adjoint :: a -> a
 
 instance HasDagger (Unitary sizeT) where
-  adjoint (Unif ty) = UnifDagger ty
-  adjoint (UnifDagger ty) = Unif ty
   adjoint Toffoli = Toffoli
   adjoint CNOT = CNOT
   adjoint HGate = HGate
   adjoint XGate = XGate
   adjoint (LoadData f) = LoadData f
-  adjoint u@(Refl0 _) = u
+  adjoint Refl0 = Refl0
   adjoint u@(RevEmbedU _ _) = u
   adjoint (Controlled u) = Controlled (adjoint u)
+  adjoint (Adjoint u) = u
+  adjoint u = Adjoint u
 
 data UStmt holeT sizeT
   = USkipS
@@ -150,13 +150,13 @@ desugarS _ = Nothing
 
 instance (Show sizeT) => ToCodeString (Unitary sizeT) where
   toCodeString (RevEmbedU xs e) = printf "Embed[(%s) => %s]" (commaList xs) (toCodeString e)
-  toCodeString (Unif ty) = "Unif[" <> toCodeString ty <> "]"
-  toCodeString (UnifDagger ty) = "Adj-Unif[" <> toCodeString ty <> "]"
+  toCodeString Unif = "Unif"
   toCodeString XGate = "X"
   toCodeString HGate = "H"
-  toCodeString (Refl0 ty) = printf "Refl0[%s]" (toCodeString ty)
+  toCodeString Refl0 = printf "Refl0"
   toCodeString (LoadData f) = f
   toCodeString (Controlled u) = "Ctrl-" <> toCodeString u
+  toCodeString (Adjoint u) = "Adj-" <> toCodeString u
   toCodeString u = show u
 
 showDagger :: Bool -> String
@@ -218,8 +218,9 @@ instance (Show holeT, Show sizeT, Show costT) => ToCodeString (ProcDef holeT siz
    where
     mplist, plist, header :: String
     mplist = commaList $ map ("#" ++) proc_meta_params
+    b_mplist = if null mplist then "" else "[" ++ mplist ++ "]"
     plist = commaList $ map showParamWithTag proc_params
-    header = printf "uproc %s[%s](%s)" proc_name mplist plist
+    header = printf "uproc %s%s(%s)" proc_name b_mplist plist
 
 instance (Show holeT, Show sizeT, Show costT) => ToCodeString (Program holeT sizeT costT) where
   toCodeLines Program{proc_defs, stmt} = map toCodeString (Ctx.elems proc_defs) <> [toCodeString stmt]

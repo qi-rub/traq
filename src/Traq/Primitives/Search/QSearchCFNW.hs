@@ -315,10 +315,9 @@ addGroverIteration ::
   UQSearchBuilder primsT holeT sizeT costT ()
 addGroverIteration c x b = do
   addPredCall c x b
-  ty <- view $ to search_arg_type
-  writeElem $ UQPL.UnitaryS [x] (UQPL.UnifDagger ty)
-  writeElem $ UQPL.UnitaryS [x] (UQPL.Refl0 ty)
-  writeElem $ UQPL.UnitaryS [x] (UQPL.Unif ty)
+  writeElem $ UQPL.UnitaryS [x] (UQPL.Adjoint UQPL.Unif)
+  writeElem $ UQPL.UnitaryS [x] UQPL.Refl0
+  writeElem $ UQPL.UnitaryS [x] UQPL.Unif
 
 algoQSearchZalkaRandomIterStep ::
   forall primsT holeT sizeT costT.
@@ -339,7 +338,7 @@ algoQSearchZalkaRandomIterStep r = do
   b_reg <- lift $ UQPL.allocAncillaWithPref "pred_out" P.tbool
 
   -- uniform r
-  let prep_r = UQPL.UnitaryS [r_reg] (UQPL.Unif r_ty)
+  let prep_r = UQPL.UnitaryS [r_reg] UQPL.Unif
 
   withComputed prep_r $ do
     -- b in minus state for grover
@@ -350,8 +349,7 @@ algoQSearchZalkaRandomIterStep r = do
             ]
     withComputed prep_b $ do
       -- uniform x
-      s_ty <- view $ to search_arg_type
-      writeElem $ UQPL.UnitaryS [x_reg] (UQPL.Unif s_ty)
+      writeElem $ UQPL.UnitaryS [x_reg] UQPL.Unif
 
       -- controlled iterate
       let meta_ix_name = "LIM"
@@ -563,7 +561,7 @@ groverK ::
   -- | run the predicate
   (Ident -> Ident -> UQPL.UStmt holeT sizeT) ->
   UQPL.UStmt holeT sizeT
-groverK k (x, ty) b mk_pred =
+groverK k (x, _) b mk_pred =
   UQPL.USeqS
     [ prepb
     , prepx
@@ -578,15 +576,15 @@ groverK k (x, ty) b mk_pred =
       [ UQPL.UnitaryS [b] UQPL.XGate
       , UQPL.UnitaryS [b] UQPL.HGate
       ]
-  prepx = UQPL.UnitaryS [x] (UQPL.Unif ty)
+  prepx = UQPL.UnitaryS [x] UQPL.Unif
 
   grover_iterate :: UQPL.UStmt holeT sizeT
   grover_iterate =
     UQPL.USeqS
       [ mk_pred x b
-      , UQPL.UnitaryS [x] (UQPL.UnifDagger ty)
-      , UQPL.UnitaryS [x] (UQPL.Refl0 ty)
-      , UQPL.UnitaryS [x] (UQPL.Unif ty)
+      , UQPL.UnitaryS [x] (UQPL.Adjoint UQPL.Unif)
+      , UQPL.UnitaryS [x] UQPL.Refl0
+      , UQPL.UnitaryS [x] UQPL.Unif
       ]
 
 -- | Implementation of the hybrid quantum search algorithm \( \textbf{QSearch} \).
