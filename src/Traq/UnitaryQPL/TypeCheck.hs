@@ -48,12 +48,9 @@ instance P.HasTypingCtx (CheckingCtx holeT sizeT costT) where
 -- ================================================================================
 type TypeChecker holeT sizeT costT = MyReaderT (CheckingCtx holeT sizeT costT) (Either Err.MyError)
 
-verifyArgs :: (TypeCheckable sizeT) => [Ident] -> [VarType sizeT] -> TypeChecker holeT sizeT costT ()
-verifyArgs args tys = do
-  arg_tys <- forM args $ \x -> do
-    mty <- view $ P._typingCtx . Ctx.at x
-    maybeWithError (Err.MessageE $ printf "cannot find argument %s" x) mty
-
+-- | Verify that the argument types match the deduced types
+verifyArgTys :: (TypeCheckable sizeT) => [VarType sizeT] -> [VarType sizeT] -> TypeChecker holeT sizeT costT ()
+verifyArgTys arg_tys tys = do
   when (length arg_tys /= length tys) $
     Err.throwErrorMessage $
       printf "mismatched number of args: inferred %d, actual %d" (length tys) (length arg_tys)
@@ -62,14 +59,22 @@ verifyArgs args tys = do
     Err.throwErrorMessage $
       printf "mismatched args: inferred %s, actual %s" (show tys) (show arg_tys)
 
-unitarySignature :: forall holeT costT sizeT. (TypeCheckable sizeT) => Unitary sizeT -> [VarType sizeT] -> TypeChecker holeT sizeT costT [VarType sizeT]
-unitarySignature Toffoli _ = return [tbool, tbool, tbool]
-unitarySignature CNOT _ = return [tbool, tbool]
-unitarySignature XGate _ = return [tbool]
-unitarySignature HGate _ = return [tbool]
-unitarySignature (Unif ty) _ = return [ty]
-unitarySignature (UnifDagger ty) _ = return [ty]
-unitarySignature (RevEmbedU xs e) arg_tys = do
+-- | Verify that the arguments match the deduced types
+verifyArgs :: (TypeCheckable sizeT) => [Ident] -> [VarType sizeT] -> TypeChecker holeT sizeT costT ()
+verifyArgs args tys = do
+  arg_tys <- forM args $ \x -> do
+    mty <- view $ P._typingCtx . Ctx.at x
+    maybeWithError (Err.MessageE $ printf "cannot find argument %s" x) mty
+  verifyArgTys arg_tys tys
+
+typeCheckUnitary :: forall holeT costT sizeT. (TypeCheckable sizeT) => Unitary sizeT -> [VarType sizeT] -> TypeChecker holeT sizeT costT ()
+typeCheckUnitary Toffoli tys = verifyArgTys tys [tbool, tbool, tbool]
+typeCheckUnitary CNOT tys = verifyArgTys tys [tbool, tbool]
+typeCheckUnitary XGate tys = verifyArgTys tys [tbool]
+typeCheckUnitary HGate tys = verifyArgTys tys [tbool]
+typeCheckUnitary (Unif ty) tys = verifyArgTys tys [ty]
+typeCheckUnitary (UnifDagger ty) tys = verifyArgTys tys [ty]
+typeCheckUnitary (RevEmbedU xs e) arg_tys = do
   let in_tys = take (length xs) arg_tys
   let gamma = Ctx.fromList $ zip xs in_tys
   -- TODO use separate context for metaparams
@@ -81,12 +86,15 @@ unitarySignature (RevEmbedU xs e) arg_tys = do
   let res = runReaderT (P.typeCheckBasicExpr e) gamma'
   case res of
     Left err -> Err.throwErrorMessage err
-    Right ret_ty -> return $ in_tys ++ [ret_ty]
-unitarySignature (Controlled u) arg_tys = (tbool :) <$> unitarySignature u (tail arg_tys)
-unitarySignature (Refl0 ty) _ = return [ty]
-unitarySignature (LoadData f) _ = do
+    Right ret_ty -> verifyArgTys (drop (length xs) arg_tys) [ret_ty]
+typeCheckUnitary (Controlled u) arg_tys = do
+  verifyArgTys [head arg_tys] [tbool]
+  typeCheckUnitary u (tail arg_tys)
+typeCheckUnitary (Refl0 ty) tys = verifyArgTys tys [ty]
+typeCheckUnitary (LoadData f) tys = do
   proc_def <- view (_procCtx . Ctx.at f) >>= maybeWithError (Err.MessageE "cannot find function")
-  return $ proc_def ^.. to proc_params . traverse . _3
+  let inferred_tys = proc_def ^.. to proc_params . traverse . _3
+  verifyArgTys tys inferred_tys
 
 typeCheckStmt :: forall holeT sizeT costT. (Show holeT, TypeCheckable sizeT) => UStmt holeT sizeT -> TypeChecker holeT sizeT costT ()
 -- single statements
@@ -97,8 +105,7 @@ typeCheckStmt UnitaryS{unitary, args} = do
   arg_tys <- forM args $ \x -> do
     mty <- view $ P._typingCtx . Ctx.at x
     maybeWithError (Err.MessageE $ printf "cannot find argument %s" x) mty
-  tys <- unitarySignature unitary arg_tys
-  verifyArgs args tys
+  typeCheckUnitary unitary arg_tys
 typeCheckStmt UCallS{proc_id, args} = do
   proc_param_tys <-
     view $
