@@ -53,7 +53,8 @@ module Traq.ProtoLang.Cost (
   splitEps,
 ) where
 
-import Control.Monad.Reader (MonadReader, foldM, forM, zipWithM)
+import Control.Monad (foldM, forM, zipWithM)
+import Control.Monad.Reader (MonadReader)
 import Data.Foldable (toList)
 import qualified Data.Map as Map
 import Data.Maybe (fromMaybe)
