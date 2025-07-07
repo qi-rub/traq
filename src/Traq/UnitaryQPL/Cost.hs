@@ -55,21 +55,21 @@ stmtCost ::
   , HoleCost holeT costT
   , m ~ CostCalculator holeT sizeT costT
   ) =>
-  Stmt holeT sizeT ->
+  UStmt holeT sizeT ->
   m costT
-stmtCost SkipS = return 0
-stmtCost (CommentS _) = return 0
+stmtCost USkipS = return 0
+stmtCost (UCommentS _) = return 0
 stmtCost UnitaryS{} = return 0
-stmtCost CallS{proc_id} = procCost proc_id
-stmtCost (SeqS ss) = sum <$> mapM stmtCost ss
-stmtCost RepeatS{n_iter = P.MetaSize k, loop_body} = (fromIntegral k *) <$> stmtCost loop_body
-stmtCost RepeatS{n_iter = P.MetaValue k, loop_body} = (fromIntegral k *) <$> stmtCost loop_body
-stmtCost RepeatS{n_iter = P.MetaName _} = fail "unsupported meta parameter substitution"
-stmtCost HoleS{hole} = holeCost hole
-stmtCost ForInRangeS{iter_lim = P.MetaSize k, loop_body} = (fromIntegral k *) <$> stmtCost loop_body
-stmtCost ForInRangeS{iter_lim = P.MetaValue k, loop_body} = (fromIntegral k *) <$> stmtCost loop_body
-stmtCost ForInRangeS{iter_lim = _} = fail "unsupported meta parameter substitution"
-stmtCost WithComputedS{with_stmt, body_stmt} = do
+stmtCost UCallS{proc_id} = procCost proc_id
+stmtCost (USeqS ss) = sum <$> mapM stmtCost ss
+stmtCost URepeatS{n_iter = P.MetaSize k, loop_body} = (fromIntegral k *) <$> stmtCost loop_body
+stmtCost URepeatS{n_iter = P.MetaValue k, loop_body} = (fromIntegral k *) <$> stmtCost loop_body
+stmtCost URepeatS{n_iter = P.MetaName _} = fail "unsupported meta parameter substitution"
+stmtCost UHoleS{hole} = holeCost hole
+stmtCost UForInRangeS{iter_lim = P.MetaSize k, loop_body} = (fromIntegral k *) <$> stmtCost loop_body
+stmtCost UForInRangeS{iter_lim = P.MetaValue k, loop_body} = (fromIntegral k *) <$> stmtCost loop_body
+stmtCost UForInRangeS{iter_lim = _} = fail "unsupported meta parameter substitution"
+stmtCost UWithComputedS{with_stmt, body_stmt} = do
   wc <- stmtCost with_stmt
   bc <- stmtCost body_stmt
   return $ 2 * wc + bc
@@ -86,7 +86,7 @@ procCost name = get_cached_cost <|> calc_cost
  where
   get_cached_cost = use (at name) >>= lift
   calc_cost = do
-    ProcDef{proc_body_or_tick} <- view $ procCtx . Ctx.at name . unsafeFromJust (printf "could not find predicate %s" name)
+    UProcDef{proc_body_or_tick} <- view $ procCtx . Ctx.at name . unsafeFromJust (printf "could not find predicate %s" name)
     cost <- case proc_body_or_tick of
       Right proc_body -> stmtCost proc_body
       Left tick -> pure tick

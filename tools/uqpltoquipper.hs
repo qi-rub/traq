@@ -60,31 +60,31 @@ unitaryToCirc (UQPL.RevEmbedU [a] (P.VarE a')) [arg, res]
         (Q.qulist_of_qureg_te res)
 unitaryToCirc u _ = fail $ "invalid unitary " <> show u
 
-stmtToCirc :: (Show holeT, Show sizeT) => UQPL.Stmt holeT sizeT -> ConverterT holeT sizeT ()
-stmtToCirc UQPL.SkipS = return ()
-stmtToCirc (UQPL.CommentS _) = return ()
-stmtToCirc (UQPL.SeqS ss) = mapM_ stmtToCirc ss
+stmtToCirc :: (Show holeT, Show sizeT) => UQPL.UStmt holeT sizeT -> ConverterT holeT sizeT ()
+stmtToCirc UQPL.USkipS = return ()
+stmtToCirc (UQPL.UCommentS _) = return ()
+stmtToCirc (UQPL.USeqS ss) = mapM_ stmtToCirc ss
 stmtToCirc UQPL.UnitaryS{unitary, args} = do
   qs <- zoom quregs $ mapM Ctx.unsafeLookup args
   lift $ unitaryToCirc unitary qs
-stmtToCirc UQPL.CallS{proc_id, dagger, args} = do
+stmtToCirc UQPL.UCallS{proc_id, dagger, args} = do
   qs <- zoom quregs $ mapM Ctx.unsafeLookup args
   circ <- zoom circs $ Ctx.unsafeLookup proc_id
   let circ_d = if dagger then Q.reverse_generic_endo circ else circ
   qs' <- lift $ circ_d qs
   forM_ (zip args qs') $ \(x, q) -> quregs . Ctx.ins x .= q
-stmtToCirc (UQPL.RepeatS _ _) = fail "TODO repeat"
-stmtToCirc UQPL.HoleS{hole} = do
+stmtToCirc (UQPL.URepeatS _ _) = fail "TODO repeat"
+stmtToCirc UQPL.UHoleS{hole} = do
   q <- use $ quregs . to Ctx.elems
   lift $ Q.named_gate_at ("HOLE :: " ++ show hole) q
-stmtToCirc UQPL.ForInRangeS{} = fail "TODO ForInRange"
+stmtToCirc UQPL.UForInRangeS{} = fail "TODO ForInRange"
 
 type ProcConverterT holeT sizeT = MyStateT (Ctx.Context UnitaryCirc) Q.Circ
 
 procDefToCirc :: (Show holeT, Show sizeT, Show costT) => UQPL.ProcDef holeT sizeT costT -> ProcConverterT holeT sizeT UnitaryCirc
-procDefToCirc UQPL.ProcDef{proc_name, proc_body_or_tick = Left tick} =
+procDefToCirc UQPL.UProcDef{proc_name, proc_body_or_tick = Left tick} =
   return $ Q.named_gate $ printf "%s[%s]" proc_name (show tick)
-procDefToCirc UQPL.ProcDef{proc_name, proc_params, proc_body_or_tick = Right body} = do
+procDefToCirc UQPL.UProcDef{proc_name, proc_params, proc_body_or_tick = Right body} = do
   cs <- use id
   return $
     Q.box proc_name $ \qs -> do

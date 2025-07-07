@@ -89,7 +89,7 @@ class
     [Ident] ->
     -- | rets
     [Ident] ->
-    CompilerT primsT holeT sizeT costT (Stmt holeT sizeT)
+    CompilerT primsT holeT sizeT costT (UStmt holeT sizeT)
 
 instance (Show costT) => Lowerable primsT Void holeT sizeT costT where
   lowerPrimitive _ = absurd
@@ -158,7 +158,7 @@ lowerExpr ::
   P.Expr primsT sizeT ->
   -- | returns
   [Ident] ->
-  CompilerT primsT holeT sizeT costT (Stmt holeT sizeT)
+  CompilerT primsT holeT sizeT costT (UStmt holeT sizeT)
 -- basic expressions are lowered to their unitary embedding
 lowerExpr _ P.BasicExprE{P.basic_expr} rets = do
   let args = toList $ P.freeVarsBE basic_expr
@@ -178,7 +178,7 @@ lowerExpr delta P.FunCallE{P.fun_kind = P.FunctionCall fun_name, P.args} rets = 
 
   aux_args <- forM aux_tys allocAncilla
   return
-    CallS
+    UCallS
       { proc_id = proc_name lowered_def
       , args = args ++ rets ++ aux_args
       , dagger = False
@@ -197,7 +197,7 @@ lowerStmt ::
   ) =>
   costT ->
   P.Stmt primsT sizeT ->
-  CompilerT primsT holeT sizeT costT (Stmt holeT sizeT)
+  CompilerT primsT holeT sizeT costT (UStmt holeT sizeT)
 -- single statement
 lowerStmt delta s@P.ExprS{P.rets, P.expr} = do
   censored . magnify P._funCtx . zoom typingCtx $ P.typeCheckStmt s
@@ -206,7 +206,7 @@ lowerStmt delta s@P.ExprS{P.rets, P.expr} = do
 -- compound statements
 lowerStmt delta (P.SeqS ss) = do
   deltas <- P.splitEps delta ss
-  SeqS <$> zipWithM lowerStmt deltas ss
+  USeqS <$> zipWithM lowerStmt deltas ss
 
 -- unsupported
 lowerStmt _ _ = error "lowering: unsupported"
@@ -256,7 +256,7 @@ lowerFunDefWithGarbage
       aux_binds <- use typingCtx <&> Ctx.toList <&> filter (not . (`elem` param_names ++ ret_names) . fst)
       let all_binds = withTag ParamInp param_binds ++ withTag ParamOut ret_binds ++ withTag ParamAux aux_binds
 
-      let procDef = ProcDef{proc_name, proc_meta_params = [], proc_params = all_binds, proc_body_or_tick = Right proc_body}
+      let procDef = UProcDef{proc_name, proc_meta_params = [], proc_params = all_binds, proc_body_or_tick = Right proc_body}
       addProc procDef
 
       return
@@ -302,7 +302,7 @@ lowerFunDef with_ctrl _ fun_name P.FunDef{P.param_types, P.ret_types, P.mbody = 
 
   ctrl_qubit <- newIdent "ctrl"
   let proc_def =
-        ProcDef
+        UProcDef
           { proc_name = (case with_ctrl of WithControl -> "Ctrl_"; _ -> "") ++ fun_name
           , proc_meta_params = []
           , proc_params =
@@ -347,21 +347,21 @@ lowerFunDef
     let g_args = param_names ++ g_ret_names ++ g_aux_names
 
     ctrl_qubit <- newIdent "ctrl"
-    let copy_op ty = (case with_ctrl of WithControl -> Controlled; _ -> id) (RevEmbedU ["a"] (P.VarE "a"))
+    let copy_op _ty = (case with_ctrl of WithControl -> Controlled; _ -> id) (RevEmbedU ["a"] (P.VarE "a"))
 
     -- call g, copy and uncompute g
     let proc_body =
-          SeqS
-            [ CallS{proc_id = g_dirty_name, dagger = False, args = g_args}
-            , SeqS -- copy all the return values
+          USeqS
+            [ UCallS{proc_id = g_dirty_name, dagger = False, args = g_args}
+            , USeqS -- copy all the return values
                 [ UnitaryS ([ctrl_qubit | with_ctrl == WithControl] ++ [x, x']) (copy_op ty)
                 | (x, x', ty) <- zip3 g_ret_names ret_names g_ret_tys
                 ]
-            , CallS{proc_id = g_dirty_name, dagger = True, args = g_args}
+            , UCallS{proc_id = g_dirty_name, dagger = True, args = g_args}
             ]
 
     let proc_def =
-          ProcDef
+          UProcDef
             { proc_name
             , proc_meta_params = []
             , proc_params =
