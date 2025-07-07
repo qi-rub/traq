@@ -109,7 +109,8 @@ instance HasDagger (UStmt holeT sizeT) where
 data ParamTag = ParamCtrl | ParamInp | ParamOut | ParamAux | ParamUnk deriving (Eq, Show, Read, Enum)
 
 data ProcDef holeT sizeT costT = UProcDef
-  { proc_name :: Ident
+  { info_comment :: String
+  , proc_name :: Ident
   , proc_meta_params :: [Ident]
   , proc_params :: [(Ident, ParamTag, P.VarType sizeT)]
   , proc_body_or_tick :: Either costT (UStmt holeT sizeT) -- Left tick | Right body
@@ -205,13 +206,15 @@ showParamWithTag (x, tag, ty) = printf "%s : %s%s" x tag_s (toCodeString ty)
     s -> s ++ " "
 
 instance (Show holeT, Show sizeT, Show costT) => ToCodeString (ProcDef holeT sizeT costT) where
-  toCodeLines UProcDef{proc_name, proc_meta_params, proc_params, proc_body_or_tick} =
-    case proc_body_or_tick of
-      Left tick -> [printf "%s :: tick(%s)" header (show tick)]
-      Right proc_body ->
-        [printf "%s do" header]
-          <> indent (toCodeLines proc_body)
-          <> ["end"]
+  toCodeLines UProcDef{info_comment, proc_name, proc_meta_params, proc_params, proc_body_or_tick} =
+    ("// " <> info_comment)
+      : ( case proc_body_or_tick of
+            Left tick -> [printf "%s :: tick(%s)" header (show tick)]
+            Right proc_body ->
+              [printf "%s do" header]
+                <> indent (toCodeLines proc_body)
+                <> ["end"]
+        )
    where
     mplist, plist, header :: String
     mplist = commaList $ map ("#" ++) proc_meta_params

@@ -232,7 +232,33 @@ lowerFunDefWithGarbage ::
   -- | function
   P.FunDef primsT sizeT ->
   CompilerT primsT holeT sizeT costT (LoweredProc holeT sizeT costT)
-lowerFunDefWithGarbage _ _ P.FunDef{P.mbody = Nothing} = error "TODO"
+lowerFunDefWithGarbage _ fun_name P.FunDef{P.param_types, P.ret_types, P.mbody = Nothing} = do
+  let param_names = map (printf "in_%d") [0 .. length param_types - 1]
+  let ret_names = map (printf "out_%d") [0 .. length ret_types - 1]
+  tick <- view $ P._unitaryTicks . at fun_name . to (fromMaybe 0)
+
+  proc_name <- newIdent fun_name
+
+  let proc_def =
+        UProcDef
+          { info_comment = ""
+          , proc_name
+          , proc_meta_params = []
+          , proc_params =
+              withTag ParamInp (zip param_names param_types)
+                ++ withTag ParamOut (zip ret_names ret_types)
+          , proc_body_or_tick = Left tick
+          }
+
+  addProc proc_def
+  return
+    LoweredProc
+      { lowered_def = proc_def
+      , has_ctrl = False
+      , inp_tys = param_types
+      , out_tys = ret_types
+      , aux_tys = []
+      }
 lowerFunDefWithGarbage
   delta
   fun_name
@@ -243,7 +269,8 @@ lowerFunDefWithGarbage
       Just P.FunBody{P.param_names, P.ret_names, P.body_stmt}
     } =
     withSandboxOf typingCtx $ do
-      proc_name <- newIdent $ printf "%s[%s]" fun_name (show delta)
+      proc_name <- newIdent fun_name
+      let info_comment = printf "%s[%s]" fun_name (show delta)
 
       let param_binds = zip param_names param_types
       let ret_binds = zip ret_names ret_types
@@ -256,7 +283,14 @@ lowerFunDefWithGarbage
       aux_binds <- use typingCtx <&> Ctx.toList <&> filter (not . (`elem` param_names ++ ret_names) . fst)
       let all_binds = withTag ParamInp param_binds ++ withTag ParamOut ret_binds ++ withTag ParamAux aux_binds
 
-      let procDef = UProcDef{proc_name, proc_meta_params = [], proc_params = all_binds, proc_body_or_tick = Right proc_body}
+      let procDef =
+            UProcDef
+              { info_comment
+              , proc_name
+              , proc_meta_params = []
+              , proc_params = all_binds
+              , proc_body_or_tick = Right proc_body
+              }
       addProc procDef
 
       return
@@ -294,33 +328,6 @@ lowerFunDef ::
   -- | function
   P.FunDef primsT sizeT ->
   CompilerT primsT holeT sizeT costT (LoweredProc holeT sizeT costT)
--- lower a declaration as-is, we treat all declarations as perfect data oracles (so delta is ignored).
-lowerFunDef with_ctrl _ fun_name P.FunDef{P.param_types, P.ret_types, P.mbody = Nothing} = do
-  let param_names = map (printf "in_%d") [0 .. length param_types]
-  let ret_names = map (printf "out_%d") [0 .. length ret_types]
-  tick <- view $ P._unitaryTicks . at fun_name . to (fromMaybe 0)
-
-  ctrl_qubit <- newIdent "ctrl"
-  let proc_def =
-        UProcDef
-          { proc_name = (case with_ctrl of WithControl -> "Ctrl_"; _ -> "") ++ fun_name
-          , proc_meta_params = []
-          , proc_params =
-              [(ctrl_qubit, ParamCtrl, P.tbool) | with_ctrl == WithControl]
-                ++ withTag ParamInp (zip param_names param_types)
-                ++ withTag ParamOut (zip ret_names ret_types)
-          , proc_body_or_tick = Left tick
-          }
-
-  addProc proc_def
-  return
-    LoweredProc
-      { lowered_def = proc_def
-      , has_ctrl = with_ctrl == WithControl
-      , inp_tys = param_types
-      , out_tys = ret_types
-      , aux_tys = []
-      }
 lowerFunDef
   with_ctrl
   delta
@@ -328,17 +335,25 @@ lowerFunDef
   fun@P.FunDef
     { P.param_types
     , P.ret_types
-    , P.mbody = Just P.FunBody{P.param_names, P.ret_names}
+    , P.mbody
     } = withSandboxOf typingCtx $ do
     -- get the proc call that computes with garbage
     LoweredProc{lowered_def, aux_tys = g_aux_tys, out_tys = g_ret_tys} <- lowerFunDefWithGarbage (delta / 2) fun_name fun
     let g_dirty_name = lowered_def ^. to proc_name
 
+    let param_names = case mbody of
+          Just P.FunBody{P.param_names} -> param_names
+          Nothing -> map (printf "in_%d") [0 .. length param_types - 1]
+    let ret_names = case mbody of
+          Just P.FunBody{P.ret_names} -> ret_names
+          Nothing -> map (printf "out_%d") [0 .. length ret_types - 1]
+
     let param_binds = zip param_names param_types
     let ret_binds = zip ret_names ret_types
 
     typingCtx .= Ctx.fromList (param_binds ++ ret_binds)
-    proc_name <- newIdent $ printf "%s%s_clean[%s]" (case with_ctrl of WithControl -> "Ctrl_"; _ -> "") fun_name (show delta)
+    proc_name <- newIdent fun_name
+    let info_comment = printf "%sClean[%s, %s]" (case with_ctrl of WithControl -> "Ctrl_"; _ -> "") fun_name (show delta)
 
     g_ret_names <- mapM allocAncilla g_ret_tys
 
@@ -347,22 +362,23 @@ lowerFunDef
     let g_args = param_names ++ g_ret_names ++ g_aux_names
 
     ctrl_qubit <- newIdent "ctrl"
-    let copy_op _ty = (case with_ctrl of WithControl -> Controlled; _ -> id) (RevEmbedU ["a"] (P.VarE "a"))
+    let copy_op = (case with_ctrl of WithControl -> Controlled; _ -> id) (RevEmbedU ["a"] (P.VarE "a"))
 
     -- call g, copy and uncompute g
     let proc_body =
           USeqS
             [ UCallS{proc_id = g_dirty_name, dagger = False, args = g_args}
             , USeqS -- copy all the return values
-                [ UnitaryS ([ctrl_qubit | with_ctrl == WithControl] ++ [x, x']) (copy_op ty)
-                | (x, x', ty) <- zip3 g_ret_names ret_names g_ret_tys
+                [ UnitaryS ([ctrl_qubit | with_ctrl == WithControl] ++ [x, x']) copy_op
+                | (x, x') <- zip g_ret_names ret_names
                 ]
             , UCallS{proc_id = g_dirty_name, dagger = True, args = g_args}
             ]
 
     let proc_def =
           UProcDef
-            { proc_name
+            { info_comment
+            , proc_name
             , proc_meta_params = []
             , proc_params =
                 [(ctrl_qubit, ParamCtrl, P.tbool) | with_ctrl == WithControl]

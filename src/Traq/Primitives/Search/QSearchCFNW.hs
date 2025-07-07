@@ -471,14 +471,14 @@ instance
 
     -- name:
     -- TODO maybe this can be somehow "parametrized" so we don't have to generate each time.
-    qsearch_proc_name <-
-      UQPL.newIdent $
-        printf "QSearch[%s, %s, %s]" (show n) (show delta_search) (UQPL.proc_name pred_proc)
+    qsearch_proc_name <- UQPL.newIdent "UAny"
+    let info_comment = printf "QSearch[%s, %s, %s]" (show n) (show delta_search) (UQPL.proc_name pred_proc)
 
     -- add the proc:
     UQPL.addProc
       UQPL.UProcDef
-        { UQPL.proc_name = qsearch_proc_name
+        { UQPL.info_comment = info_comment
+        , UQPL.proc_name = qsearch_proc_name
         , UQPL.proc_meta_params = []
         , UQPL.proc_params =
             UQPL.withTag UQPL.ParamInp (zip args (init pred_inp_tys))
@@ -498,15 +498,15 @@ instance
             }
       else do
         -- clean version of qsearch: uncompute to clean up ancilla
-        qsearch_clean_proc_name <-
-          UQPL.newIdent $
-            printf "QSearch_clean[%s, %s, %s]" (show n) (show delta_search) (UQPL.proc_name pred_proc)
+        qsearch_clean_proc_name <- UQPL.newIdent "UAny"
+        let info_comment_clean = printf "QSearch_clean[%s, %s, %s]" (show n) (show delta_search) (UQPL.proc_name pred_proc)
 
         out_bit <- UQPL.allocAncilla P.tbool
 
         UQPL.addProc
           UQPL.UProcDef
-            { UQPL.proc_name = qsearch_clean_proc_name
+            { UQPL.info_comment = info_comment_clean
+            , UQPL.proc_name = qsearch_clean_proc_name
             , UQPL.proc_meta_params = []
             , UQPL.proc_params =
                 UQPL.withTag UQPL.ParamInp (zip args (init pred_inp_tys))
@@ -766,7 +766,8 @@ instance
             )
     let uproc_grover_k =
           UQPL.UProcDef
-            { UQPL.proc_name = uproc_grover_k_name
+            { UQPL.info_comment = "Grover[...]"
+            , UQPL.proc_name = uproc_grover_k_name
             , UQPL.proc_meta_params = ["k"]
             , UQPL.proc_params =
                 UQPL.withTag UQPL.ParamInp (zip (args ++ [grover_arg_name]) pred_inp_tys)
