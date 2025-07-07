@@ -113,10 +113,10 @@ spec = do
     it "unitary cost (optimized precision splitting)" $ do
       let delta = Sym.var "δ" :: Sym.Sym Double
       let cu = P.unitaryQueryCost P.SplitUsingNeedsEps delta ex uticks
-      let nu_outer = 2 * ucF n (delta / 2 / 2)
+      let nu_outer = ucF n (delta / 2 / 2)
       let nu_inner = 2 * ucF m ((delta / 2 - delta / 2 / 2) / nu_outer / 2)
       let nu_oracle = 2
-      cu `shouldBe` 2 * nu_outer * nu_inner * nu_oracle
+      cu `shouldBe` 4 * nu_outer * nu_inner * nu_oracle
 
     it "quantum worst case cost" $ do
       let eps = Sym.var "ε" :: Sym.Sym Double

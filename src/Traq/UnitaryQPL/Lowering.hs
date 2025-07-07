@@ -17,9 +17,6 @@ module Traq.UnitaryQPL.Lowering (
   allocAncilla,
   ControlFlag (..),
 
-  -- ** Lenses
-  typingCtx,
-
   -- * Compilation
   Lowerable (..),
   LoweredProc (..),
@@ -35,7 +32,6 @@ module Traq.UnitaryQPL.Lowering (
 import Control.Monad (forM, msum, unless, when, zipWithM)
 import Control.Monad.Except (throwError)
 import Data.List (intersect)
-import qualified Data.Set as Set
 import Data.Void (Void, absurd)
 import Lens.Micro.GHC
 import Lens.Micro.Mtl
@@ -46,6 +42,7 @@ import Traq.Data.Default
 
 import Data.Foldable (Foldable (toList))
 import Data.Maybe (fromMaybe)
+import Traq.Compiler.Utils
 import Traq.Control.Monad
 import Traq.Prelude
 import qualified Traq.ProtoLang as P
@@ -53,17 +50,6 @@ import Traq.UnitaryQPL.Syntax
 
 -- | Configuration for lowering
 type LoweringConfig primT sizeT costT = P.UnitaryCostEnv primT sizeT costT
-
-{- | A global lowering context storing the source functions and generated procedures
- along with info to generate unique ancilla and variable/procedure names
--}
-type LoweringCtx sizeT = (Set.Set Ident, P.TypingCtx sizeT)
-
-uniqNames :: Lens' (LoweringCtx sizeT) (Set.Set Ident)
-uniqNames = _1
-
-typingCtx :: Lens' (LoweringCtx sizeT) (P.TypingCtx sizeT)
-typingCtx = _2
 
 -- | The outputs of lowering
 type LoweringOutput holeT sizeT costT = [ProcDef holeT sizeT costT]
@@ -103,12 +89,12 @@ newIdent prefix = do
   ident <-
     msum . map checked $
       prefix : map ((prefix <>) . ("_" <>) . show) [1 :: Int ..]
-  uniqNames . at ident ?= ()
+  _uniqNamesCtx . at ident ?= ()
   return ident
  where
   checked :: Ident -> CompilerT primT holeT sizeT costT Ident
   checked name = do
-    already_exists <- use (uniqNames . at name)
+    already_exists <- use (_uniqNamesCtx . at name)
     case already_exists of
       Nothing -> return name
       Just () -> throwError "next ident please!"
@@ -117,7 +103,7 @@ newIdent prefix = do
 allocAncillaWithPref :: Ident -> P.VarType sizeT -> CompilerT primT holeT sizeT costT Ident
 allocAncillaWithPref pref ty = do
   name <- newIdent pref
-  zoom typingCtx $ Ctx.put name ty
+  zoom P._typingCtx $ Ctx.put name ty
   return name
 
 -- | Allocate an ancilla register @aux_<<n>>@, and update the typing context.
@@ -200,7 +186,7 @@ lowerStmt ::
   CompilerT primsT holeT sizeT costT (UStmt holeT sizeT)
 -- single statement
 lowerStmt delta s@P.ExprS{P.rets, P.expr} = do
-  censored . magnify P._funCtx . zoom typingCtx $ P.typeCheckStmt s
+  censored . magnify P._funCtx . zoom P._typingCtx $ P.typeCheckStmt s
   lowerExpr delta expr rets
 
 -- compound statements
@@ -268,19 +254,19 @@ lowerFunDefWithGarbage
     , P.mbody =
       Just P.FunBody{P.param_names, P.ret_names, P.body_stmt}
     } =
-    withSandboxOf typingCtx $ do
+    withSandboxOf P._typingCtx $ do
       proc_name <- newIdent fun_name
       let info_comment = printf "%s[%s]" fun_name (show delta)
 
       let param_binds = zip param_names param_types
       let ret_binds = zip ret_names ret_types
 
-      typingCtx .= Ctx.fromList param_binds
+      P._typingCtx .= Ctx.fromList param_binds
       proc_body <- lowerStmt delta body_stmt
       when (param_names `intersect` ret_names /= []) $
         throwError "function should not return parameters!"
 
-      aux_binds <- use typingCtx <&> Ctx.toList <&> filter (not . (`elem` param_names ++ ret_names) . fst)
+      aux_binds <- use P._typingCtx <&> Ctx.toList <&> filter (not . (`elem` param_names ++ ret_names) . fst)
       let all_binds = withTag ParamInp param_binds ++ withTag ParamOut ret_binds ++ withTag ParamAux aux_binds
 
       let procDef =
@@ -336,7 +322,7 @@ lowerFunDef
     { P.param_types
     , P.ret_types
     , P.mbody
-    } = withSandboxOf typingCtx $ do
+    } = withSandboxOf P._typingCtx $ do
     -- get the proc call that computes with garbage
     LoweredProc{lowered_def, aux_tys = g_aux_tys, out_tys = g_ret_tys} <- lowerFunDefWithGarbage (delta / 2) fun_name fun
     let g_dirty_name = lowered_def ^. to proc_name
@@ -351,7 +337,7 @@ lowerFunDef
     let param_binds = zip param_names param_types
     let ret_binds = zip ret_names ret_types
 
-    typingCtx .= Ctx.fromList (param_binds ++ ret_binds)
+    P._typingCtx .= Ctx.fromList (param_binds ++ ret_binds)
     proc_name <- newIdent fun_name
     let info_comment = printf "%sClean[%s, %s]" (case with_ctrl of WithControl -> "Ctrl_"; _ -> "") fun_name (show delta)
 
@@ -424,8 +410,8 @@ lowerProgram strat gamma_in oracle_ticks delta prog@P.Program{P.funCtx, P.stmt} 
           & (P._precSplitStrat .~ strat)
   let ctx =
         default_
-          & (typingCtx .~ gamma_in)
-          & (uniqNames .~ P.allNamesP prog)
+          & (P._typingCtx .~ gamma_in)
+          & (_uniqNamesCtx .~ P.allNamesP prog)
   let compiler = lowerStmt delta stmt
   (stmtU, ctx', outputU) <- runMyReaderWriterStateT compiler config ctx
   return
@@ -433,5 +419,5 @@ lowerProgram strat gamma_in oracle_ticks delta prog@P.Program{P.funCtx, P.stmt} 
         { proc_defs = outputU ^. loweredProcs . to (Ctx.fromListWith proc_name)
         , stmt = stmtU
         }
-    , ctx' ^. typingCtx
+    , ctx' ^. P._typingCtx
     )

@@ -20,6 +20,8 @@ extra-doc-files:
 
 library
   exposed-modules:
+      Traq.Compiler
+      Traq.Compiler.Utils
       Traq.Control.Monad
       Traq.CQPL
       Traq.CQPL.Lowering

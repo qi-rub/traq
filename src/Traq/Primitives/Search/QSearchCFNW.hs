@@ -461,9 +461,9 @@ instance
     -- Emit the qsearch procedure
     -- body:
     (qsearch_body, qsearch_ancilla) <- do
-      ini_binds <- use UQPL.typingCtx
+      ini_binds <- use P._typingCtx
       ((), ss) <- (\m -> evalMyReaderWriterStateT m UQSearchEnv{search_arg_type = s_ty, pred_call_builder = pred_caller} ()) $ algoQSearchZalka delta_search ret
-      fin_binds <- use UQPL.typingCtx
+      fin_binds <- use P._typingCtx
       let ancillas = Ctx.toList $ fin_binds Ctx.\\ ini_binds
       return (UQPL.USeqS ss, ancillas)
 
@@ -784,7 +784,7 @@ instance
 
     -- emit the QSearch algorithm
     qsearch_params <- forM (args ++ [ret]) $ \x -> do
-      ty <- use $ CQPL.typingCtx . Ctx.at x . singular _Just
+      ty <- use $ P._typingCtx . Ctx.at x . singular _Just
       return (x, ty)
 
     -- let upred_caller = (\x b -> UQPL.holeS $ TODOHole $ printf "unitary predicate call (%s, %s)" x b)
