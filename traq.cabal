@@ -21,11 +21,11 @@ extra-doc-files:
 library
   exposed-modules:
       Traq.Compiler
+      Traq.Compiler.Quantum
       Traq.Compiler.Unitary
       Traq.Compiler.Utils
       Traq.Control.Monad
       Traq.CQPL
-      Traq.CQPL.Lowering
       Traq.CQPL.Syntax
       Traq.CQPL.TypeCheck
       Traq.Data.Context
@@ -243,8 +243,8 @@ test-suite spec
   main-is: Spec.hs
   other-modules:
       TestHelpers
+      Traq.Compiler.QuantumSpec
       Traq.Compiler.UnitarySpec
-      Traq.CQPL.LoweringSpec
       Traq.Data.SymbolicSpec
       Traq.Data.TreeSpec
       Traq.Examples.MatrixSearchSpec

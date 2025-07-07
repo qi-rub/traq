@@ -1,7 +1,7 @@
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE MultiParamTypeClasses #-}
 
-module Traq.CQPL.Lowering (
+module Traq.Compiler.Quantum (
   -- * Compilation
   lowerProgram,
   newIdent,

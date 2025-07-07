@@ -41,6 +41,7 @@ import Traq.Control.Monad
 import qualified Traq.Data.Context as Ctx
 
 import qualified Traq.CQPL as CQPL
+import qualified Traq.Compiler.Quantum as CQPL
 import qualified Traq.Compiler.Unitary as UQPL
 import Traq.Prelude
 import Traq.ProtoLang (notE, (.&&.), (.+.), (.<=.))
