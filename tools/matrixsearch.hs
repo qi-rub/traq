@@ -11,6 +11,7 @@ import qualified Traq.Data.Context as Ctx
 import qualified Traq.Data.Symbolic as Sym
 
 import qualified Traq.CQPL as CQPL
+import qualified Traq.Compiler.Unitary as UQPL
 import Traq.Prelude
 import qualified Traq.ProtoLang as P
 import qualified Traq.UnitaryQPL as UQPL

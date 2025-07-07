@@ -1,7 +1,7 @@
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE MultiParamTypeClasses #-}
 
-module Traq.UnitaryQPL.Lowering (
+module Traq.Compiler.Unitary (
   -- * Types
   CompilerT,
 

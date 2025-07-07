@@ -9,6 +9,7 @@ import Traq.Data.Default
 import qualified Traq.Data.Symbolic as Sym
 
 import qualified Traq.CQPL as CQPL
+import qualified Traq.Compiler.Unitary as UQPL
 import qualified Traq.ProtoLang as P
 import qualified Traq.UnitaryQPL as UQPL
 import Traq.Utils.Printing

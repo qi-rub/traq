@@ -33,6 +33,7 @@ import qualified Traq.Data.Context as Ctx
 import Traq.Data.Default
 
 import Traq.CQPL.Syntax
+import qualified Traq.Compiler.Unitary as UQPL
 import Traq.Compiler.Utils
 import Traq.Prelude
 import qualified Traq.ProtoLang as P
