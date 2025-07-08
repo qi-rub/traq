@@ -22,8 +22,9 @@ module Traq.ProtoLang.TypeCheck (
 ) where
 
 import Control.Monad (forM_, unless, when, zipWithM_)
-import Control.Monad.Except (MonadError, MonadTrans (lift), throwError)
+import Control.Monad.Except (MonadError, throwError)
 import Control.Monad.RWS (MonadReader)
+import Control.Monad.Trans (lift)
 import Data.Void (Void, absurd)
 import Lens.Micro.GHC
 import Lens.Micro.Mtl

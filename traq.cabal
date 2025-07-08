@@ -70,6 +70,7 @@ library
       RankNTypes
       FlexibleContexts
       TypeFamilies
+      TypeOperators
       Safe
   ghc-options: -Wall
   build-depends:
@@ -96,6 +97,7 @@ executable cqplcompile
       RankNTypes
       FlexibleContexts
       TypeFamilies
+      TypeOperators
       RecordWildCards
   ghc-options: -Wall
   build-depends:
@@ -127,6 +129,7 @@ executable matrixsearch
       RankNTypes
       FlexibleContexts
       TypeFamilies
+      TypeOperators
       RecordWildCards
   ghc-options: -Wall
   build-depends:
@@ -158,6 +161,7 @@ executable matrixsearchqcost
       RankNTypes
       FlexibleContexts
       TypeFamilies
+      TypeOperators
       RecordWildCards
   ghc-options: -Wall
   build-depends:
@@ -189,6 +193,7 @@ executable uqplcompile
       RankNTypes
       FlexibleContexts
       TypeFamilies
+      TypeOperators
       RecordWildCards
   ghc-options: -Wall
   build-depends:
@@ -204,36 +209,6 @@ executable uqplcompile
     , random
     , random-shuffle
     , timeit ==2.0.*
-    , transformers >=0.4 && <0.6
-    , traq
-  default-language: Haskell2010
-
-executable uqpltoquipper
-  main-is: uqpltoquipper.hs
-  hs-source-dirs:
-      tools
-  default-extensions:
-      LambdaCase
-      NamedFieldPuns
-      ScopedTypeVariables
-      ApplicativeDo
-      RankNTypes
-      FlexibleContexts
-      TypeFamilies
-      RecordWildCards
-  ghc-options: -Wall
-  build-depends:
-      base >=4.10 && <5
-    , containers >=0.6 && <1
-    , extra >=1.8 && <2
-    , microlens-ghc ==0.4.*
-    , microlens-mtl ==0.2.*
-    , mtl >=2.2.2
-    , optparse-applicative ==0.18.*
-    , parsec >=3.1.17 && <3.2
-    , probability ==0.2.*
-    , quipper-language ==0.9.0.0
-    , quipper-libraries ==0.9.0.0
     , transformers >=0.4 && <0.6
     , traq
   default-language: Haskell2010
@@ -269,6 +244,7 @@ test-suite spec
       RankNTypes
       FlexibleContexts
       TypeFamilies
+      TypeOperators
   ghc-options: -Wall
   cpp-options: -DTEST
   build-tool-depends:
