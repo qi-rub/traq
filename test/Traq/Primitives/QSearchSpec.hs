@@ -7,7 +7,7 @@ import Traq.Data.Default
 
 import qualified Traq.ProtoLang as P
 import qualified Traq.UnitaryQPL as UQPL
-import Traq.Utils.Printing
+import qualified Traq.Utils.Printing as PP
 
 import Traq.Primitives.Search.QSearchCFNW
 
@@ -30,4 +30,4 @@ spec = do
               & execMyReaderWriterT UQSearchEnv{search_arg_type = P.Fin n, pred_call_builder = pred_caller}
               & (\m -> evalMyReaderStateT m lenv lctx)
               <&> UQPL.USeqS
-        toCodeString circ `shouldSatisfy` (not . null)
+        PP.toCodeString circ `shouldSatisfy` (not . null)

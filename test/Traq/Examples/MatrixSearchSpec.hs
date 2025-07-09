@@ -13,7 +13,7 @@ import qualified Traq.Compiler.Quantum as CQPL
 import qualified Traq.Compiler.Unitary as UQPL
 import qualified Traq.ProtoLang as P
 import qualified Traq.UnitaryQPL as UQPL
-import Traq.Utils.Printing
+import qualified Traq.Utils.Printing as PP
 
 import Traq.Examples.MatrixSearch
 import Traq.Primitives.Search.QSearchCFNW (_EQSearchWorst, _QSearchZalka)
@@ -63,7 +63,7 @@ spec = do
       cq `shouldBe` 2 * nq_outer * nq_inner * nq_oracle
 
     it "generate code" $ do
-      toCodeString ex `shouldSatisfy` (not . null)
+      PP.toCodeString ex `shouldSatisfy` (not . null)
 
     describe "lower to UQPL" $ do
       let delta = 0.001 :: Double

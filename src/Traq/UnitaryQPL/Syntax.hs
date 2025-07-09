@@ -35,7 +35,7 @@ import qualified Traq.Data.Context as Ctx
 
 import Traq.Prelude
 import qualified Traq.ProtoLang as P
-import Traq.Utils.Printing
+import qualified Traq.Utils.Printing as PP
 
 data Unitary sizeT
   = Toffoli
@@ -148,50 +148,50 @@ desugarS _ = Nothing
 -- Printing
 -- ================================================================================
 
-instance (Show sizeT) => ToCodeString (Unitary sizeT) where
-  toCodeString (RevEmbedU xs e) = printf "Embed[(%s) => %s]" (commaList xs) (toCodeString e)
+instance (Show sizeT) => PP.ToCodeString (Unitary sizeT) where
+  toCodeString (RevEmbedU xs e) = printf "Embed[(%s) => %s]" (PP.commaList xs) (PP.toCodeString e)
   toCodeString Unif = "Unif"
   toCodeString XGate = "X"
   toCodeString HGate = "H"
   toCodeString Refl0 = printf "Refl0"
   toCodeString (LoadData f) = f
-  toCodeString (Controlled u) = "Ctrl-" <> toCodeString u
-  toCodeString (Adjoint u) = "Adj-" <> toCodeString u
+  toCodeString (Controlled u) = "Ctrl-" <> PP.toCodeString u
+  toCodeString (Adjoint u) = "Adj-" <> PP.toCodeString u
   toCodeString u = show u
 
 showDagger :: Bool -> String
 showDagger True = "-adj"
 showDagger False = ""
 
-instance (Show holeT, Show sizeT) => ToCodeString (UStmt holeT sizeT) where
+instance (Show holeT, Show sizeT) => PP.ToCodeString (UStmt holeT sizeT) where
   toCodeLines USkipS = ["skip;"]
   toCodeLines (UCommentS c) = ["// " ++ c]
-  toCodeLines UnitaryS{args, unitary} = [qc <> " *= " <> toCodeString unitary <> ";"]
+  toCodeLines UnitaryS{args, unitary} = [qc <> " *= " <> PP.toCodeString unitary <> ";"]
    where
-    qc = commaList args
+    qc = PP.commaList args
   toCodeLines UCallS{proc_id, dagger, args} = [printf "call%s %s(%s);" (showDagger dagger) proc_id qc]
    where
-    qc = commaList args
-  toCodeLines (USeqS ps) = concatMap toCodeLines ps
+    qc = PP.commaList args
+  toCodeLines (USeqS ps) = concatMap PP.toCodeLines ps
   toCodeLines (URepeatS k s) =
-    [printf "repeat %s do" (toCodeString k)]
-      ++ indent (toCodeLines s)
+    [printf "repeat %s do" (PP.toCodeString k)]
+      ++ PP.indent (PP.toCodeLines s)
       ++ ["end"]
   toCodeLines (UHoleS info dagger) = [printf "HOLE :: %s%s;" (show info) (showDagger dagger)]
   -- syntax sugar
   toCodeLines UForInRangeS{iter_meta_var, iter_lim, dagger, loop_body} =
     printf "for #%s in %s do" iter_meta_var range_str
-      : indent (toCodeLines loop_body)
+      : PP.indent (PP.toCodeLines loop_body)
       ++ ["end"]
    where
     range_str :: String
     range_str
-      | dagger = printf "%s - 1 .. 0" (toCodeString iter_lim)
-      | otherwise = printf "0 .. < %s" (toCodeString iter_lim)
+      | dagger = printf "%s - 1 .. 0" (PP.toCodeString iter_lim)
+      | otherwise = printf "0 .. < %s" (PP.toCodeString iter_lim)
   toCodeLines UWithComputedS{with_stmt, body_stmt} =
-    "with {" : indent (toCodeLines with_stmt) ++ ["} do {"] ++ indent (toCodeLines body_stmt) ++ ["}"]
+    "with {" : PP.indent (PP.toCodeLines with_stmt) ++ ["} do {"] ++ PP.indent (PP.toCodeLines body_stmt) ++ ["}"]
 
-instance ToCodeString ParamTag where
+instance PP.ToCodeString ParamTag where
   toCodeString ParamCtrl = "CTRL"
   toCodeString ParamInp = "IN"
   toCodeString ParamOut = "OUT"
@@ -199,28 +199,28 @@ instance ToCodeString ParamTag where
   toCodeString ParamUnk = ""
 
 showParamWithTag :: (Show sizeT) => (Ident, ParamTag, P.VarType sizeT) -> String
-showParamWithTag (x, tag, ty) = printf "%s : %s%s" x tag_s (toCodeString ty)
+showParamWithTag (x, tag, ty) = printf "%s : %s%s" x tag_s (PP.toCodeString ty)
  where
-  tag_s = case toCodeString tag of
+  tag_s = case PP.toCodeString tag of
     "" -> ""
     s -> s ++ " "
 
-instance (Show holeT, Show sizeT, Show costT) => ToCodeString (ProcDef holeT sizeT costT) where
+instance (Show holeT, Show sizeT, Show costT) => PP.ToCodeString (ProcDef holeT sizeT costT) where
   toCodeLines UProcDef{info_comment, proc_name, proc_meta_params, proc_params, proc_body_or_tick} =
     ("// " <> info_comment)
       : ( case proc_body_or_tick of
             Left tick -> [printf "%s :: tick(%s)" header (show tick)]
             Right proc_body ->
               [printf "%s do" header]
-                <> indent (toCodeLines proc_body)
+                <> PP.indent (PP.toCodeLines proc_body)
                 <> ["end"]
         )
    where
     mplist, plist, header :: String
-    mplist = commaList $ map ("#" ++) proc_meta_params
+    mplist = PP.commaList $ map ("#" ++) proc_meta_params
     b_mplist = if null mplist then "" else "[" ++ mplist ++ "]"
-    plist = commaList $ map showParamWithTag proc_params
+    plist = PP.commaList $ map showParamWithTag proc_params
     header = printf "uproc %s%s(%s)" proc_name b_mplist plist
 
-instance (Show holeT, Show sizeT, Show costT) => ToCodeString (Program holeT sizeT costT) where
-  toCodeLines Program{proc_defs, stmt} = map toCodeString (Ctx.elems proc_defs) <> [toCodeString stmt]
+instance (Show holeT, Show sizeT, Show costT) => PP.ToCodeString (Program holeT sizeT costT) where
+  toCodeLines Program{proc_defs, stmt} = map PP.toCodeString (Ctx.elems proc_defs) <> [PP.toCodeString stmt]

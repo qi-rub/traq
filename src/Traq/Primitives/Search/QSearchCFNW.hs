@@ -47,7 +47,7 @@ import Traq.Prelude
 import Traq.ProtoLang (notE, (.&&.), (.+.), (.<=.))
 import qualified Traq.ProtoLang as P
 import qualified Traq.UnitaryQPL as UQPL
-import Traq.Utils.Printing
+import qualified Traq.Utils.Printing as PP
 
 import Data.Foldable (Foldable (toList))
 import Traq.Primitives.Search.Prelude
@@ -118,7 +118,7 @@ instance HasPrimSearch QSearchCFNW where
   mkSearch p = QSearchCFNW{predicate = p, return_sol = True}
   getPredicateOfSearch = predicate
 
-instance ToCodeString QSearchCFNW where
+instance PP.ToCodeString QSearchCFNW where
   toCodeString QSearchCFNW{predicate, return_sol = False} = printf "@any[%s]" predicate
   toCodeString QSearchCFNW{predicate, return_sol = True} = printf "@search[%s]" predicate
 

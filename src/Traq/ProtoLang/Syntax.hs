@@ -41,7 +41,7 @@ import qualified Traq.Data.Context as Ctx
 import Traq.Prelude
 import Traq.ProtoLang.Prelude
 import Traq.Utils.ASTRewriting
-import Traq.Utils.Printing
+import qualified Traq.Utils.Printing as PP
 
 -- ================================================================================
 -- Common Syntax
@@ -53,21 +53,21 @@ newtype VarType sizeT = Fin sizeT -- Fin<N>
 
 type instance SizeType (VarType sizeT) = sizeT
 
-instance (Show a) => ToCodeString (VarType a) where
+instance (Show a) => PP.ToCodeString (VarType a) where
   toCodeString (Fin len) = "Fin<" <> show len <> ">"
 
 -- | Unary operations
 data UnOp = NotOp
   deriving (Eq, Show, Read)
 
-instance ToCodeString UnOp where
+instance PP.ToCodeString UnOp where
   toCodeString NotOp = "not "
 
 -- | Binary operations
 data BinOp = AddOp | LEqOp | AndOp
   deriving (Eq, Show, Read)
 
-instance ToCodeString BinOp where
+instance PP.ToCodeString BinOp where
   toCodeString AddOp = "+"
   toCodeString LEqOp = "<="
   toCodeString AndOp = "&&"
@@ -76,7 +76,7 @@ instance ToCodeString BinOp where
 data NAryOp = MultiOrOp
   deriving (Eq, Show, Read)
 
-instance ToCodeString NAryOp where
+instance PP.ToCodeString NAryOp where
   toCodeString MultiOrOp = "or"
 
 -- | Basic arithmetic and logical expressions
@@ -103,16 +103,16 @@ notE = UnOpE NotOp
 (.+.) = BinOpE AddOp
 (.&&.) = BinOpE AndOp
 
-instance (Show sizeT) => ToCodeString (BasicExpr sizeT) where
+instance (Show sizeT) => PP.ToCodeString (BasicExpr sizeT) where
   toCodeString VarE{var} = var
   toCodeString ParamE{param} = printf "#%s" param
-  toCodeString ConstE{val, ty} = unwords [show val, ":", toCodeString ty]
-  toCodeString UnOpE{un_op, operand} = toCodeString un_op <> toCodeString operand
+  toCodeString ConstE{val, ty} = unwords [show val, ":", PP.toCodeString ty]
+  toCodeString UnOpE{un_op, operand} = PP.toCodeString un_op <> PP.toCodeString operand
   toCodeString BinOpE{bin_op, lhs, rhs} =
-    "(" <> unwords [toCodeString lhs, toCodeString bin_op, toCodeString rhs] <> ")"
+    "(" <> unwords [PP.toCodeString lhs, PP.toCodeString bin_op, PP.toCodeString rhs] <> ")"
   toCodeString TernaryE{branch, lhs, rhs} =
-    "(" <> unwords ("ifte" : map toCodeString [branch, lhs, rhs]) <> ")"
-  toCodeString NAryE{op, operands} = toCodeString op <> "(" <> commaList (map toCodeString operands) <> ")"
+    "(" <> unwords ("ifte" : map PP.toCodeString [branch, lhs, rhs]) <> ")"
+  toCodeString NAryE{op, operands} = PP.toCodeString op <> "(" <> PP.commaList (map PP.toCodeString operands) <> ")"
 
 -- ================================================================================
 -- Syntax
@@ -224,26 +224,26 @@ instance HasStmt (Program primT sizeT) (Stmt primT sizeT) where
 -- Printing
 -- ================================================================================
 
-instance (ToCodeString primT) => ToCodeString (FunctionCallKind primT) where
+instance (PP.ToCodeString primT) => PP.ToCodeString (FunctionCallKind primT) where
   toCodeString (FunctionCall f) = f
-  toCodeString (PrimitiveCall prim) = toCodeString prim
+  toCodeString (PrimitiveCall prim) = PP.toCodeString prim
 
-instance (Show sizeT, ToCodeString primT) => ToCodeString (Expr primT sizeT) where
-  toCodeString BasicExprE{basic_expr} = toCodeString basic_expr
+instance (Show sizeT, PP.ToCodeString primT) => PP.ToCodeString (Expr primT sizeT) where
+  toCodeString BasicExprE{basic_expr} = PP.toCodeString basic_expr
   toCodeString FunCallE{fun_kind, args} =
-    unwords [toCodeString fun_kind <> "(" <> commaList args <> ")"]
+    unwords [PP.toCodeString fun_kind <> "(" <> PP.commaList args <> ")"]
 
-instance (Show sizeT, ToCodeString primT) => ToCodeString (Stmt primT sizeT) where
-  toCodeLines ExprS{rets, expr} = [unwords [commaList rets, "<-", toCodeString expr]]
+instance (Show sizeT, PP.ToCodeString primT) => PP.ToCodeString (Stmt primT sizeT) where
+  toCodeLines ExprS{rets, expr} = [unwords [PP.commaList rets, "<-", PP.toCodeString expr]]
   toCodeLines IfThenElseS{cond, s_true, s_false} =
     [unwords ["if", cond, "then"]]
-      <> indent (toCodeLines s_true)
+      <> PP.indent (PP.toCodeLines s_true)
       <> ["else"]
-      <> indent (toCodeLines s_false)
+      <> PP.indent (PP.toCodeLines s_false)
       <> ["end"]
-  toCodeLines (SeqS ss) = concatMap toCodeLines ss
+  toCodeLines (SeqS ss) = concatMap PP.toCodeLines ss
 
-instance (Show sizeT, ToCodeString primT) => ToCodeString (NamedFunDef primT sizeT) where
+instance (Show sizeT, PP.ToCodeString primT) => PP.ToCodeString (NamedFunDef primT sizeT) where
   -- def
   toCodeLines
     NamedFunDef
@@ -255,15 +255,15 @@ instance (Show sizeT, ToCodeString primT) => ToCodeString (NamedFunDef primT siz
           , mbody = Just FunBody{body_stmt, param_names, ret_names}
           }
       } =
-      [printf "def %s(%s) do" fun_name (commaList $ zipWith showTypedVar param_names param_types)]
-        <> indent
-          ( toCodeLines body_stmt
-              <> [unwords ["return", commaList $ zipWith showTypedVar ret_names ret_types]]
+      [printf "def %s(%s) do" fun_name (PP.commaList $ zipWith showTypedVar param_names param_types)]
+        <> PP.indent
+          ( PP.toCodeLines body_stmt
+              <> [unwords ["return", PP.commaList $ zipWith showTypedVar ret_names ret_types]]
           )
         <> ["end"]
      where
       showTypedVar :: Ident -> VarType sizeT -> String
-      showTypedVar x ty = unwords [x, ":", toCodeString ty]
+      showTypedVar x ty = unwords [x, ":", PP.toCodeString ty]
   -- declare
   toCodeLines
     NamedFunDef
@@ -273,11 +273,11 @@ instance (Show sizeT, ToCodeString primT) => ToCodeString (NamedFunDef primT siz
       [ printf
           "declare %s(%s) -> %s;"
           fun_name
-          (commaList $ map toCodeString param_types)
-          (commaList $ map toCodeString ret_types)
+          (PP.commaList $ map PP.toCodeString param_types)
+          (PP.commaList $ map PP.toCodeString ret_types)
       ]
 
-instance (Show sizeT, ToCodeString primT) => ToCodeString (Program primT sizeT) where
+instance (Show sizeT, PP.ToCodeString primT) => PP.ToCodeString (Program primT sizeT) where
   toCodeLines Program{funCtx, stmt} =
-    [toCodeString NamedFunDef{fun_name, fun_def} | (fun_name, fun_def) <- Ctx.toList funCtx]
-      <> toCodeLines stmt
+    [PP.toCodeString NamedFunDef{fun_name, fun_def} | (fun_name, fun_def) <- Ctx.toList funCtx]
+      <> PP.toCodeLines stmt

@@ -15,7 +15,7 @@ import qualified Traq.Compiler.Unitary as UQPL
 import Traq.Prelude
 import qualified Traq.ProtoLang as P
 import qualified Traq.UnitaryQPL as UQPL
-import Traq.Utils.Printing
+import qualified Traq.Utils.Printing as PP
 
 import Traq.Primitives (DefaultPrims)
 
@@ -103,11 +103,11 @@ compile prog delta = do
         let t_cost = proc_costs ^. at pname
         tellLn $ "// Cost         : " <> maybe "()" show t_cost
         tellLn $ "// Formula Cost : " <> f_cost
-      tellLn $ toCodeString p
+      tellLn $ PP.toCodeString p
 
     tellLn $ "// Actual Cost : " <> show cost
     tellLn $ "// Formula Cost: " ++ show (P.unitaryQueryCost P.SplitSimple delta prog oracle_ticks)
-    tellLn $ toCodeString $ uqpl_prog ^. to UQPL.stmt
+    tellLn $ PP.toCodeString $ uqpl_prog ^. to UQPL.stmt
 
 main :: IO ()
 main = do

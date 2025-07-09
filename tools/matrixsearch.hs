@@ -15,7 +15,7 @@ import qualified Traq.Compiler.Unitary as UQPL
 import Traq.Prelude
 import qualified Traq.ProtoLang as P
 import qualified Traq.UnitaryQPL as UQPL
-import Traq.Utils.Printing
+import qualified Traq.Utils.Printing as PP
 
 import Traq.Examples.MatrixSearch
 import Traq.Primitives.Search.Symbolic
@@ -62,7 +62,7 @@ concreteEx = do
   let ex = matrixExampleS n m
 
   printDivider
-  putStrLn $ toCodeString ex
+  putStrLn $ PP.toCodeString ex
 
   let delta = 0.001 :: Double
   let uticks = Map.singleton "Oracle" 1.0
@@ -72,7 +72,7 @@ concreteEx = do
 
   printDivider
   let (Right (exU, _)) = UQPL.lowerProgram strat Ctx.empty uticks delta ex
-  putStrLn $ toCodeString exU
+  putStrLn $ PP.toCodeString exU
 
   let (u_true_cost, _) = UQPL.programCost exU
 
@@ -89,7 +89,7 @@ concreteQEx = do
   let ex = matrixExampleS n m
 
   printDivider
-  putStrLn $ toCodeString ex
+  putStrLn $ PP.toCodeString ex
 
   let delta = 0.001 :: Double
   let uticks = Map.singleton "Oracle" 1.0
@@ -98,7 +98,7 @@ concreteQEx = do
 
   printDivider
   let (Right (exU, _)) = CQPL.lowerProgram strat Ctx.empty uticks cticks delta ex
-  putStrLn $ toCodeString exU
+  putStrLn $ PP.toCodeString exU
 
 main :: IO ()
 main = do

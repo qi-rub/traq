@@ -31,7 +31,7 @@ import Traq.ProtoLang (MetaParam (..), VarType)
 import qualified Traq.ProtoLang as P
 import qualified Traq.UnitaryQPL as UQPL
 import Traq.Utils.ASTRewriting
-import Traq.Utils.Printing
+import qualified Traq.Utils.Printing as PP
 
 -- ================================================================================
 -- Syntax
@@ -174,76 +174,76 @@ desugarS _ = Nothing
 -- Code printing
 -- ================================================================================
 
-instance (Show holeT, Show sizeT) => ToCodeString (Stmt holeT sizeT) where
+instance (Show holeT, Show sizeT) => PP.ToCodeString (Stmt holeT sizeT) where
   toCodeLines SkipS = ["skip;"]
   toCodeLines AssignS{rets, expr} =
-    [printf "%s := %s;" (commaList rets) (toCodeString expr)]
+    [printf "%s := %s;" (PP.commaList rets) (PP.toCodeString expr)]
   toCodeLines RandomS{ret, max_val} =
-    [printf "%s :=$ [1 .. %s];" ret (toCodeString max_val)]
+    [printf "%s :=$ [1 .. %s];" ret (PP.toCodeString max_val)]
   toCodeLines RandomDynS{ret, max_var} =
     [printf "%s :=$ [1 .. %s];" ret max_var]
   toCodeLines CallS{fun, meta_params, args} =
-    [printf "%s[%s](%s);" (f_str fun) meta_params_str (commaList args)]
+    [printf "%s[%s](%s);" (f_str fun) meta_params_str (PP.commaList args)]
    where
     f_str :: FunctionCall -> String
     f_str (FunctionCall fname) = printf "call %s" fname
     f_str (UProcAndMeas uproc_id) = printf "call_uproc_and_meas %s" uproc_id
 
-    meta_params_str = commaList $ map (either toCodeString id) meta_params
-  toCodeLines (SeqS ss) = concatMap toCodeLines ss
+    meta_params_str = PP.commaList $ map (either PP.toCodeString id) meta_params
+  toCodeLines (SeqS ss) = concatMap PP.toCodeLines ss
   toCodeLines IfThenElseS{cond, s_true, s_false} =
     [printf "if (%s) then" cond]
-      ++ indent (toCodeLines s_true)
+      ++ PP.indent (PP.toCodeLines s_true)
       ++ ["else"]
-      ++ indent (toCodeLines s_false)
+      ++ PP.indent (PP.toCodeLines s_false)
       ++ ["end"]
   toCodeLines RepeatS{n_iter, loop_body} =
-    [printf "repeat %s do" (toCodeString n_iter)]
-      ++ indent (toCodeLines loop_body)
+    [printf "repeat %s do" (PP.toCodeString n_iter)]
+      ++ PP.indent (PP.toCodeLines loop_body)
       ++ ["end"]
   -- hole
   toCodeLines (HoleS info) = [printf "HOLE :: %s;" (show info)]
   -- syntax sugar
   toCodeLines WhileK{n_iter, cond, loop_body} =
-    printf "while[%s] (%s) do" (toCodeString n_iter) cond
-      : indent (toCodeLines loop_body)
+    printf "while[%s] (%s) do" (PP.toCodeString n_iter) cond
+      : PP.indent (PP.toCodeLines loop_body)
       ++ ["end"]
   toCodeLines WhileKWithCondExpr{n_iter, cond, cond_expr, loop_body} =
-    printf "while[%s] (%s := %s) do" (toCodeString n_iter) cond (toCodeString cond_expr)
-      : indent (toCodeLines loop_body)
+    printf "while[%s] (%s := %s) do" (PP.toCodeString n_iter) cond (PP.toCodeString cond_expr)
+      : PP.indent (PP.toCodeLines loop_body)
       ++ ["end"]
   toCodeLines (CommentS c) = ["// " ++ c]
   toCodeLines ForInArray{loop_index, loop_values, loop_body} =
-    printf "for %s in [%s] do" loop_index (commaList $ map toCodeString loop_values)
-      : indent (toCodeLines loop_body)
+    printf "for %s in [%s] do" loop_index (PP.commaList $ map PP.toCodeString loop_values)
+      : PP.indent (PP.toCodeLines loop_body)
       ++ ["end"]
 
-instance (Show holeT, Show sizeT, Show costT) => ToCodeString (ProcDef holeT sizeT costT) where
+instance (Show holeT, Show sizeT, Show costT) => PP.ToCodeString (ProcDef holeT sizeT costT) where
   toCodeLines ProcDef{proc_name, proc_meta_params, proc_param_types, proc_body_or_tick = Left tick} =
     [ printf
         "proc %s[%s](%s) :: tick(%s);"
         proc_name
-        (commaList proc_meta_params)
-        (commaList $ zipWith showTypedIxVar [1 :: Int ..] proc_param_types)
+        (PP.commaList proc_meta_params)
+        (PP.commaList $ zipWith showTypedIxVar [1 :: Int ..] proc_param_types)
         (show tick)
     ]
    where
-    showTypedIxVar i ty = printf "x_%d: %s" i (toCodeString ty)
+    showTypedIxVar i ty = printf "x_%d: %s" i (PP.toCodeString ty)
   toCodeLines ProcDef{proc_name, proc_meta_params, proc_param_types, proc_body_or_tick = Right ProcBody{proc_param_names, proc_local_vars, proc_body_stmt}} =
     [ printf
         "proc %s[%s](%s) { locals: (%s) } do"
         proc_name
-        (commaList proc_meta_params)
-        (commaList $ zipWith showTypedVar proc_param_names proc_param_types)
-        (commaList $ map (uncurry showTypedVar) proc_local_vars)
+        (PP.commaList proc_meta_params)
+        (PP.commaList $ zipWith showTypedVar proc_param_names proc_param_types)
+        (PP.commaList $ map (uncurry showTypedVar) proc_local_vars)
     ]
-      ++ indent (toCodeLines proc_body_stmt)
+      ++ PP.indent (PP.toCodeLines proc_body_stmt)
       ++ ["end"]
    where
-    showTypedVar x ty = printf "%s: %s" x (toCodeString ty)
+    showTypedVar x ty = printf "%s: %s" x (PP.toCodeString ty)
 
-instance (Show holeT, Show sizeT, Show costT) => ToCodeString (Program holeT sizeT costT) where
+instance (Show holeT, Show sizeT, Show costT) => PP.ToCodeString (Program holeT sizeT costT) where
   toCodeLines Program{proc_defs, uproc_defs, stmt} =
-    map toCodeString (Ctx.elems uproc_defs)
-      ++ map toCodeString (Ctx.elems proc_defs)
-      ++ [toCodeString stmt]
+    map PP.toCodeString (Ctx.elems uproc_defs)
+      ++ map PP.toCodeString (Ctx.elems proc_defs)
+      ++ [PP.toCodeString stmt]

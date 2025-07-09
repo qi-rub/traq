@@ -14,7 +14,7 @@ import Text.Printf (printf)
 import Traq.Prelude
 import Traq.Primitives.Search.Prelude
 import qualified Traq.ProtoLang as P
-import Traq.Utils.Printing
+import qualified Traq.Utils.Printing as PP
 
 -- ================================================================================
 -- Cost Formulas
@@ -27,7 +27,7 @@ import Traq.Utils.Printing
 newtype QCount = QCount {predicate :: Ident}
   deriving (Eq, Show, Read)
 
-instance ToCodeString QCount where
+instance PP.ToCodeString QCount where
   toCodeString QCount{predicate} = printf "@count[%s]" predicate
 
 -- Parsing

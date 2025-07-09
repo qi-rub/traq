@@ -8,7 +8,7 @@ module Traq.ProtoLang.Prelude (
 ) where
 
 import Traq.Prelude
-import Traq.Utils.Printing
+import qualified Traq.Utils.Printing as PP
 
 -- | The size type (usually some Integral) of a given type.
 type family SizeType p
@@ -23,7 +23,7 @@ type family PrimitiveType p
 data MetaParam sizeT = MetaName String | MetaSize sizeT | MetaValue Value
   deriving (Eq, Show, Read)
 
-instance (Show sizeT) => ToCodeString (MetaParam sizeT) where
+instance (Show sizeT) => PP.ToCodeString (MetaParam sizeT) where
   toCodeString (MetaName n) = "#" ++ n
   toCodeString (MetaSize n) = show n
   toCodeString (MetaValue n) = show n
