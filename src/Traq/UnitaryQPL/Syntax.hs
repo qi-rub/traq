@@ -164,32 +164,37 @@ showDagger True = "-adj"
 showDagger False = ""
 
 instance (Show holeT, Show sizeT) => PP.ToCodeString (UStmt holeT sizeT) where
-  toCodeLines USkipS = ["skip;"]
-  toCodeLines (UCommentS c) = ["// " ++ c]
-  toCodeLines UnitaryS{args, unitary} = [qc <> " *= " <> PP.toCodeString unitary <> ";"]
-   where
-    qc = PP.commaList args
-  toCodeLines UCallS{proc_id, dagger, args} = [printf "call%s %s(%s);" (showDagger dagger) proc_id qc]
-   where
-    qc = PP.commaList args
-  toCodeLines (USeqS ps) = concatMap PP.toCodeLines ps
-  toCodeLines (URepeatS k s) =
-    [printf "repeat %s do" (PP.toCodeString k)]
-      ++ PP.indent (PP.toCodeLines s)
-      ++ ["end"]
-  toCodeLines (UHoleS info dagger) = [printf "HOLE :: %s%s;" (show info) (showDagger dagger)]
+  build USkipS = PP.putLine "skip;"
+  build (UCommentS c) = PP.putComment c
+  build UnitaryS{args, unitary} = PP.concatenated $ do
+    PP.put $ PP.commaList args
+    PP.put " *= "
+    PP.build unitary
+    PP.put ";"
+  build UCallS{proc_id, dagger, args} = PP.concatenated $ do
+    PP.put "call"
+    PP.put $ showDagger dagger
+    PP.put " "
+    PP.put proc_id
+    PP.put $ PP.commaList args
+    PP.put ";"
+  build (USeqS ps) = mapM_ PP.build ps
   -- syntax sugar
-  toCodeLines UForInRangeS{iter_meta_var, iter_lim, dagger, loop_body} =
-    printf "for #%s in %s do" iter_meta_var range_str
-      : PP.indent (PP.toCodeLines loop_body)
-      ++ ["end"]
+  build (UHoleS info dagger) = PP.putLine $ printf "HOLE :: %s%s;" (show info) (showDagger dagger)
+  build (URepeatS k s) = do
+    let header = printf "repeat %s" (PP.toCodeString k)
+    PP.bracedBlockWith header $ PP.build s
+  build UWithComputedS{with_stmt, body_stmt} = do
+    PP.bracedBlockWith "with" $ PP.build with_stmt
+    PP.bracedBlockWith "do" $ PP.build body_stmt
+  build UForInRangeS{iter_meta_var, iter_lim, dagger, loop_body} = do
+    let header = printf "for #%s in %s" iter_meta_var range_str
+    PP.bracedBlockWith header $ PP.build loop_body
    where
     range_str :: String
     range_str
       | dagger = printf "%s - 1 .. 0" (PP.toCodeString iter_lim)
       | otherwise = printf "0 .. < %s" (PP.toCodeString iter_lim)
-  toCodeLines UWithComputedS{with_stmt, body_stmt} =
-    "with {" : PP.indent (PP.toCodeLines with_stmt) ++ ["} do {"] ++ PP.indent (PP.toCodeLines body_stmt) ++ ["}"]
 
 instance PP.ToCodeString ParamTag where
   toCodeString ParamCtrl = "CTRL"
@@ -206,21 +211,16 @@ showParamWithTag (x, tag, ty) = printf "%s : %s%s" x tag_s (PP.toCodeString ty)
     s -> s ++ " "
 
 instance (Show holeT, Show sizeT, Show costT) => PP.ToCodeString (ProcDef holeT sizeT costT) where
-  toCodeLines UProcDef{info_comment, proc_name, proc_meta_params, proc_params, proc_body_or_tick} =
-    ("// " <> info_comment)
-      : ( case proc_body_or_tick of
-            Left tick -> [printf "%s :: tick(%s)" header (show tick)]
-            Right proc_body ->
-              [printf "%s do" header]
-                <> PP.indent (PP.toCodeLines proc_body)
-                <> ["end"]
-        )
+  build UProcDef{info_comment, proc_name, proc_meta_params, proc_params, proc_body_or_tick} = do
+    PP.putComment info_comment
+    case proc_body_or_tick of
+      Left tick -> PP.putLine $ printf "%s :: tick(%s);" header (show tick)
+      Right proc_body -> PP.bracedBlockWith header $ PP.build proc_body
    where
     mplist, plist, header :: String
-    mplist = PP.commaList $ map ("#" ++) proc_meta_params
-    b_mplist = if null mplist then "" else "[" ++ mplist ++ "]"
+    mplist = PP.wrapNonEmpty "[" "]" $ PP.commaList $ map ("#" ++) proc_meta_params
     plist = PP.commaList $ map showParamWithTag proc_params
-    header = printf "uproc %s%s(%s)" proc_name b_mplist plist
+    header = printf "uproc %s%s(%s)" proc_name mplist plist
 
 instance (Show holeT, Show sizeT, Show costT) => PP.ToCodeString (Program holeT sizeT costT) where
   toCodeLines Program{proc_defs, stmt} = map PP.toCodeString (Ctx.elems proc_defs) <> [PP.toCodeString stmt]
