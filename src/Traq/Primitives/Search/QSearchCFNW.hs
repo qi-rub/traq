@@ -119,8 +119,8 @@ instance HasPrimSearch QSearchCFNW where
   getPredicateOfSearch = predicate
 
 instance PP.ToCodeString QSearchCFNW where
-  toCodeString QSearchCFNW{predicate, return_sol = False} = printf "@any[%s]" predicate
-  toCodeString QSearchCFNW{predicate, return_sol = True} = printf "@search[%s]" predicate
+  build QSearchCFNW{predicate, return_sol = False} = PP.putWord $ printf "@any[%s]" predicate
+  build QSearchCFNW{predicate, return_sol = True} = PP.putWord $ printf "@search[%s]" predicate
 
 -- Parsing
 instance P.CanParsePrimitive QSearchCFNW where

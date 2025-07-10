@@ -54,30 +54,30 @@ newtype VarType sizeT = Fin sizeT -- Fin<N>
 type instance SizeType (VarType sizeT) = sizeT
 
 instance (Show a) => PP.ToCodeString (VarType a) where
-  toCodeString (Fin len) = "Fin<" <> show len <> ">"
+  build (Fin len) = PP.putWord $ "Fin<" <> show len <> ">"
 
 -- | Unary operations
 data UnOp = NotOp
   deriving (Eq, Show, Read)
 
 instance PP.ToCodeString UnOp where
-  toCodeString NotOp = "not "
+  build NotOp = PP.putWord "not "
 
 -- | Binary operations
 data BinOp = AddOp | LEqOp | AndOp
   deriving (Eq, Show, Read)
 
 instance PP.ToCodeString BinOp where
-  toCodeString AddOp = "+"
-  toCodeString LEqOp = "<="
-  toCodeString AndOp = "&&"
+  build AddOp = PP.putWord "+"
+  build LEqOp = PP.putWord "<="
+  build AndOp = PP.putWord "&&"
 
 -- | Operations which take multiple arguments
 data NAryOp = MultiOrOp
   deriving (Eq, Show, Read)
 
 instance PP.ToCodeString NAryOp where
-  toCodeString MultiOrOp = "or"
+  build MultiOrOp = PP.putWord "or"
 
 -- | Basic arithmetic and logical expressions
 data BasicExpr sizeT
@@ -104,15 +104,20 @@ notE = UnOpE NotOp
 (.&&.) = BinOpE AndOp
 
 instance (Show sizeT) => PP.ToCodeString (BasicExpr sizeT) where
-  toCodeString VarE{var} = var
-  toCodeString ParamE{param} = printf "#%s" param
-  toCodeString ConstE{val, ty} = unwords [show val, ":", PP.toCodeString ty]
-  toCodeString UnOpE{un_op, operand} = PP.toCodeString un_op <> PP.toCodeString operand
-  toCodeString BinOpE{bin_op, lhs, rhs} =
-    "(" <> unwords [PP.toCodeString lhs, PP.toCodeString bin_op, PP.toCodeString rhs] <> ")"
-  toCodeString TernaryE{branch, lhs, rhs} =
-    "(" <> unwords ("ifte" : map PP.toCodeString [branch, lhs, rhs]) <> ")"
-  toCodeString NAryE{op, operands} = PP.toCodeString op <> "(" <> PP.commaList (map PP.toCodeString operands) <> ")"
+  build VarE{var} = PP.putWord var
+  build ParamE{param} = PP.putWord $ printf "#%s" param
+  build ConstE{val, ty} = PP.putWord . printf "%s:%s" (show val) =<< PP.fromBuild ty
+  build UnOpE{un_op, operand} =
+    PP.putWord =<< (++) <$> PP.fromBuild un_op <*> PP.fromBuild operand
+  build BinOpE{bin_op, lhs, rhs} =
+    PP.putWord =<< printf "(%s %s %s)" <$> PP.fromBuild lhs <*> PP.fromBuild bin_op <*> PP.fromBuild rhs
+  build TernaryE{branch, lhs, rhs} =
+    PP.putWord =<< printf "(ifte %s %s %s)" <$> PP.fromBuild branch <*> PP.fromBuild lhs <*> PP.fromBuild rhs
+  build NAryE{op, operands} =
+    PP.putWord
+      =<< printf "%s(%s)"
+        <$> PP.fromBuild op
+        <*> (PP.commaList <$> mapM PP.fromBuild operands)
 
 -- ================================================================================
 -- Syntax
@@ -225,27 +230,30 @@ instance HasStmt (Program primT sizeT) (Stmt primT sizeT) where
 -- ================================================================================
 
 instance (PP.ToCodeString primT) => PP.ToCodeString (FunctionCallKind primT) where
-  toCodeString (FunctionCall f) = f
-  toCodeString (PrimitiveCall prim) = PP.toCodeString prim
+  build (FunctionCall f) = PP.putWord f
+  build (PrimitiveCall prim) = PP.putWord $ PP.toCodeString prim
 
 instance (Show sizeT, PP.ToCodeString primT) => PP.ToCodeString (Expr primT sizeT) where
-  toCodeString BasicExprE{basic_expr} = PP.toCodeString basic_expr
-  toCodeString FunCallE{fun_kind, args} =
-    unwords [PP.toCodeString fun_kind <> "(" <> PP.commaList args <> ")"]
+  build BasicExprE{basic_expr} = PP.build basic_expr
+  build FunCallE{fun_kind, args} = do
+    fun_kind_s <- PP.fromBuild fun_kind
+    PP.putLine $ printf "%s(%s)" fun_kind_s (PP.commaList args)
 
 instance (Show sizeT, PP.ToCodeString primT) => PP.ToCodeString (Stmt primT sizeT) where
-  toCodeLines ExprS{rets, expr} = [unwords [PP.commaList rets, "<-", PP.toCodeString expr]]
-  toCodeLines IfThenElseS{cond, s_true, s_false} =
-    [unwords ["if", cond, "then"]]
-      <> PP.indent (PP.toCodeLines s_true)
-      <> ["else"]
-      <> PP.indent (PP.toCodeLines s_false)
-      <> ["end"]
-  toCodeLines (SeqS ss) = concatMap PP.toCodeLines ss
+  build ExprS{rets, expr} = do
+    expr_s <- PP.fromBuild expr
+    PP.putLine $ unwords [PP.commaList rets, "<-", expr_s]
+  build IfThenElseS{cond, s_true, s_false} = do
+    PP.putLine $ printf "if (%s) then" cond
+    PP.indented $ PP.build s_true
+    PP.putLine "else"
+    PP.indented $ do PP.build s_false
+    PP.putLine "end"
+  build (SeqS ss) = mapM_ PP.build ss
 
 instance (Show sizeT, PP.ToCodeString primT) => PP.ToCodeString (NamedFunDef primT sizeT) where
   -- def
-  toCodeLines
+  build
     NamedFunDef
       { fun_name
       , fun_def =
@@ -254,30 +262,32 @@ instance (Show sizeT, PP.ToCodeString primT) => PP.ToCodeString (NamedFunDef pri
           , ret_types
           , mbody = Just FunBody{body_stmt, param_names, ret_names}
           }
-      } =
-      [printf "def %s(%s) do" fun_name (PP.commaList $ zipWith showTypedVar param_names param_types)]
-        <> PP.indent
-          ( PP.toCodeLines body_stmt
-              <> [unwords ["return", PP.commaList $ zipWith showTypedVar ret_names ret_types]]
-          )
-        <> ["end"]
+      } = do
+      PP.putLine $ printf "def %s(%s) do" fun_name (PP.commaList $ zipWith showTypedVar param_names param_types)
+      PP.indented $ do
+        PP.build body_stmt
+        PP.putLine $ unwords ["return", PP.commaList $ zipWith showTypedVar ret_names ret_types]
+      PP.putLine "end"
      where
       showTypedVar :: Ident -> VarType sizeT -> String
       showTypedVar x ty = unwords [x, ":", PP.toCodeString ty]
   -- declare
-  toCodeLines
+  build
     NamedFunDef
       { fun_name
       , fun_def = FunDef{param_types, ret_types, mbody = Nothing}
       } =
-      [ printf
-          "declare %s(%s) -> %s;"
+      PP.putLine $
+        printf
+          "declare %s(%s) -> (%s) end"
           fun_name
           (PP.commaList $ map PP.toCodeString param_types)
           (PP.commaList $ map PP.toCodeString ret_types)
-      ]
 
 instance (Show sizeT, PP.ToCodeString primT) => PP.ToCodeString (Program primT sizeT) where
-  toCodeLines Program{funCtx, stmt} =
-    [PP.toCodeString NamedFunDef{fun_name, fun_def} | (fun_name, fun_def) <- Ctx.toList funCtx]
-      <> PP.toCodeLines stmt
+  build Program{funCtx, stmt} = do
+    sequence_
+      [ PP.build NamedFunDef{fun_name, fun_def} >> PP.endl
+      | (fun_name, fun_def) <- Ctx.toList funCtx
+      ]
+    PP.build stmt

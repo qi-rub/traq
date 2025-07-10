@@ -47,7 +47,7 @@ instance HasPrimAny RandomSearch where
   getPredicateOfAny = predicate
 
 instance PP.ToCodeString RandomSearch where
-  toCodeString RandomSearch{predicate} = printf "@any[%s]" predicate
+  build RandomSearch{predicate} = PP.putWord $ printf "@any[%s]" predicate
 
 instance P.CanParsePrimitive RandomSearch where
   primitiveParser = parsePrimAny "any"

@@ -20,6 +20,7 @@ module Traq.CQPL.Syntax (
   desugarS,
 ) where
 
+import Control.Monad (zipWithM, (>=>))
 import Data.Void (Void)
 import Lens.Micro.GHC
 import Text.Printf (printf)
@@ -157,9 +158,9 @@ forInArray :: Ident -> VarType sizeT -> [P.BasicExpr sizeT] -> Stmt holeT sizeT 
 forInArray i _ty ix_vals s =
   SeqS
     [ SeqS
-        [ AssignS{rets = [i], expr = v}
-        , s
-        ]
+      [ AssignS{rets = [i], expr = v}
+      , s
+      ]
     | v <- ix_vals
     ]
 
@@ -175,75 +176,76 @@ desugarS _ = Nothing
 -- ================================================================================
 
 instance (Show holeT, Show sizeT) => PP.ToCodeString (Stmt holeT sizeT) where
-  toCodeLines SkipS = ["skip;"]
-  toCodeLines AssignS{rets, expr} =
-    [printf "%s := %s;" (PP.commaList rets) (PP.toCodeString expr)]
-  toCodeLines RandomS{ret, max_val} =
-    [printf "%s :=$ [1 .. %s];" ret (PP.toCodeString max_val)]
-  toCodeLines RandomDynS{ret, max_var} =
-    [printf "%s :=$ [1 .. %s];" ret max_var]
-  toCodeLines CallS{fun, meta_params, args} =
-    [printf "%s[%s](%s);" (f_str fun) meta_params_str (PP.commaList args)]
+  build SkipS = PP.putLine "skip;"
+  build AssignS{rets, expr} = do
+    e_s <- PP.fromBuild expr
+    PP.putLine $ printf "%s := %s;" (PP.commaList rets) e_s
+  build RandomS{ret, max_val} = do
+    max_val_s <- PP.fromBuild max_val
+    PP.putLine $ printf "%s :=$ [1 .. %s];" ret max_val_s
+  build RandomDynS{ret, max_var} =
+    PP.putLine $ printf "%s :=$ [1 .. %s];" ret max_var
+  build CallS{fun, meta_params, args} = do
+    meta_params_str <- PP.commaList <$> mapM (either PP.fromBuild return) meta_params
+    PP.putLine $ printf "%s[%s](%s);" (f_str fun) meta_params_str (PP.commaList args)
    where
     f_str :: FunctionCall -> String
     f_str (FunctionCall fname) = printf "call %s" fname
     f_str (UProcAndMeas uproc_id) = printf "call_uproc_and_meas %s" uproc_id
-
-    meta_params_str = PP.commaList $ map (either PP.toCodeString id) meta_params
-  toCodeLines (SeqS ss) = concatMap PP.toCodeLines ss
-  toCodeLines IfThenElseS{cond, s_true, s_false} =
-    [printf "if (%s) then" cond]
-      ++ PP.indent (PP.toCodeLines s_true)
-      ++ ["else"]
-      ++ PP.indent (PP.toCodeLines s_false)
-      ++ ["end"]
-  toCodeLines RepeatS{n_iter, loop_body} =
-    [printf "repeat %s do" (PP.toCodeString n_iter)]
-      ++ PP.indent (PP.toCodeLines loop_body)
-      ++ ["end"]
+  build (SeqS ss) = mapM_ PP.build ss
+  build IfThenElseS{cond, s_true, s_false} = do
+    PP.putLine $ printf "if (%s) {" cond
+    PP.indented $ PP.build s_true
+    PP.putLine "} else {"
+    PP.indented $ PP.build s_false
+    PP.putLine "}"
+  build RepeatS{n_iter, loop_body} = do
+    PP.putLine . printf "repeat (%s) {" =<< PP.fromBuild n_iter
+    PP.indented $ PP.build loop_body
+    PP.putLine "}"
   -- hole
-  toCodeLines (HoleS info) = [printf "HOLE :: %s;" (show info)]
+  build (HoleS info) = PP.putLine $ printf "HOLE :: %s;" (show info)
   -- syntax sugar
-  toCodeLines WhileK{n_iter, cond, loop_body} =
-    printf "while[%s] (%s) do" (PP.toCodeString n_iter) cond
-      : PP.indent (PP.toCodeLines loop_body)
-      ++ ["end"]
-  toCodeLines WhileKWithCondExpr{n_iter, cond, cond_expr, loop_body} =
-    printf "while[%s] (%s := %s) do" (PP.toCodeString n_iter) cond (PP.toCodeString cond_expr)
-      : PP.indent (PP.toCodeLines loop_body)
-      ++ ["end"]
-  toCodeLines (CommentS c) = ["// " ++ c]
-  toCodeLines ForInArray{loop_index, loop_values, loop_body} =
-    printf "for %s in [%s] do" loop_index (PP.commaList $ map PP.toCodeString loop_values)
-      : PP.indent (PP.toCodeLines loop_body)
-      ++ ["end"]
+  build WhileK{n_iter, cond, loop_body} = do
+    n_iter_s <- PP.fromBuild n_iter
+    PP.putLine $ printf "while[%s] (%s) {" n_iter_s cond
+    PP.indented $ PP.build loop_body
+    PP.putLine "}"
+  build WhileKWithCondExpr{n_iter, cond, cond_expr, loop_body} = do
+    printf "while[%s] (%s := %s) do" <$> PP.fromBuild n_iter <*> pure cond <*> PP.fromBuild cond_expr
+      >>= PP.putLine
+    PP.indented $ PP.build loop_body
+    PP.putLine "}"
+  build (CommentS c) = PP.putComment c
+  build ForInArray{loop_index, loop_values, loop_body} = do
+    loop_values_s <- PP.commaList <$> mapM PP.fromBuild loop_values
+    PP.delimitedBlock
+      (printf "for (%s in [%s]) {" loop_index loop_values_s)
+      "}"
+      $ PP.build loop_body
 
 instance (Show holeT, Show sizeT, Show costT) => PP.ToCodeString (ProcDef holeT sizeT costT) where
-  toCodeLines ProcDef{proc_name, proc_meta_params, proc_param_types, proc_body_or_tick = Left tick} =
-    [ printf
+  build ProcDef{proc_name, proc_meta_params, proc_param_types, proc_body_or_tick = Left tick} = do
+    let showTypedIxVar i ty = printf "x_%d: %s" i <$> PP.fromBuild ty
+    param_tys_s <- PP.commaList <$> zipWithM showTypedIxVar [1 :: Int ..] proc_param_types
+    PP.putLine $
+      printf
         "proc %s[%s](%s) :: tick(%s);"
         proc_name
         (PP.commaList proc_meta_params)
-        (PP.commaList $ zipWith showTypedIxVar [1 :: Int ..] proc_param_types)
+        param_tys_s
         (show tick)
-    ]
-   where
-    showTypedIxVar i ty = printf "x_%d: %s" i (PP.toCodeString ty)
-  toCodeLines ProcDef{proc_name, proc_meta_params, proc_param_types, proc_body_or_tick = Right ProcBody{proc_param_names, proc_local_vars, proc_body_stmt}} =
-    [ printf
-        "proc %s[%s](%s) { locals: (%s) } do"
-        proc_name
-        (PP.commaList proc_meta_params)
-        (PP.commaList $ zipWith showTypedVar proc_param_names proc_param_types)
-        (PP.commaList $ map (uncurry showTypedVar) proc_local_vars)
-    ]
-      ++ PP.indent (PP.toCodeLines proc_body_stmt)
-      ++ ["end"]
-   where
-    showTypedVar x ty = printf "%s: %s" x (PP.toCodeString ty)
+  build ProcDef{proc_name, proc_meta_params, proc_param_types, proc_body_or_tick = Right ProcBody{proc_param_names, proc_local_vars, proc_body_stmt}} = do
+    header <- PP.listenWord . PP.concatenated $ do
+      let showTypedVar x ty = printf "%s: %s" x <$> PP.fromBuild ty
+      PP.putWord $ "proc " <> proc_name <> " "
+      PP.putWord $ PP.wrapNonEmpty "[" "]" $ PP.commaList proc_meta_params
+      PP.putWord . PP.commaList =<< zipWithM showTypedVar proc_param_names proc_param_types
+      PP.putWord . printf "{ locals: (%s) }" . PP.commaList =<< mapM (uncurry showTypedVar) proc_local_vars
+    PP.bracedBlockWith header $ PP.build proc_body_stmt
 
 instance (Show holeT, Show sizeT, Show costT) => PP.ToCodeString (Program holeT sizeT costT) where
-  toCodeLines Program{proc_defs, uproc_defs, stmt} =
-    map PP.toCodeString (Ctx.elems uproc_defs)
-      ++ map PP.toCodeString (Ctx.elems proc_defs)
-      ++ [PP.toCodeString stmt]
+  build Program{proc_defs, uproc_defs, stmt} = do
+    mapM_ (PP.build >=> const PP.endl) $ Ctx.elems uproc_defs
+    mapM_ (PP.build >=> const PP.endl) $ Ctx.elems proc_defs
+    PP.build stmt

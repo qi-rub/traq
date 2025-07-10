@@ -1,15 +1,18 @@
 module Traq.Utils.Printing (
   ToCodeString (..),
-  indent,
+  toCodeString,
 
   -- * Simple builders
   commaList,
   wrapNonEmpty,
 
   -- * Basic writers
-  put,
+  putWord,
   putLine,
   putComment,
+  endl,
+  fromBuild,
+  listenWord,
 
   -- * Generic writer transformers
   mapped,
@@ -27,34 +30,34 @@ module Traq.Utils.Printing (
   doEndBlock,
 ) where
 
-import Control.Monad.Writer (MonadWriter, censor, execWriter, tell)
+import Control.Monad.Writer (MonadWriter, censor, execWriterT, listen, tell)
 import Data.List (intercalate)
+import Data.Maybe (fromJust)
 import Data.Void (Void, absurd)
 
 -- Ideal Output state of the code writer.
 -- data CodeBuilderState = CodeBuilderState {code_lines :: [String], current_line :: String}
 
 class ToCodeString a where
-  build :: (MonadWriter [String] m) => a -> m ()
-  build = tell . toCodeLines
+  build :: (MonadWriter [String] m, MonadFail m) => a -> m ()
 
-  toCodeString :: a -> String
-  toCodeString = unlines . execWriter . build
+toCodeString :: (ToCodeString a) => a -> String
+toCodeString = unlines . fromJust . execWriterT . build
 
-  toCodeLines :: a -> [String]
-  toCodeLines = pure . toCodeString
-  {-# MINIMAL toCodeString | toCodeLines | build #-}
+fromBuild :: (ToCodeString a, MonadWriter [String] m, MonadFail m) => a -> m String
+fromBuild a = censor (const mempty) $ do
+  (_, [line]) <- listen $ build a
+  return line
 
-instance ToCodeString Void where
-  build = absurd
-  toCodeString = absurd
-  toCodeLines = absurd
+listenWord :: (MonadWriter [String] m, MonadFail m) => m () -> m String
+listenWord m = censor (const mempty) $ do
+  ((), ws) <- listen m
+  return $ concat ws
+
+instance ToCodeString Void where build = absurd
 
 commaList :: [String] -> String
 commaList = intercalate ", "
-
-indent :: [String] -> [String]
-indent = map ("  " <>)
 
 -- | Wrap a non-empty string by the delimiters, and pass empty strings through as-is.
 wrapNonEmpty :: String -> String -> String -> String
@@ -62,11 +65,14 @@ wrapNonEmpty _ _ "" = ""
 wrapNonEmpty lt rt s = lt ++ s ++ rt
 
 -- | Add a line of code.
-putLine :: (MonadWriter [a] m) => a -> m ()
-putLine a = tell [a]
+putLine :: (MonadWriter [w] m) => w -> m ()
+putLine w = tell [w]
 
-put :: (MonadWriter [a] m) => a -> m ()
-put a = tell [a]
+endl :: (MonadWriter [String] m) => m ()
+endl = putLine ""
+
+putWord :: (MonadWriter [w] m) => w -> m ()
+putWord w = tell [w]
 
 -- | Map each line in a block of code.
 mapped :: (MonadWriter [w] m) => (w -> w) -> m a -> m a

@@ -34,7 +34,7 @@ data TreeSearch = TreeSearch {getChildren :: Ident, checkNode :: Ident}
 
 -- Printing
 instance PP.ToCodeString TreeSearch where
-  toCodeString TreeSearch{getChildren, checkNode} = printf "@treesearch[%s, %s]" getChildren checkNode
+  build TreeSearch{getChildren, checkNode} = PP.putWord $ printf "@treesearch[%s, %s]" getChildren checkNode
 
 -- Parsing
 instance P.CanParsePrimitive TreeSearch where

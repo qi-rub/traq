@@ -59,7 +59,7 @@ newtype QMax = QMax {predicate :: Ident}
   deriving (Eq, Show, Read)
 
 instance PP.ToCodeString QMax where
-  toCodeString QMax{predicate} = printf "@max[%s]" predicate
+  build QMax{predicate} = PP.putWord $ printf "@max[%s]" predicate
 
 -- Parsing
 instance P.CanParsePrimitive QMax where

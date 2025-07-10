@@ -34,11 +34,8 @@ instance HasPrimSearch DefaultPrims where
 
 -- Printing
 instance PP.ToCodeString DefaultPrims where
-  toCodeString (QAny prim) = PP.toCodeString prim
-  toCodeString (RAny prim) = PP.toCodeString prim
-
-  toCodeLines (QAny prim) = PP.toCodeLines prim
-  toCodeLines (RAny prim) = PP.toCodeLines prim
+  build (QAny prim) = PP.build prim
+  build (RAny prim) = PP.build prim
 
 -- Parsing
 instance P.CanParsePrimitive DefaultPrims where

@@ -28,7 +28,7 @@ newtype QCount = QCount {predicate :: Ident}
   deriving (Eq, Show, Read)
 
 instance PP.ToCodeString QCount where
-  toCodeString QCount{predicate} = printf "@count[%s]" predicate
+  build QCount{predicate} = PP.putWord $ printf "@count[%s]" predicate
 
 -- Parsing
 instance P.CanParsePrimitive QCount where

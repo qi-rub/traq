@@ -56,8 +56,8 @@ instance HasPrimSearch QSearchSym where
 
 -- Printing
 instance PP.ToCodeString QSearchSym where
-  toCodeString (QAnySym predicate) = printf "@any[%s]" predicate
-  toCodeString (QSearchSym predicate) = printf "@search[%s]" predicate
+  build (QAnySym predicate) = PP.putWord $ printf "@any[%s]" predicate
+  build (QSearchSym predicate) = PP.putWord $ printf "@search[%s]" predicate
 
 -- Parsing
 instance P.CanParsePrimitive QSearchSym where

@@ -24,6 +24,6 @@ data MetaParam sizeT = MetaName String | MetaSize sizeT | MetaValue Value
   deriving (Eq, Show, Read)
 
 instance (Show sizeT) => PP.ToCodeString (MetaParam sizeT) where
-  toCodeString (MetaName n) = "#" ++ n
-  toCodeString (MetaSize n) = show n
-  toCodeString (MetaValue n) = show n
+  build (MetaName n) = PP.putWord $ "#" ++ n
+  build (MetaSize n) = PP.putWord $ show n
+  build (MetaValue n) = PP.putWord $ show n

@@ -42,7 +42,7 @@ spec = do
 
         actual `shouldBe` expected
 
-        PP.toCodeString actual `shouldBe` "x, y *= Embed[(x) => x];\n\n"
+        PP.toCodeString actual `shouldBe` "x, y *= Embed[(x) => x];\n"
 
         gamma `shouldBe` Ctx.fromList [("x", P.Fin 10), ("y", P.Fin 10)]
 
