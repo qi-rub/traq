@@ -30,6 +30,7 @@ module Traq.Utils.Printing (
   doEndBlock,
 ) where
 
+import Control.Monad.Fail (MonadFail)
 import Control.Monad.Writer (MonadWriter, censor, execWriterT, listen, tell)
 import Data.List (intercalate)
 import Data.Maybe (fromJust)
