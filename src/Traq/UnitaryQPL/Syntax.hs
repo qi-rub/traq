@@ -186,7 +186,7 @@ instance (Show holeT, Show sizeT) => PP.ToCodeString (UStmt holeT sizeT) where
   -- syntax sugar
   build (UHoleS info dagger) = PP.putLine $ printf "HOLE :: %s%s;" (show info) (showDagger dagger)
   build (URepeatS k s) = do
-    let header = printf "repeat (%s)" (PP.toCodeString k)
+    header <- printf "repeat (%s)" <$> PP.fromBuild k
     PP.bracedBlockWith header $ PP.build s
   build UWithComputedS{with_stmt, body_stmt} = do
     PP.bracedBlockWith "with" $ PP.build with_stmt

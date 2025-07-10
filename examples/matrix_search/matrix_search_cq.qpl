@@ -1482,27 +1482,26 @@ uproc Grover[#k](x : IN Fin<20>, ok : OUT Fin<2>, aux : AUX Fin<2>, aux_1 : AUX 
   ok *= X;
 }
 
-proc QSearch[5.0e-4][](ok: Fin<2>) { locals: (not_done: Fin<2>, Q_sum: Fin<42>, j: Fin<42>, j_lim: Fin<42>, x_1: Fin<20>) } do
-  repeat 7 do
-    Q_sum := 0 : Fin<42>;
-    for j_lim in [1 : Fin<42>, 1 : Fin<42>, 1 : Fin<42>, 2 : Fin<42>, 2 : Fin<42>, 2 : Fin<42>, 3 : Fin<42>, 4 : Fin<42>, 4 : Fin<42>, 4 : Fin<42>, 4 : Fin<42>, 4 : Fin<42>, 4 : Fin<42>, 4 : Fin<42>] do
+proc QSearch[5.0e-4](ok: Fin<2>) { locals: (not_done: Fin<2>, Q_sum: Fin<42>, j: Fin<42>, j_lim: Fin<42>, x_1: Fin<20>) } do {
+  repeat (7) {
+    Q_sum := 0:Fin<42>;
+    for (j_lim in [1:Fin<42>, 1:Fin<42>, 1:Fin<42>, 2:Fin<42>, 2:Fin<42>, 2:Fin<42>, 3:Fin<42>, 4:Fin<42>, 4:Fin<42>, 4:Fin<42>, 4:Fin<42>, 4:Fin<42>, 4:Fin<42>, 4:Fin<42>]) {
       j :=$ [1 .. j_lim];
       Q_sum := (Q_sum + j);
       not_done := (not_done && (Q_sum <= j_lim));
-      if (not_done) then
+      if (not_done) {
         call_uproc_and_meas Grover[j](x_1, ok);
         call_uproc_and_meas IsRowAllOnes_1[](x_1, ok);
         not_done := (not_done && ok);
-      else
+      } else {
         skip;
-      end
-    end
-  end
-end
+      }
+    }
+  }
+}
 
-proc HasAllOnesRow[1.0e-3][](ok: Fin<2>) { locals: () } do
+proc HasAllOnesRow[1.0e-3](ok: Fin<2>) { locals: () } do {
   call QSearch[5.0e-4][](ok);
-end
+}
 
 call HasAllOnesRow[1.0e-3][](result);
-

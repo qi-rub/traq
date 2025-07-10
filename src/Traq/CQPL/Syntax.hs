@@ -158,9 +158,9 @@ forInArray :: Ident -> VarType sizeT -> [P.BasicExpr sizeT] -> Stmt holeT sizeT 
 forInArray i _ty ix_vals s =
   SeqS
     [ SeqS
-      [ AssignS{rets = [i], expr = v}
-      , s
-      ]
+        [ AssignS{rets = [i], expr = v}
+        , s
+        ]
     | v <- ix_vals
     ]
 
@@ -200,9 +200,8 @@ instance (Show holeT, Show sizeT) => PP.ToCodeString (Stmt holeT sizeT) where
     PP.indented $ PP.build s_false
     PP.putLine "}"
   build RepeatS{n_iter, loop_body} = do
-    PP.putLine . printf "repeat (%s) {" =<< PP.fromBuild n_iter
-    PP.indented $ PP.build loop_body
-    PP.putLine "}"
+    header <- printf "repeat (%s)" <$> PP.fromBuild n_iter
+    PP.bracedBlockWith header $ PP.build loop_body
   -- hole
   build (HoleS info) = PP.putLine $ printf "HOLE :: %s;" (show info)
   -- syntax sugar
@@ -237,11 +236,18 @@ instance (Show holeT, Show sizeT, Show costT) => PP.ToCodeString (ProcDef holeT 
         (show tick)
   build ProcDef{proc_name, proc_meta_params, proc_param_types, proc_body_or_tick = Right ProcBody{proc_param_names, proc_local_vars, proc_body_stmt}} = do
     header <- PP.listenWord . PP.concatenated $ do
-      let showTypedVar x ty = printf "%s: %s" x <$> PP.fromBuild ty
-      PP.putWord $ "proc " <> proc_name <> " "
+      -- proc name and meta-params
+      PP.putWord $ "proc " <> proc_name
       PP.putWord $ PP.wrapNonEmpty "[" "]" $ PP.commaList proc_meta_params
-      PP.putWord . PP.commaList =<< zipWithM showTypedVar proc_param_names proc_param_types
-      PP.putWord . printf "{ locals: (%s) }" . PP.commaList =<< mapM (uncurry showTypedVar) proc_local_vars
+
+      -- arguments
+      let showTypedVar x ty = printf "%s: %s" x <$> PP.fromBuild ty
+      PP.putWord . printf "(%s)" . PP.commaList =<< zipWithM showTypedVar proc_param_names proc_param_types
+
+      -- local vars
+      PP.putWord . printf " { locals: (%s) } do" . PP.commaList =<< mapM (uncurry showTypedVar) proc_local_vars
+
+    -- emit the body
     PP.bracedBlockWith header $ PP.build proc_body_stmt
 
 instance (Show holeT, Show sizeT, Show costT) => PP.ToCodeString (Program holeT sizeT costT) where
