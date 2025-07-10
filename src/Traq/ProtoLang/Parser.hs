@@ -178,7 +178,7 @@ funDecl tp@TokenParser{..} = do
   return NamedFunDef{..}
 
 program :: (CanParsePrimitive primT) => TokenParser () -> Parser (Program primT SymbSize)
-program tp@TokenParser{..} = do
+program tp = do
   fs <- many (namedFunDef tp <|> funDecl tp)
   let funCtx = Ctx.fromList [(fun_name f, fun_def f) | f <- fs]
   stmt <- stmtP tp

@@ -22,7 +22,7 @@ import qualified Traq.Data.Context as Ctx
 
 import Traq.Prelude
 import qualified Traq.ProtoLang as P
-import Traq.Utils.Printing
+import qualified Traq.Utils.Printing as PP
 
 import Traq.Primitives.Search.Prelude
 
@@ -55,9 +55,9 @@ instance HasPrimSearch QSearchSym where
   getPredicateOfSearch = view _predicate
 
 -- Printing
-instance ToCodeString QSearchSym where
-  toCodeString (QAnySym predicate) = printf "@any[%s]" predicate
-  toCodeString (QSearchSym predicate) = printf "@search[%s]" predicate
+instance PP.ToCodeString QSearchSym where
+  build (QAnySym predicate) = PP.putWord $ printf "@any[%s]" predicate
+  build (QSearchSym predicate) = PP.putWord $ printf "@search[%s]" predicate
 
 -- Parsing
 instance P.CanParsePrimitive QSearchSym where

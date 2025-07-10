@@ -10,7 +10,7 @@ import qualified Traq.Compiler.Unitary as UQPL
 import Traq.Prelude
 import qualified Traq.ProtoLang as P
 import qualified Traq.UnitaryQPL as UQPL
-import Traq.Utils.Printing
+import qualified Traq.Utils.Printing as PP
 
 import Traq.Examples.Search
 import Traq.Primitives.Search.QSearchCFNW (_EQSearch, _QSearchZalka)
@@ -50,7 +50,7 @@ spec = do
       P.quantumQueryCost P.SplitSimple eps ex uticks ticks interpCtx Ctx.empty `shouldBe` true_cost
 
     it "generate code" $ do
-      toCodeString ex `shouldSatisfy` (not . null)
+      PP.toCodeString ex `shouldSatisfy` (not . null)
 
     describe "lowers to UQPL" $ do
       let delta = 0.0001 :: Double

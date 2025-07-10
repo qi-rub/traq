@@ -24,7 +24,7 @@ import qualified Traq.Data.Context as Ctx
 
 import Traq.Prelude
 import qualified Traq.ProtoLang as P
-import Traq.Utils.Printing
+import qualified Traq.Utils.Printing as PP
 
 -- ================================================================================
 -- Cost Formulas
@@ -58,8 +58,8 @@ _WUQMax n delta = 2 * _WQMax n eps -- 2x for compute-uncompute
 newtype QMax = QMax {predicate :: Ident}
   deriving (Eq, Show, Read)
 
-instance ToCodeString QMax where
-  toCodeString QMax{predicate} = printf "@max[%s]" predicate
+instance PP.ToCodeString QMax where
+  build QMax{predicate} = PP.putWord $ printf "@max[%s]" predicate
 
 -- Parsing
 instance P.CanParsePrimitive QMax where

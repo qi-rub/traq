@@ -15,7 +15,7 @@ import qualified Traq.Data.Context as Ctx
 
 import Traq.Prelude
 import qualified Traq.ProtoLang as P
-import Traq.Utils.Printing
+import qualified Traq.Utils.Printing as PP
 
 import Traq.Primitives.Search.Prelude
 
@@ -46,8 +46,8 @@ instance HasPrimAny RandomSearch where
   mkAny = RandomSearch
   getPredicateOfAny = predicate
 
-instance ToCodeString RandomSearch where
-  toCodeString RandomSearch{predicate} = printf "@any[%s]" predicate
+instance PP.ToCodeString RandomSearch where
+  build RandomSearch{predicate} = PP.putWord $ printf "@any[%s]" predicate
 
 instance P.CanParsePrimitive RandomSearch where
   primitiveParser = parsePrimAny "any"

@@ -11,7 +11,7 @@ import qualified Traq.Compiler.Quantum as CQPL
 import qualified Traq.Compiler.Unitary as UQPL
 import Traq.Prelude
 import qualified Traq.ProtoLang as P
-import Traq.Utils.Printing
+import qualified Traq.Utils.Printing as PP
 
 import Traq.Primitives.Search.Prelude
 import Traq.Primitives.Search.QSearchCFNW
@@ -33,12 +33,9 @@ instance HasPrimSearch DefaultPrims where
   getPredicateOfSearch _ = error "invalid primitive"
 
 -- Printing
-instance ToCodeString DefaultPrims where
-  toCodeString (QAny prim) = toCodeString prim
-  toCodeString (RAny prim) = toCodeString prim
-
-  toCodeLines (QAny prim) = toCodeLines prim
-  toCodeLines (RAny prim) = toCodeLines prim
+instance PP.ToCodeString DefaultPrims where
+  build (QAny prim) = PP.build prim
+  build (RAny prim) = PP.build prim
 
 -- Parsing
 instance P.CanParsePrimitive DefaultPrims where

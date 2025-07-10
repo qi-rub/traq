@@ -19,7 +19,7 @@ import qualified Traq.Data.Context as Ctx
 
 import Traq.Prelude
 import qualified Traq.ProtoLang as P
-import Traq.Utils.Printing
+import qualified Traq.Utils.Printing as PP
 
 {- | Search a binary tree rooted at node @1@.
 
@@ -33,8 +33,8 @@ data TreeSearch = TreeSearch {getChildren :: Ident, checkNode :: Ident}
   deriving (Eq, Show, Read)
 
 -- Printing
-instance ToCodeString TreeSearch where
-  toCodeString TreeSearch{getChildren, checkNode} = printf "@treesearch[%s, %s]" getChildren checkNode
+instance PP.ToCodeString TreeSearch where
+  build TreeSearch{getChildren, checkNode} = PP.putWord $ printf "@treesearch[%s, %s]" getChildren checkNode
 
 -- Parsing
 instance P.CanParsePrimitive TreeSearch where

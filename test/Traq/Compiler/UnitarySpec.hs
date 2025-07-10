@@ -9,7 +9,7 @@ import qualified Traq.Data.Context as Ctx
 import Traq.Compiler.Unitary
 import qualified Traq.ProtoLang as P
 import qualified Traq.UnitaryQPL as U
-import Traq.Utils.Printing
+import qualified Traq.Utils.Printing as PP
 
 import Test.Hspec
 import TestHelpers
@@ -42,8 +42,7 @@ spec = do
 
         actual `shouldBe` expected
 
-        toCodeString actual
-          `shouldBe` "x, y *= Embed[(x) => x];\n\n"
+        PP.toCodeString actual `shouldBe` "x, y *= Embed[(x) => x];\n"
 
         gamma `shouldBe` Ctx.fromList [("x", P.Fin 10), ("y", P.Fin 10)]
 

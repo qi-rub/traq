@@ -11,7 +11,7 @@ import qualified Traq.Data.Symbolic as Sym
 import qualified Traq.Compiler.Quantum as CQPL
 import Traq.Prelude
 import qualified Traq.ProtoLang as P
-import Traq.Utils.Printing
+import qualified Traq.Utils.Printing as PP
 
 import Traq.Primitives (DefaultPrims)
 
@@ -63,7 +63,7 @@ compile prog eps = do
   let oracle_ticks = Map.singleton "Oracle" 1.0
   let Right (cqpl_prog, _) = CQPL.lowerProgram default_ Ctx.empty oracle_ticks oracle_ticks eps prog
 
-  return $ toCodeString cqpl_prog
+  return $ PP.toCodeString cqpl_prog
 
 main :: IO ()
 main = do

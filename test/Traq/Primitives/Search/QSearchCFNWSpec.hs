@@ -2,9 +2,7 @@
 
 module Traq.Primitives.Search.QSearchCFNWSpec (spec) where
 
-import qualified Data.Map as Map
 import Lens.Micro.GHC
-import Lens.Micro.Mtl
 
 import Traq.Control.Monad
 import qualified Traq.Data.Context as Ctx
@@ -58,7 +56,8 @@ spec = do
                     Ctx.singleton
                       "Oracle"
                       UQPL.UProcDef
-                        { UQPL.proc_name = "Oracle"
+                        { UQPL.info_comment = ""
+                        , UQPL.proc_name = "Oracle"
                         , UQPL.proc_meta_params = []
                         , UQPL.proc_params = []
                         , UQPL.proc_body_or_tick = Left (1.0 :: Double)

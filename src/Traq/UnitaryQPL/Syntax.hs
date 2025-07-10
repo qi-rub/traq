@@ -25,17 +25,19 @@ module Traq.UnitaryQPL.Syntax (
   desugarS,
 
   -- * Helpers
-  HasDagger (..),
+  HasAdjoint (..),
 ) where
 
+import Control.Monad (forM, (>=>))
 import Data.Void (Void)
+import Lens.Micro.GHC
 import Text.Printf (printf)
 
 import qualified Traq.Data.Context as Ctx
 
 import Traq.Prelude
 import qualified Traq.ProtoLang as P
-import Traq.Utils.Printing
+import qualified Traq.Utils.Printing as PP
 
 data Unitary sizeT
   = Toffoli
@@ -52,10 +54,10 @@ data Unitary sizeT
   | Adjoint (Unitary sizeT)
   deriving (Eq, Show, Read)
 
-class HasDagger a where
+class HasAdjoint a where
   adjoint :: a -> a
 
-instance HasDagger (Unitary sizeT) where
+instance HasAdjoint (Unitary sizeT) where
   adjoint Toffoli = Toffoli
   adjoint CNOT = CNOT
   adjoint HGate = HGate
@@ -95,7 +97,7 @@ holeS hole = UHoleS{hole, dagger = False}
 -- | Alias for statement without holes
 type UStmt' = UStmt Void
 
-instance HasDagger (UStmt holeT sizeT) where
+instance HasAdjoint (UStmt holeT sizeT) where
   adjoint s@(UCommentS _) = s
   adjoint USkipS = USkipS
   adjoint s@UCallS{dagger} = s{dagger = not dagger}
@@ -148,79 +150,80 @@ desugarS _ = Nothing
 -- Printing
 -- ================================================================================
 
-instance (Show sizeT) => ToCodeString (Unitary sizeT) where
-  toCodeString (RevEmbedU xs e) = printf "Embed[(%s) => %s]" (commaList xs) (toCodeString e)
-  toCodeString Unif = "Unif"
-  toCodeString XGate = "X"
-  toCodeString HGate = "H"
-  toCodeString Refl0 = printf "Refl0"
-  toCodeString (LoadData f) = f
-  toCodeString (Controlled u) = "Ctrl-" <> toCodeString u
-  toCodeString (Adjoint u) = "Adj-" <> toCodeString u
-  toCodeString u = show u
+instance (Show sizeT) => PP.ToCodeString (Unitary sizeT) where
+  build (RevEmbedU xs e) = do
+    e_s <- PP.fromBuild e
+    PP.putWord $ printf "Embed[(%s) => %s]" (PP.commaList xs) e_s
+  build Unif = PP.putWord "Unif"
+  build XGate = PP.putWord "X"
+  build HGate = PP.putWord "H"
+  build Refl0 = PP.putWord $ printf "Refl0"
+  build (LoadData f) = PP.putWord f
+  build (Controlled u) = PP.putWord . ("Ctrl-" <>) =<< PP.fromBuild u
+  build (Adjoint u) = PP.putWord . ("Adj-" <>) =<< PP.fromBuild u
+  build u = PP.putWord $ show u
 
 showDagger :: Bool -> String
 showDagger True = "-adj"
 showDagger False = ""
 
-instance (Show holeT, Show sizeT) => ToCodeString (UStmt holeT sizeT) where
-  toCodeLines USkipS = ["skip;"]
-  toCodeLines (UCommentS c) = ["// " ++ c]
-  toCodeLines UnitaryS{args, unitary} = [qc <> " *= " <> toCodeString unitary <> ";"]
-   where
-    qc = commaList args
-  toCodeLines UCallS{proc_id, dagger, args} = [printf "call%s %s(%s);" (showDagger dagger) proc_id qc]
-   where
-    qc = commaList args
-  toCodeLines (USeqS ps) = concatMap toCodeLines ps
-  toCodeLines (URepeatS k s) =
-    [printf "repeat %s do" (toCodeString k)]
-      ++ indent (toCodeLines s)
-      ++ ["end"]
-  toCodeLines (UHoleS info dagger) = [printf "HOLE :: %s%s;" (show info) (showDagger dagger)]
+instance (Show holeT, Show sizeT) => PP.ToCodeString (UStmt holeT sizeT) where
+  build USkipS = PP.putLine "skip;"
+  build (UCommentS c) = PP.putComment c
+  build UnitaryS{args, unitary} = PP.concatenated $ do
+    PP.putWord $ PP.commaList args
+    PP.putWord " *= "
+    PP.build unitary
+    PP.putWord ";"
+  build UCallS{proc_id, dagger, args} = PP.concatenated $ do
+    PP.putWord "call"
+    PP.putWord $ showDagger dagger
+    PP.putWord " "
+    PP.putWord proc_id
+    PP.putWord $ PP.commaList args
+    PP.putWord ";"
+  build (USeqS ps) = mapM_ PP.build ps
   -- syntax sugar
-  toCodeLines UForInRangeS{iter_meta_var, iter_lim, dagger, loop_body} =
-    printf "for #%s in %s do" iter_meta_var range_str
-      : indent (toCodeLines loop_body)
-      ++ ["end"]
+  build (UHoleS info dagger) = PP.putLine $ printf "HOLE :: %s%s;" (show info) (showDagger dagger)
+  build (URepeatS k s) = do
+    header <- printf "repeat (%s)" <$> PP.fromBuild k
+    PP.bracedBlockWith header $ PP.build s
+  build UWithComputedS{with_stmt, body_stmt} = do
+    PP.bracedBlockWith "with" $ PP.build with_stmt
+    PP.bracedBlockWith "do" $ PP.build body_stmt
+  build UForInRangeS{iter_meta_var, iter_lim, dagger, loop_body} = do
+    iter_lim_s <- PP.fromBuild iter_lim
+    let ss = printf range_str iter_lim_s :: String
+    let header = printf "for (#%s in %s)" iter_meta_var ss
+    PP.bracedBlockWith header $ PP.build loop_body
    where
     range_str :: String
-    range_str
-      | dagger = printf "%s - 1 .. 0" (toCodeString iter_lim)
-      | otherwise = printf "0 .. < %s" (toCodeString iter_lim)
-  toCodeLines UWithComputedS{with_stmt, body_stmt} =
-    "with {" : indent (toCodeLines with_stmt) ++ ["} do {"] ++ indent (toCodeLines body_stmt) ++ ["}"]
+    range_str | dagger = "%s - 1 .. 0" | otherwise = "0 .. < %s"
 
-instance ToCodeString ParamTag where
-  toCodeString ParamCtrl = "CTRL"
-  toCodeString ParamInp = "IN"
-  toCodeString ParamOut = "OUT"
-  toCodeString ParamAux = "AUX"
-  toCodeString ParamUnk = ""
+instance PP.ToCodeString ParamTag where
+  build ParamCtrl = PP.putWord "CTRL"
+  build ParamInp = PP.putWord "IN"
+  build ParamOut = PP.putWord "OUT"
+  build ParamAux = PP.putWord "AUX"
+  build ParamUnk = PP.putWord ""
 
-showParamWithTag :: (Show sizeT) => (Ident, ParamTag, P.VarType sizeT) -> String
-showParamWithTag (x, tag, ty) = printf "%s : %s%s" x tag_s (toCodeString ty)
- where
-  tag_s = case toCodeString tag of
-    "" -> ""
-    s -> s ++ " "
+instance (Show holeT, Show sizeT, Show costT) => PP.ToCodeString (ProcDef holeT sizeT costT) where
+  build UProcDef{info_comment, proc_name, proc_meta_params, proc_params, proc_body_or_tick} = do
+    PP.putComment info_comment
 
-instance (Show holeT, Show sizeT, Show costT) => ToCodeString (ProcDef holeT sizeT costT) where
-  toCodeLines UProcDef{info_comment, proc_name, proc_meta_params, proc_params, proc_body_or_tick} =
-    ("// " <> info_comment)
-      : ( case proc_body_or_tick of
-            Left tick -> [printf "%s :: tick(%s)" header (show tick)]
-            Right proc_body ->
-              [printf "%s do" header]
-                <> indent (toCodeLines proc_body)
-                <> ["end"]
-        )
-   where
-    mplist, plist, header :: String
-    mplist = commaList $ map ("#" ++) proc_meta_params
-    b_mplist = if null mplist then "" else "[" ++ mplist ++ "]"
-    plist = commaList $ map showParamWithTag proc_params
-    header = printf "uproc %s%s(%s)" proc_name b_mplist plist
+    proc_params_s <- forM proc_params $ \(x, tag, ty) -> do
+      tag_s <- PP.fromBuild tag <&> \case "" -> ""; s -> s ++ " "
+      printf "%s : %s%s" x tag_s <$> PP.fromBuild ty
+    let mplist = PP.wrapNonEmpty "[" "]" $ PP.commaList $ map ("#" ++) proc_meta_params
+    let plist = PP.commaList proc_params_s
+    let header = printf "uproc %s%s(%s)" proc_name mplist plist
 
-instance (Show holeT, Show sizeT, Show costT) => ToCodeString (Program holeT sizeT costT) where
-  toCodeLines Program{proc_defs, stmt} = map toCodeString (Ctx.elems proc_defs) <> [toCodeString stmt]
+    case proc_body_or_tick of
+      Left tick -> PP.putLine $ printf "%s :: tick(%s);" header (show tick)
+      Right proc_body -> do
+        PP.bracedBlockWith header $ PP.build proc_body
+
+instance (Show holeT, Show sizeT, Show costT) => PP.ToCodeString (Program holeT sizeT costT) where
+  build Program{proc_defs, stmt} = do
+    mapM_ (PP.build >=> const PP.endl) (Ctx.elems proc_defs)
+    PP.build stmt
