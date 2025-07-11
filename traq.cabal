@@ -55,7 +55,6 @@ library
       Traq.ProtoLang.Vars
       Traq.UnitaryQPL
       Traq.UnitaryQPL.Cost
-      Traq.UnitaryQPL.Rewrites
       Traq.UnitaryQPL.Syntax
       Traq.UnitaryQPL.TypeCheck
       Traq.Utils.ASTRewriting
