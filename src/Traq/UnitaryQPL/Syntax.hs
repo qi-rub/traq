@@ -78,17 +78,17 @@ data UStmt holeT sizeT
     UHoleS {hole :: holeT, dagger :: Bool} -- temporary place holder
   | UCommentS String
   | -- syntax sugar
-    URepeatS {n_iter :: P.MetaParam sizeT, loop_body :: UStmt holeT sizeT} -- repeat k do S;
+    URepeatS {n_iter :: MetaParam sizeT, loop_body :: UStmt holeT sizeT} -- repeat k do S;
   | UForInRangeS
       { iter_meta_var :: Ident
-      , iter_lim :: P.MetaParam sizeT
+      , iter_lim :: MetaParam sizeT
       , loop_body :: UStmt holeT sizeT
       , dagger :: Bool
       }
   | UWithComputedS {with_stmt, body_stmt :: UStmt holeT sizeT}
   deriving (Eq, Show, Read)
 
-mkForInRangeS :: Ident -> P.MetaParam sizeT -> UStmt holeT sizeT -> UStmt holeT sizeT
+mkForInRangeS :: Ident -> MetaParam sizeT -> UStmt holeT sizeT -> UStmt holeT sizeT
 mkForInRangeS iter_meta_var iter_lim loop_body = UForInRangeS{iter_meta_var, iter_lim, loop_body, dagger = False}
 
 holeS :: holeT -> UStmt holeT sizeT

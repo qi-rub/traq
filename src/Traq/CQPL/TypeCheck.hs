@@ -155,10 +155,9 @@ typeCheckProc
 typeCheckProgram ::
   forall sizeT costT holeT.
   (TypeCheckable sizeT, Show holeT, Show costT) =>
-  TypingCtx sizeT ->
   Program holeT sizeT costT ->
   Either Err.MyError ()
-typeCheckProgram gamma Program{proc_defs, uproc_defs, stmt} = do
+typeCheckProgram Program{proc_defs, uproc_defs} = do
   let uqplTypingEnv = default_ & UQPL._procCtx .~ uproc_defs
   runMyReaderT ?? uqplTypingEnv $ do
     mapM_ UQPL.typeCheckProc $ Ctx.elems uproc_defs
@@ -166,6 +165,3 @@ typeCheckProgram gamma Program{proc_defs, uproc_defs, stmt} = do
   let env = default_ & (_procCtx .~ proc_defs) & (uProcs .~ uproc_defs)
   runMyReaderT ?? env $ do
     mapM_ typeCheckProc $ Ctx.elems proc_defs
-
-  runMyReaderT ?? (env & P._typingCtx .~ gamma) $ do
-    typeCheckStmt stmt

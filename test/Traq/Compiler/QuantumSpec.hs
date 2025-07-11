@@ -26,5 +26,13 @@ spec = do
       ex_ <- expectRight $ P.parseProgram @Void "x <- const 0 : Fin<10>"
       let ex = Sym.unSym <$> ex_
       let ticks = Map.singleton "Oracle" 1.0
-      (cq :: Program' SizeT Double, _) <- expectRight $ lowerProgram default_ Ctx.empty ticks ticks eps ex
-      cq ^. to stmt `shouldBe` SeqS [AssignS ["x"] (P.ConstE 0 (P.Fin 10))]
+      (cq :: Program' SizeT Double) <- expectRight $ lowerProgram default_ Ctx.empty ticks ticks eps ex
+      let main_stmt =
+            cq
+              ^. to proc_defs
+              . Ctx.at "main"
+              . singular _Just
+              . to proc_body_or_tick
+              . singular _Right
+              . to proc_body_stmt
+      main_stmt `shouldBe` SeqS [AssignS ["x"] (P.ConstE 0 (P.Fin 10))]

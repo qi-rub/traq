@@ -39,7 +39,6 @@ import Text.Printf (printf)
 import qualified Traq.Data.Context as Ctx
 
 import Traq.Prelude
-import Traq.ProtoLang.Prelude
 import Traq.Utils.ASTRewriting
 import qualified Traq.Utils.Printing as PP
 

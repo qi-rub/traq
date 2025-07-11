@@ -34,8 +34,8 @@ data CheckingCtx holeT sizeT costT = CheckingCtx (ProcCtx holeT sizeT costT) (Ty
 instance HasDefault (CheckingCtx holeT sizeT costT) where
   default_ = CheckingCtx default_ default_
 
-type instance P.SizeType (CheckingCtx holeT sizeT costT) = sizeT
-type instance P.CostType (CheckingCtx holeT sizeT costT) = costT
+type instance SizeType (CheckingCtx holeT sizeT costT) = sizeT
+type instance CostType (CheckingCtx holeT sizeT costT) = costT
 
 _procCtx :: Lens' (CheckingCtx holeT sizeT costT) (ProcCtx holeT sizeT costT)
 _procCtx focus (CheckingCtx p t) = focus p <&> \p' -> CheckingCtx p' t
@@ -120,7 +120,7 @@ typeCheckUStmt (USeqS ss) = mapM_ typeCheckUStmt' ss
 typeCheckUStmt (URepeatS _ body) = typeCheckUStmt' body
 typeCheckUStmt UForInRangeS{iter_meta_var, iter_lim, loop_body} = do
   let iter_lim_ty = case iter_lim of
-        P.MetaSize n -> P.Fin n
+        MetaSize n -> P.Fin n
         _ -> error "unsupported loop limit"
   local (P._typingCtx . Ctx.ins ('#' : iter_meta_var) .~ iter_lim_ty) $ do
     typeCheckUStmt' loop_body

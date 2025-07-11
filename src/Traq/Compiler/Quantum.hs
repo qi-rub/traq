@@ -218,7 +218,7 @@ lowerProgram ::
   costT ->
   -- | source program
   P.Program primsT sizeT ->
-  Either String (Program holeT sizeT costT, P.TypingCtx sizeT)
+  Either String (Program holeT sizeT costT)
 lowerProgram strat gamma_in uticks cticks eps prog@P.Program{P.funCtx, P.stmt} = do
   unless (P.checkVarsUnique prog) $
     throwError "program does not have unique variables!"
@@ -236,12 +236,23 @@ lowerProgram strat gamma_in uticks cticks eps prog@P.Program{P.funCtx, P.stmt} =
 
   let compiler = lowerStmt eps stmt
   (stmtQ, lowering_ctx', outputU) <- runMyReaderWriterStateT compiler config lowering_ctx
+  let main_proc_vars = lowering_ctx' ^. P._typingCtx . to Ctx.toList
+  let main_proc =
+        ProcDef
+          { proc_name = "main"
+          , proc_meta_params = []
+          , proc_param_types = map snd main_proc_vars
+          , proc_body_or_tick =
+              Right
+                ProcBody
+                  { proc_param_names = map fst main_proc_vars
+                  , proc_local_vars = []
+                  , proc_body_stmt = stmtQ
+                  }
+          }
 
   return
-    ( Program
-        { proc_defs = outputU ^. loweredProcs . to (Ctx.fromListWith proc_name)
-        , uproc_defs = outputU ^. loweredUProcs . to (Ctx.fromListWith UQPL.proc_name)
-        , stmt = stmtQ
-        }
-    , lowering_ctx' ^. P._typingCtx
-    )
+    Program
+      { proc_defs = (outputU ^. loweredProcs . to (Ctx.fromListWith proc_name)) & Ctx.ins "main" .~ main_proc
+      , uproc_defs = outputU ^. loweredUProcs . to (Ctx.fromListWith UQPL.proc_name)
+      }

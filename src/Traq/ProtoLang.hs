@@ -1,11 +1,11 @@
 module Traq.ProtoLang (
-  module Traq.ProtoLang.Prelude,
   module Traq.ProtoLang.Syntax,
   module Traq.ProtoLang.Eval,
   module Traq.ProtoLang.TypeCheck,
   module Traq.ProtoLang.Cost,
   module Traq.ProtoLang.Vars,
   module Traq.ProtoLang.Parser,
+  module Traq.ProtoLang.Prelude,
 ) where
 
 import Traq.ProtoLang.Cost

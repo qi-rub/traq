@@ -88,9 +88,9 @@ spec = do
         assertRight $ CQPL.lowerProgram default_ Ctx.empty uticks cticks eps ex
 
       it "type checks" $ do
-        (ex_cqpl, gamma) <- expectRight $ CQPL.lowerProgram default_ Ctx.empty uticks cticks eps ex
+        ex_cqpl <- expectRight $ CQPL.lowerProgram default_ Ctx.empty uticks cticks eps ex
         -- case CQPL.typeCheckProgram gamma ex_uqpl of Left e -> putStrLn e; _ -> return ()
-        assertRight $ CQPL.typeCheckProgram gamma ex_cqpl
+        assertRight $ CQPL.typeCheckProgram ex_cqpl
 
   describe "matrix search symbolic" $ do
     let n = Sym.var "n" :: Sym.Sym Int

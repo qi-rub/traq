@@ -34,7 +34,6 @@ import Traq.Control.Monad
 import qualified Traq.Data.Context as Ctx
 
 import Traq.Prelude
-import Traq.ProtoLang.Prelude
 import Traq.ProtoLang.Syntax
 
 -- ================================================================================

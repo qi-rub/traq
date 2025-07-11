@@ -109,7 +109,6 @@ class HasProcCtx s where
 data Program holeT sizeT costT = Program
   { proc_defs :: ProcCtx holeT sizeT costT
   , uproc_defs :: UQPL.ProcCtx holeT sizeT costT
-  , stmt :: Stmt holeT sizeT
   }
   deriving (Eq, Show, Read)
 
@@ -142,7 +141,7 @@ instance HasStmt (ProcDef holeT sizeT costT) (Stmt holeT sizeT) where
   _stmt _ proc_def = pure proc_def
 
 instance HasStmt (Program holeT sizeT costT) (Stmt holeT sizeT) where
-  _stmt focus (Program proc_defs uproc_defs stmt) = Program <$> traverse (_stmt focus) proc_defs <*> pure uproc_defs <*> _stmt focus stmt
+  _stmt focus (Program proc_defs uproc_defs) = Program <$> traverse (_stmt focus) proc_defs <*> pure uproc_defs
 
 -- ================================================================================
 -- Syntax Sugar
@@ -272,7 +271,6 @@ instance (Show holeT, Show sizeT, Show costT) => PP.ToCodeString (ProcDef holeT 
     PP.bracedBlockWith header $ PP.build proc_body_stmt
 
 instance (Show holeT, Show sizeT, Show costT) => PP.ToCodeString (Program holeT sizeT costT) where
-  build Program{proc_defs, uproc_defs, stmt} = do
+  build Program{proc_defs, uproc_defs} = do
     mapM_ (PP.build >=> const PP.endl) $ Ctx.elems uproc_defs
     mapM_ (PP.build >=> const PP.endl) $ Ctx.elems proc_defs
-    PP.build stmt
