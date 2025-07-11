@@ -1,5 +1,5 @@
 module Traq.UnitaryQPL.TypeCheck (
-  typeCheckStmt,
+  typeCheckUStmt,
   typeCheckProc,
   typeCheckProgram,
 
@@ -96,17 +96,17 @@ typeCheckUnitary (LoadData f) tys = do
   let inferred_tys = proc_def ^.. to proc_params . traverse . _3
   verifyArgTys tys inferred_tys
 
-typeCheckStmt :: forall holeT sizeT costT. (Show holeT, TypeCheckable sizeT) => UStmt holeT sizeT -> TypeChecker holeT sizeT costT ()
+typeCheckUStmt :: forall holeT sizeT costT. (Show holeT, TypeCheckable sizeT) => UStmt holeT sizeT -> TypeChecker holeT sizeT costT ()
 -- single statements
-typeCheckStmt USkipS = return ()
-typeCheckStmt UHoleS{} = return ()
-typeCheckStmt (UCommentS _) = return ()
-typeCheckStmt UnitaryS{unitary, args} = do
+typeCheckUStmt USkipS = return ()
+typeCheckUStmt UHoleS{} = return ()
+typeCheckUStmt (UCommentS _) = return ()
+typeCheckUStmt UnitaryS{unitary, args} = do
   arg_tys <- forM args $ \x -> do
     mty <- view $ P._typingCtx . Ctx.at x
     maybeWithError (Err.MessageE $ printf "cannot find argument %s" x) mty
   typeCheckUnitary unitary arg_tys
-typeCheckStmt UCallS{proc_id, args} = do
+typeCheckUStmt UCallS{proc_id, args} = do
   proc_param_tys <-
     view $
       _procCtx
@@ -116,20 +116,20 @@ typeCheckStmt UCallS{proc_id, args} = do
         . to (map $ view _3)
   verifyArgs args proc_param_tys
 -- compound statements
-typeCheckStmt (USeqS ss) = mapM_ typeCheckStmt' ss
-typeCheckStmt (URepeatS _ body) = typeCheckStmt' body
-typeCheckStmt UForInRangeS{iter_meta_var, iter_lim, loop_body} = do
+typeCheckUStmt (USeqS ss) = mapM_ typeCheckUStmt' ss
+typeCheckUStmt (URepeatS _ body) = typeCheckUStmt' body
+typeCheckUStmt UForInRangeS{iter_meta_var, iter_lim, loop_body} = do
   let iter_lim_ty = case iter_lim of
         P.MetaSize n -> P.Fin n
         _ -> error "unsupported loop limit"
   local (P._typingCtx . Ctx.ins ('#' : iter_meta_var) .~ iter_lim_ty) $ do
-    typeCheckStmt' loop_body
-typeCheckStmt UWithComputedS{with_stmt, body_stmt} = mapM_ typeCheckStmt' [with_stmt, body_stmt]
+    typeCheckUStmt' loop_body
+typeCheckUStmt UWithComputedS{with_stmt, body_stmt} = mapM_ typeCheckUStmt' [with_stmt, body_stmt]
 
-typeCheckStmt' :: (Show holeT, TypeCheckable sizeT) => UStmt holeT sizeT -> TypeChecker holeT sizeT costT ()
-typeCheckStmt' s = do
+typeCheckUStmt' :: (Show holeT, TypeCheckable sizeT) => UStmt holeT sizeT -> TypeChecker holeT sizeT costT ()
+typeCheckUStmt' s = do
   gamma <- view P._typingCtx
-  typeCheckStmt s
+  typeCheckUStmt s
     `throwFrom` Err.MessageE (printf "with context: %s" (show gamma))
     `throwFrom` Err.MessageE (printf "typecheck failed: %s" (show s))
 
@@ -138,7 +138,7 @@ typeCheckProc :: (Show holeT, TypeCheckable sizeT, Show costT) => ProcDef holeT 
 typeCheckProc procdef@UProcDef{proc_params, proc_body_or_tick = Right proc_body} =
   local (P._typingCtx .~ Ctx.fromList (proc_params & each %~ withoutTag)) $ do
     gamma <- view P._typingCtx
-    typeCheckStmt' proc_body
+    typeCheckUStmt' proc_body
       `throwFrom` Err.MessageE (printf "with context: %s" (show gamma))
       `throwFrom` Err.MessageE (printf "typecheck proc failed: %s" (show procdef))
  where
@@ -152,4 +152,4 @@ typeCheckProgram gamma Program{proc_defs, stmt} = do
 
   forM_ proc_defs $ (`runMyReaderT` ctx) . typeCheckProc
 
-  runMyReaderT (typeCheckStmt' stmt) $ ctx & P._typingCtx .~ gamma
+  runMyReaderT (typeCheckUStmt' stmt) $ ctx & P._typingCtx .~ gamma

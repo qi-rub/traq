@@ -1,4 +1,5 @@
-module Traq.ProtoLang.Prelude (
+module Traq.ProtoLang.Prelude
+  {-# DEPRECATED "use Traq.Prelude instead" #-} (
   SizeType,
   CostType,
   PrimitiveType,
@@ -8,22 +9,3 @@ module Traq.ProtoLang.Prelude (
 ) where
 
 import Traq.Prelude
-import qualified Traq.Utils.Printing as PP
-
--- | The size type (usually some Integral) of a given type.
-type family SizeType p
-
--- | The cost type (usually some Floating) of a given type
-type family CostType p
-
--- | The bag of primitives used by a given type
-type family PrimitiveType p
-
--- | Compile-time constant parameters
-data MetaParam sizeT = MetaName String | MetaSize sizeT | MetaValue Value
-  deriving (Eq, Show, Read)
-
-instance (Show sizeT) => PP.ToCodeString (MetaParam sizeT) where
-  build (MetaName n) = PP.putWord $ "#" ++ n
-  build (MetaSize n) = PP.putWord $ show n
-  build (MetaValue n) = PP.putWord $ show n

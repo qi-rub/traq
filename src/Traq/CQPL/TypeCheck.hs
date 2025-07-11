@@ -23,21 +23,31 @@ import Traq.Data.Default
 import qualified Traq.Data.Errors as Err
 
 import Traq.CQPL.Syntax
+import Traq.Prelude
 import Traq.ProtoLang (TypeCheckable (..), TypingCtx)
 import qualified Traq.ProtoLang as P
 import qualified Traq.UnitaryQPL as UQPL
 
 -- | Env for type checking
-type CheckingCtx holeT sizeT costT = (ProcCtx holeT sizeT costT, UQPL.ProcCtx holeT sizeT costT, TypingCtx sizeT)
+data CheckingCtx holeT sizeT costT = CheckingCtx (ProcCtx holeT sizeT costT) (UQPL.ProcCtx holeT sizeT costT) (TypingCtx sizeT)
 
-cqProcs :: Lens' (CheckingCtx holeT sizeT costT) (ProcCtx holeT sizeT costT)
-cqProcs = _1
+type instance SizeType (CheckingCtx holeT sizeT costT) = sizeT
+type instance CostType (CheckingCtx holeT sizeT costT) = costT
+type instance HoleType (CheckingCtx holeT sizeT costT) = holeT
+
+instance HasDefault (CheckingCtx holeT sizeT costT) where default_ = CheckingCtx default_ default_ default_
+
+instance HasProcCtx (CheckingCtx holeT sizeT costT) where
+  _procCtx focus (CheckingCtx p up t) = focus p <&> \p' -> CheckingCtx p' up t
+
+instance P.HasTypingCtx (CheckingCtx holeT sizeT costT) where
+  _typingCtx focus (CheckingCtx p up t) = focus t <&> \t' -> CheckingCtx p up t'
 
 uProcs :: Lens' (CheckingCtx holeT sizeT costT) (UQPL.ProcCtx holeT sizeT costT)
-uProcs = _2
-
-typingCtx :: Lens' (CheckingCtx holeT sizeT costT) (TypingCtx sizeT)
-typingCtx = _3
+uProcs = lens get' set'
+ where
+  get' (CheckingCtx _ u _) = u
+  set' (CheckingCtx p _ t) u = CheckingCtx p u t
 
 -- | Monad for type checking
 type TypeChecker holeT sizeT costT = MyReaderT (CheckingCtx holeT sizeT costT) (Either Err.MyError)
@@ -61,7 +71,7 @@ typeCheckStmt (HoleS _) = return ()
 typeCheckStmt AssignS{rets, expr} = do
   let expr_vars = toList $ P.freeVarsBE expr
   expr_var_tys <- forM expr_vars $ \var -> do
-    view (typingCtx . Ctx.at var)
+    view (P._typingCtx . Ctx.at var)
       >>= maybeWithError (Err.MessageE $ printf "cannot find %s" var)
   let gamma = Ctx.fromList $ zip expr_vars expr_var_tys
 
@@ -71,7 +81,7 @@ typeCheckStmt AssignS{rets, expr} = do
       Right ty -> return [ty]
 
   expect_ret_tys <- forM rets $ \var -> do
-    view (typingCtx . Ctx.at var)
+    view (P._typingCtx . Ctx.at var)
       >>= maybeWithError (Err.MessageE $ printf "cannot find %s" var)
 
   when (expect_ret_tys /= actual_ret_tys) $ do
@@ -82,26 +92,26 @@ typeCheckStmt AssignS{rets, expr} = do
         (show actual_ret_tys)
 typeCheckStmt RandomS{} = return ()
 typeCheckStmt RandomDynS{max_var} = do
-  view (typingCtx . Ctx.at max_var) >>= maybeWithError (Err.MessageE $ printf "cannot find variable %s" max_var)
+  view (P._typingCtx . Ctx.at max_var) >>= maybeWithError (Err.MessageE $ printf "cannot find variable %s" max_var)
   return ()
 -- function call
 typeCheckStmt CallS{fun = FunctionCall proc_id, args} = do
-  ProcDef{proc_param_types} <- magnify cqProcs $ do
+  ProcDef{proc_param_types} <- magnify _procCtx $ do
     view (Ctx.at proc_id) >>= maybeWithError (Err.MessageE "cannot find proc")
   arg_tys <- forM args $ \var -> do
-    view (typingCtx . Ctx.at var) >>= maybeWithError (Err.MessageE $ printf "cannot find %s" var)
+    view (P._typingCtx . Ctx.at var) >>= maybeWithError (Err.MessageE $ printf "cannot find %s" var)
   ensureEqual proc_param_types arg_tys "mismatched function args"
 typeCheckStmt CallS{fun = UProcAndMeas uproc_id, args} = do
   UQPL.UProcDef{UQPL.proc_params} <- magnify uProcs $ do
     view (Ctx.at uproc_id) >>= maybeWithError (Err.MessageE $ printf "cannot find proc %s" uproc_id)
   arg_tys <- forM args $ \var -> do
-    view (typingCtx . Ctx.at var) >>= maybeWithError (Err.MessageE $ printf "cannot find %s" var)
+    view (P._typingCtx . Ctx.at var) >>= maybeWithError (Err.MessageE $ printf "cannot find %s" var)
   let uproc_param_types = map (view _3) proc_params & take (length arg_tys)
   ensureEqual uproc_param_types arg_tys "mismatched function args"
 -- compound statements
 typeCheckStmt (SeqS ss) = mapM_ typeCheckStmt ss
 typeCheckStmt IfThenElseS{cond, s_true, s_false} = do
-  cond_ty <- view (typingCtx . Ctx.at cond) >>= maybeWithError (Err.MessageE $ "cannot find variable " ++ cond)
+  cond_ty <- view (P._typingCtx . Ctx.at cond) >>= maybeWithError (Err.MessageE $ "cannot find variable " ++ cond)
   when (cond_ty /= tbool) $
     Err.throwErrorMessage $
       "if cond must be bool, got " <> show cond_ty
@@ -138,7 +148,7 @@ typeCheckProc
         printf "clashing names in proc args and locals: %s" (show common_names)
 
     let gamma = Ctx.fromList $ zip proc_param_names proc_param_types ++ proc_local_vars
-    local (typingCtx .~ gamma) $ do
+    local (P._typingCtx .~ gamma) $ do
       typeCheckStmt proc_body_stmt
 
 -- | Check an entire program given the input bindings.
@@ -150,11 +160,12 @@ typeCheckProgram ::
   Either Err.MyError ()
 typeCheckProgram gamma Program{proc_defs, uproc_defs, stmt} = do
   let uqplTypingEnv = default_ & UQPL._procCtx .~ uproc_defs
-  flip runMyReaderT uqplTypingEnv $ do
+  runMyReaderT ?? uqplTypingEnv $ do
     mapM_ UQPL.typeCheckProc $ Ctx.elems uproc_defs
 
-  flip runMyReaderT (proc_defs, uproc_defs, undefined) $ do
+  let env = default_ & (_procCtx .~ proc_defs) & (uProcs .~ uproc_defs)
+  runMyReaderT ?? env $ do
     mapM_ typeCheckProc $ Ctx.elems proc_defs
 
-  flip runMyReaderT (proc_defs, uproc_defs, gamma) $ do
+  runMyReaderT ?? (env & P._typingCtx .~ gamma) $ do
     typeCheckStmt stmt

@@ -18,6 +18,9 @@ module Traq.CQPL.Syntax (
   -- * Syntax Sugar
   ifThenS,
   desugarS,
+
+  -- * Lenses
+  HasProcCtx (..),
 ) where
 
 import Control.Monad (zipWithM, (>=>))
@@ -28,7 +31,7 @@ import Text.Printf (printf)
 import qualified Traq.Data.Context as Ctx
 
 import Traq.Prelude
-import Traq.ProtoLang (MetaParam (..), VarType)
+import Traq.ProtoLang (VarType)
 import qualified Traq.ProtoLang as P
 import qualified Traq.UnitaryQPL as UQPL
 import Traq.Utils.ASTRewriting
@@ -62,6 +65,9 @@ data Stmt holeT sizeT
   | ForInArray {loop_index :: Ident, loop_index_ty :: VarType sizeT, loop_values :: [P.BasicExpr sizeT], loop_body :: Stmt holeT sizeT}
   deriving (Eq, Show, Read)
 
+type instance SizeType (Stmt holeT sizeT) = sizeT
+type instance HoleType (Stmt holeT sizeT) = holeT
+
 ifThenS :: Ident -> Stmt holeT sizeT -> Stmt holeT sizeT
 ifThenS cond s_true = IfThenElseS{cond, s_true, s_false = SkipS}
 
@@ -73,6 +79,9 @@ data ProcBody holeT sizeT = ProcBody
   }
   deriving (Eq, Show, Read)
 
+type instance SizeType (ProcBody holeT sizeT) = sizeT
+type instance HoleType (ProcBody holeT sizeT) = holeT
+
 -- | CQ Procedure
 data ProcDef holeT sizeT costT = ProcDef
   { proc_name :: Ident
@@ -82,8 +91,19 @@ data ProcDef holeT sizeT costT = ProcDef
   }
   deriving (Eq, Show, Read)
 
+type instance SizeType (ProcDef holeT sizeT costT) = sizeT
+type instance HoleType (ProcDef holeT sizeT costT) = holeT
+type instance CostType (ProcDef holeT sizeT costT) = costT
+
 -- | CQ procedures
 type ProcCtx holeT sizeT costT = Ctx.Context (ProcDef holeT sizeT costT)
+
+type instance SizeType (ProcCtx holeT sizeT costT) = sizeT
+type instance CostType (ProcCtx holeT sizeT costT) = costT
+type instance HoleType (ProcCtx holeT sizeT costT) = holeT
+
+class HasProcCtx s where
+  _procCtx :: (holeT ~ HoleType s, sizeT ~ SizeType s, costT ~ CostType s) => Lens' s (ProcCtx holeT sizeT costT)
 
 -- | CQ Program
 data Program holeT sizeT costT = Program
@@ -92,6 +112,10 @@ data Program holeT sizeT costT = Program
   , stmt :: Stmt holeT sizeT
   }
   deriving (Eq, Show, Read)
+
+type instance SizeType (Program holeT sizeT costT) = sizeT
+type instance CostType (Program holeT sizeT costT) = costT
+type instance HoleType (Program holeT sizeT costT) = holeT
 
 -- | Alias without holes.
 type Program' = Program Void
@@ -157,10 +181,7 @@ whileKWithCondExpr k cond_var cond_expr body =
 forInArray :: Ident -> VarType sizeT -> [P.BasicExpr sizeT] -> Stmt holeT sizeT -> Stmt holeT sizeT
 forInArray i _ty ix_vals s =
   SeqS
-    [ SeqS
-        [ AssignS{rets = [i], expr = v}
-        , s
-        ]
+    [ SeqS [AssignS{rets = [i], expr = v}, s]
     | v <- ix_vals
     ]
 

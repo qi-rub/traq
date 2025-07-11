@@ -5,7 +5,6 @@
 module Traq.UnitaryQPL.TypeCheckSpec (spec) where
 
 import Control.Monad (forM_)
-import qualified Data.Map as Map
 import Data.Void (Void)
 import Lens.Micro.GHC
 
@@ -24,7 +23,7 @@ spec :: Spec
 spec = do
   describe "typeCheckStmt" $ do
     let tb = P.Fin (2 :: Int)
-    let checker gamma s = runMyReaderT (U.typeCheckStmt @Void @Int @Float s) (default_ & P._typingCtx .~ gamma)
+    let checker gamma s = runMyReaderT (U.typeCheckUStmt @Void @Int @Float s) (default_ & P._typingCtx .~ gamma)
     describe "unitary embed" $ do
       it "AndOp" $
         assertRight $
@@ -35,7 +34,7 @@ spec = do
               , U.unitary = U.RevEmbedU ["a0", "a1"] ("a0" .&&. "a1")
               }
       it "MultiOrOp" $
-        forM_ [3, 10] $ \n -> do
+        forM_ [3 :: Int, 10] $ \n -> do
           let xs = ["a" <> show i | i <- [0 .. n]]
           assertRight $
             checker
