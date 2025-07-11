@@ -4,6 +4,7 @@
 
 module Traq.ProtoLang.Syntax (
   -- * Syntax
+  MetaParam (..),
 
   -- ** Basic Types and Operations
   VarType (..),
@@ -41,6 +42,15 @@ import qualified Traq.Data.Context as Ctx
 import Traq.Prelude
 import Traq.Utils.ASTRewriting
 import qualified Traq.Utils.Printing as PP
+
+-- | Compile-time constant parameters
+data MetaParam sizeT = MetaName String | MetaSize sizeT | MetaValue Value
+  deriving (Eq, Show, Read)
+
+instance (Show sizeT) => PP.ToCodeString (MetaParam sizeT) where
+  build (MetaName n) = PP.putWord $ "#" ++ n
+  build (MetaSize n) = PP.putWord $ show n
+  build (MetaValue n) = PP.putWord $ show n
 
 -- ================================================================================
 -- Common Syntax

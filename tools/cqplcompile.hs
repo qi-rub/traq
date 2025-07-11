@@ -61,7 +61,7 @@ subsNM params s = Sym.unSym $ foldr subsOnce s params
 compile :: (RealFloat costT, Show costT) => P.Program DefaultPrims SizeT -> costT -> IO String
 compile prog eps = do
   let oracle_ticks = Map.singleton "Oracle" 1.0
-  let Right (cqpl_prog, _) = CQPL.lowerProgram default_ Ctx.empty oracle_ticks oracle_ticks eps prog
+  Right cqpl_prog <- return $ CQPL.lowerProgram default_ Ctx.empty oracle_ticks oracle_ticks eps prog
 
   return $ PP.toCodeString cqpl_prog
 
@@ -71,7 +71,7 @@ main = do
 
   -- parse
   code <- readFile in_file
-  let Right prog = fmap (subsNM params) <$> P.parseProgram code
+  Right prog <- return $ fmap (subsNM params) <$> P.parseProgram code
 
   -- compile
   out_prog <- case eps of

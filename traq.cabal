@@ -48,7 +48,6 @@ library
       Traq.ProtoLang.Cost
       Traq.ProtoLang.Eval
       Traq.ProtoLang.Parser
-      Traq.ProtoLang.Prelude
       Traq.ProtoLang.Rewrites
       Traq.ProtoLang.Syntax
       Traq.ProtoLang.TypeCheck

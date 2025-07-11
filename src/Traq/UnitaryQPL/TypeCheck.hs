@@ -120,7 +120,7 @@ typeCheckUStmt (USeqS ss) = mapM_ typeCheckUStmt' ss
 typeCheckUStmt (URepeatS _ body) = typeCheckUStmt' body
 typeCheckUStmt UForInRangeS{iter_meta_var, iter_lim, loop_body} = do
   let iter_lim_ty = case iter_lim of
-        MetaSize n -> P.Fin n
+        P.MetaSize n -> P.Fin n
         _ -> error "unsupported loop limit"
   local (P._typingCtx . Ctx.ins ('#' : iter_meta_var) .~ iter_lim_ty) $ do
     typeCheckUStmt' loop_body

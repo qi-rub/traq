@@ -31,7 +31,7 @@ import Text.Printf (printf)
 import qualified Traq.Data.Context as Ctx
 
 import Traq.Prelude
-import Traq.ProtoLang (VarType)
+import Traq.ProtoLang (MetaParam (..), VarType)
 import qualified Traq.ProtoLang as P
 import qualified Traq.UnitaryQPL as UQPL
 import Traq.Utils.ASTRewriting

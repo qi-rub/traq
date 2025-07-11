@@ -64,7 +64,7 @@ data LoweringCtx sizeT = LoweringCtx (Set.Set Ident) (P.TypingCtx sizeT)
 
 instance HasDefault (LoweringCtx sizeT) where default_ = LoweringCtx default_ default_
 
-type instance P.SizeType (LoweringCtx sizeT) = sizeT
+type instance SizeType (LoweringCtx sizeT) = sizeT
 
 instance HasUniqNamesCtx (LoweringCtx sizeT) where
   _uniqNamesCtx focus (LoweringCtx a b) = focus a <&> \a' -> LoweringCtx a' b
