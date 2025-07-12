@@ -384,9 +384,9 @@ algoQSearchZalka delta out_bit = do
   P.Fin n <- view $ to search_arg_type
 
   out_bits <- forM [1 .. n_reps] $ \i -> do
-    writeElem $ UQPL.UCommentS ""
+    writeElem $ UQPL.UCommentS " "
     writeElem $ UQPL.UCommentS $ printf "Run %d" i
-    writeElem $ UQPL.UCommentS ""
+    writeElem $ UQPL.UCommentS " "
     algoQSearchZalkaRandomIterStep (max_iter n)
 
   let as = ["a" <> show i | i <- [1 .. length out_bits]]

@@ -71,7 +71,7 @@ concreteEx = do
   let u_formula_cost = P.unitaryQueryCost strat delta ex uticks
 
   printDivider
-  Right (exU, _) <- return $ UQPL.lowerProgram strat Ctx.empty uticks delta ex
+  Right exU <- return $ UQPL.lowerProgram strat Ctx.empty uticks delta ex
   putStrLn $ PP.toCodeString exU
 
   let (u_true_cost, _) = UQPL.programCost exU
