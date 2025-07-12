@@ -1504,4 +1504,7 @@ proc HasAllOnesRow[1.0e-3](ok: Fin<2>) { locals: () } do {
   call QSearch[5.0e-4][](ok);
 }
 
-call HasAllOnesRow[1.0e-3][](result);
+proc main(result: Fin<2>) { locals: () } do {
+  call HasAllOnesRow[1.0e-3][](result);
+}
+
