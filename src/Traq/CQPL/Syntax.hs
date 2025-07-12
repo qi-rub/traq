@@ -98,10 +98,6 @@ type instance CostType (ProcDef holeT sizeT costT) = costT
 -- | CQ procedures
 type ProcCtx holeT sizeT costT = Ctx.Context (ProcDef holeT sizeT costT)
 
-type instance SizeType (ProcCtx holeT sizeT costT) = sizeT
-type instance CostType (ProcCtx holeT sizeT costT) = costT
-type instance HoleType (ProcCtx holeT sizeT costT) = holeT
-
 class HasProcCtx s where
   _procCtx :: (holeT ~ HoleType s, sizeT ~ SizeType s, costT ~ CostType s) => Lens' s (ProcCtx holeT sizeT costT)
 

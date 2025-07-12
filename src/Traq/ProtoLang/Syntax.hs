@@ -191,9 +191,6 @@ type instance PrimitiveType (NamedFunDef primT sizeT) = primT
 -- | A function context contains a list of functions
 type FunCtx primT sizeT = Ctx.Context (FunDef primT sizeT)
 
-type instance SizeType (FunCtx primT sizeT) = sizeT
-type instance PrimitiveType (FunCtx primT sizeT) = primT
-
 class HasFunCtx p where
   _funCtx :: (primT ~ PrimitiveType p, sizeT ~ SizeType p) => Lens' p (FunCtx primT sizeT)
 
