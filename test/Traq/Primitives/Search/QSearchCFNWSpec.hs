@@ -51,17 +51,24 @@ spec = do
 
         let uprog =
               UQPL.Program
-                { UQPL.stmt = UQPL.USeqS ss
-                , UQPL.proc_defs =
-                    Ctx.singleton
-                      "Oracle"
-                      UQPL.UProcDef
-                        { UQPL.info_comment = ""
-                        , UQPL.proc_name = "Oracle"
-                        , UQPL.proc_meta_params = []
-                        , UQPL.proc_params = []
-                        , UQPL.proc_body_or_tick = Left (1.0 :: Double)
-                        }
+                { UQPL.proc_defs =
+                    Ctx.fromListWith
+                      UQPL.proc_name
+                      [ UQPL.UProcDef
+                          { UQPL.info_comment = ""
+                          , UQPL.proc_name = "Oracle"
+                          , UQPL.proc_meta_params = []
+                          , UQPL.proc_params = []
+                          , UQPL.proc_body_or_tick = Left (1.0 :: Double)
+                          }
+                      , UQPL.UProcDef
+                          { UQPL.info_comment = ""
+                          , UQPL.proc_name = "main"
+                          , UQPL.proc_meta_params = []
+                          , UQPL.proc_params = undefined
+                          , UQPL.proc_body_or_tick = Right $ UQPL.USeqS ss
+                          }
+                      ]
                 }
 
         let (actual_cost, _) = UQPL.programCost @_ @Double uprog

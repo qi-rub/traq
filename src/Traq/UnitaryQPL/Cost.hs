@@ -18,6 +18,7 @@ module Traq.UnitaryQPL.Cost (
 import Control.Applicative ((<|>))
 import Control.Monad.Trans (lift)
 import qualified Data.Map as Map
+import Data.Maybe (fromMaybe)
 import Data.Void (Void, absurd)
 import Lens.Micro.GHC
 import Lens.Micro.Mtl
@@ -97,9 +98,11 @@ programCost ::
   (Integral sizeT, Floating costT, HoleCost holeT costT) =>
   Program holeT sizeT costT ->
   (costT, CostMap costT)
-programCost Program{proc_defs, stmt} =
+programCost Program{proc_defs} = fromMaybe (error "could not compute cost") $ do
   let env = proc_defs
-      mres = runMyReaderStateT (stmtCost stmt) env Map.empty
-   in case mres of
-        Nothing -> error "could not compute cost!"
-        Just res -> res
+  UProcDef
+    { proc_meta_params = []
+    , proc_body_or_tick = Right main_body
+    } <-
+    proc_defs ^. Ctx.at "main"
+  runMyReaderStateT (stmtCost main_body) env Map.empty

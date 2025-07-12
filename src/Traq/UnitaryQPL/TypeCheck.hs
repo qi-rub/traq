@@ -146,10 +146,7 @@ typeCheckProc procdef@UProcDef{proc_params, proc_body_or_tick = Right proc_body}
 -- declaration with a tick
 typeCheckProc UProcDef{proc_body_or_tick = Left _} = return ()
 
-typeCheckProgram :: (Show holeT, TypeCheckable sizeT, Show costT) => TypingCtx sizeT -> Program holeT sizeT costT -> Either Err.MyError ()
-typeCheckProgram gamma Program{proc_defs, stmt} = do
+typeCheckProgram :: (Show holeT, TypeCheckable sizeT, Show costT) => Program holeT sizeT costT -> Either Err.MyError ()
+typeCheckProgram Program{proc_defs} = do
   let ctx = default_ & (_procCtx .~ proc_defs)
-
-  forM_ proc_defs $ (`runMyReaderT` ctx) . typeCheckProc
-
-  runMyReaderT (typeCheckUStmt' stmt) $ ctx & P._typingCtx .~ gamma
+  forM_ proc_defs $ (runMyReaderT ?? ctx) . typeCheckProc

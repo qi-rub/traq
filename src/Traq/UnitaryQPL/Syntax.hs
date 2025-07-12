@@ -222,9 +222,8 @@ type ProcCtx holeT sizeT costT = Ctx.Context (ProcDef holeT sizeT costT)
 type ProcCtx' sizeT costT = ProcCtx Void sizeT costT
 
 -- | A full program
-data Program holeT sizeT costT = Program
+newtype Program holeT sizeT costT = Program
   { proc_defs :: ProcCtx holeT sizeT costT
-  , stmt :: UStmt holeT sizeT
   }
   deriving (Eq, Show, Read)
 
@@ -232,9 +231,8 @@ data Program holeT sizeT costT = Program
 type Program' = Program Void
 
 instance (Show holeT, Show sizeT, Show costT) => PP.ToCodeString (Program holeT sizeT costT) where
-  build Program{proc_defs, stmt} = do
+  build Program{proc_defs} = do
     mapM_ (PP.build >=> const PP.endl) (Ctx.elems proc_defs)
-    PP.build stmt
 
 -- ================================================================================
 -- Syntax Sugar

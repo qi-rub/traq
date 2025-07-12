@@ -42,6 +42,7 @@ import Traq.Data.Default
 
 import Data.Foldable (Foldable (toList))
 import Data.Maybe (fromMaybe)
+import Traq.CQPL.Syntax (ProcBody (proc_body_stmt))
 import Traq.Compiler.Utils
 import Traq.Control.Monad
 import Traq.Prelude
@@ -383,7 +384,7 @@ lowerProgram ::
   -- | precision \delta
   costT ->
   P.Program primsT SizeT ->
-  Either String (Program holeT SizeT costT, P.TypingCtx SizeT)
+  Either String (Program holeT SizeT costT)
 lowerProgram strat gamma_in oracle_ticks delta prog@P.Program{P.funCtx, P.stmt} = do
   unless (P.checkVarsUnique prog) $
     throwError "program does not have unique variables!"
@@ -397,12 +398,18 @@ lowerProgram strat gamma_in oracle_ticks delta prog@P.Program{P.funCtx, P.stmt} 
         default_
           & (P._typingCtx .~ gamma_in)
           & (_uniqNamesCtx .~ P.allNamesP prog)
+
   let compiler = lowerStmt delta stmt
   (stmtU, ctx', outputU) <- runMyReaderWriterStateT compiler config ctx
-  return
-    ( Program
-        { proc_defs = outputU ^. loweredProcs . to (Ctx.fromListWith proc_name)
-        , stmt = stmtU
-        }
-    , ctx' ^. P._typingCtx
-    )
+
+  let procs = outputU ^. loweredProcs . to (Ctx.fromListWith proc_name)
+  let main_proc =
+        UProcDef
+          { info_comment = ""
+          , proc_name = "main"
+          , proc_meta_params = []
+          , proc_params = ctx' ^. P._typingCtx . to Ctx.toList . to (withTag ParamUnk)
+          , proc_body_or_tick = Right stmtU
+          }
+
+  return Program{proc_defs = procs & Ctx.ins "main" .~ main_proc}

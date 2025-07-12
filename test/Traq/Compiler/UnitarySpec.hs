@@ -21,7 +21,7 @@ spec = do
       do
         let s = P.ExprS{P.rets = ["y"], P.expr = P.BasicExprE P.VarE{P.var = "x"}} :: P.Stmt Void Int
 
-        (actual, gamma) <-
+        actual <-
           expectRight $
             lowerProgram
               P.SplitSimple
@@ -35,15 +35,25 @@ spec = do
 
         let expected =
               U.Program
-                { U.proc_defs = Ctx.empty
-                , U.stmt = U.UnitaryS ["x", "y"] $ U.RevEmbedU ["x"] "x"
+                { U.proc_defs =
+                    Ctx.singleton
+                      "main"
+                      U.UProcDef
+                        { U.info_comment = ""
+                        , U.proc_name = "main"
+                        , U.proc_meta_params = []
+                        , U.proc_params = [("x", U.ParamUnk, P.Fin 10), ("y", U.ParamUnk, P.Fin 10)]
+                        , U.proc_body_or_tick = Right (U.UnitaryS ["x", "y"] $ U.RevEmbedU ["x"] "x")
+                        }
                 } ::
                 U.Program Void Int Double
 
         actual `shouldBe` expected
-
-        PP.toCodeString actual `shouldBe` "x, y *= Embed[(x) => x];\n"
-
-        gamma `shouldBe` Ctx.fromList [("x", P.Fin 10), ("y", P.Fin 10)]
-
-        assertRight $ U.typeCheckProgram gamma actual
+        assertRight $ U.typeCheckProgram actual
+        PP.toCodeString actual
+          `shouldBe` unlines
+            [ "uproc main(x : Fin<10>, y : Fin<10>) {"
+            , "  x, y *= Embed[(x) => x];"
+            , "}"
+            , ""
+            ]

@@ -115,4 +115,5 @@ doEndBlock :: (MonadWriter [String] m) => m a -> m a
 doEndBlock = delimitedBlock "do" "end"
 
 putComment :: (MonadWriter [String] m) => String -> m ()
+putComment "" = return ()
 putComment s = commented $ putLine s
