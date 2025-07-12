@@ -26,6 +26,7 @@ library
       Traq.Compiler.Utils
       Traq.Control.Monad
       Traq.CQPL
+      Traq.CQPL.Cost
       Traq.CQPL.Syntax
       Traq.CQPL.TypeCheck
       Traq.Data.Context
@@ -53,7 +54,6 @@ library
       Traq.ProtoLang.TypeCheck
       Traq.ProtoLang.Vars
       Traq.UnitaryQPL
-      Traq.UnitaryQPL.Cost
       Traq.UnitaryQPL.Syntax
       Traq.UnitaryQPL.TypeCheck
       Traq.Utils.ASTRewriting

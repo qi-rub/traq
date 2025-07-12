@@ -9,6 +9,7 @@ import qualified Traq.Data.Context as Ctx
 import Traq.Data.Default
 import Traq.Prelude
 
+import qualified Traq.CQPL as CQPL
 import Traq.Primitives.Search.QSearchCFNW
 import qualified Traq.ProtoLang as P
 import qualified Traq.UnitaryQPL as UQPL
@@ -50,8 +51,9 @@ spec = do
             & expectRight
 
         let uprog =
-              UQPL.Program
-                { UQPL.proc_defs =
+              CQPL.Program
+                { CQPL.proc_defs = mempty
+                , CQPL.uproc_defs =
                     Ctx.fromListWith
                       UQPL.proc_name
                       [ UQPL.UProcDef
@@ -71,6 +73,6 @@ spec = do
                       ]
                 }
 
-        let (actual_cost, _) = UQPL.programCost @_ @Double uprog
+        let (actual_cost, _) = CQPL.programCost @_ @Double uprog
         let formula_cost = _QSearchZalka n delta
         actual_cost `shouldSatisfy` (<= formula_cost)

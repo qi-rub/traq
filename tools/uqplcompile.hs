@@ -11,6 +11,7 @@ import qualified Traq.Data.Context as Ctx
 import Traq.Data.Default
 import qualified Traq.Data.Symbolic as Sym
 
+import qualified Traq.CQPL as CQPL
 import qualified Traq.Compiler.Unitary as UQPL
 import Traq.Prelude
 import qualified Traq.ProtoLang as P
@@ -68,13 +69,13 @@ tellLn x = tell $ unlines [x]
 compile :: forall costT. (RealFloat costT, Show costT) => P.Program DefaultPrims SizeT -> costT -> IO String
 compile prog delta = do
   let oracle_ticks = mempty & at "Oracle" ?~ (fromRational 1.0 :: costT)
-  Right uqpl_prog <- return $ UQPL.lowerProgram default_ Ctx.empty oracle_ticks delta prog
+  Right cqpl_prog <- return $ UQPL.lowerProgram default_ Ctx.empty oracle_ticks delta prog
   -- get costs
-  let (cost :: costT, proc_costs) = UQPL.programCost uqpl_prog
+  let (_ :: costT, proc_costs) = CQPL.programCost cqpl_prog
 
   -- print the program with the costs
   execWriterT $ do
-    forM_ (uqpl_prog ^. to UQPL.proc_defs . to Ctx.elems) $ \p -> do
+    forM_ (cqpl_prog ^. to CQPL.uproc_defs . to Ctx.elems) $ \p -> do
       let pname = p ^. to UQPL.proc_name
 
       when (pname /= "Oracle") $ do

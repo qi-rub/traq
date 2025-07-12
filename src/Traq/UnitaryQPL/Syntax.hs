@@ -18,7 +18,6 @@ module Traq.UnitaryQPL.Syntax (
 
   -- ** Program
   Program (..),
-  Program',
 
   -- ** Syntax Sugar
   mkForInRangeS,
@@ -226,9 +225,6 @@ newtype Program holeT sizeT costT = Program
   { proc_defs :: ProcCtx holeT sizeT costT
   }
   deriving (Eq, Show, Read)
-
--- | Alias without holes
-type Program' = Program Void
 
 instance (Show holeT, Show sizeT, Show costT) => PP.ToCodeString (Program holeT sizeT costT) where
   build Program{proc_defs} = do

@@ -72,13 +72,13 @@ spec = do
 
       it "type checks" $ do
         ex_uqpl <- expectRight $ UQPL.lowerProgram default_ Ctx.empty uticks delta ex
-        let tc_res = UQPL.typeCheckProgram ex_uqpl
+        let tc_res = UQPL.typeCheckProgram $ UQPL.Program $ CQPL.uproc_defs ex_uqpl
         either print (const $ pure ()) tc_res
         assertRight tc_res
 
       it "preserves cost" $ do
         ex_uqpl <- expectRight $ UQPL.lowerProgram default_ Ctx.empty uticks delta ex
-        let (uqpl_cost, _) = UQPL.programCost ex_uqpl
+        let (uqpl_cost, _) = CQPL.programCost ex_uqpl
         let proto_cost = P.unitaryQueryCost P.SplitSimple delta ex uticks
         uqpl_cost `shouldSatisfy` (<= proto_cost)
 

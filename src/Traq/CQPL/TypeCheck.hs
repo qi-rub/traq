@@ -24,12 +24,12 @@ import qualified Traq.Data.Errors as Err
 
 import Traq.CQPL.Syntax
 import Traq.Prelude
-import Traq.ProtoLang (TypeCheckable (..), TypingCtx)
+import Traq.ProtoLang (TypeCheckable (..))
 import qualified Traq.ProtoLang as P
 import qualified Traq.UnitaryQPL as UQPL
 
 -- | Env for type checking
-data CheckingCtx holeT sizeT costT = CheckingCtx (ProcCtx holeT sizeT costT) (UQPL.ProcCtx holeT sizeT costT) (TypingCtx sizeT)
+data CheckingCtx holeT sizeT costT = CheckingCtx (ProcCtx holeT sizeT costT) (UQPL.ProcCtx holeT sizeT costT) (P.TypingCtx sizeT)
 
 type instance SizeType (CheckingCtx holeT sizeT costT) = sizeT
 type instance CostType (CheckingCtx holeT sizeT costT) = costT

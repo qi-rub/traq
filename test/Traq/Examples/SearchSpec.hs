@@ -6,6 +6,7 @@ import qualified Traq.Data.Context as Ctx
 import Traq.Data.Default
 import qualified Traq.Data.Tree as Tree
 
+import qualified Traq.CQPL as CQPL
 import qualified Traq.Compiler.Unitary as UQPL
 import Traq.Prelude
 import qualified Traq.ProtoLang as P
@@ -59,11 +60,11 @@ spec = do
 
       it "typechecks" $ do
         ex_uqpl <- expectRight $ UQPL.lowerProgram default_ Ctx.empty uticks delta ex
-        assertRight $ UQPL.typeCheckProgram ex_uqpl
+        assertRight $ UQPL.typeCheckProgram $ UQPL.Program $ CQPL.uproc_defs ex_uqpl
 
       it "preserves cost" $ do
         ex_uqpl <- expectRight $ UQPL.lowerProgram default_ Ctx.empty uticks delta ex
-        let (uqpl_cost, _) = UQPL.programCost ex_uqpl
+        let (uqpl_cost, _) = CQPL.programCost ex_uqpl
         let proto_cost = P.unitaryQueryCost P.SplitSimple delta ex uticks
         uqpl_cost `shouldSatisfy` (<= proto_cost)
 

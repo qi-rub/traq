@@ -10,11 +10,11 @@ import Text.Printf (printf)
 import qualified Traq.Data.Context as Ctx
 import qualified Traq.Data.Symbolic as Sym
 
+import qualified Traq.CQPL as CQPL
 import qualified Traq.Compiler.Quantum as CQPL
 import qualified Traq.Compiler.Unitary as UQPL
 import Traq.Prelude
 import qualified Traq.ProtoLang as P
-import qualified Traq.UnitaryQPL as UQPL
 import qualified Traq.Utils.Printing as PP
 
 import Traq.Examples.MatrixSearch
@@ -74,7 +74,7 @@ concreteEx = do
   Right exU <- return $ UQPL.lowerProgram strat Ctx.empty uticks delta ex
   putStrLn $ PP.toCodeString exU
 
-  let (u_true_cost, _) = UQPL.programCost exU
+  let (u_true_cost, _) = CQPL.programCost exU
 
   putStrLn "Unitary Cost:"
   putStrLn $ " - Abstract cost: " <> show u_formula_cost

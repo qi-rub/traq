@@ -43,6 +43,7 @@ import Traq.Control.Monad
 import qualified Traq.Data.Context as Ctx
 import Traq.Data.Default
 
+import qualified Traq.CQPL as CQPL
 import Traq.Compiler.Utils
 import Traq.Prelude
 import qualified Traq.ProtoLang as P
@@ -383,7 +384,7 @@ lowerProgram ::
   -- | precision \delta
   costT ->
   P.Program primsT SizeT ->
-  Either String (Program holeT SizeT costT)
+  Either String (CQPL.Program holeT SizeT costT)
 lowerProgram strat gamma_in oracle_ticks delta prog@P.Program{P.funCtx, P.stmt} = do
   unless (P.checkVarsUnique prog) $
     throwError "program does not have unique variables!"
@@ -411,4 +412,4 @@ lowerProgram strat gamma_in oracle_ticks delta prog@P.Program{P.funCtx, P.stmt} 
           , proc_body_or_tick = Right stmtU
           }
 
-  return Program{proc_defs = procs & Ctx.ins "main" .~ main_proc}
+  return CQPL.Program{CQPL.uproc_defs = procs & Ctx.ins "main" .~ main_proc, CQPL.proc_defs = Ctx.empty}

@@ -6,6 +6,7 @@ import qualified Data.Map as Map
 import Data.Void (Void)
 import qualified Traq.Data.Context as Ctx
 
+import qualified Traq.CQPL as CQPL
 import Traq.Compiler.Unitary
 import qualified Traq.ProtoLang as P
 import qualified Traq.UnitaryQPL as U
@@ -34,8 +35,9 @@ spec = do
                 }
 
         let expected =
-              U.Program
-                { U.proc_defs =
+              CQPL.Program
+                { CQPL.proc_defs = mempty
+                , CQPL.uproc_defs =
                     Ctx.singleton
                       "main"
                       U.UProcDef
@@ -46,10 +48,10 @@ spec = do
                         , U.proc_body_or_tick = Right (U.UnitaryS ["x", "y"] $ U.RevEmbedU ["x"] "x")
                         }
                 } ::
-                U.Program Void Int Double
+                CQPL.Program Void Int Double
 
         actual `shouldBe` expected
-        assertRight $ U.typeCheckProgram actual
+        assertRight $ CQPL.typeCheckProgram actual
         PP.toCodeString actual
           `shouldBe` unlines
             [ "uproc main(x : Fin<10>, y : Fin<10>) {"

@@ -269,9 +269,9 @@ data QSearchBlackBoxes costT
   | TODOHole String
   deriving (Eq, Show)
 
-instance UQPL.HoleCost (QSearchBlackBoxes costT) costT where
+instance CQPL.HoleCost (QSearchBlackBoxes costT) costT where
   holeCost QSearchBlackBox{q_pred_name, n_pred_calls} = do
-    pred_cost <- UQPL.procCost q_pred_name
+    pred_cost <- CQPL.procCost q_pred_name
     return $ n_pred_calls * pred_cost
   holeCost (TODOHole s) = error $ "no cost of unknown hole: " <> s
 

@@ -1,13 +1,12 @@
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE MultiParamTypeClasses #-}
 
-module Traq.UnitaryQPL.Cost (
+module Traq.CQPL.Cost (
   stmtCost,
   procCost,
   programCost,
 
   -- * types
-  ProcCtx,
   CostMap,
   CostCalculator,
 
@@ -27,6 +26,7 @@ import Text.Printf (printf)
 import Traq.Control.Monad
 import qualified Traq.Data.Context as Ctx
 
+import qualified Traq.CQPL.Syntax as CQPL
 import Traq.Prelude
 import qualified Traq.ProtoLang as P
 import Traq.UnitaryQPL.Syntax
@@ -96,13 +96,14 @@ procCost name = get_cached_cost <|> calc_cost
 
 programCost ::
   (Integral sizeT, Floating costT, HoleCost holeT costT) =>
-  Program holeT sizeT costT ->
+  CQPL.Program holeT sizeT costT ->
   (costT, CostMap costT)
-programCost Program{proc_defs} = fromMaybe (error "could not compute cost") $ do
-  let env = proc_defs
+programCost CQPL.Program{CQPL.uproc_defs} = fromMaybe (error "could not compute cost") $ do
+  -- TODO support cost for procs
+  let env = uproc_defs
   UProcDef
     { proc_meta_params = []
     , proc_body_or_tick = Right main_body
     } <-
-    proc_defs ^. Ctx.at "main"
+    uproc_defs ^. Ctx.at "main"
   runMyReaderStateT (stmtCost main_body) env Map.empty
