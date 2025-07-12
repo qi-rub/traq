@@ -8,9 +8,11 @@ module Traq.CQPL.TypeCheck (
   TypeChecker,
 ) where
 
-import Control.Monad (forM, unless, when)
+import Control.Monad (forM, forM_, unless, when)
+import Control.Monad.Except (MonadError)
 import Control.Monad.RWS (local)
-import Control.Monad.Reader (runReaderT)
+import Control.Monad.Reader (MonadReader, local, runReaderT)
+import Control.Monad.State (execStateT)
 import Data.Foldable (toList)
 import Data.List (intersect)
 import Lens.Micro.GHC
@@ -28,8 +30,14 @@ import Traq.ProtoLang (TypeCheckable (..))
 import qualified Traq.ProtoLang as P
 import qualified Traq.UnitaryQPL as UQPL
 
+-- import Traq.UnitaryQPL.Syntax
+
 -- | Env for type checking
-data CheckingCtx holeT sizeT costT = CheckingCtx (ProcCtx holeT sizeT costT) (UQPL.ProcCtx holeT sizeT costT) (P.TypingCtx sizeT)
+data CheckingCtx holeT sizeT costT
+  = CheckingCtx
+      (ProcCtx holeT sizeT costT)
+      (UQPL.ProcCtx holeT sizeT costT)
+      (P.TypingCtx sizeT)
 
 type instance SizeType (CheckingCtx holeT sizeT costT) = sizeT
 type instance CostType (CheckingCtx holeT sizeT costT) = costT
@@ -160,7 +168,7 @@ typeCheckProgram ::
 typeCheckProgram Program{proc_defs, uproc_defs} = do
   let uqplTypingEnv = default_ & UQPL._procCtx .~ uproc_defs
   runMyReaderT ?? uqplTypingEnv $ do
-    mapM_ UQPL.typeCheckProc $ Ctx.elems uproc_defs
+    mapM_ UQPL.typeCheckUProc $ Ctx.elems uproc_defs
 
   let env = default_ & (_procCtx .~ proc_defs) & (uProcs .~ uproc_defs)
   runMyReaderT ?? env $ do

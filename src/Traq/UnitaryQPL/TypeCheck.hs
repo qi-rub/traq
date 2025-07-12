@@ -1,6 +1,6 @@
 module Traq.UnitaryQPL.TypeCheck (
   typeCheckUStmt,
-  typeCheckProc,
+  typeCheckUProc,
   typeCheckProgram,
 
   -- * Types
@@ -10,7 +10,8 @@ module Traq.UnitaryQPL.TypeCheck (
 ) where
 
 import Control.Monad (forM, forM_, when)
-import Control.Monad.Reader (local, runReaderT)
+import Control.Monad.Except (MonadError)
+import Control.Monad.Reader (MonadReader, local, runReaderT)
 import Control.Monad.State (execStateT)
 import Lens.Micro.GHC
 import Lens.Micro.Mtl
@@ -22,14 +23,47 @@ import qualified Traq.Data.Errors as Err
 
 import Text.Printf (printf)
 import Traq.Prelude
-import Traq.ProtoLang (TypeCheckable (..), TypingCtx, VarType)
 import qualified Traq.ProtoLang as P
 import Traq.UnitaryQPL.Syntax
+
+-- | Verify that the argument types match the deduced types
+verifyArgTys ::
+  forall sizeT m.
+  (P.TypeCheckable sizeT, MonadError Err.MyError m) =>
+  [P.VarType sizeT] ->
+  [P.VarType sizeT] ->
+  m ()
+verifyArgTys arg_tys tys = do
+  when (length arg_tys /= length tys) $
+    Err.throwErrorMessage $
+      printf "mismatched number of args: inferred %d, actual %d" (length tys) (length arg_tys)
+
+  when (arg_tys /= tys) $
+    Err.throwErrorMessage $
+      printf "mismatched args: inferred %s, actual %s" (show tys) (show arg_tys)
+
+-- | Verify that the arguments match the deduced types
+verifyArgs ::
+  forall sizeT env m.
+  ( P.TypeCheckable sizeT
+  , MonadError Err.MyError m
+  , MonadReader env m
+  , P.HasTypingCtx env
+  , sizeT ~ SizeType env
+  ) =>
+  [Ident] ->
+  [P.VarType sizeT] ->
+  m ()
+verifyArgs args tys = do
+  arg_tys <- forM args $ \x -> do
+    mty <- view $ P._typingCtx . Ctx.at x
+    maybeWithError (Err.MessageE $ printf "cannot find argument %s" x) mty
+  verifyArgTys arg_tys tys
 
 -- ================================================================================
 -- Context
 -- ================================================================================
-data CheckingCtx holeT sizeT costT = CheckingCtx (ProcCtx holeT sizeT costT) (TypingCtx sizeT)
+data CheckingCtx holeT sizeT costT = CheckingCtx (ProcCtx holeT sizeT costT) (P.TypingCtx sizeT)
 
 instance HasDefault (CheckingCtx holeT sizeT costT) where
   default_ = CheckingCtx default_ default_
@@ -48,30 +82,11 @@ instance P.HasTypingCtx (CheckingCtx holeT sizeT costT) where
 -- ================================================================================
 type TypeChecker holeT sizeT costT = MyReaderT (CheckingCtx holeT sizeT costT) (Either Err.MyError)
 
--- | Verify that the argument types match the deduced types
-verifyArgTys :: (TypeCheckable sizeT) => [VarType sizeT] -> [VarType sizeT] -> TypeChecker holeT sizeT costT ()
-verifyArgTys arg_tys tys = do
-  when (length arg_tys /= length tys) $
-    Err.throwErrorMessage $
-      printf "mismatched number of args: inferred %d, actual %d" (length tys) (length arg_tys)
-
-  when (arg_tys /= tys) $
-    Err.throwErrorMessage $
-      printf "mismatched args: inferred %s, actual %s" (show tys) (show arg_tys)
-
--- | Verify that the arguments match the deduced types
-verifyArgs :: (TypeCheckable sizeT) => [Ident] -> [VarType sizeT] -> TypeChecker holeT sizeT costT ()
-verifyArgs args tys = do
-  arg_tys <- forM args $ \x -> do
-    mty <- view $ P._typingCtx . Ctx.at x
-    maybeWithError (Err.MessageE $ printf "cannot find argument %s" x) mty
-  verifyArgTys arg_tys tys
-
-typeCheckUnitary :: forall holeT costT sizeT. (TypeCheckable sizeT) => Unitary sizeT -> [VarType sizeT] -> TypeChecker holeT sizeT costT ()
-typeCheckUnitary Toffoli tys = verifyArgTys tys [tbool, tbool, tbool]
-typeCheckUnitary CNOT tys = verifyArgTys tys [tbool, tbool]
-typeCheckUnitary XGate tys = verifyArgTys tys [tbool]
-typeCheckUnitary HGate tys = verifyArgTys tys [tbool]
+typeCheckUnitary :: forall holeT costT sizeT. (P.TypeCheckable sizeT) => Unitary sizeT -> [P.VarType sizeT] -> TypeChecker holeT sizeT costT ()
+typeCheckUnitary Toffoli tys = verifyArgTys tys [P.tbool, P.tbool, P.tbool]
+typeCheckUnitary CNOT tys = verifyArgTys tys [P.tbool, P.tbool]
+typeCheckUnitary XGate tys = verifyArgTys tys [P.tbool]
+typeCheckUnitary HGate tys = verifyArgTys tys [P.tbool]
 typeCheckUnitary Unif _ = return ()
 typeCheckUnitary Refl0 _ = return ()
 typeCheckUnitary (RevEmbedU xs e) tys = do
@@ -88,7 +103,7 @@ typeCheckUnitary (RevEmbedU xs e) tys = do
     Left err -> Err.throwErrorMessage err
     Right ret_ty -> verifyArgTys (drop (length xs) tys) [ret_ty]
 typeCheckUnitary (Controlled u) tys = do
-  verifyArgTys [head tys] [tbool]
+  verifyArgTys [head tys] [P.tbool]
   typeCheckUnitary u (tail tys)
 typeCheckUnitary (Adjoint u) tys = typeCheckUnitary u tys
 typeCheckUnitary (LoadData f) tys = do
@@ -96,7 +111,7 @@ typeCheckUnitary (LoadData f) tys = do
   let inferred_tys = proc_def ^.. to proc_params . traverse . _3
   verifyArgTys tys inferred_tys
 
-typeCheckUStmt :: forall holeT sizeT costT. (Show holeT, TypeCheckable sizeT) => UStmt holeT sizeT -> TypeChecker holeT sizeT costT ()
+typeCheckUStmt :: forall holeT sizeT costT. (Show holeT, P.TypeCheckable sizeT) => UStmt holeT sizeT -> TypeChecker holeT sizeT costT ()
 -- single statements
 typeCheckUStmt USkipS = return ()
 typeCheckUStmt UHoleS{} = return ()
@@ -126,16 +141,16 @@ typeCheckUStmt UForInRangeS{iter_meta_var, iter_lim, loop_body} = do
     typeCheckUStmt' loop_body
 typeCheckUStmt UWithComputedS{with_stmt, body_stmt} = mapM_ typeCheckUStmt' [with_stmt, body_stmt]
 
-typeCheckUStmt' :: (Show holeT, TypeCheckable sizeT) => UStmt holeT sizeT -> TypeChecker holeT sizeT costT ()
+typeCheckUStmt' :: (Show holeT, P.TypeCheckable sizeT) => UStmt holeT sizeT -> TypeChecker holeT sizeT costT ()
 typeCheckUStmt' s = do
   gamma <- view P._typingCtx
   typeCheckUStmt s
     `throwFrom` Err.MessageE (printf "with context: %s" (show gamma))
     `throwFrom` Err.MessageE (printf "typecheck failed: %s" (show s))
 
-typeCheckProc :: (Show holeT, TypeCheckable sizeT, Show costT) => ProcDef holeT sizeT costT -> TypeChecker holeT sizeT costT ()
+typeCheckUProc :: (Show holeT, P.TypeCheckable sizeT, Show costT) => ProcDef holeT sizeT costT -> TypeChecker holeT sizeT costT ()
 -- definition with a body
-typeCheckProc procdef@UProcDef{proc_params, proc_body_or_tick = Right proc_body} =
+typeCheckUProc procdef@UProcDef{proc_params, proc_body_or_tick = Right proc_body} =
   local (P._typingCtx .~ Ctx.fromList (proc_params & each %~ withoutTag)) $ do
     gamma <- view P._typingCtx
     typeCheckUStmt' proc_body
@@ -144,9 +159,9 @@ typeCheckProc procdef@UProcDef{proc_params, proc_body_or_tick = Right proc_body}
  where
   withoutTag (x, _, ty) = (x, ty)
 -- declaration with a tick
-typeCheckProc UProcDef{proc_body_or_tick = Left _} = return ()
+typeCheckUProc UProcDef{proc_body_or_tick = Left _} = return ()
 
-typeCheckProgram :: (Show holeT, TypeCheckable sizeT, Show costT) => Program holeT sizeT costT -> Either Err.MyError ()
+typeCheckProgram :: (Show holeT, P.TypeCheckable sizeT, Show costT) => Program holeT sizeT costT -> Either Err.MyError ()
 typeCheckProgram Program{proc_defs} = do
   let ctx = default_ & (_procCtx .~ proc_defs)
-  forM_ proc_defs $ (runMyReaderT ?? ctx) . typeCheckProc
+  forM_ proc_defs $ (runMyReaderT ?? ctx) . typeCheckUProc
