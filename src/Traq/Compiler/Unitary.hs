@@ -31,20 +31,19 @@ module Traq.Compiler.Unitary (
 
 import Control.Monad (forM, unless, when, zipWithM)
 import Control.Monad.Except (throwError)
+import Data.Foldable (Foldable (toList))
 import Data.List (intersect)
+import Data.Maybe (fromMaybe)
 import Data.Void (Void, absurd)
 import Lens.Micro.GHC
 import Lens.Micro.Mtl
 import Text.Printf (printf)
 
+import Traq.Control.Monad
 import qualified Traq.Data.Context as Ctx
 import Traq.Data.Default
 
-import Data.Foldable (Foldable (toList))
-import Data.Maybe (fromMaybe)
-import Traq.CQPL.Syntax (ProcBody (proc_body_stmt))
 import Traq.Compiler.Utils
-import Traq.Control.Monad
 import Traq.Prelude
 import qualified Traq.ProtoLang as P
 import Traq.UnitaryQPL.Syntax
