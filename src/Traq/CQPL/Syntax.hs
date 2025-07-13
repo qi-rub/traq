@@ -1,3 +1,4 @@
+{-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE MultiParamTypeClasses #-}
 
 module Traq.CQPL.Syntax (
@@ -9,8 +10,13 @@ module Traq.CQPL.Syntax (
   Stmt (..),
 
   -- ** Procedures
+  ParamTag (..),
+  UProcBody (..),
+  CProcBody (..),
   ProcBody (..),
   ProcDef (..),
+
+  -- ** Program
   ProcCtx,
   Program (..),
   Program',
@@ -21,9 +27,12 @@ module Traq.CQPL.Syntax (
 
   -- * Lenses
   HasProcCtx (..),
+  isUProc,
+  isCProc,
 ) where
 
-import Control.Monad (zipWithM, (>=>))
+import Control.Monad ((>=>))
+import Control.Monad.Writer (MonadWriter)
 import Data.Void (Void)
 import Lens.Micro.GHC
 import Text.Printf (printf)
@@ -127,56 +136,144 @@ instance (Show holeT, Show sizeT) => PP.ToCodeString (Stmt holeT sizeT) where
 -- Procedures
 -- ================================================================================
 
--- | CQ Procedure body: binds the parameters to names, and optionally uses local variables.
-data ProcBody holeT sizeT = ProcBody
-  { proc_param_names :: [Ident]
-  , proc_local_vars :: [(Ident, VarType sizeT)]
-  , proc_body_stmt :: Stmt holeT sizeT
-  }
+data ParamTag = ParamCtrl | ParamInp | ParamOut | ParamAux | ParamUnk deriving (Eq, Show, Read, Enum)
+
+instance PP.ToCodeString ParamTag where
+  build ParamCtrl = PP.putWord "CTRL"
+  build ParamInp = PP.putWord "IN"
+  build ParamOut = PP.putWord "OUT"
+  build ParamAux = PP.putWord "AUX"
+  build ParamUnk = PP.putWord ""
+
+-- | Unitary Procedure body: either a statement (with parameter name bindings) or a tick.
+data UProcBody holeT sizeT costT
+  = UProcBody
+      { uproc_param_names :: [Ident]
+      , uproc_param_tags :: [ParamTag]
+      , uproc_body_stmt :: UQPL.UStmt holeT sizeT
+      }
+  | UProcDecl {utick :: costT}
   deriving (Eq, Show, Read)
 
-type instance SizeType (ProcBody holeT sizeT) = sizeT
-type instance HoleType (ProcBody holeT sizeT) = holeT
+type instance SizeType (UProcBody holeT sizeT costT) = sizeT
+type instance HoleType (UProcBody holeT sizeT costT) = holeT
+type instance CostType (UProcBody holeT sizeT costT) = costT
 
--- | CQ Procedure
-data ProcDef holeT sizeT costT = ProcDef
-  { proc_name :: Ident
+buildUProcBody ::
+  (MonadWriter [String] m, MonadFail m, Show sizeT, Show costT, Show holeT) =>
+  UProcBody holeT sizeT costT ->
+  String ->
+  [String] ->
+  m ()
+buildUProcBody UProcDecl{utick} name param_tys = do
+  PP.putLine $ printf "uproc %s(%s) :: tick(%s)" name (PP.commaList param_tys) (show utick)
+buildUProcBody UProcBody{uproc_param_names, uproc_param_tags, uproc_body_stmt} name param_tys = do
+  arg_list <-
+    uproc_param_tags
+      & mapM PP.fromBuild
+      <&> zip3 uproc_param_names param_tys
+      <&> map (\(x, ty, tag) -> printf "%s: %s%s" x tag ty)
+  let header = printf "uproc %s(%s)" name $ PP.commaList arg_list
+  PP.bracedBlockWith header $ PP.build uproc_body_stmt
+
+-- | Classical Procedure body: either a tick, or statement with bindings for parameters names, and optionally using local variables.
+data CProcBody holeT sizeT costT
+  = CProcBody
+      { cproc_param_names :: [Ident]
+      , cproc_local_vars :: [(Ident, VarType sizeT)]
+      , cproc_body_stmt :: Stmt holeT sizeT
+      }
+  | CProcDecl {ctick :: costT}
+  deriving (Eq, Show, Read)
+
+buildCProcBody ::
+  (MonadWriter [String] m, MonadFail m, Show sizeT, Show costT, Show holeT) =>
+  CProcBody holeT sizeT costT ->
+  String ->
+  [String] ->
+  m ()
+buildCProcBody CProcDecl{ctick} name param_tys = do
+  PP.putLine $ printf "proc %s(%s) :: tick(%s)" name (PP.commaList param_tys) (show ctick)
+buildCProcBody CProcBody{cproc_param_names, cproc_local_vars, cproc_body_stmt} name param_tys = do
+  let arg_list = zipWith (printf "%s: %s") cproc_param_names param_tys
+
+  local_list <-
+    cproc_local_vars
+      & traverse (_2 PP.fromBuild)
+      <&> map (uncurry $ printf "%s: %s")
+
+  let header =
+        printf
+          "proc %s(%s) { locals : (%s) }"
+          name
+          (PP.commaList arg_list)
+          (PP.commaList local_list)
+  PP.bracedBlockWith header $ PP.build cproc_body_stmt
+
+type instance SizeType (CProcBody holeT sizeT costT) = sizeT
+type instance CostType (CProcBody holeT sizeT costT) = costT
+type instance HoleType (CProcBody holeT sizeT costT) = holeT
+
+data ProcBody holeT sizeT costT
+  = ProcBodyU (UProcBody holeT sizeT costT)
+  | ProcBodyC (CProcBody holeT sizeT costT)
+  deriving (Eq, Read, Show)
+
+class ClassifyProc p where
+  isUProc :: p -> Bool
+  isCProc :: p -> Bool
+
+instance ClassifyProc (ProcBody holeT sizeT costT) where
+  isUProc (ProcBodyU _) = True
+  isUProc _ = False
+
+  isCProc (ProcBodyC _) = True
+  isCProc _ = False
+
+type instance SizeType (ProcBody holeT sizeT costT) = sizeT
+type instance CostType (ProcBody holeT sizeT costT) = costT
+type instance HoleType (ProcBody holeT sizeT costT) = holeT
+
+buildProcBody ::
+  (MonadWriter [String] m, MonadFail m, Show sizeT, Show costT, Show holeT) =>
+  ProcBody holeT sizeT costT ->
+  String ->
+  [String] ->
+  m ()
+buildProcBody (ProcBodyU p) = buildUProcBody p
+buildProcBody (ProcBodyC p) = buildCProcBody p
+
+data ProcDef holeT sizeT costT
+  = ProcDef
+  { info_comment :: String
+  , proc_name :: Ident
   , proc_meta_params :: [Ident]
   , proc_param_types :: [VarType sizeT]
-  , proc_body_or_tick :: Either costT (ProcBody holeT sizeT) -- Left tick | Right body
+  , proc_body :: ProcBody holeT sizeT costT
   }
-  deriving (Eq, Show, Read)
+  deriving (Eq, Read, Show)
+
+instance ClassifyProc (ProcDef holeT sizeT costT) where
+  isUProc = isUProc . proc_body
+  isCProc = isCProc . proc_body
 
 type instance SizeType (ProcDef holeT sizeT costT) = sizeT
 type instance HoleType (ProcDef holeT sizeT costT) = holeT
 type instance CostType (ProcDef holeT sizeT costT) = costT
 
 instance (Show holeT, Show sizeT, Show costT) => PP.ToCodeString (ProcDef holeT sizeT costT) where
-  build ProcDef{proc_name, proc_meta_params, proc_param_types, proc_body_or_tick = Left tick} = do
-    let showTypedIxVar i ty = printf "x_%d: %s" i <$> PP.fromBuild ty
-    param_tys_s <- PP.commaList <$> zipWithM showTypedIxVar [1 :: Int ..] proc_param_types
-    PP.putLine $
-      printf
-        "proc %s[%s](%s) :: tick(%s);"
-        proc_name
-        (PP.commaList proc_meta_params)
-        param_tys_s
-        (show tick)
-  build ProcDef{proc_name, proc_meta_params, proc_param_types, proc_body_or_tick = Right ProcBody{proc_param_names, proc_local_vars, proc_body_stmt}} = do
-    header <- PP.listenWord . PP.concatenated $ do
-      -- proc name and meta-params
-      PP.putWord $ "proc " <> proc_name
-      PP.putWord $ PP.wrapNonEmpty "[" "]" $ PP.commaList proc_meta_params
+  build ProcDef{info_comment, proc_name, proc_meta_params, proc_param_types, proc_body} = do
+    PP.putComment info_comment
 
-      -- arguments
-      let showTypedVar x ty = printf "%s: %s" x <$> PP.fromBuild ty
-      PP.putWord . printf "(%s)" . PP.commaList =<< zipWithM showTypedVar proc_param_names proc_param_types
+    let full_proc_name =
+          printf
+            "%s%s"
+            proc_name
+            (PP.wrapNonEmpty "[" "]" $ PP.commaList proc_meta_params)
 
-      -- local vars
-      PP.putWord . printf " { locals: (%s) } do" . PP.commaList =<< mapM (uncurry showTypedVar) proc_local_vars
+    ptys <- mapM (PP.listenWord . PP.build) proc_param_types
 
-    -- emit the body
-    PP.bracedBlockWith header $ PP.build proc_body_stmt
+    buildProcBody proc_body full_proc_name ptys
 
 -- ================================================================================
 -- Program
@@ -188,10 +285,11 @@ type ProcCtx holeT sizeT costT = Ctx.Context (ProcDef holeT sizeT costT)
 class HasProcCtx s where
   _procCtx :: (holeT ~ HoleType s, sizeT ~ SizeType s, costT ~ CostType s) => Lens' s (ProcCtx holeT sizeT costT)
 
+instance HasProcCtx (ProcCtx holeT sizeT costT) where _procCtx = id
+
 -- | CQ Program
-data Program holeT sizeT costT = Program
+newtype Program holeT sizeT costT = Program
   { proc_defs :: ProcCtx holeT sizeT costT
-  , uproc_defs :: UQPL.ProcCtx holeT sizeT costT
   }
   deriving (Eq, Show, Read)
 
@@ -203,8 +301,7 @@ type instance HoleType (Program holeT sizeT costT) = holeT
 type Program' = Program Void
 
 instance (Show holeT, Show sizeT, Show costT) => PP.ToCodeString (Program holeT sizeT costT) where
-  build Program{proc_defs, uproc_defs} = do
-    mapM_ (PP.build >=> const PP.endl) $ Ctx.elems uproc_defs
+  build Program{proc_defs} = do
     mapM_ (PP.build >=> const PP.endl) $ Ctx.elems proc_defs
 
 -- ================================================================================
@@ -220,16 +317,17 @@ instance HasAst (Stmt holeT sizeT) where
 instance HasStmt (Stmt holeT sizeT) (Stmt holeT sizeT) where
   _stmt = id
 
-instance HasStmt (ProcBody holeT sizeT) (Stmt holeT sizeT) where
-  _stmt focus proc_body = (\s' -> proc_body{proc_body_stmt = s'}) <$> focus (proc_body_stmt proc_body)
+instance HasStmt (CProcBody holeT sizeT costT) (Stmt holeT sizeT) where
+  _stmt focus b@CProcBody{cproc_body_stmt} = focus cproc_body_stmt <&> \s' -> b{cproc_body_stmt = s'}
+  _stmt _ b@CProcDecl{} = pure b
 
 instance HasStmt (ProcDef holeT sizeT costT) (Stmt holeT sizeT) where
-  _stmt focus proc_def@ProcDef{proc_body_or_tick = Right proc_body} =
-    _stmt focus proc_body <&> \proc_body' -> proc_def{proc_body_or_tick = Right proc_body'}
-  _stmt _ proc_def = pure proc_def
+  _stmt focus p@ProcDef{proc_body = ProcBodyC b} =
+    _stmt focus b <&> \b' -> p{proc_body = ProcBodyC b'}
+  _stmt _ p = pure p
 
 instance HasStmt (Program holeT sizeT costT) (Stmt holeT sizeT) where
-  _stmt focus (Program proc_defs uproc_defs) = Program <$> traverse (_stmt focus) proc_defs <*> pure uproc_defs
+  _stmt focus (Program proc_defs) = Program <$> traverse (_stmt focus) proc_defs
 
 -- ================================================================================
 -- Syntax Sugar
@@ -273,8 +371,15 @@ forInArray i _ty ix_vals s =
     ]
 
 -- | Remove syntax sugar. Use with `rewriteAST`.
-desugarS :: Stmt holeT sizeT -> Maybe (Stmt holeT sizeT)
-desugarS WhileK{n_iter, cond, loop_body} = Just $ whileK n_iter cond loop_body
-desugarS WhileKWithCondExpr{n_iter, cond, cond_expr, loop_body} = Just $ whileKWithCondExpr n_iter cond cond_expr loop_body
-desugarS ForInArray{loop_index, loop_index_ty, loop_values, loop_body} = Just $ forInArray loop_index loop_index_ty loop_values loop_body
-desugarS _ = Nothing
+class CanDesugar p where
+  desugarS :: p -> Maybe p
+
+instance CanDesugar (Stmt holeT sizeT) where
+  desugarS WhileK{n_iter, cond, loop_body} = Just $ whileK n_iter cond loop_body
+  desugarS WhileKWithCondExpr{n_iter, cond, cond_expr, loop_body} = Just $ whileKWithCondExpr n_iter cond cond_expr loop_body
+  desugarS ForInArray{loop_index, loop_index_ty, loop_values, loop_body} = Just $ forInArray loop_index loop_index_ty loop_values loop_body
+  desugarS _ = Nothing
+
+instance CanDesugar (UQPL.UStmt holeT sizeT) where
+  desugarS UQPL.UWithComputedS{UQPL.with_stmt, UQPL.body_stmt} = Just $ UQPL.USeqS [with_stmt, body_stmt, UQPL.adjoint with_stmt]
+  desugarS _ = Nothing

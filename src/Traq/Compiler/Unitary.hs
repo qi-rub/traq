@@ -1,3 +1,4 @@
+{-# LANGUAGE DuplicateRecordFields #-}
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE MultiParamTypeClasses #-}
 
@@ -44,6 +45,7 @@ import qualified Traq.Data.Context as Ctx
 import Traq.Data.Default
 
 import qualified Traq.CQPL as CQPL
+import Traq.CQPL.Syntax
 import Traq.Compiler.Utils
 import Traq.Prelude
 import qualified Traq.ProtoLang as P

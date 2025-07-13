@@ -72,7 +72,7 @@ spec = do
 
       it "type checks" $ do
         ex_uqpl <- expectRight $ UQPL.lowerProgram default_ Ctx.empty uticks delta ex
-        let tc_res = UQPL.typeCheckProgram $ UQPL.Program $ CQPL.uproc_defs ex_uqpl
+        let tc_res = CQPL.typeCheckProgram ex_uqpl
         either print (const $ pure ()) tc_res
         assertRight tc_res
 

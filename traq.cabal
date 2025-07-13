@@ -55,7 +55,6 @@ library
       Traq.ProtoLang.Vars
       Traq.UnitaryQPL
       Traq.UnitaryQPL.Syntax
-      Traq.UnitaryQPL.TypeCheck
       Traq.Utils.ASTRewriting
       Traq.Utils.Printing
   hs-source-dirs:
@@ -218,6 +217,7 @@ test-suite spec
       TestHelpers
       Traq.Compiler.QuantumSpec
       Traq.Compiler.UnitarySpec
+      Traq.CQPL.TypeCheckSpec
       Traq.Data.SymbolicSpec
       Traq.Data.TreeSpec
       Traq.Examples.MatrixSearchSpec
@@ -231,7 +231,6 @@ test-suite spec
       Traq.ProtoLang.RewritesSpec
       Traq.ProtoLang.TypeCheckSpec
       Traq.ProtoLang.VarsSpec
-      Traq.UnitaryQPL.TypeCheckSpec
   hs-source-dirs:
       test
   default-extensions:

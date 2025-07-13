@@ -14,10 +14,9 @@ module Traq.CQPL.Cost (
   HoleCost (..),
 ) where
 
-import Control.Applicative ((<|>))
-import Control.Monad.Trans (lift)
+import Control.Monad.Except (throwError)
+import Data.Either (fromRight)
 import qualified Data.Map as Map
-import Data.Maybe (fromMaybe)
 import Data.Void (Void, absurd)
 import Lens.Micro.GHC
 import Lens.Micro.Mtl
@@ -35,13 +34,14 @@ import Traq.UnitaryQPL.Syntax
 type CostMap costT = Map.Map Ident costT
 
 -- | Environment: the list of procedures, and a mapping from holes to cost.
-type CostEnv holeT sizeT costT = ProcCtx holeT sizeT costT
-
-procCtx :: Lens' (CostEnv holeT sizeT costT) (ProcCtx holeT sizeT costT)
-procCtx = id
+type CostEnv holeT sizeT costT = CQPL.ProcCtx holeT sizeT costT
 
 -- | Monad to compute unitary cost.
-type CostCalculator holeT sizeT costT = MyReaderStateT (CostEnv holeT sizeT costT) (CostMap costT) Maybe
+type CostCalculator holeT sizeT costT =
+  MyReaderStateT
+    (CostEnv holeT sizeT costT)
+    (CostMap costT)
+    (Either String)
 
 -- | Compute the cost of a placeholder (hole) program.
 class HoleCost holeT costT where
@@ -65,11 +65,11 @@ stmtCost UCallS{proc_id} = procCost proc_id
 stmtCost (USeqS ss) = sum <$> mapM stmtCost ss
 stmtCost URepeatS{n_iter = P.MetaSize k, loop_body} = (fromIntegral k *) <$> stmtCost loop_body
 stmtCost URepeatS{n_iter = P.MetaValue k, loop_body} = (fromIntegral k *) <$> stmtCost loop_body
-stmtCost URepeatS{n_iter = P.MetaName _} = fail "unsupported meta parameter substitution"
+stmtCost URepeatS{n_iter = P.MetaName _} = throwError "unsupported meta parameter substitution"
 stmtCost UHoleS{hole} = holeCost hole
 stmtCost UForInRangeS{iter_lim = P.MetaSize k, loop_body} = (fromIntegral k *) <$> stmtCost loop_body
 stmtCost UForInRangeS{iter_lim = P.MetaValue k, loop_body} = (fromIntegral k *) <$> stmtCost loop_body
-stmtCost UForInRangeS{iter_lim = _} = fail "unsupported meta parameter substitution"
+stmtCost UForInRangeS{iter_lim = _} = throwError "unsupported meta parameter substitution"
 stmtCost UWithComputedS{with_stmt, body_stmt} = do
   wc <- stmtCost with_stmt
   bc <- stmtCost body_stmt
@@ -83,14 +83,23 @@ procCost ::
   ) =>
   Ident ->
   m costT
-procCost name = get_cached_cost <|> calc_cost
+procCost name = get_cached_cost >>= maybe calc_cost return
  where
-  get_cached_cost = use (at name) >>= lift
+  get_cached_cost = use (at name)
   calc_cost = do
-    UProcDef{proc_body_or_tick} <- view $ procCtx . Ctx.at name . unsafeFromJust (printf "could not find predicate %s" name)
-    cost <- case proc_body_or_tick of
-      Right proc_body -> stmtCost proc_body
-      Left tick -> pure tick
+    CQPL.ProcDef{CQPL.proc_body} <-
+      view (CQPL._procCtx . Ctx.at name)
+        >>= maybeWithError (printf "could not find predicate %s" name)
+    cost <- case proc_body of
+      CQPL.ProcBodyC cproc_body ->
+        case cproc_body of
+          CQPL.CProcDecl{CQPL.ctick} -> pure ctick
+          CQPL.CProcBody{CQPL.cproc_body_stmt} ->
+            throwError "TODO: implement worst-case cost for classical Stmt"
+      CQPL.ProcBodyU uproc_body ->
+        case uproc_body of
+          CQPL.UProcDecl{CQPL.utick} -> pure utick
+          CQPL.UProcBody{CQPL.uproc_body_stmt} -> stmtCost uproc_body_stmt
     at name ?= cost
     return cost
 
@@ -98,12 +107,7 @@ programCost ::
   (Integral sizeT, Floating costT, HoleCost holeT costT) =>
   CQPL.Program holeT sizeT costT ->
   (costT, CostMap costT)
-programCost CQPL.Program{CQPL.uproc_defs} = fromMaybe (error "could not compute cost") $ do
+programCost CQPL.Program{CQPL.proc_defs} = fromRight (error "could not compute cost") $ do
   -- TODO support cost for procs
-  let env = uproc_defs
-  UProcDef
-    { proc_meta_params = []
-    , proc_body_or_tick = Right main_body
-    } <-
-    uproc_defs ^. Ctx.at "main"
-  runMyReaderStateT (stmtCost main_body) env Map.empty
+  let env = proc_defs
+  runMyReaderStateT (procCost "main") env Map.empty

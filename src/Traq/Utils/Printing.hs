@@ -28,6 +28,7 @@ module Traq.Utils.Printing (
   bracedBlock,
   bracedBlockWith,
   doEndBlock,
+  prepended,
 ) where
 
 import Control.Monad.Fail (MonadFail)
@@ -117,3 +118,10 @@ doEndBlock = delimitedBlock "do" "end"
 putComment :: (MonadWriter [String] m) => String -> m ()
 putComment "" = return ()
 putComment s = commented $ putLine s
+
+-- | Prepend the string to the first line out the output
+prepended :: (MonadWriter [String] m) => String -> m a -> m a
+prepended header = censor prep
+ where
+  prep [] = [header]
+  prep (l : ls) = (header ++ l) : ls

@@ -2,7 +2,7 @@
 {-# LANGUAGE TupleSections #-}
 {-# LANGUAGE TypeApplications #-}
 
-module Traq.UnitaryQPL.TypeCheckSpec (spec) where
+module Traq.CQPL.TypeCheckSpec (spec) where
 
 import Control.Monad (forM_)
 import Data.Void (Void)
@@ -12,6 +12,7 @@ import Traq.Control.Monad
 import qualified Traq.Data.Context as Ctx
 import Traq.Data.Default
 
+import qualified Traq.CQPL as CQPL
 import Traq.ProtoLang ((.&&.))
 import qualified Traq.ProtoLang as P
 import qualified Traq.UnitaryQPL as U
@@ -21,9 +22,12 @@ import TestHelpers
 
 spec :: Spec
 spec = do
-  describe "typeCheckStmt" $ do
+  describe "typeCheckUStmt" $ do
     let tb = P.Fin (2 :: Int)
-    let checker gamma s = runMyReaderT (U.typeCheckUStmt @Void @Int @Float s) (default_ & P._typingCtx .~ gamma)
+    let checker gamma s =
+          runMyReaderT
+            (CQPL.typeCheckUStmt @Void @Int @Float s)
+            (default_ & P._typingCtx .~ gamma)
     describe "unitary embed" $ do
       it "AndOp" $
         assertRight $
