@@ -5,17 +5,12 @@ module Traq.Compiler.Quantum (
   -- * Compilation
   lowerProgram,
   newIdent,
-  addProc,
 
   -- * Types
   CompilerT,
   LoweringEnv,
   LoweringCtx,
   LoweringOutput,
-
-  -- * Lenses
-  loweredProcs,
-  loweredUProcs,
 
   -- * Primitive implementations
   Lowerable (..),
@@ -42,15 +37,6 @@ import qualified Traq.UnitaryQPL as UQPL
 -- | Configuration for lowering
 type LoweringEnv primT sizeT costT = P.QuantumMaxCostEnv primT sizeT costT
 
--- | The outputs of lowering
-type LoweringOutput holeT sizeT costT = ([ProcDef holeT sizeT costT], [UQPL.ProcDef holeT sizeT costT])
-
-loweredProcs :: Lens' (LoweringOutput holeT sizeT costT) [ProcDef holeT sizeT costT]
-loweredProcs = _1
-
-loweredUProcs :: Lens' (LoweringOutput holeT sizeT costT) [UQPL.ProcDef holeT sizeT costT]
-loweredUProcs = _2
-
 {- | Monad to compile ProtoQB to CQPL programs.
 This should contain the _final_ typing context for the input program,
 that is, contains both the inputs and outputs of each statement.
@@ -74,10 +60,6 @@ class
 
 instance (Show costT) => Lowerable primsT Void holeT sizeT costT where
   lowerPrimitive _ = absurd
-
--- | Add a new procedure.
-addProc :: ProcDef holeT sizeT costT -> CompilerT primT holeT sizeT costT ()
-addProc = writeElemAt loweredProcs
 
 -- ================================================================================
 -- Compilation
@@ -106,7 +88,7 @@ lowerFunDef _ fun_name P.FunDef{P.param_types, P.ret_types, P.mbody = Nothing} =
           { proc_name = fun_name
           , proc_meta_params = []
           , proc_param_types = param_types ++ ret_types
-          , proc_body_or_tick = Left tick
+          -- , proc_body_or_tick = Left tick
           }
   addProc proc_def
   return fun_name
@@ -132,7 +114,7 @@ lowerFunDef eps fun_name P.FunDef{P.param_types, P.mbody = Just body} = do
       { proc_name
       , proc_meta_params = []
       , proc_param_types = map (\x -> proc_typing_ctx ^?! Ctx.at x . _Just) proc_param_names
-      , proc_body_or_tick = Right ProcBody{proc_param_names, proc_local_vars, proc_body_stmt}
+      -- , proc_body_or_tick = Right ProcBody{proc_param_names, proc_local_vars, proc_body_stmt}
       }
   return proc_name
 
@@ -242,17 +224,16 @@ lowerProgram strat gamma_in uticks cticks eps prog@P.Program{P.funCtx, P.stmt} =
           { proc_name = "main"
           , proc_meta_params = []
           , proc_param_types = map snd main_proc_vars
-          , proc_body_or_tick =
-              Right
-                ProcBody
-                  { proc_param_names = map fst main_proc_vars
-                  , proc_local_vars = []
-                  , proc_body_stmt = stmtQ
-                  }
+          -- , proc_body_or_tick =
+          --     Right
+          --       ProcBody
+          --         { proc_param_names = map fst main_proc_vars
+          --         , proc_local_vars = []
+          --         , proc_body_stmt = stmtQ
+          --         }
           }
 
   return
     Program
-      { proc_defs = (outputU ^. loweredProcs . to (Ctx.fromListWith proc_name)) & Ctx.ins "main" .~ main_proc
-      , uproc_defs = outputU ^. loweredUProcs . to (Ctx.fromListWith UQPL.proc_name)
+      { proc_defs = (outputU ^. to (Ctx.fromListWith proc_name)) & Ctx.ins "main" .~ main_proc
       }

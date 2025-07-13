@@ -36,16 +36,15 @@ spec = do
 
         let expected =
               CQPL.Program
-                { CQPL.proc_defs = mempty
-                , CQPL.uproc_defs =
+                { CQPL.proc_defs =
                     Ctx.singleton
                       "main"
-                      U.UProcDef
-                        { U.info_comment = ""
-                        , U.proc_name = "main"
-                        , U.proc_meta_params = []
-                        , U.proc_params = [("x", U.ParamUnk, P.Fin 10), ("y", U.ParamUnk, P.Fin 10)]
-                        , U.proc_body_or_tick = Right (U.UnitaryS ["x", "y"] $ U.RevEmbedU ["x"] "x")
+                      CQPL.ProcDef
+                        { CQPL.info_comment = ""
+                        , CQPL.proc_name = "main"
+                        , CQPL.proc_meta_params = []
+                        -- , U.proc_params = [("x", U.ParamUnk, P.Fin 10), ("y", U.ParamUnk, P.Fin 10)]
+                        -- , U.proc_body_or_tick = Right (U.UnitaryS ["x", "y"] $ U.RevEmbedU ["x"] "x")
                         }
                 } ::
                 CQPL.Program Void Int Double

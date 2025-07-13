@@ -13,7 +13,6 @@ module Traq.Compiler.Unitary (
 
   -- ** Helpers
   newIdent,
-  addProc,
   allocAncillaWithPref,
   allocAncilla,
   ControlFlag (..),
@@ -54,12 +53,6 @@ import Traq.UnitaryQPL.Syntax
 -- | Configuration for lowering
 type LoweringConfig primT sizeT costT = P.UnitaryCostEnv primT sizeT costT
 
--- | The outputs of lowering
-type LoweringOutput holeT sizeT costT = [ProcDef holeT sizeT costT]
-
-loweredProcs :: Lens' (LoweringOutput holeT sizeT costT) [ProcDef holeT sizeT costT]
-loweredProcs = id
-
 {- | Monad to compile ProtoQB to UQPL programs.
 This should contain the _final_ typing context for the input program,
 that is, contains both the inputs and outputs of each statement.
@@ -97,10 +90,6 @@ allocAncillaWithPref pref ty = do
 -- | Allocate an ancilla register @aux_<<n>>@, and update the typing context.
 allocAncilla :: P.VarType sizeT -> CompilerT primT holeT sizeT costT Ident
 allocAncilla = allocAncillaWithPref "aux"
-
--- | Add a new procedure.
-addProc :: ProcDef holeT sizeT costT -> CompilerT primT holeT sizeT costT ()
-addProc procDef = tellAt loweredProcs [procDef]
 
 -- ================================================================================
 -- Lowering
@@ -207,21 +196,17 @@ lowerFunDefWithGarbage ::
   P.FunDef primsT sizeT ->
   CompilerT primsT holeT sizeT costT (LoweredProc holeT sizeT costT)
 lowerFunDefWithGarbage _ fun_name P.FunDef{P.param_types, P.ret_types, P.mbody = Nothing} = do
-  let param_names = map (printf "in_%d") [0 .. length param_types - 1]
-  let ret_names = map (printf "out_%d") [0 .. length ret_types - 1]
   tick <- view $ P._unitaryTicks . at fun_name . to (fromMaybe 0)
 
   proc_name <- newIdent fun_name
 
   let proc_def =
-        UProcDef
+        ProcDef
           { info_comment = ""
           , proc_name
           , proc_meta_params = []
-          , proc_params =
-              withTag ParamInp (zip param_names param_types)
-                ++ withTag ParamOut (zip ret_names ret_types)
-          , proc_body_or_tick = Left tick
+          , proc_param_types = param_types ++ ret_types
+          , proc_body = ProcBodyU $ UProcDecl tick
           }
 
   addProc proc_def
@@ -254,16 +239,22 @@ lowerFunDefWithGarbage
       when (param_names `intersect` ret_names /= []) $
         throwError "function should not return parameters!"
 
-      aux_binds <- use P._typingCtx <&> Ctx.toList <&> filter (not . (`elem` param_names ++ ret_names) . fst)
+      aux_binds <- use (P._typingCtx . to Ctx.toList) <&> filter (not . (`elem` param_names ++ ret_names) . fst)
       let all_binds = withTag ParamInp param_binds ++ withTag ParamOut ret_binds ++ withTag ParamAux aux_binds
 
       let procDef =
-            UProcDef
+            ProcDef
               { info_comment
               , proc_name
               , proc_meta_params = []
-              , proc_params = all_binds
-              , proc_body_or_tick = Right proc_body
+              , proc_param_types = map (view _3) all_binds
+              , proc_body =
+                  ProcBodyU $
+                    UProcBody
+                      { uproc_param_names = map (view _1) all_binds
+                      , uproc_param_tags = map (view _2) all_binds
+                      , uproc_body_stmt = proc_body
+                      }
               }
       addProc procDef
 
@@ -349,17 +340,24 @@ lowerFunDef
             , UCallS{proc_id = g_dirty_name, dagger = True, args = g_args}
             ]
 
+    let all_params =
+          [(ctrl_qubit, ParamCtrl, P.tbool) | with_ctrl == WithControl]
+            ++ withTag ParamInp param_binds
+            ++ withTag ParamOut (zip ret_names g_ret_tys)
+            ++ withTag ParamAux (zip g_ret_names g_ret_tys ++ zip g_aux_names g_aux_tys)
     let proc_def =
-          UProcDef
+          ProcDef
             { info_comment
             , proc_name
             , proc_meta_params = []
-            , proc_params =
-                [(ctrl_qubit, ParamCtrl, P.tbool) | with_ctrl == WithControl]
-                  ++ withTag ParamInp param_binds
-                  ++ withTag ParamOut (zip ret_names g_ret_tys)
-                  ++ withTag ParamAux (zip g_ret_names g_ret_tys ++ zip g_aux_names g_aux_tys)
-            , proc_body_or_tick = Right proc_body
+            , proc_param_types = map (view _3) all_params
+            , proc_body =
+                ProcBodyU $
+                  UProcBody
+                    { uproc_param_names = map (view _1) all_params
+                    , uproc_param_tags = map (view _2) all_params
+                    , uproc_body_stmt = proc_body
+                    }
             }
     addProc proc_def
     return
@@ -404,14 +402,21 @@ lowerProgram strat gamma_in oracle_ticks delta prog@P.Program{P.funCtx, P.stmt} 
   let compiler = lowerStmt delta stmt
   (stmtU, ctx', outputU) <- runMyReaderWriterStateT compiler config ctx
 
-  let procs = outputU ^. loweredProcs . to (Ctx.fromListWith proc_name)
+  let procs = outputU ^. _loweredProcs . to (Ctx.fromListWith proc_name)
+  let (arg_names, arg_tys) = ctx' ^. P._typingCtx . to Ctx.toList . to unzip
   let main_proc =
-        UProcDef
+        ProcDef
           { info_comment = ""
           , proc_name = "main"
           , proc_meta_params = []
-          , proc_params = ctx' ^. P._typingCtx . to Ctx.toList . to (withTag ParamUnk)
-          , proc_body_or_tick = Right stmtU
+          , proc_param_types = arg_tys
+          , proc_body =
+              ProcBodyU $
+                UProcBody
+                  { uproc_param_names = arg_names
+                  , uproc_param_tags = replicate (length arg_names) ParamUnk
+                  , uproc_body_stmt = stmtU
+                  }
           }
 
-  return CQPL.Program{CQPL.uproc_defs = procs & Ctx.ins "main" .~ main_proc, CQPL.proc_defs = Ctx.empty}
+  return CQPL.Program{CQPL.proc_defs = procs & Ctx.ins "main" .~ main_proc}
