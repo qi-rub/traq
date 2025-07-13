@@ -31,6 +31,7 @@ import Control.Monad (filterM, forM, replicateM, when)
 import Control.Monad.Except (throwError)
 import Control.Monad.Trans (lift)
 import Control.Monad.Writer (censor, listen)
+import Data.Foldable (Foldable (toList))
 import Data.String (fromString)
 import Lens.Micro.GHC
 import Lens.Micro.Mtl
@@ -41,6 +42,7 @@ import Traq.Control.Monad
 import qualified Traq.Data.Context as Ctx
 
 import qualified Traq.CQPL as CQPL
+import qualified Traq.Compiler as Compiler
 import qualified Traq.Compiler.Quantum as CQPL
 import qualified Traq.Compiler.Unitary as UQPL
 import Traq.Prelude
@@ -49,7 +51,6 @@ import qualified Traq.ProtoLang as P
 import qualified Traq.UnitaryQPL as UQPL
 import qualified Traq.Utils.Printing as PP
 
-import Data.Foldable (Foldable (toList))
 import Traq.Primitives.Search.Prelude
 
 -- ================================================================================
@@ -455,7 +456,7 @@ instance
     pred_ancilla <- mapM UQPL.allocAncilla pred_aux_tys
     let pred_caller ctrl x b =
           UQPL.UCallS
-            { UQPL.proc_id = UQPL.proc_name pred_proc
+            { UQPL.proc_id = error "UQPL.proc_name pred_proc"
             , UQPL.dagger = False
             , UQPL.args = ctrl : args ++ [x, b] ++ pred_ancilla
             }
@@ -472,21 +473,26 @@ instance
     -- name:
     -- TODO maybe this can be somehow "parametrized" so we don't have to generate each time.
     qsearch_proc_name <- UQPL.newIdent "UAny"
-    let info_comment = printf "QSearch[%s, %s, %s]" (show n) (show delta_search) (UQPL.proc_name pred_proc)
+    let info_comment =
+          (printf :: String -> String -> String -> String -> String)
+            "QSearch[%s, %s, %s]"
+            (show n)
+            (show delta_search)
+            (CQPL.proc_name pred_proc)
 
     -- add the proc:
-    UQPL.addProc
-      UQPL.UProcDef
-        { UQPL.info_comment = info_comment
-        , UQPL.proc_name = qsearch_proc_name
-        , UQPL.proc_meta_params = []
-        , UQPL.proc_params =
-            UQPL.withTag UQPL.ParamInp (zip args (init pred_inp_tys))
-              ++ UQPL.withTag UQPL.ParamOut [(ret, P.tbool)]
-              ++ UQPL.withTag UQPL.ParamAux (zip pred_ancilla pred_aux_tys)
-              ++ UQPL.withTag UQPL.ParamAux qsearch_ancilla
-        , UQPL.proc_body_or_tick = Right qsearch_body
-        }
+    Compiler.addProc (error "TODO see commented code")
+    -- UQPL.UProcDef
+    --   { UQPL.info_comment = info_comment
+    --   , UQPL.proc_name = qsearch_proc_name
+    --   , UQPL.proc_meta_params = []
+    --   , UQPL.proc_params =
+    --       UQPL.withTag UQPL.ParamInp (zip args (init pred_inp_tys))
+    --         ++ UQPL.withTag UQPL.ParamOut [(ret, P.tbool)]
+    --         ++ UQPL.withTag UQPL.ParamAux (zip pred_ancilla pred_aux_tys)
+    --         ++ UQPL.withTag UQPL.ParamAux qsearch_ancilla
+    --   , UQPL.proc_body_or_tick = Right qsearch_body
+    --   }
 
     if not shouldUncomputeQSearch
       then
@@ -499,37 +505,42 @@ instance
       else do
         -- clean version of qsearch: uncompute to clean up ancilla
         qsearch_clean_proc_name <- UQPL.newIdent "UAny"
-        let info_comment_clean = printf "QSearch_clean[%s, %s, %s]" (show n) (show delta_search) (UQPL.proc_name pred_proc)
+        let info_comment_clean =
+              (printf :: String -> String -> String -> String -> String)
+                "QSearch_clean[%s, %s, %s]"
+                (show n)
+                (show delta_search)
+                (CQPL.proc_name pred_proc)
 
         out_bit <- UQPL.allocAncilla P.tbool
 
-        UQPL.addProc
-          UQPL.UProcDef
-            { UQPL.info_comment = info_comment_clean
-            , UQPL.proc_name = qsearch_clean_proc_name
-            , UQPL.proc_meta_params = []
-            , UQPL.proc_params =
-                UQPL.withTag UQPL.ParamInp (zip args (init pred_inp_tys))
-                  ++ UQPL.withTag UQPL.ParamOut [(ret, P.tbool)]
-                  ++ UQPL.withTag UQPL.ParamAux (zip pred_ancilla pred_aux_tys)
-                  ++ UQPL.withTag UQPL.ParamAux qsearch_ancilla
-                  ++ UQPL.withTag UQPL.ParamAux [(out_bit, P.tbool)]
-            , UQPL.proc_body_or_tick =
-                Right $
-                  UQPL.USeqS
-                    [ UQPL.UCallS
-                        { UQPL.proc_id = qsearch_proc_name
-                        , UQPL.args = args ++ [out_bit] ++ pred_ancilla ++ map fst qsearch_ancilla
-                        , UQPL.dagger = False
-                        }
-                    , UQPL.UnitaryS [out_bit, ret] (UQPL.RevEmbedU ["a"] "a")
-                    , UQPL.UCallS
-                        { UQPL.proc_id = qsearch_proc_name
-                        , UQPL.args = args ++ [out_bit] ++ pred_ancilla ++ map fst qsearch_ancilla
-                        , UQPL.dagger = True
-                        }
-                    ]
-            }
+        Compiler.addProc (error "TODO see commented code")
+        -- UQPL.UProcDef
+        --   { UQPL.info_comment = info_comment_clean
+        --   , UQPL.proc_name = qsearch_clean_proc_name
+        --   , UQPL.proc_meta_params = []
+        --   , UQPL.proc_params =
+        --       UQPL.withTag UQPL.ParamInp (zip args (init pred_inp_tys))
+        --         ++ UQPL.withTag UQPL.ParamOut [(ret, P.tbool)]
+        --         ++ UQPL.withTag UQPL.ParamAux (zip pred_ancilla pred_aux_tys)
+        --         ++ UQPL.withTag UQPL.ParamAux qsearch_ancilla
+        --         ++ UQPL.withTag UQPL.ParamAux [(out_bit, P.tbool)]
+        --   , UQPL.proc_body_or_tick =
+        --       Right $
+        --         UQPL.USeqS
+        --           [ UQPL.UCallS
+        --               { UQPL.proc_id = qsearch_proc_name
+        --               , UQPL.args = args ++ [out_bit] ++ pred_ancilla ++ map fst qsearch_ancilla
+        --               , UQPL.dagger = False
+        --               }
+        --           , UQPL.UnitaryS [out_bit, ret] (UQPL.RevEmbedU ["a"] "a")
+        --           , UQPL.UCallS
+        --               { UQPL.proc_id = qsearch_proc_name
+        --               , UQPL.args = args ++ [out_bit] ++ pred_ancilla ++ map fst qsearch_ancilla
+        --               , UQPL.dagger = True
+        --               }
+        --           ]
+        --   }
 
         return
           UQPL.UCallS
@@ -738,13 +749,13 @@ instance
       (a, _, w) <- lift $ runMyReaderWriterStateT upred_compiler uenv ust
       return (a, w)
 
-    tellAt CQPL.loweredUProcs uprocs
+    tellAt Compiler._loweredProcs uprocs
     let UQPL.LoweredProc
           { UQPL.inp_tys = pred_inp_tys
           , UQPL.aux_tys = pred_aux_tys
           -- , UQPL.out_tys = pred_out_tys
           } = pred_uproc
-    let upred_proc_name = pred_uproc ^. to UQPL.lowered_def . to UQPL.proc_name
+    let upred_proc_name = pred_uproc ^. to UQPL.lowered_def . to CQPL.proc_name
 
     -- make the Grover_k uproc
     -- TODO this should ideally be done by algoQSearch, but requires a lot of aux information.
@@ -765,17 +776,17 @@ instance
                   }
             )
     let uproc_grover_k =
-          UQPL.UProcDef
-            { UQPL.info_comment = "Grover[...]"
-            , UQPL.proc_name = uproc_grover_k_name
-            , UQPL.proc_meta_params = ["k"]
-            , UQPL.proc_params =
-                UQPL.withTag UQPL.ParamInp (zip (args ++ [grover_arg_name]) pred_inp_tys)
-                  ++ UQPL.withTag UQPL.ParamOut [(ret, P.tbool)]
-                  ++ UQPL.withTag UQPL.ParamAux (zip upred_aux_vars pred_aux_tys)
-            , UQPL.proc_body_or_tick = Right uproc_grover_k_body
-            }
-    writeElemAt CQPL.loweredUProcs uproc_grover_k
+          CQPL.ProcDef{}
+    -- { UQPL.info_comment = "Grover[...]"
+    -- , UQPL.proc_name = uproc_grover_k_name
+    -- , UQPL.proc_meta_params = ["k"]
+    -- , UQPL.proc_params =
+    --     UQPL.withTag UQPL.ParamInp (zip (args ++ [grover_arg_name]) pred_inp_tys)
+    --       ++ UQPL.withTag UQPL.ParamOut [(ret, P.tbool)]
+    --       ++ UQPL.withTag UQPL.ParamAux (zip upred_aux_vars pred_aux_tys)
+    -- , UQPL.proc_body_or_tick = Right uproc_grover_k_body
+    -- }
+    Compiler.addProc uproc_grover_k
 
     let grover_k_caller k x b =
           CQPL.CallS
@@ -802,18 +813,18 @@ instance
 
     (qsearch_body, qsearch_local_vars) <- execMyWriterT $ algoQSearch s_ty 0 eps_s grover_k_caller pred_caller ret
     qsearch_proc_name <- CQPL.newIdent $ printf "QSearch[%s]" (show eps_s)
-    CQPL.addProc $
+    Compiler.addProc $
       CQPL.ProcDef
         { CQPL.proc_name = qsearch_proc_name
         , CQPL.proc_meta_params = []
         , CQPL.proc_param_types = map snd qsearch_params
-        , CQPL.proc_body_or_tick =
-            Right $
-              CQPL.ProcBody
-                { CQPL.proc_param_names = map fst qsearch_params
-                , CQPL.proc_local_vars = qsearch_local_vars
-                , CQPL.proc_body_stmt = CQPL.SeqS qsearch_body
-                }
+        -- , CQPL.proc_body_or_tick =
+        --     Right $
+        --       CQPL.ProcBody
+        --         { CQPL.proc_param_names = map fst qsearch_params
+        --         , CQPL.proc_local_vars = qsearch_local_vars
+        --         , CQPL.proc_body_stmt = CQPL.SeqS qsearch_body
+        --         }
         }
 
     return

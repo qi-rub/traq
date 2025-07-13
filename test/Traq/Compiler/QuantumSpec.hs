@@ -18,6 +18,10 @@ import qualified Traq.ProtoLang as P
 import Test.Hspec
 import TestHelpers
 
+_ProcBodyC :: Traversal' (ProcBody holeT sizeT costT) (CProcBody holeT sizeT costT)
+_ProcBodyC _focus (ProcBodyC cb) = ProcBodyC <$> _focus cb
+_ProcBodyC _ b = pure b
+
 spec :: Spec
 spec = do
   describe "lower simple programs" $ do
@@ -27,12 +31,12 @@ spec = do
       let ex = Sym.unSym <$> ex_
       let ticks = Map.singleton "Oracle" 1.0
       (cq :: Program' SizeT Double) <- expectRight $ lowerProgram default_ Ctx.empty ticks ticks eps ex
-      let main_stmt =
-            cq
-              ^. to proc_defs
-              . Ctx.at "main"
-              . singular _Just
-              . to proc_body_or_tick
-              . singular _Right
-              . to proc_body_stmt
-      main_stmt `shouldBe` SeqS [AssignS ["x"] (P.ConstE 0 (P.Fin 10))]
+      CProcBody{cproc_body_stmt} <-
+        return $
+          cq
+            ^. to proc_defs
+            . Ctx.at "main"
+            . singular _Just
+            . to proc_body
+            . singular _ProcBodyC
+      cproc_body_stmt `shouldBe` SeqS [AssignS ["x"] (P.ConstE 0 (P.Fin 10))]

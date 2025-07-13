@@ -15,7 +15,6 @@ import qualified Traq.CQPL as CQPL
 import qualified Traq.Compiler.Unitary as UQPL
 import Traq.Prelude
 import qualified Traq.ProtoLang as P
-import qualified Traq.UnitaryQPL as UQPL
 import qualified Traq.Utils.Printing as PP
 
 import Traq.Primitives (DefaultPrims)
@@ -75,8 +74,8 @@ compile prog delta = do
 
   -- print the program with the costs
   execWriterT $ do
-    forM_ (cqpl_prog ^. to CQPL.uproc_defs . to Ctx.elems) $ \p -> do
-      let pname = p ^. to UQPL.proc_name
+    forM_ (cqpl_prog ^. to CQPL.proc_defs . to Ctx.elems) $ \p -> do
+      let pname = p ^. to CQPL.proc_name
 
       when (pname /= "Oracle") $ do
         let f_cost =

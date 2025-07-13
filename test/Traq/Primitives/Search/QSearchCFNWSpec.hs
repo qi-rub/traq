@@ -52,23 +52,28 @@ spec = do
 
         let uprog =
               CQPL.Program
-                { CQPL.proc_defs = mempty
-                , CQPL.uproc_defs =
+                { CQPL.proc_defs =
                     Ctx.fromListWith
-                      UQPL.proc_name
-                      [ UQPL.UProcDef
-                          { UQPL.info_comment = ""
-                          , UQPL.proc_name = "Oracle"
-                          , UQPL.proc_meta_params = []
-                          , UQPL.proc_params = []
-                          , UQPL.proc_body_or_tick = Left (1.0 :: Double)
+                      CQPL.proc_name
+                      [ CQPL.ProcDef
+                          { CQPL.info_comment = ""
+                          , CQPL.proc_name = "Oracle"
+                          , CQPL.proc_meta_params = []
+                          , CQPL.proc_param_types = []
+                          , CQPL.proc_body = CQPL.ProcBodyU $ CQPL.UProcDecl (1.0 :: Double)
                           }
-                      , UQPL.UProcDef
-                          { UQPL.info_comment = ""
-                          , UQPL.proc_name = "main"
-                          , UQPL.proc_meta_params = []
-                          , UQPL.proc_params = undefined
-                          , UQPL.proc_body_or_tick = Right $ UQPL.USeqS ss
+                      , CQPL.ProcDef
+                          { CQPL.info_comment = ""
+                          , CQPL.proc_name = "main"
+                          , CQPL.proc_meta_params = []
+                          , CQPL.proc_param_types = undefined
+                          , CQPL.proc_body =
+                              CQPL.ProcBodyU $
+                                CQPL.UProcBody
+                                  { CQPL.uproc_body_stmt = UQPL.USeqS ss
+                                  , CQPL.uproc_param_names = undefined
+                                  , CQPL.uproc_param_tags = undefined
+                                  }
                           }
                       ]
                 }
