@@ -15,7 +15,6 @@ import Traq.Data.Default
 import qualified Traq.CQPL as CQPL
 import Traq.ProtoLang ((.&&.))
 import qualified Traq.ProtoLang as P
-import qualified Traq.UnitaryQPL as U
 
 import Test.Hspec
 import TestHelpers
@@ -33,9 +32,9 @@ spec = do
         assertRight $
           checker
             (Ctx.fromList [("a", tb), ("b", tb), ("c", tb)])
-            U.UnitaryS
-              { U.qargs = ["a", "b", "c"]
-              , U.unitary = U.RevEmbedU ["a0", "a1"] ("a0" .&&. "a1")
+            CQPL.UnitaryS
+              { CQPL.qargs = ["a", "b", "c"]
+              , CQPL.unitary = CQPL.RevEmbedU ["a0", "a1"] ("a0" .&&. "a1")
               }
       it "MultiOrOp" $
         forM_ [3 :: Int, 10] $ \n -> do
@@ -43,7 +42,7 @@ spec = do
           assertRight $
             checker
               (Ctx.fromList $ map (,tb) ("out" : xs))
-              U.UnitaryS
-                { U.qargs = xs ++ ["out"]
-                , U.unitary = U.RevEmbedU xs (P.NAryE P.MultiOrOp $ map P.VarE xs)
+              CQPL.UnitaryS
+                { CQPL.qargs = xs ++ ["out"]
+                , CQPL.unitary = CQPL.RevEmbedU xs (P.NAryE P.MultiOrOp $ map P.VarE xs)
                 }

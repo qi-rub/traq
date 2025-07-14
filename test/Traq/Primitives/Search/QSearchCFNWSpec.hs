@@ -10,9 +10,9 @@ import Traq.Data.Default
 import Traq.Prelude
 
 import qualified Traq.CQPL as CQPL
+import qualified Traq.CQPL as UQPL -- TODO remove
 import Traq.Primitives.Search.QSearchCFNW
 import qualified Traq.ProtoLang as P
-import qualified Traq.UnitaryQPL as UQPL
 
 import Test.Hspec
 import Test.Hspec.QuickCheck

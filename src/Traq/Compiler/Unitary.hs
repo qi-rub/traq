@@ -48,7 +48,6 @@ import Traq.CQPL.Syntax
 import Traq.Compiler.Utils
 import Traq.Prelude
 import qualified Traq.ProtoLang as P
-import Traq.UnitaryQPL.Syntax
 
 -- | Configuration for lowering
 type LoweringConfig primT sizeT costT = P.UnitaryCostEnv primT sizeT costT

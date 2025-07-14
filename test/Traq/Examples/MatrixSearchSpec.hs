@@ -9,10 +9,10 @@ import Traq.Data.Default
 import qualified Traq.Data.Symbolic as Sym
 
 import qualified Traq.CQPL as CQPL
+import qualified Traq.CQPL as UQPL -- TODO remove
 import qualified Traq.Compiler.Quantum as CQPL
 import qualified Traq.Compiler.Unitary as UQPL
 import qualified Traq.ProtoLang as P
-import qualified Traq.UnitaryQPL as UQPL
 import qualified Traq.Utils.Printing as PP
 
 import Traq.Examples.MatrixSearch

@@ -5,8 +5,8 @@ import Lens.Micro.GHC
 import Traq.Control.Monad
 import Traq.Data.Default
 
+import qualified Traq.CQPL as UQPL -- TODO rename
 import qualified Traq.ProtoLang as P
-import qualified Traq.UnitaryQPL as UQPL
 import qualified Traq.Utils.Printing as PP
 
 import Traq.Primitives.Search.QSearchCFNW

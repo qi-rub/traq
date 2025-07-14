@@ -42,13 +42,13 @@ import Traq.Control.Monad
 import qualified Traq.Data.Context as Ctx
 
 import qualified Traq.CQPL as CQPL
+import qualified Traq.CQPL as UQPL -- TODO remove
 import qualified Traq.Compiler as Compiler
 import qualified Traq.Compiler.Quantum as CQPL
 import qualified Traq.Compiler.Unitary as UQPL
 import Traq.Prelude
 import Traq.ProtoLang (notE, (.&&.), (.+.), (.<=.))
 import qualified Traq.ProtoLang as P
-import qualified Traq.UnitaryQPL as UQPL
 import qualified Traq.Utils.Printing as PP
 
 import Traq.Primitives.Search.Prelude

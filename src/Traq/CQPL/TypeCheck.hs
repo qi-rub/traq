@@ -29,9 +29,7 @@ import qualified Traq.Data.Errors as Err
 
 import Traq.CQPL.Syntax
 import Traq.Prelude
-import Traq.ProtoLang (TypeCheckable (..))
 import qualified Traq.ProtoLang as P
-import Traq.UnitaryQPL.Syntax
 
 -- ================================================================================
 -- Helpers
@@ -184,7 +182,7 @@ typeCheckUStmt' s = do
 -- | Check a statement
 typeCheckStmt ::
   forall sizeT costT holeT.
-  (TypeCheckable sizeT, Show holeT) =>
+  (P.TypeCheckable sizeT, Show holeT) =>
   Stmt holeT sizeT ->
   TypeChecker holeT sizeT costT ()
 typeCheckStmt SkipS = return ()
@@ -245,7 +243,7 @@ typeCheckStmt CallS{fun = UProcAndMeas uproc_id, args} = do
 typeCheckStmt (SeqS ss) = mapM_ typeCheckStmt ss
 typeCheckStmt IfThenElseS{cond, s_true, s_false} = do
   cond_ty <- view (P._typingCtx . Ctx.at cond) >>= maybeWithError (Err.MessageE $ "cannot find variable " ++ cond)
-  when (cond_ty /= tbool) $
+  when (cond_ty /= P.tbool) $
     Err.throwErrorMessage $
       "if cond must be bool, got " <> show cond_ty
   typeCheckStmt s_true
@@ -258,7 +256,7 @@ typeCheckStmt s = case desugarS s of
 
 typeCheckUProcBody ::
   forall sizeT costT holeT.
-  (TypeCheckable sizeT, Show costT, Show holeT) =>
+  (P.TypeCheckable sizeT, Show costT, Show holeT) =>
   UProcBody holeT sizeT costT ->
   -- | parameter types
   [P.VarType sizeT] ->
@@ -277,7 +275,7 @@ typeCheckUProcBody procdef@UProcBody{uproc_param_names, uproc_body_stmt} tys = d
 -- | Check a procedure def
 typeCheckCProcBody ::
   forall sizeT costT holeT.
-  (TypeCheckable sizeT, Show holeT) =>
+  (P.TypeCheckable sizeT, Show holeT) =>
   CProcBody holeT sizeT costT ->
   -- | parameter types
   [P.VarType sizeT] ->
@@ -299,7 +297,7 @@ typeCheckCProcBody CProcBody{cproc_param_names, cproc_local_vars, cproc_body_stm
 
 typeCheckProc ::
   forall sizeT costT holeT.
-  (TypeCheckable sizeT, Show costT, Show holeT) =>
+  (P.TypeCheckable sizeT, Show costT, Show holeT) =>
   ProcDef holeT sizeT costT ->
   TypeChecker holeT sizeT costT ()
 typeCheckProc ProcDef{proc_param_types, proc_body} =
@@ -310,7 +308,7 @@ typeCheckProc ProcDef{proc_param_types, proc_body} =
 -- | Check an entire program given the input bindings.
 typeCheckProgram ::
   forall sizeT costT holeT.
-  (TypeCheckable sizeT, Show holeT, Show costT) =>
+  (P.TypeCheckable sizeT, Show holeT, Show costT) =>
   Program holeT sizeT costT ->
   Either Err.MyError ()
 typeCheckProgram Program{proc_defs} = do

@@ -7,9 +7,9 @@ import Data.Void (Void)
 import qualified Traq.Data.Context as Ctx
 
 import qualified Traq.CQPL as CQPL
+import qualified Traq.CQPL as U -- TODO remove
 import Traq.Compiler.Unitary
 import qualified Traq.ProtoLang as P
-import qualified Traq.UnitaryQPL as U
 import qualified Traq.Utils.Printing as PP
 
 import Test.Hspec
