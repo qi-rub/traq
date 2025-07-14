@@ -7,8 +7,8 @@ module Traq.Primitives (
   QSearchCFNW (..),
 ) where
 
-import qualified Traq.Compiler.Quantum as CQPL
-import qualified Traq.Compiler.Unitary as UQPL
+import qualified Traq.Compiler.Quantum as CompileQ
+import qualified Traq.Compiler.Unitary as CompileU
 import Traq.Prelude
 import qualified Traq.ProtoLang as P
 import qualified Traq.Utils.Printing as PP
@@ -93,23 +93,23 @@ instance
 instance
   ( Integral sizeT
   , Floating costT
-  , UQPL.Lowerable primsT primsT holeT sizeT costT
-  , UQPL.Lowerable primsT QSearchCFNW holeT sizeT costT
+  , CompileU.Lowerable primsT primsT holeT sizeT costT
+  , CompileU.Lowerable primsT QSearchCFNW holeT sizeT costT
   , P.TypeCheckable sizeT
   , Show costT
   ) =>
-  UQPL.Lowerable primsT DefaultPrims holeT sizeT costT
+  CompileU.Lowerable primsT DefaultPrims holeT sizeT costT
   where
-  lowerPrimitive delta (QAny q) = UQPL.lowerPrimitive delta q
+  lowerPrimitive delta (QAny q) = CompileU.lowerPrimitive delta q
 
 instance
   ( Integral sizeT
   , Floating costT
-  , CQPL.Lowerable primsT primsT holeT sizeT costT
-  , CQPL.Lowerable primsT QSearchCFNW holeT sizeT costT
+  , CompileQ.Lowerable primsT primsT holeT sizeT costT
+  , CompileQ.Lowerable primsT QSearchCFNW holeT sizeT costT
   , P.TypeCheckable sizeT
   , Show costT
   ) =>
-  CQPL.Lowerable primsT DefaultPrims holeT sizeT costT
+  CompileQ.Lowerable primsT DefaultPrims holeT sizeT costT
   where
-  lowerPrimitive eps (QAny q) = CQPL.lowerPrimitive eps q
+  lowerPrimitive eps (QAny q) = CompileQ.lowerPrimitive eps q

@@ -5,8 +5,8 @@ import Lens.Micro.GHC
 import Traq.Control.Monad
 import Traq.Data.Default
 
+import qualified Traq.CQPL as CQPL
 import qualified Traq.ProtoLang as P
-import qualified Traq.UnitaryQPL as UQPL
 import qualified Traq.Utils.Printing as PP
 
 import Traq.Primitives.Search.QSearchCFNW
@@ -21,7 +21,7 @@ spec = do
       it "for simple values" $ do
         let n = 10 :: Int
         let eps = 0.001 :: Float
-        let pred_caller c x b = UQPL.UCallS{UQPL.proc_id = "Oracle", UQPL.dagger = False, UQPL.args = [c, x, b]}
+        let pred_caller c x b = CQPL.UCallS{CQPL.uproc_id = "Oracle", CQPL.dagger = False, CQPL.qargs = [c, x, b]}
         let lenv = default_ & (P._unitaryTicks . at "Oracle" ?~ 1)
         let lctx = default_
         circ <-
@@ -29,5 +29,5 @@ spec = do
             algoQSearchZalka eps "output_bit"
               & execMyReaderWriterT UQSearchEnv{search_arg_type = P.Fin n, pred_call_builder = pred_caller}
               & (\m -> evalMyReaderStateT m lenv lctx)
-              <&> UQPL.USeqS
+              <&> CQPL.USeqS
         PP.toCodeString circ `shouldSatisfy` (not . null)

@@ -12,7 +12,6 @@ import Traq.Prelude
 import qualified Traq.CQPL as CQPL
 import Traq.Primitives.Search.QSearchCFNW
 import qualified Traq.ProtoLang as P
-import qualified Traq.UnitaryQPL as UQPL
 
 import Test.Hspec
 import Test.Hspec.QuickCheck
@@ -36,7 +35,7 @@ spec = do
           UQSearchEnv
             { search_arg_type = P.Fin n
             , pred_call_builder = \c x b ->
-                UQPL.UCallS{UQPL.proc_id = "Oracle", UQPL.dagger = False, UQPL.args = [c, x, b]}
+                CQPL.UCallS{CQPL.uproc_id = "Oracle", CQPL.dagger = False, CQPL.qargs = [c, x, b]}
             }
 
     prop "matches cost" $ \params -> do
@@ -70,7 +69,7 @@ spec = do
                           , CQPL.proc_body =
                               CQPL.ProcBodyU $
                                 CQPL.UProcBody
-                                  { CQPL.uproc_body_stmt = UQPL.USeqS ss
+                                  { CQPL.uproc_body_stmt = CQPL.USeqS ss
                                   , CQPL.uproc_param_names = undefined
                                   , CQPL.uproc_param_tags = undefined
                                   }

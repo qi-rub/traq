@@ -12,7 +12,6 @@ module Traq.Compiler.Unitary (
   LoweringOutput,
 
   -- ** Helpers
-  newIdent,
   allocAncillaWithPref,
   allocAncilla,
   ControlFlag (..),
@@ -48,12 +47,11 @@ import Traq.CQPL.Syntax
 import Traq.Compiler.Utils
 import Traq.Prelude
 import qualified Traq.ProtoLang as P
-import Traq.UnitaryQPL.Syntax
 
 -- | Configuration for lowering
 type LoweringConfig primT sizeT costT = P.UnitaryCostEnv primT sizeT costT
 
-{- | Monad to compile ProtoQB to UQPL programs.
+{- | Monad to compile to Unitary CQPL programs.
 This should contain the _final_ typing context for the input program,
 that is, contains both the inputs and outputs of each statement.
 -}
@@ -125,7 +123,7 @@ lowerExpr ::
 -- basic expressions are lowered to their unitary embedding
 lowerExpr _ P.BasicExprE{P.basic_expr} rets = do
   let args = toList $ P.freeVarsBE basic_expr
-  return $ UnitaryS{args = args ++ rets, unitary = RevEmbedU args basic_expr}
+  return $ UnitaryS{qargs = args ++ rets, unitary = RevEmbedU args basic_expr}
 
 -- function call
 lowerExpr delta P.FunCallE{P.fun_kind = P.FunctionCall fun_name, P.args} rets = do
@@ -142,8 +140,8 @@ lowerExpr delta P.FunCallE{P.fun_kind = P.FunctionCall fun_name, P.args} rets = 
   aux_args <- forM aux_tys allocAncilla
   return
     UCallS
-      { proc_id = proc_name lowered_def
-      , args = args ++ rets ++ aux_args
+      { uproc_id = proc_name lowered_def
+      , qargs = args ++ rets ++ aux_args
       , dagger = False
       }
 -- primitive call
@@ -307,10 +305,10 @@ lowerFunDef
     let g_dirty_name = lowered_def ^. to proc_name
 
     let param_names = case mbody of
-          Just P.FunBody{P.param_names} -> param_names
+          Just P.FunBody{P.param_names = ps} -> ps
           Nothing -> map (printf "in_%d") [0 .. length param_types - 1]
     let ret_names = case mbody of
-          Just P.FunBody{P.ret_names} -> ret_names
+          Just P.FunBody{P.ret_names = rs} -> rs
           Nothing -> map (printf "out_%d") [0 .. length ret_types - 1]
 
     let param_binds = zip param_names param_types
@@ -332,12 +330,12 @@ lowerFunDef
     -- call g, copy and uncompute g
     let proc_body =
           USeqS
-            [ UCallS{proc_id = g_dirty_name, dagger = False, args = g_args}
+            [ UCallS{uproc_id = g_dirty_name, dagger = False, qargs = g_args}
             , USeqS -- copy all the return values
                 [ UnitaryS ([ctrl_qubit | with_ctrl == WithControl] ++ [x, x']) copy_op
                 | (x, x') <- zip g_ret_names ret_names
                 ]
-            , UCallS{proc_id = g_dirty_name, dagger = True, args = g_args}
+            , UCallS{uproc_id = g_dirty_name, dagger = True, qargs = g_args}
             ]
 
     let all_params =
@@ -369,7 +367,7 @@ lowerFunDef
         , aux_tys = g_ret_tys ++ g_aux_tys
         }
 
--- | Lower a full program into a UQPL program.
+-- | Lower a full program into a unitary CQPL program.
 lowerProgram ::
   forall primsT holeT costT.
   ( Lowerable primsT primsT holeT SizeT costT

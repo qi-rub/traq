@@ -28,7 +28,7 @@ opts =
   info
     (options <**> helper)
     ( fullDesc
-        <> header "Compile Proto programs to UQPL and analyze their costs."
+        <> header "Compile Proto programs to CQPL and analyze their costs."
     )
  where
   options =

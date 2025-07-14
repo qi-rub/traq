@@ -12,7 +12,7 @@ import Traq.Data.Default
 import qualified Traq.Data.Symbolic as Sym
 
 import qualified Traq.CQPL as CQPL
-import qualified Traq.Compiler.Unitary as UQPL
+import qualified Traq.Compiler.Unitary as CompileU
 import Traq.Prelude
 import qualified Traq.ProtoLang as P
 import qualified Traq.Utils.Printing as PP
@@ -32,7 +32,7 @@ opts =
   info
     (options <**> helper)
     ( fullDesc
-        <> header "Compile Proto programs to UQPL and analyze their costs."
+        <> header "Compile Proto programs to unitary fragment of CQPL and analyze their costs."
     )
  where
   options =
@@ -68,7 +68,7 @@ tellLn x = tell $ unlines [x]
 compile :: forall costT. (RealFloat costT, Show costT) => P.Program DefaultPrims SizeT -> costT -> IO String
 compile prog delta = do
   let oracle_ticks = mempty & at "Oracle" ?~ (fromRational 1.0 :: costT)
-  Right cqpl_prog <- return $ UQPL.lowerProgram default_ Ctx.empty oracle_ticks delta prog
+  Right cqpl_prog <- return $ CompileU.lowerProgram default_ Ctx.empty oracle_ticks delta prog
   -- get costs
   let (_ :: costT, proc_costs) = CQPL.programCost cqpl_prog
 

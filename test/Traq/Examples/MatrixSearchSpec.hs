@@ -9,10 +9,9 @@ import Traq.Data.Default
 import qualified Traq.Data.Symbolic as Sym
 
 import qualified Traq.CQPL as CQPL
-import qualified Traq.Compiler.Quantum as CQPL
-import qualified Traq.Compiler.Unitary as UQPL
+import qualified Traq.Compiler.Quantum as CompileQ
+import qualified Traq.Compiler.Unitary as CompileU
 import qualified Traq.ProtoLang as P
-import qualified Traq.UnitaryQPL as UQPL
 import qualified Traq.Utils.Printing as PP
 
 import Traq.Examples.MatrixSearch
@@ -65,19 +64,19 @@ spec = do
     it "generate code" $ do
       PP.toCodeString ex `shouldSatisfy` (not . null)
 
-    describe "lower to UQPL" $ do
+    describe "Unitary Compile" $ do
       let delta = 0.001 :: Double
       it "lowers" $ do
-        assertRight $ UQPL.lowerProgram default_ Ctx.empty uticks delta ex
+        assertRight $ CompileU.lowerProgram default_ Ctx.empty uticks delta ex
 
       it "type checks" $ do
-        ex_uqpl <- expectRight $ UQPL.lowerProgram default_ Ctx.empty uticks delta ex
+        ex_uqpl <- expectRight $ CompileU.lowerProgram default_ Ctx.empty uticks delta ex
         let tc_res = CQPL.typeCheckProgram ex_uqpl
         either print (const $ pure ()) tc_res
         assertRight tc_res
 
       it "preserves cost" $ do
-        ex_uqpl <- expectRight $ UQPL.lowerProgram default_ Ctx.empty uticks delta ex
+        ex_uqpl <- expectRight $ CompileU.lowerProgram default_ Ctx.empty uticks delta ex
         let (uqpl_cost, _) = CQPL.programCost ex_uqpl
         let proto_cost = P.unitaryQueryCost P.SplitSimple delta ex uticks
         uqpl_cost `shouldSatisfy` (<= proto_cost)
@@ -85,10 +84,10 @@ spec = do
     describe "lower to CQPL" $ do
       let eps = 0.001 :: Double
       it "lowers" $ do
-        assertRight $ CQPL.lowerProgram default_ Ctx.empty uticks cticks eps ex
+        assertRight $ CompileQ.lowerProgram default_ Ctx.empty uticks cticks eps ex
 
       it "type checks" $ do
-        ex_cqpl <- expectRight $ CQPL.lowerProgram default_ Ctx.empty uticks cticks eps ex
+        ex_cqpl <- expectRight $ CompileQ.lowerProgram default_ Ctx.empty uticks cticks eps ex
         -- case CQPL.typeCheckProgram gamma ex_uqpl of Left e -> putStrLn e; _ -> return ()
         assertRight $ CQPL.typeCheckProgram ex_cqpl
 
