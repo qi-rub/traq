@@ -151,28 +151,28 @@ typeCheckUStmt :: forall holeT sizeT costT. (Show holeT, P.TypeCheckable sizeT) 
 typeCheckUStmt USkipS = return ()
 typeCheckUStmt UHoleS{} = return ()
 typeCheckUStmt (UCommentS _) = return ()
-typeCheckUStmt UnitaryS{unitary, args} = do
-  arg_tys <- forM args $ \x -> do
+typeCheckUStmt UnitaryS{unitary, qargs} = do
+  arg_tys <- forM qargs $ \x -> do
     mty <- view $ P._typingCtx . Ctx.at x
     maybeWithError (Err.MessageE $ printf "cannot find argument %s" x) mty
   typeCheckUnitary unitary arg_tys
-typeCheckUStmt UCallS{proc_id, args} = do
+typeCheckUStmt UCallS{uproc_id, qargs} = do
   ProcDef{proc_param_types, proc_body} <-
-    view (_procCtx . Ctx.at proc_id)
-      >>= singularM _Just (Err.MessageE $ printf "cannot find procedure `%s`" proc_id)
+    view (_procCtx . Ctx.at uproc_id)
+      >>= singularM _Just (Err.MessageE $ printf "cannot find procedure `%s`" uproc_id)
   unless (isUProc proc_body) $ Err.throwErrorMessage "expected uproc"
 
-  verifyArgs args proc_param_types
+  verifyArgs qargs proc_param_types
 -- compound statements
 typeCheckUStmt (USeqS ss) = mapM_ typeCheckUStmt' ss
 typeCheckUStmt (URepeatS _ body) = typeCheckUStmt' body
-typeCheckUStmt UForInRangeS{iter_meta_var, iter_lim, loop_body} = do
+typeCheckUStmt UForInRangeS{iter_meta_var, iter_lim, uloop_body} = do
   let iter_lim_ty = case iter_lim of
         P.MetaSize n -> P.Fin n
         _ -> error "unsupported loop limit"
   local (P._typingCtx . Ctx.ins ('#' : iter_meta_var) .~ iter_lim_ty) $ do
-    typeCheckUStmt' loop_body
-typeCheckUStmt UWithComputedS{with_stmt, body_stmt} = mapM_ typeCheckUStmt' [with_stmt, body_stmt]
+    typeCheckUStmt' uloop_body
+typeCheckUStmt UWithComputedS{with_ustmt, body_ustmt} = mapM_ typeCheckUStmt' [with_ustmt, body_ustmt]
 
 typeCheckUStmt' :: (Show holeT, P.TypeCheckable sizeT) => UStmt holeT sizeT -> TypeChecker holeT sizeT costT ()
 typeCheckUStmt' s = do

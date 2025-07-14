@@ -393,7 +393,7 @@ algoQSearchZalka delta out_bit = do
   let as = ["a" <> show i | i <- [1 .. length out_bits]]
   writeElem $
     UQPL.UnitaryS
-      { UQPL.args = out_bits ++ [out_bit]
+      { UQPL.qargs = out_bits ++ [out_bit]
       , UQPL.unitary = UQPL.RevEmbedU as $ P.NAryE P.MultiOrOp (map fromString as)
       }
  where
@@ -456,9 +456,9 @@ instance
     pred_ancilla <- mapM UQPL.allocAncilla pred_aux_tys
     let pred_caller ctrl x b =
           UQPL.UCallS
-            { UQPL.proc_id = CQPL.proc_name pred_proc
+            { UQPL.uproc_id = CQPL.proc_name pred_proc
             , UQPL.dagger = False
-            , UQPL.args = ctrl : args ++ [x, b] ++ pred_ancilla
+            , UQPL.qargs = ctrl : args ++ [x, b] ++ pred_ancilla
             }
 
     -- Emit the qsearch procedure
@@ -505,8 +505,8 @@ instance
       then
         return
           UQPL.UCallS
-            { UQPL.proc_id = qsearch_proc_name
-            , UQPL.args = args ++ [ret] ++ pred_ancilla ++ map fst qsearch_ancilla
+            { UQPL.uproc_id = qsearch_proc_name
+            , UQPL.qargs = args ++ [ret] ++ pred_ancilla ++ map fst qsearch_ancilla
             , UQPL.dagger = False
             }
       else do
@@ -542,8 +542,8 @@ instance
                     , CQPL.uproc_body_stmt =
                         UQPL.UWithComputedS
                           ( UQPL.UCallS
-                              { UQPL.proc_id = qsearch_proc_name
-                              , UQPL.args = args ++ [out_bit] ++ pred_ancilla ++ map fst qsearch_ancilla
+                              { UQPL.uproc_id = qsearch_proc_name
+                              , UQPL.qargs = args ++ [out_bit] ++ pred_ancilla ++ map fst qsearch_ancilla
                               , UQPL.dagger = False
                               }
                           )
@@ -553,8 +553,8 @@ instance
 
         return
           UQPL.UCallS
-            { UQPL.proc_id = qsearch_clean_proc_name
-            , UQPL.args = args ++ [ret] ++ pred_ancilla ++ map fst qsearch_ancilla ++ [out_bit]
+            { UQPL.uproc_id = qsearch_clean_proc_name
+            , UQPL.qargs = args ++ [ret] ++ pred_ancilla ++ map fst qsearch_ancilla ++ [out_bit]
             , UQPL.dagger = False
             }
 
@@ -779,9 +779,9 @@ instance
             ret
             ( \x b ->
                 UQPL.UCallS
-                  { UQPL.proc_id = upred_proc_name
+                  { UQPL.uproc_id = upred_proc_name
                   , UQPL.dagger = False
-                  , UQPL.args = args ++ [x, b] ++ upred_aux_vars
+                  , UQPL.qargs = args ++ [x, b] ++ upred_aux_vars
                   }
             )
     let uproc_grover_k_params =

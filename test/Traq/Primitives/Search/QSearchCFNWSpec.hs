@@ -36,7 +36,7 @@ spec = do
           UQSearchEnv
             { search_arg_type = P.Fin n
             , pred_call_builder = \c x b ->
-                UQPL.UCallS{UQPL.proc_id = "Oracle", UQPL.dagger = False, UQPL.args = [c, x, b]}
+                UQPL.UCallS{UQPL.uproc_id = "Oracle", UQPL.dagger = False, UQPL.qargs = [c, x, b]}
             }
 
     prop "matches cost" $ \params -> do

@@ -21,7 +21,7 @@ spec = do
       it "for simple values" $ do
         let n = 10 :: Int
         let eps = 0.001 :: Float
-        let pred_caller c x b = UQPL.UCallS{UQPL.proc_id = "Oracle", UQPL.dagger = False, UQPL.args = [c, x, b]}
+        let pred_caller c x b = UQPL.UCallS{UQPL.uproc_id = "Oracle", UQPL.dagger = False, UQPL.qargs = [c, x, b]}
         let lenv = default_ & (P._unitaryTicks . at "Oracle" ?~ 1)
         let lctx = default_
         circ <-

@@ -61,18 +61,18 @@ stmtCost ::
 stmtCost USkipS = return 0
 stmtCost (UCommentS _) = return 0
 stmtCost UnitaryS{} = return 0
-stmtCost UCallS{proc_id} = procCost proc_id
+stmtCost UCallS{uproc_id} = procCost uproc_id
 stmtCost (USeqS ss) = sum <$> mapM stmtCost ss
-stmtCost URepeatS{n_iter = P.MetaSize k, loop_body} = (fromIntegral k *) <$> stmtCost loop_body
-stmtCost URepeatS{n_iter = P.MetaValue k, loop_body} = (fromIntegral k *) <$> stmtCost loop_body
+stmtCost URepeatS{n_iter = P.MetaSize k, uloop_body} = (fromIntegral k *) <$> stmtCost uloop_body
+stmtCost URepeatS{n_iter = P.MetaValue k, uloop_body} = (fromIntegral k *) <$> stmtCost uloop_body
 stmtCost URepeatS{n_iter = P.MetaName _} = throwError "unsupported meta parameter substitution"
-stmtCost UHoleS{hole} = holeCost hole
-stmtCost UForInRangeS{iter_lim = P.MetaSize k, loop_body} = (fromIntegral k *) <$> stmtCost loop_body
-stmtCost UForInRangeS{iter_lim = P.MetaValue k, loop_body} = (fromIntegral k *) <$> stmtCost loop_body
+stmtCost UHoleS{uhole} = holeCost uhole
+stmtCost UForInRangeS{iter_lim = P.MetaSize k, uloop_body} = (fromIntegral k *) <$> stmtCost uloop_body
+stmtCost UForInRangeS{iter_lim = P.MetaValue k, uloop_body} = (fromIntegral k *) <$> stmtCost uloop_body
 stmtCost UForInRangeS{iter_lim = _} = throwError "unsupported meta parameter substitution"
-stmtCost UWithComputedS{with_stmt, body_stmt} = do
-  wc <- stmtCost with_stmt
-  bc <- stmtCost body_stmt
+stmtCost UWithComputedS{with_ustmt, body_ustmt} = do
+  wc <- stmtCost with_ustmt
+  bc <- stmtCost body_ustmt
   return $ 2 * wc + bc
 
 procCost ::

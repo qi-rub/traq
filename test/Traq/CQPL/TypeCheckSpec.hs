@@ -34,7 +34,7 @@ spec = do
           checker
             (Ctx.fromList [("a", tb), ("b", tb), ("c", tb)])
             U.UnitaryS
-              { U.args = ["a", "b", "c"]
+              { U.qargs = ["a", "b", "c"]
               , U.unitary = U.RevEmbedU ["a0", "a1"] ("a0" .&&. "a1")
               }
       it "MultiOrOp" $
@@ -44,6 +44,6 @@ spec = do
             checker
               (Ctx.fromList $ map (,tb) ("out" : xs))
               U.UnitaryS
-                { U.args = xs ++ ["out"]
+                { U.qargs = xs ++ ["out"]
                 , U.unitary = U.RevEmbedU xs (P.NAryE P.MultiOrOp $ map P.VarE xs)
                 }

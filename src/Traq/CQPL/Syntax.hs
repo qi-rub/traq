@@ -3,9 +3,11 @@
 
 module Traq.CQPL.Syntax (
   -- * Syntax
-
-  -- ** Expressions and Statements
   MetaParam (..),
+
+  -- ** Unitary Fragment
+
+  -- ** Classical Fragment
   FunctionCall (..),
   Stmt (..),
 
@@ -382,5 +384,5 @@ instance CanDesugar (Stmt holeT sizeT) where
   desugarS _ = Nothing
 
 instance CanDesugar (UQPL.UStmt holeT sizeT) where
-  desugarS UQPL.UWithComputedS{UQPL.with_stmt, UQPL.body_stmt} = Just $ UQPL.USeqS [with_stmt, body_stmt, UQPL.adjoint with_stmt]
+  desugarS UQPL.UWithComputedS{UQPL.with_ustmt, UQPL.body_ustmt} = Just $ UQPL.USeqS [with_ustmt, body_ustmt, UQPL.adjoint with_ustmt]
   desugarS _ = Nothing

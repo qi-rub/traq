@@ -6,7 +6,6 @@ module Traq.UnitaryQPL.Syntax (
 
   -- ** Statements
   UStmt (..),
-  holeS,
   UStmt',
 
   -- ** Syntax Sugar
@@ -85,28 +84,25 @@ instance HasAdjoint (Unitary sizeT) where
 -- | Unitary Statement
 data UStmt holeT sizeT
   = USkipS
-  | UnitaryS {args :: [Ident], unitary :: Unitary sizeT} -- q... *= U
-  | UCallS {proc_id :: Ident, dagger :: Bool, args :: [Ident]} -- call F(q...)
+  | UnitaryS {qargs :: [Ident], unitary :: Unitary sizeT} -- q... *= U
+  | UCallS {uproc_id :: Ident, dagger :: Bool, qargs :: [Ident]} -- call F(q...)
   | USeqS [UStmt holeT sizeT] -- W1; W2; ...
   | -- placeholders
-    UHoleS {hole :: holeT, dagger :: Bool} -- temporary place holder
+    UHoleS {uhole :: holeT, dagger :: Bool} -- temporary place holder
   | UCommentS String
   | -- syntax sugar
-    URepeatS {n_iter :: P.MetaParam sizeT, loop_body :: UStmt holeT sizeT} -- repeat k do S;
+    URepeatS {n_iter :: P.MetaParam sizeT, uloop_body :: UStmt holeT sizeT} -- repeat k do S;
   | UForInRangeS
       { iter_meta_var :: Ident
       , iter_lim :: P.MetaParam sizeT
-      , loop_body :: UStmt holeT sizeT
+      , uloop_body :: UStmt holeT sizeT
       , dagger :: Bool
       }
-  | UWithComputedS {with_stmt, body_stmt :: UStmt holeT sizeT}
+  | UWithComputedS {with_ustmt, body_ustmt :: UStmt holeT sizeT}
   deriving (Eq, Show, Read)
 
 mkForInRangeS :: Ident -> P.MetaParam sizeT -> UStmt holeT sizeT -> UStmt holeT sizeT
-mkForInRangeS iter_meta_var iter_lim loop_body = UForInRangeS{iter_meta_var, iter_lim, loop_body, dagger = False}
-
-holeS :: holeT -> UStmt holeT sizeT
-holeS hole = UHoleS{hole, dagger = False}
+mkForInRangeS iter_meta_var iter_lim uloop_body = UForInRangeS{iter_meta_var, iter_lim, uloop_body, dagger = False}
 
 -- | Alias for statement without holes
 type UStmt' = UStmt Void
@@ -120,7 +116,7 @@ instance HasAdjoint (UStmt holeT sizeT) where
   adjoint (URepeatS k s) = URepeatS k (adjoint s)
   adjoint (UHoleS info dagger) = UHoleS info (not dagger)
   adjoint s@UForInRangeS{dagger} = s{dagger = not dagger}
-  adjoint s@UWithComputedS{body_stmt} = s{body_stmt = adjoint body_stmt}
+  adjoint s@UWithComputedS{body_ustmt = b} = s{body_ustmt = adjoint b}
 
 showDagger :: Bool -> String
 showDagger True = "-adj"
@@ -129,17 +125,17 @@ showDagger False = ""
 instance (Show holeT, Show sizeT) => PP.ToCodeString (UStmt holeT sizeT) where
   build USkipS = PP.putLine "skip;"
   build (UCommentS c) = PP.putComment c
-  build UnitaryS{args, unitary} = PP.concatenated $ do
-    PP.putWord $ PP.commaList args
+  build UnitaryS{qargs, unitary} = PP.concatenated $ do
+    PP.putWord $ PP.commaList qargs
     PP.putWord " *= "
     PP.build unitary
     PP.putWord ";"
-  build UCallS{proc_id, dagger, args} = PP.concatenated $ do
+  build UCallS{uproc_id, dagger, qargs} = PP.concatenated $ do
     PP.putWord "call"
     PP.putWord $ showDagger dagger
     PP.putWord " "
-    PP.putWord proc_id
-    PP.putWord $ PP.commaList args
+    PP.putWord uproc_id
+    PP.putWord $ PP.commaList qargs
     PP.putWord ";"
   build (USeqS ps) = mapM_ PP.build ps
   -- syntax sugar
@@ -147,14 +143,14 @@ instance (Show holeT, Show sizeT) => PP.ToCodeString (UStmt holeT sizeT) where
   build (URepeatS k s) = do
     header <- printf "repeat (%s)" <$> PP.fromBuild k
     PP.bracedBlockWith header $ PP.build s
-  build UWithComputedS{with_stmt, body_stmt} = do
-    PP.bracedBlockWith "with" $ PP.build with_stmt
-    PP.bracedBlockWith "do" $ PP.build body_stmt
-  build UForInRangeS{iter_meta_var, iter_lim, dagger, loop_body} = do
+  build UWithComputedS{with_ustmt, body_ustmt} = do
+    PP.bracedBlockWith "with" $ PP.build with_ustmt
+    PP.bracedBlockWith "do" $ PP.build body_ustmt
+  build UForInRangeS{iter_meta_var, iter_lim, dagger, uloop_body} = do
     iter_lim_s <- PP.fromBuild iter_lim
     let ss = printf range_str iter_lim_s :: String
     let header = printf "for (#%s in %s)" iter_meta_var ss
-    PP.bracedBlockWith header $ PP.build loop_body
+    PP.bracedBlockWith header $ PP.build uloop_body
    where
     range_str :: String
     range_str | dagger = "%s - 1 .. 0" | otherwise = "0 .. < %s"
