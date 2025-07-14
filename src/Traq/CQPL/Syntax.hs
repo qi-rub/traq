@@ -31,7 +31,7 @@ module Traq.CQPL.Syntax (
   isCProc,
 ) where
 
-import Control.Monad ((>=>))
+import Control.Monad (MonadFail, (>=>))
 import Control.Monad.Writer (MonadWriter)
 import Data.Void (Void)
 import Lens.Micro.GHC
