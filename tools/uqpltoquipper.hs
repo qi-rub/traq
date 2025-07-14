@@ -17,11 +17,11 @@ import qualified Traq.Data.Context as Ctx
 import Traq.Data.Default
 import qualified Traq.Data.Symbolic as Sym
 
-import qualified Traq.Compiler.Unitary as UQPL
+import qualified Traq.CQPL as CQPL
+import qualified Traq.Compiler.Unitary as CompileU
 import Traq.Prelude
 import qualified Traq.ProtoLang as P
-import qualified Traq.UnitaryQPL as UQPL
-import qualified Traq.Utils.Printing as PP (toCodeString)
+import qualified Traq.Utils.Printing as PP
 
 import qualified Quipper as Q
 import qualified Quipper.Libraries.Qureg as Q
@@ -47,13 +47,13 @@ quregs = _2
 
 type ConverterT holeT sizeT = MyStateT (ConversionCtx holeT sizeT) Q.Circ
 
-unitaryToCirc :: (Show sizeT) => UQPL.Unitary sizeT -> [Q.Qureg] -> Q.Circ ()
-unitaryToCirc UQPL.Toffoli [a, b, c] = do
+unitaryToCirc :: (Show sizeT) => CQPL.Unitary sizeT -> [Q.Qureg] -> Q.Circ ()
+unitaryToCirc CQPL.Toffoli [a, b, c] = do
   let [qa] = Q.qulist_of_qureg_te a
   let [qb] = Q.qulist_of_qureg_te b
   let [qc] = Q.qulist_of_qureg_te c
   Q.gate_X_at qc `Q.controlled` (qa, qb)
-unitaryToCirc (UQPL.RevEmbedU [a] (P.VarE a')) [arg, res]
+unitaryToCirc (CQPL.RevEmbedU [a] (P.VarE a')) [arg, res]
   | a == a' =
       zipWithM_
         Q.controlled_not_at
@@ -61,31 +61,31 @@ unitaryToCirc (UQPL.RevEmbedU [a] (P.VarE a')) [arg, res]
         (Q.qulist_of_qureg_te res)
 unitaryToCirc u _ = fail $ "invalid unitary " <> show u
 
-stmtToCirc :: (Show holeT, Show sizeT) => UQPL.UStmt holeT sizeT -> ConverterT holeT sizeT ()
-stmtToCirc UQPL.USkipS = return ()
-stmtToCirc (UQPL.UCommentS _) = return ()
-stmtToCirc (UQPL.USeqS ss) = mapM_ stmtToCirc ss
-stmtToCirc UQPL.UnitaryS{unitary, args} = do
+stmtToCirc :: (Show holeT, Show sizeT) => CQPL.UStmt holeT sizeT -> ConverterT holeT sizeT ()
+stmtToCirc CQPL.USkipS = return ()
+stmtToCirc (CQPL.UCommentS _) = return ()
+stmtToCirc (CQPL.USeqS ss) = mapM_ stmtToCirc ss
+stmtToCirc CQPL.UnitaryS{unitary, args} = do
   qs <- zoom quregs $ mapM Ctx.unsafeLookup args
   lift $ unitaryToCirc unitary qs
-stmtToCirc UQPL.UCallS{proc_id, dagger, args} = do
+stmtToCirc CQPL.UCallS{proc_id, dagger, args} = do
   qs <- zoom quregs $ mapM Ctx.unsafeLookup args
   circ <- zoom circs $ Ctx.unsafeLookup proc_id
   let circ_d = if dagger then Q.reverse_generic_endo circ else circ
   qs' <- lift $ circ_d qs
   forM_ (zip args qs') $ \(x, q) -> quregs . Ctx.ins x .= q
-stmtToCirc (UQPL.URepeatS _ _) = fail "TODO repeat"
-stmtToCirc UQPL.UHoleS{hole} = do
+stmtToCirc (CQPL.URepeatS _ _) = fail "TODO repeat"
+stmtToCirc CQPL.UHoleS{hole} = do
   q <- use $ quregs . to Ctx.elems
   lift $ Q.named_gate_at ("HOLE :: " ++ show hole) q
-stmtToCirc UQPL.UForInRangeS{} = fail "TODO ForInRange"
+stmtToCirc CQPL.UForInRangeS{} = fail "TODO ForInRange"
 
 type ProcConverterT holeT sizeT = MyStateT (Ctx.Context UnitaryCirc) Q.Circ
 
-procDefToCirc :: (Show holeT, Show sizeT, Show costT) => UQPL.ProcDef holeT sizeT costT -> ProcConverterT holeT sizeT UnitaryCirc
-procDefToCirc UQPL.UProcDef{proc_name, proc_body_or_tick = Left tick} =
+procDefToCirc :: (Show holeT, Show sizeT, Show costT) => CQPL.ProcDef holeT sizeT costT -> ProcConverterT holeT sizeT UnitaryCirc
+procDefToCirc CQPL.UProcDef{proc_name, proc_body_or_tick = Left tick} =
   return $ Q.named_gate $ printf "%s[%s]" proc_name (show tick)
-procDefToCirc UQPL.UProcDef{proc_name, proc_params, proc_body_or_tick = Right body} = do
+procDefToCirc CQPL.UProcDef{proc_name, proc_params, proc_body_or_tick = Right body} = do
   cs <- use id
   return $
     Q.box proc_name $ \qs -> do
@@ -97,9 +97,9 @@ programToCirc ::
   forall holeT sizeT costT.
   (Show holeT, Show sizeT, Show costT) =>
   Ctx.Context (P.VarType sizeT) ->
-  UQPL.Program holeT sizeT costT ->
+  CQPL.Program holeT sizeT costT ->
   UnitaryCirc
-programToCirc gamma UQPL.Program{UQPL.proc_defs, UQPL.stmt} qins = do
+programToCirc gamma CQPL.Program{CQPL.proc_defs, CQPL.stmt} qins = do
   Q.label qins (Ctx.keys gamma)
   procs <- execMyStateT convProcs Ctx.empty
   evalMyStateT (stmtToCirc stmt) (procs, Ctx.fromList $ zip (Ctx.keys gamma) qins)
@@ -109,7 +109,7 @@ programToCirc gamma UQPL.Program{UQPL.proc_defs, UQPL.stmt} qins = do
   convProcs = do
     forM_ proc_defs $ \p -> do
       c <- procDefToCirc p
-      Ctx.ins (UQPL.proc_name p) .= c
+      Ctx.ins (CQPL.proc_name p) .= c
 
 -- ================================================================================
 -- Main
@@ -145,20 +145,20 @@ testExample = do
       <&> fmap Sym.unSym
 
   putStrLn $ replicate 40 '='
-  putStrLn $ toCodeString prog
+  putStrLn $ PP.toCodeString prog
   putStrLn $ replicate 40 '='
 
-  -- compile to UQPL
+  -- compile to unitary CQPL
   let delta = 0.001 :: Double
   let gamma =
         Ctx.empty
           & (Ctx.ins "p" .~ P.Fin 8)
           & (Ctx.ins "q" .~ P.Fin 8)
   let oracle_ticks = mempty & at "Oracle" ?~ 1.0
-  (uprog, gamma') <- eitherToIO $ UQPL.lowerProgram @_ @Void default_ gamma oracle_ticks delta prog
+  (uprog, gamma') <- eitherToIO $ CompileU.lowerProgram @_ @Void default_ gamma oracle_ticks delta prog
 
   putStrLn $ replicate 40 '='
-  putStrLn $ toCodeString uprog
+  putStrLn $ PP.toCodeString uprog
   putStrLn $ replicate 40 '='
 
   -- convert to quipper
@@ -170,5 +170,5 @@ testExample = do
 
 main :: IO ()
 main = do
-  putStrLn "Tool: convert UQPL programs to quipper."
+  putStrLn "Tool: convert unitary programs in CQPL to quipper."
   testExample
