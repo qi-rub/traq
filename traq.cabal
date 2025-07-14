@@ -53,8 +53,6 @@ library
       Traq.ProtoLang.Syntax
       Traq.ProtoLang.TypeCheck
       Traq.ProtoLang.Vars
-      Traq.UnitaryQPL
-      Traq.UnitaryQPL.Syntax
       Traq.Utils.ASTRewriting
       Traq.Utils.Printing
   hs-source-dirs:

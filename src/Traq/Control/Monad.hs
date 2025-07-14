@@ -57,7 +57,6 @@ module Traq.Control.Monad (
 
 import Control.Monad.Except (MonadError, catchError, throwError)
 import Control.Monad.RWS (
-  MonadReader,
   MonadState,
   MonadWriter,
   RWST (..),
@@ -68,7 +67,7 @@ import Control.Monad.RWS (
   tell,
  )
 import Control.Monad.Trans (lift)
-import Data.Monoid (Endo, First)
+import Data.Monoid (Endo)
 import Lens.Micro.GHC
 import Lens.Micro.Mtl
 
