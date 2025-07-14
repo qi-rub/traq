@@ -7,7 +7,7 @@ import Traq.Data.Default
 import qualified Traq.Data.Tree as Tree
 
 import qualified Traq.CQPL as CQPL
-import qualified Traq.Compiler.Unitary as UQPL
+import qualified Traq.Compiler.Unitary as CompileU
 import Traq.Prelude
 import qualified Traq.ProtoLang as P
 import qualified Traq.Utils.Printing as PP
@@ -52,17 +52,17 @@ spec = do
     it "generate code" $ do
       PP.toCodeString ex `shouldSatisfy` (not . null)
 
-    describe "lowers to UQPL" $ do
+    describe "Unitary Compile" $ do
       let delta = 0.0001 :: Double
       it "lowers" $ do
-        assertRight $ UQPL.lowerProgram default_ default_ uticks delta ex
+        assertRight $ CompileU.lowerProgram default_ default_ uticks delta ex
 
       it "typechecks" $ do
-        ex_uqpl <- expectRight $ UQPL.lowerProgram default_ Ctx.empty uticks delta ex
+        ex_uqpl <- expectRight $ CompileU.lowerProgram default_ Ctx.empty uticks delta ex
         assertRight $ CQPL.typeCheckProgram ex_uqpl
 
       it "preserves cost" $ do
-        ex_uqpl <- expectRight $ UQPL.lowerProgram default_ Ctx.empty uticks delta ex
+        ex_uqpl <- expectRight $ CompileU.lowerProgram default_ Ctx.empty uticks delta ex
         let (uqpl_cost, _) = CQPL.programCost ex_uqpl
         let proto_cost = P.unitaryQueryCost P.SplitSimple delta ex uticks
         uqpl_cost `shouldSatisfy` (<= proto_cost)

@@ -28,7 +28,7 @@ import qualified Traq.Data.Context as Ctx
 import Traq.Data.Default
 
 import Traq.CQPL.Syntax
-import qualified Traq.Compiler.Unitary as UQPL
+import qualified Traq.Compiler.Unitary as CompileU
 import Traq.Compiler.Utils
 import Traq.Prelude
 import qualified Traq.ProtoLang as P
@@ -44,7 +44,7 @@ type CompilerT primT holeT sizeT costT = MyReaderWriterStateT (LoweringEnv primT
 
 -- | Primitives that support a classical-quantum lowering.
 class
-  (UQPL.Lowerable primsT primT holeT sizeT costT) =>
+  (CompileU.Lowerable primsT primT holeT sizeT costT) =>
   Lowerable primsT primT holeT sizeT costT
   where
   lowerPrimitive ::

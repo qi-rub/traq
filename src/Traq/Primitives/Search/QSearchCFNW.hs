@@ -282,7 +282,7 @@ data UQSearchEnv holeT sizeT = UQSearchEnv
   , pred_call_builder :: Ident -> Ident -> Ident -> CQPL.UStmt holeT sizeT
   }
 
--- | A layer on top of the UQPL compiler, holding the relevant QSearch context, and storing the produced statements.
+-- | A layer on top of the unitary compiler, holding the relevant QSearch context, and storing the produced statements.
 type UQSearchBuilder primsT holeT sizeT costT = MyReaderWriterT (UQSearchEnv holeT sizeT) [CQPL.UStmt holeT sizeT] (CompileU.CompilerT primsT holeT sizeT costT)
 
 allocSearchArgReg :: UQSearchBuilder primsT holeT sizeT costT Ident

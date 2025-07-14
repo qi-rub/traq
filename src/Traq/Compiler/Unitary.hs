@@ -51,7 +51,7 @@ import qualified Traq.ProtoLang as P
 -- | Configuration for lowering
 type LoweringConfig primT sizeT costT = P.UnitaryCostEnv primT sizeT costT
 
-{- | Monad to compile ProtoQB to UQPL programs.
+{- | Monad to compile to Unitary CQPL programs.
 This should contain the _final_ typing context for the input program,
 that is, contains both the inputs and outputs of each statement.
 -}
@@ -367,7 +367,7 @@ lowerFunDef
         , aux_tys = g_ret_tys ++ g_aux_tys
         }
 
--- | Lower a full program into a UQPL program.
+-- | Lower a full program into a unitary CQPL program.
 lowerProgram ::
   forall primsT holeT costT.
   ( Lowerable primsT primsT holeT SizeT costT

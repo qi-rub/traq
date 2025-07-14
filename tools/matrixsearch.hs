@@ -11,8 +11,8 @@ import qualified Traq.Data.Context as Ctx
 import qualified Traq.Data.Symbolic as Sym
 
 import qualified Traq.CQPL as CQPL
-import qualified Traq.Compiler.Quantum as CQPL
-import qualified Traq.Compiler.Unitary as UQPL
+import qualified Traq.Compiler.Quantum as CompileQ
+import qualified Traq.Compiler.Unitary as CompileU
 import Traq.Prelude
 import qualified Traq.ProtoLang as P
 import qualified Traq.Utils.Printing as PP
@@ -71,7 +71,7 @@ concreteEx = do
   let u_formula_cost = P.unitaryQueryCost strat delta ex uticks
 
   printDivider
-  Right exU <- return $ UQPL.lowerProgram strat Ctx.empty uticks delta ex
+  Right exU <- return $ CompileU.lowerProgram strat Ctx.empty uticks delta ex
   putStrLn $ PP.toCodeString exU
 
   let (u_true_cost, _) = CQPL.programCost exU
@@ -97,7 +97,7 @@ concreteQEx = do
   let strat = P.SplitUsingNeedsEps
 
   printDivider
-  Right exU <- return $ CQPL.lowerProgram strat Ctx.empty uticks cticks delta ex
+  Right exU <- return $ CompileQ.lowerProgram strat Ctx.empty uticks cticks delta ex
   putStrLn $ PP.toCodeString exU
   return ()
 
