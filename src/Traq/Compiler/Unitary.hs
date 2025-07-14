@@ -12,7 +12,6 @@ module Traq.Compiler.Unitary (
   LoweringOutput,
 
   -- ** Helpers
-  newIdent,
   allocAncillaWithPref,
   allocAncilla,
   ControlFlag (..),

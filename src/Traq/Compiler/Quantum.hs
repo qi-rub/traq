@@ -4,7 +4,6 @@
 module Traq.Compiler.Quantum (
   -- * Compilation
   lowerProgram,
-  newIdent,
 
   -- * Types
   CompilerT,

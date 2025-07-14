@@ -42,14 +42,14 @@ import Traq.Control.Monad
 import qualified Traq.Data.Context as Ctx
 
 import qualified Traq.CQPL as CQPL
-import qualified Traq.CQPL as UQPL -- TODO remove
-import qualified Traq.Compiler as Compiler
-import qualified Traq.Compiler.Quantum as CQPL
-import qualified Traq.Compiler.Unitary as UQPL
 import Traq.Prelude
 import Traq.ProtoLang (notE, (.&&.), (.+.), (.<=.))
 import qualified Traq.ProtoLang as P
 import qualified Traq.Utils.Printing as PP
+
+import qualified Traq.Compiler as Compiler
+import qualified Traq.Compiler.Quantum as CompileQ
+import qualified Traq.Compiler.Unitary as CompileU
 
 import Traq.Primitives.Search.Prelude
 
@@ -279,27 +279,27 @@ instance CQPL.HoleCost (QSearchBlackBoxes costT) costT where
 -- | Information for building QSearch_Zalka
 data UQSearchEnv holeT sizeT = UQSearchEnv
   { search_arg_type :: P.VarType sizeT
-  , pred_call_builder :: Ident -> Ident -> Ident -> UQPL.UStmt holeT sizeT
+  , pred_call_builder :: Ident -> Ident -> Ident -> CQPL.UStmt holeT sizeT
   }
 
 -- | A layer on top of the UQPL compiler, holding the relevant QSearch context, and storing the produced statements.
-type UQSearchBuilder primsT holeT sizeT costT = MyReaderWriterT (UQSearchEnv holeT sizeT) [UQPL.UStmt holeT sizeT] (UQPL.CompilerT primsT holeT sizeT costT)
+type UQSearchBuilder primsT holeT sizeT costT = MyReaderWriterT (UQSearchEnv holeT sizeT) [CQPL.UStmt holeT sizeT] (CompileU.CompilerT primsT holeT sizeT costT)
 
 allocSearchArgReg :: UQSearchBuilder primsT holeT sizeT costT Ident
 allocSearchArgReg = do
   ty <- view $ to search_arg_type
-  lift $ UQPL.allocAncillaWithPref "s_arg" ty
+  lift $ CompileU.allocAncillaWithPref "s_arg" ty
 
 addPredCall :: Ident -> Ident -> Ident -> UQSearchBuilder primsT holeT sizeT costT ()
 addPredCall c x b = do
   mk_pred <- view $ to pred_call_builder
   writeElem $ mk_pred c x b
 
-withComputed :: UQPL.UStmt holeT sizeT -> UQSearchBuilder primsT holeT sizeT costT a -> UQSearchBuilder primsT holeT sizeT costT a
+withComputed :: CQPL.UStmt holeT sizeT -> UQSearchBuilder primsT holeT sizeT costT a -> UQSearchBuilder primsT holeT sizeT costT a
 withComputed s m = do
   writeElem s
   a <- m
-  writeElem $ UQPL.adjoint s
+  writeElem $ CQPL.adjoint s
   return a
 
 addGroverIteration ::
@@ -318,9 +318,9 @@ addGroverIteration ::
   UQSearchBuilder primsT holeT sizeT costT ()
 addGroverIteration c x b = do
   addPredCall c x b
-  writeElem $ UQPL.UnitaryS [x] (UQPL.Adjoint UQPL.Unif)
-  writeElem $ UQPL.UnitaryS [x] UQPL.Refl0
-  writeElem $ UQPL.UnitaryS [x] UQPL.Unif
+  writeElem $ CQPL.UnitaryS [x] (CQPL.Adjoint CQPL.Unif)
+  writeElem $ CQPL.UnitaryS [x] CQPL.Refl0
+  writeElem $ CQPL.UnitaryS [x] CQPL.Unif
 
 algoQSearchZalkaRandomIterStep ::
   forall primsT holeT sizeT costT.
@@ -335,37 +335,37 @@ algoQSearchZalkaRandomIterStep ::
 algoQSearchZalkaRandomIterStep r = do
   -- time register
   let r_ty = P.Fin r
-  r_reg <- lift $ UQPL.allocAncillaWithPref "n_iter" r_ty
-  ctrl_bit <- lift $ UQPL.allocAncillaWithPref "ctrl" P.tbool
+  r_reg <- lift $ CompileU.allocAncillaWithPref "n_iter" r_ty
+  ctrl_bit <- lift $ CompileU.allocAncillaWithPref "ctrl" P.tbool
   x_reg <- allocSearchArgReg
-  b_reg <- lift $ UQPL.allocAncillaWithPref "pred_out" P.tbool
+  b_reg <- lift $ CompileU.allocAncillaWithPref "pred_out" P.tbool
 
   -- uniform r
-  let prep_r = UQPL.UnitaryS [r_reg] UQPL.Unif
+  let prep_r = CQPL.UnitaryS [r_reg] CQPL.Unif
 
   withComputed prep_r $ do
     -- b in minus state for grover
     let prep_b =
-          UQPL.USeqS
-            [ UQPL.UnitaryS [b_reg] UQPL.XGate
-            , UQPL.UnitaryS [b_reg] UQPL.HGate
+          CQPL.USeqS
+            [ CQPL.UnitaryS [b_reg] CQPL.XGate
+            , CQPL.UnitaryS [b_reg] CQPL.HGate
             ]
     withComputed prep_b $ do
       -- uniform x
-      writeElem $ UQPL.UnitaryS [x_reg] UQPL.Unif
+      writeElem $ CQPL.UnitaryS [x_reg] CQPL.Unif
 
       -- controlled iterate
       let meta_ix_name = "LIM"
       let calc_ctrl =
-            UQPL.UnitaryS [r_reg, ctrl_bit] $ UQPL.RevEmbedU ["a"] $ "a" .<=. "#LIM"
+            CQPL.UnitaryS [r_reg, ctrl_bit] $ CQPL.RevEmbedU ["a"] $ "a" .<=. "#LIM"
       ((), grover_body) <-
         censor (const mempty) $
           listen $
             withComputed calc_ctrl $ do
               addGroverIteration ctrl_bit x_reg b_reg
-      writeElem $ UQPL.mkForInRangeS meta_ix_name (P.MetaSize r) (UQPL.USeqS grover_body)
+      writeElem $ CQPL.mkForInRangeS meta_ix_name (P.MetaSize r) (CQPL.USeqS grover_body)
 
-  withComputed (UQPL.UnitaryS [ctrl_bit] UQPL.XGate) $
+  withComputed (CQPL.UnitaryS [ctrl_bit] CQPL.XGate) $
     addPredCall ctrl_bit x_reg b_reg
   return b_reg
 
@@ -385,16 +385,16 @@ algoQSearchZalka delta out_bit = do
   P.Fin n <- view $ to search_arg_type
 
   out_bits <- forM [1 .. n_reps] $ \i -> do
-    writeElem $ UQPL.UCommentS " "
-    writeElem $ UQPL.UCommentS $ printf "Run %d" i
-    writeElem $ UQPL.UCommentS " "
+    writeElem $ CQPL.UCommentS " "
+    writeElem $ CQPL.UCommentS $ printf "Run %d" i
+    writeElem $ CQPL.UCommentS " "
     algoQSearchZalkaRandomIterStep (max_iter n)
 
   let as = ["a" <> show i | i <- [1 .. length out_bits]]
   writeElem $
-    UQPL.UnitaryS
-      { UQPL.qargs = out_bits ++ [out_bit]
-      , UQPL.unitary = UQPL.RevEmbedU as $ P.NAryE P.MultiOrOp (map fromString as)
+    CQPL.UnitaryS
+      { CQPL.qargs = out_bits ++ [out_bit]
+      , CQPL.unitary = CQPL.RevEmbedU as $ P.NAryE P.MultiOrOp (map fromString as)
       }
  where
   max_iter :: sizeT -> sizeT
@@ -415,12 +415,12 @@ instance
   ( Integral sizeT
   , RealFloat costT
   , holeT ~ QSearchBlackBoxes costT
-  , UQPL.Lowerable primsT primsT holeT sizeT costT
+  , CompileU.Lowerable primsT primsT holeT sizeT costT
   , Show sizeT
   , Show costT
   , P.TypeCheckable sizeT
   ) =>
-  UQPL.Lowerable primsT QSearchCFNW holeT sizeT costT
+  CompileU.Lowerable primsT QSearchCFNW holeT sizeT costT
   where
   lowerPrimitive delta QSearchCFNW{predicate, return_sol = False} args [ret] = do
     -- the predicate
@@ -440,25 +440,25 @@ instance
     let delta_per_pred_call = delta_pred / qry
 
     -- compile the predicate
-    UQPL.LoweredProc
-      { UQPL.lowered_def = pred_proc
-      , UQPL.has_ctrl = _
-      , UQPL.inp_tys = pred_inp_tys
-      , UQPL.out_tys = pred_out_tys
-      , UQPL.aux_tys = pred_aux_tys
+    CompileU.LoweredProc
+      { CompileU.lowered_def = pred_proc
+      , CompileU.has_ctrl = _
+      , CompileU.inp_tys = pred_inp_tys
+      , CompileU.out_tys = pred_out_tys
+      , CompileU.aux_tys = pred_aux_tys
       } <-
-      UQPL.lowerFunDef UQPL.WithControl delta_per_pred_call predicate pred_fun
+      CompileU.lowerFunDef CompileU.WithControl delta_per_pred_call predicate pred_fun
 
     when (pred_out_tys /= [P.tbool]) $ throwError "invalid outputs for predicate"
     when (last pred_inp_tys /= s_ty) $ throwError "mismatched search argument type"
 
     -- function to call the predicate, re-using the same aux space each time.
-    pred_ancilla <- mapM UQPL.allocAncilla pred_aux_tys
+    pred_ancilla <- mapM CompileU.allocAncilla pred_aux_tys
     let pred_caller ctrl x b =
-          UQPL.UCallS
-            { UQPL.uproc_id = CQPL.proc_name pred_proc
-            , UQPL.dagger = False
-            , UQPL.qargs = ctrl : args ++ [x, b] ++ pred_ancilla
+          CQPL.UCallS
+            { CQPL.uproc_id = CQPL.proc_name pred_proc
+            , CQPL.dagger = False
+            , CQPL.qargs = ctrl : args ++ [x, b] ++ pred_ancilla
             }
 
     -- Emit the qsearch procedure
@@ -468,11 +468,11 @@ instance
       ((), ss) <- (\m -> evalMyReaderWriterStateT m UQSearchEnv{search_arg_type = s_ty, pred_call_builder = pred_caller} ()) $ algoQSearchZalka delta_search ret
       fin_binds <- use P._typingCtx
       let ancillas = Ctx.toList $ fin_binds Ctx.\\ ini_binds
-      return (UQPL.USeqS ss, ancillas)
+      return (CQPL.USeqS ss, ancillas)
 
     -- name:
     -- TODO maybe this can be somehow "parametrized" so we don't have to generate each time.
-    qsearch_proc_name <- UQPL.newIdent "UAny"
+    qsearch_proc_name <- Compiler.newIdent "UAny"
     let info_comment =
           (printf :: String -> String -> String -> String -> String)
             "QSearch[%s, %s, %s]"
@@ -480,10 +480,10 @@ instance
             (show delta_search)
             (CQPL.proc_name pred_proc)
     let all_params =
-          UQPL.withTag CQPL.ParamInp (zip args (init pred_inp_tys))
-            ++ UQPL.withTag CQPL.ParamOut [(ret, P.tbool)]
-            ++ UQPL.withTag CQPL.ParamAux (zip pred_ancilla pred_aux_tys)
-            ++ UQPL.withTag CQPL.ParamAux qsearch_ancilla
+          CompileU.withTag CQPL.ParamInp (zip args (init pred_inp_tys))
+            ++ CompileU.withTag CQPL.ParamOut [(ret, P.tbool)]
+            ++ CompileU.withTag CQPL.ParamAux (zip pred_ancilla pred_aux_tys)
+            ++ CompileU.withTag CQPL.ParamAux qsearch_ancilla
 
     -- add the proc:
     Compiler.addProc
@@ -504,14 +504,14 @@ instance
     if not shouldUncomputeQSearch
       then
         return
-          UQPL.UCallS
-            { UQPL.uproc_id = qsearch_proc_name
-            , UQPL.qargs = args ++ [ret] ++ pred_ancilla ++ map fst qsearch_ancilla
-            , UQPL.dagger = False
+          CQPL.UCallS
+            { CQPL.uproc_id = qsearch_proc_name
+            , CQPL.qargs = args ++ [ret] ++ pred_ancilla ++ map fst qsearch_ancilla
+            , CQPL.dagger = False
             }
       else do
         -- clean version of qsearch: uncompute to clean up ancilla
-        qsearch_clean_proc_name <- UQPL.newIdent "UAny"
+        qsearch_clean_proc_name <- Compiler.newIdent "UAny"
         let info_comment_clean =
               (printf :: String -> String -> String -> String -> String)
                 "QSearch_clean[%s, %s, %s]"
@@ -519,14 +519,14 @@ instance
                 (show delta_search)
                 (CQPL.proc_name pred_proc)
 
-        out_bit <- UQPL.allocAncilla P.tbool
+        out_bit <- CompileU.allocAncilla P.tbool
 
         let all_params' =
-              UQPL.withTag CQPL.ParamInp (zip args (init pred_inp_tys))
-                ++ UQPL.withTag CQPL.ParamOut [(ret, P.tbool)]
-                ++ UQPL.withTag CQPL.ParamAux (zip pred_ancilla pred_aux_tys)
-                ++ UQPL.withTag CQPL.ParamAux qsearch_ancilla
-                ++ UQPL.withTag CQPL.ParamAux [(out_bit, P.tbool)]
+              CompileU.withTag CQPL.ParamInp (zip args (init pred_inp_tys))
+                ++ CompileU.withTag CQPL.ParamOut [(ret, P.tbool)]
+                ++ CompileU.withTag CQPL.ParamAux (zip pred_ancilla pred_aux_tys)
+                ++ CompileU.withTag CQPL.ParamAux qsearch_ancilla
+                ++ CompileU.withTag CQPL.ParamAux [(out_bit, P.tbool)]
 
         Compiler.addProc
           CQPL.ProcDef
@@ -540,22 +540,22 @@ instance
                     { CQPL.uproc_param_names = map (view _1) all_params'
                     , CQPL.uproc_param_tags = map (view _2) all_params'
                     , CQPL.uproc_body_stmt =
-                        UQPL.UWithComputedS
-                          ( UQPL.UCallS
-                              { UQPL.uproc_id = qsearch_proc_name
-                              , UQPL.qargs = args ++ [out_bit] ++ pred_ancilla ++ map fst qsearch_ancilla
-                              , UQPL.dagger = False
+                        CQPL.UWithComputedS
+                          ( CQPL.UCallS
+                              { CQPL.uproc_id = qsearch_proc_name
+                              , CQPL.qargs = args ++ [out_bit] ++ pred_ancilla ++ map fst qsearch_ancilla
+                              , CQPL.dagger = False
                               }
                           )
-                          (UQPL.UnitaryS [out_bit, ret] (UQPL.RevEmbedU ["a"] "a"))
+                          (CQPL.UnitaryS [out_bit, ret] (CQPL.RevEmbedU ["a"] "a"))
                     }
             }
 
         return
-          UQPL.UCallS
-            { UQPL.uproc_id = qsearch_clean_proc_name
-            , UQPL.qargs = args ++ [ret] ++ pred_ancilla ++ map fst qsearch_ancilla ++ [out_bit]
-            , UQPL.dagger = False
+          CQPL.UCallS
+            { CQPL.uproc_id = qsearch_clean_proc_name
+            , CQPL.qargs = args ++ [ret] ++ pred_ancilla ++ map fst qsearch_ancilla ++ [out_bit]
+            , CQPL.dagger = False
             }
 
   -- fallback
@@ -565,9 +565,9 @@ instance
 -- CQ Lowering
 -- ================================================================================
 
-allocReg :: Ident -> P.VarType sizeT -> MyWriterT ([CQPL.Stmt holeT sizeT], [(Ident, P.VarType sizeT)]) (CQPL.CompilerT primsT holeT sizeT costT) Ident
+allocReg :: Ident -> P.VarType sizeT -> MyWriterT ([CQPL.Stmt holeT sizeT], [(Ident, P.VarType sizeT)]) (CompileQ.CompilerT primsT holeT sizeT costT) Ident
 allocReg prefix ty = do
-  reg <- lift $ CQPL.newIdent prefix
+  reg <- lift $ Compiler.newIdent prefix
   writeElemAt _2 (reg, ty)
   return reg
 
@@ -581,32 +581,32 @@ groverK ::
   -- | the output bit
   Ident ->
   -- | run the predicate
-  (Ident -> Ident -> UQPL.UStmt holeT sizeT) ->
-  UQPL.UStmt holeT sizeT
+  (Ident -> Ident -> CQPL.UStmt holeT sizeT) ->
+  CQPL.UStmt holeT sizeT
 groverK k (x, _) b mk_pred =
-  UQPL.USeqS
+  CQPL.USeqS
     [ prepb
     , prepx
-    , UQPL.URepeatS k grover_iterate
-    , UQPL.adjoint prepb
+    , CQPL.URepeatS k grover_iterate
+    , CQPL.adjoint prepb
     ]
  where
   -- map b to |-> and x to uniform
-  prepb, prepx :: UQPL.UStmt holeT sizeT
+  prepb, prepx :: CQPL.UStmt holeT sizeT
   prepb =
-    UQPL.USeqS
-      [ UQPL.UnitaryS [b] UQPL.XGate
-      , UQPL.UnitaryS [b] UQPL.HGate
+    CQPL.USeqS
+      [ CQPL.UnitaryS [b] CQPL.XGate
+      , CQPL.UnitaryS [b] CQPL.HGate
       ]
-  prepx = UQPL.UnitaryS [x] UQPL.Unif
+  prepx = CQPL.UnitaryS [x] CQPL.Unif
 
-  grover_iterate :: UQPL.UStmt holeT sizeT
+  grover_iterate :: CQPL.UStmt holeT sizeT
   grover_iterate =
-    UQPL.USeqS
+    CQPL.USeqS
       [ mk_pred x b
-      , UQPL.UnitaryS [x] (UQPL.Adjoint UQPL.Unif)
-      , UQPL.UnitaryS [x] UQPL.Refl0
-      , UQPL.UnitaryS [x] UQPL.Unif
+      , CQPL.UnitaryS [x] (CQPL.Adjoint CQPL.Unif)
+      , CQPL.UnitaryS [x] CQPL.Refl0
+      , CQPL.UnitaryS [x] CQPL.Unif
       ]
 
 -- | Implementation of the hybrid quantum search algorithm \( \textbf{QSearch} \).
@@ -616,7 +616,7 @@ algoQSearch ::
   , RealFloat costT
   , sizeT ~ SizeT
   , holeT ~ QSearchBlackBoxes costT
-  , CQPL.Lowerable primsT primsT holeT sizeT costT
+  , CompileQ.Lowerable primsT primsT holeT sizeT costT
   , Show sizeT
   , Show costT
   , P.TypeCheckable sizeT
@@ -634,7 +634,7 @@ algoQSearch ::
   -- | Result register
   Ident ->
   -- | the generated QSearch procedure: body stmts and local vars
-  MyWriterT ([CQPL.Stmt holeT sizeT], [(Ident, P.VarType sizeT)]) (CQPL.CompilerT primsT holeT sizeT costT) ()
+  MyWriterT ([CQPL.Stmt holeT sizeT], [(Ident, P.VarType sizeT)]) (CompileQ.CompilerT primsT holeT sizeT costT) ()
 algoQSearch ty n_samples eps grover_k_caller pred_caller ok = do
   not_done <- allocReg "not_done" P.tbool
   q_sum <- allocReg "Q_sum" j_type
@@ -725,12 +725,12 @@ instance
   , RealFloat costT
   , sizeT ~ SizeT
   , holeT ~ QSearchBlackBoxes costT
-  , CQPL.Lowerable primsT primsT holeT sizeT costT
+  , CompileQ.Lowerable primsT primsT holeT sizeT costT
   , Show sizeT
   , Show costT
   , P.TypeCheckable sizeT
   ) =>
-  CQPL.Lowerable primsT QSearchCFNW holeT sizeT costT
+  CompileQ.Lowerable primsT QSearchCFNW holeT sizeT costT
   where
   lowerPrimitive eps QSearchCFNW{predicate, return_sol = False} args [ret] = do
     -- the predicate
@@ -751,7 +751,7 @@ instance
     let delta_per_pred_call = eps_per_pred_call / 2 -- norm error in unitary predicate
 
     -- lower the unitary predicate
-    let upred_compiler = UQPL.lowerFunDef UQPL.WithoutControl delta_per_pred_call predicate pred_fun
+    let upred_compiler = CompileU.lowerFunDef CompileU.WithoutControl delta_per_pred_call predicate pred_fun
     (pred_uproc, uprocs) <- do
       uenv <- view P._unitaryCostEnv
       ust <- use id
@@ -759,18 +759,18 @@ instance
       return (a, w)
 
     tellAt Compiler._loweredProcs uprocs
-    let UQPL.LoweredProc
-          { UQPL.inp_tys = pred_inp_tys
-          , UQPL.aux_tys = pred_aux_tys
-          -- , UQPL.out_tys = pred_out_tys
+    let CompileU.LoweredProc
+          { CompileU.inp_tys = pred_inp_tys
+          , CompileU.aux_tys = pred_aux_tys
+          -- , CQPL.out_tys = pred_out_tys
           } = pred_uproc
-    let upred_proc_name = pred_uproc ^. to UQPL.lowered_def . to CQPL.proc_name
+    let upred_proc_name = pred_uproc ^. to CompileU.lowered_def . to CQPL.proc_name
 
     -- make the Grover_k uproc
     -- TODO this should ideally be done by algoQSearch, but requires a lot of aux information.
-    uproc_grover_k_name <- CQPL.newIdent "Grover"
-    upred_aux_vars <- replicateM (length pred_aux_tys) $ CQPL.newIdent "aux"
-    grover_arg_name <- CQPL.newIdent "x"
+    uproc_grover_k_name <- Compiler.newIdent "Grover"
+    upred_aux_vars <- replicateM (length pred_aux_tys) $ Compiler.newIdent "aux"
+    grover_arg_name <- Compiler.newIdent "x"
     let meta_k = P.MetaName "k"
     let uproc_grover_k_body =
           groverK
@@ -778,16 +778,16 @@ instance
             (grover_arg_name, s_ty)
             ret
             ( \x b ->
-                UQPL.UCallS
-                  { UQPL.uproc_id = upred_proc_name
-                  , UQPL.dagger = False
-                  , UQPL.qargs = args ++ [x, b] ++ upred_aux_vars
+                CQPL.UCallS
+                  { CQPL.uproc_id = upred_proc_name
+                  , CQPL.dagger = False
+                  , CQPL.qargs = args ++ [x, b] ++ upred_aux_vars
                   }
             )
     let uproc_grover_k_params =
-          UQPL.withTag CQPL.ParamInp (zip (args ++ [grover_arg_name]) pred_inp_tys)
-            ++ UQPL.withTag CQPL.ParamOut [(ret, P.tbool)]
-            ++ UQPL.withTag CQPL.ParamAux (zip upred_aux_vars pred_aux_tys)
+          CompileU.withTag CQPL.ParamInp (zip (args ++ [grover_arg_name]) pred_inp_tys)
+            ++ CompileU.withTag CQPL.ParamOut [(ret, P.tbool)]
+            ++ CompileU.withTag CQPL.ParamAux (zip upred_aux_vars pred_aux_tys)
     let uproc_grover_k =
           CQPL.ProcDef
             { CQPL.info_comment = "Grover[...]"
@@ -816,7 +816,7 @@ instance
       ty <- use $ P._typingCtx . Ctx.at x . singular _Just
       return (x, ty)
 
-    -- let upred_caller = (\x b -> UQPL.holeS $ TODOHole $ printf "unitary predicate call (%s, %s)" x b)
+    -- let upred_caller = (\x b -> CQPL.holeS $ TODOHole $ printf "unitary predicate call (%s, %s)" x b)
 
     let pred_caller x b =
           CQPL.CallS
@@ -826,7 +826,7 @@ instance
             }
 
     (qsearch_body, qsearch_local_vars) <- execMyWriterT $ algoQSearch s_ty 0 eps_s grover_k_caller pred_caller ret
-    qsearch_proc_name <- CQPL.newIdent "QAny"
+    qsearch_proc_name <- Compiler.newIdent "QAny"
     Compiler.addProc $
       CQPL.ProcDef
         { CQPL.info_comment = printf "QAny[%s]" (show eps_s)
