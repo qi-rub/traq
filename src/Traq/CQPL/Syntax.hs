@@ -139,10 +139,10 @@ instance (Show holeT, Show sizeT) => PP.ToCodeString (Stmt holeT sizeT) where
 data ParamTag = ParamCtrl | ParamInp | ParamOut | ParamAux | ParamUnk deriving (Eq, Show, Read, Enum)
 
 instance PP.ToCodeString ParamTag where
-  build ParamCtrl = PP.putWord "CTRL"
-  build ParamInp = PP.putWord "IN"
-  build ParamOut = PP.putWord "OUT"
-  build ParamAux = PP.putWord "AUX"
+  build ParamCtrl = PP.putWord " CTRL"
+  build ParamInp = PP.putWord " IN"
+  build ParamOut = PP.putWord " OUT"
+  build ParamAux = PP.putWord " AUX"
   build ParamUnk = PP.putWord ""
 
 -- | Unitary Procedure body: either a statement (with parameter name bindings) or a tick.
@@ -172,7 +172,7 @@ buildUProcBody UProcBody{uproc_param_names, uproc_param_tags, uproc_body_stmt} n
     uproc_param_tags
       & mapM PP.fromBuild
       <&> zip3 uproc_param_names param_tys
-      <&> map (\(x, ty, tag) -> printf "%s: %s%s" x tag ty)
+      <&> map (\(x, ty, tag) -> printf "%s :%s %s" x tag ty)
   let header = printf "uproc %s(%s)" name $ PP.commaList arg_list
   PP.bracedBlockWith header $ PP.build uproc_body_stmt
 
@@ -195,12 +195,12 @@ buildCProcBody ::
 buildCProcBody CProcDecl{ctick} name param_tys = do
   PP.putLine $ printf "proc %s(%s) :: tick(%s)" name (PP.commaList param_tys) (show ctick)
 buildCProcBody CProcBody{cproc_param_names, cproc_local_vars, cproc_body_stmt} name param_tys = do
-  let arg_list = zipWith (printf "%s: %s") cproc_param_names param_tys
+  let arg_list = zipWith (printf "%s : %s") cproc_param_names param_tys
 
   local_list <-
     cproc_local_vars
       & traverse (_2 PP.fromBuild)
-      <&> map (uncurry $ printf "%s: %s")
+      <&> map (uncurry $ printf "%s : %s")
 
   let header =
         printf
