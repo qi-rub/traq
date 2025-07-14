@@ -48,8 +48,8 @@ module Traq.Control.Monad (
 
   -- * MonadError
   throwFrom,
+  singularM,
   maybeWithError,
-  unsafeFromJust,
 
   -- * Helpers
   (??),
@@ -57,6 +57,7 @@ module Traq.Control.Monad (
 
 import Control.Monad.Except (MonadError, catchError, throwError)
 import Control.Monad.RWS (
+  MonadReader,
   MonadState,
   MonadWriter,
   RWST (..),
@@ -67,6 +68,7 @@ import Control.Monad.RWS (
   tell,
  )
 import Control.Monad.Trans (lift)
+import Data.Monoid (Endo, First)
 import Lens.Micro.GHC
 import Lens.Micro.Mtl
 
@@ -245,13 +247,13 @@ execMyReaderWriterT r m = snd <$> evalMyReaderWriterStateT m r ()
 throwFrom :: (MonadError MyError m) => m a -> MyError -> m a
 throwFrom action msg = action `catchError` (throwError . CatchE msg)
 
+-- | extract a singular value from a traversal, throwing an error if there are 0/more than 1.
+singularM :: (MonadError e m) => Getting (Endo [a]) s a -> e -> s -> m a
+singularM l err s = case s ^.. l of [a] -> pure a; _ -> throwError err
+
 -- | lift a @Maybe@ to a value, throwing an error if @Nothing@
 maybeWithError :: (MonadError e m) => e -> Maybe a -> m a
-maybeWithError err = maybe (throwError err) return
-
-unsafeFromJust :: String -> Lens' (Maybe a) a
-unsafeFromJust err _ Nothing = error err
-unsafeFromJust _ focus (Just a) = Just <$> focus a
+maybeWithError = singularM _Just
 
 -- ================================================================================
 -- Helpers

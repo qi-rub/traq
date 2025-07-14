@@ -9,6 +9,7 @@ import qualified Traq.Data.Context as Ctx
 import Traq.Data.Default
 import Traq.Prelude
 
+import qualified Traq.CQPL as CQPL
 import Traq.Primitives.Search.QSearchCFNW
 import qualified Traq.ProtoLang as P
 import qualified Traq.UnitaryQPL as UQPL
@@ -50,20 +51,33 @@ spec = do
             & expectRight
 
         let uprog =
-              UQPL.Program
-                { UQPL.stmt = UQPL.USeqS ss
-                , UQPL.proc_defs =
-                    Ctx.singleton
-                      "Oracle"
-                      UQPL.UProcDef
-                        { UQPL.info_comment = ""
-                        , UQPL.proc_name = "Oracle"
-                        , UQPL.proc_meta_params = []
-                        , UQPL.proc_params = []
-                        , UQPL.proc_body_or_tick = Left (1.0 :: Double)
-                        }
+              CQPL.Program
+                { CQPL.proc_defs =
+                    Ctx.fromListWith
+                      CQPL.proc_name
+                      [ CQPL.ProcDef
+                          { CQPL.info_comment = ""
+                          , CQPL.proc_name = "Oracle"
+                          , CQPL.proc_meta_params = []
+                          , CQPL.proc_param_types = []
+                          , CQPL.proc_body = CQPL.ProcBodyU $ CQPL.UProcDecl (1.0 :: Double)
+                          }
+                      , CQPL.ProcDef
+                          { CQPL.info_comment = ""
+                          , CQPL.proc_name = "main"
+                          , CQPL.proc_meta_params = []
+                          , CQPL.proc_param_types = undefined
+                          , CQPL.proc_body =
+                              CQPL.ProcBodyU $
+                                CQPL.UProcBody
+                                  { CQPL.uproc_body_stmt = UQPL.USeqS ss
+                                  , CQPL.uproc_param_names = undefined
+                                  , CQPL.uproc_param_tags = undefined
+                                  }
+                          }
+                      ]
                 }
 
-        let (actual_cost, _) = UQPL.programCost @_ @Double uprog
+        let (actual_cost, _) = CQPL.programCost @_ @Double uprog
         let formula_cost = _QSearchZalka n delta
         actual_cost `shouldSatisfy` (<= formula_cost)

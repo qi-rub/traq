@@ -4,6 +4,7 @@
 
 module Traq.ProtoLang.Syntax (
   -- * Syntax
+  MetaParam (..),
 
   -- ** Basic Types and Operations
   VarType (..),
@@ -39,9 +40,17 @@ import Text.Printf (printf)
 import qualified Traq.Data.Context as Ctx
 
 import Traq.Prelude
-import Traq.ProtoLang.Prelude
 import Traq.Utils.ASTRewriting
 import qualified Traq.Utils.Printing as PP
+
+-- | Compile-time constant parameters
+data MetaParam sizeT = MetaName String | MetaSize sizeT | MetaValue Value
+  deriving (Eq, Show, Read)
+
+instance (Show sizeT) => PP.ToCodeString (MetaParam sizeT) where
+  build (MetaName n) = PP.putWord $ "#" ++ n
+  build (MetaSize n) = PP.putWord $ show n
+  build (MetaValue n) = PP.putWord $ show n
 
 -- ================================================================================
 -- Common Syntax
@@ -181,9 +190,6 @@ type instance PrimitiveType (NamedFunDef primT sizeT) = primT
 
 -- | A function context contains a list of functions
 type FunCtx primT sizeT = Ctx.Context (FunDef primT sizeT)
-
-type instance SizeType (FunCtx primT sizeT) = sizeT
-type instance PrimitiveType (FunCtx primT sizeT) = primT
 
 class HasFunCtx p where
   _funCtx :: (primT ~ PrimitiveType p, sizeT ~ SizeType p) => Lens' p (FunCtx primT sizeT)

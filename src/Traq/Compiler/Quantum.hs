@@ -5,7 +5,6 @@ module Traq.Compiler.Quantum (
   -- * Compilation
   lowerProgram,
   newIdent,
-  addProc,
 
   -- * Types
   CompilerT,
@@ -13,16 +12,13 @@ module Traq.Compiler.Quantum (
   LoweringCtx,
   LoweringOutput,
 
-  -- * Lenses
-  loweredProcs,
-  loweredUProcs,
-
   -- * Primitive implementations
   Lowerable (..),
 ) where
 
 import Control.Monad (unless, zipWithM)
 import Control.Monad.Except (throwError)
+import Data.Maybe (fromMaybe)
 import Data.Void (Void, absurd)
 import Lens.Micro.GHC
 import Lens.Micro.Mtl
@@ -37,19 +33,9 @@ import qualified Traq.Compiler.Unitary as UQPL
 import Traq.Compiler.Utils
 import Traq.Prelude
 import qualified Traq.ProtoLang as P
-import qualified Traq.UnitaryQPL as UQPL
 
 -- | Configuration for lowering
 type LoweringEnv primT sizeT costT = P.QuantumMaxCostEnv primT sizeT costT
-
--- | The outputs of lowering
-type LoweringOutput holeT sizeT costT = ([ProcDef holeT sizeT costT], [UQPL.ProcDef holeT sizeT costT])
-
-loweredProcs :: Lens' (LoweringOutput holeT sizeT costT) [ProcDef holeT sizeT costT]
-loweredProcs = _1
-
-loweredUProcs :: Lens' (LoweringOutput holeT sizeT costT) [UQPL.ProcDef holeT sizeT costT]
-loweredUProcs = _2
 
 {- | Monad to compile ProtoQB to CQPL programs.
 This should contain the _final_ typing context for the input program,
@@ -75,10 +61,6 @@ class
 instance (Show costT) => Lowerable primsT Void holeT sizeT costT where
   lowerPrimitive _ = absurd
 
--- | Add a new procedure.
-addProc :: ProcDef holeT sizeT costT -> CompilerT primT holeT sizeT costT ()
-addProc = writeElemAt loweredProcs
-
 -- ================================================================================
 -- Compilation
 -- ================================================================================
@@ -100,39 +82,42 @@ lowerFunDef ::
   CompilerT primsT holeT sizeT costT Ident
 -- lower declarations as-is, ignoring fail prob
 lowerFunDef _ fun_name P.FunDef{P.param_types, P.ret_types, P.mbody = Nothing} = do
-  let tick = error "TODO pass tick mapping to CQPL compiler"
+  tick <- view $ P._classicalTicks . at fun_name . to (fromMaybe 0)
   let proc_def =
         ProcDef
-          { proc_name = fun_name
+          { info_comment = ""
+          , proc_name = fun_name
           , proc_meta_params = []
           , proc_param_types = param_types ++ ret_types
-          , proc_body_or_tick = Left tick
+          , proc_body = ProcBodyC $ CProcDecl tick
           }
   addProc proc_def
   return fun_name
 lowerFunDef eps fun_name P.FunDef{P.param_types, P.mbody = Just body} = do
-  proc_name <- newIdent $ printf "%s[%s]" fun_name (show eps)
+  let info_comment = printf "%s[%s]" fun_name (show eps)
+  proc_name <- newIdent fun_name
 
   let P.FunBody{P.param_names, P.ret_names, P.body_stmt} = body
 
-  (proc_body_stmt, proc_typing_ctx) <- withSandbox $ do
+  (cproc_body_stmt, proc_typing_ctx) <- withSandbox $ do
     P._typingCtx .= Ctx.fromList (zip param_names param_types)
     b <- lowerStmt eps body_stmt
     c <- use P._typingCtx
     return (b, c)
 
-  let proc_param_names = param_names ++ ret_names
-  let proc_local_vars =
+  let cproc_param_names = param_names ++ ret_names
+  let cproc_local_vars =
         proc_typing_ctx
           & Ctx.toList
-          & filter ((`notElem` proc_param_names) . fst)
+          & filter ((`notElem` cproc_param_names) . fst)
 
   addProc
     ProcDef
-      { proc_name
+      { info_comment
+      , proc_name
       , proc_meta_params = []
-      , proc_param_types = map (\x -> proc_typing_ctx ^?! Ctx.at x . _Just) proc_param_names
-      , proc_body_or_tick = Right ProcBody{proc_param_names, proc_local_vars, proc_body_stmt}
+      , proc_param_types = map (\x -> proc_typing_ctx ^?! Ctx.at x . _Just) cproc_param_names
+      , proc_body = ProcBodyC $ CProcBody{cproc_param_names, cproc_local_vars, cproc_body_stmt}
       }
   return proc_name
 
@@ -218,7 +203,7 @@ lowerProgram ::
   costT ->
   -- | source program
   P.Program primsT sizeT ->
-  Either String (Program holeT sizeT costT, P.TypingCtx sizeT)
+  Either String (Program holeT sizeT costT)
 lowerProgram strat gamma_in uticks cticks eps prog@P.Program{P.funCtx, P.stmt} = do
   unless (P.checkVarsUnique prog) $
     throwError "program does not have unique variables!"
@@ -236,12 +221,23 @@ lowerProgram strat gamma_in uticks cticks eps prog@P.Program{P.funCtx, P.stmt} =
 
   let compiler = lowerStmt eps stmt
   (stmtQ, lowering_ctx', outputU) <- runMyReaderWriterStateT compiler config lowering_ctx
+  let main_proc_vars = lowering_ctx' ^. P._typingCtx . to Ctx.toList
+  let main_proc =
+        ProcDef
+          { info_comment = ""
+          , proc_name = "main"
+          , proc_meta_params = []
+          , proc_param_types = map snd main_proc_vars
+          , proc_body =
+              ProcBodyC $
+                CProcBody
+                  { cproc_param_names = map fst main_proc_vars
+                  , cproc_local_vars = []
+                  , cproc_body_stmt = stmtQ
+                  }
+          }
 
   return
-    ( Program
-        { proc_defs = outputU ^. loweredProcs . to (Ctx.fromListWith proc_name)
-        , uproc_defs = outputU ^. loweredUProcs . to (Ctx.fromListWith UQPL.proc_name)
-        , stmt = stmtQ
-        }
-    , lowering_ctx' ^. P._typingCtx
-    )
+    Program
+      { proc_defs = (outputU ^. to (Ctx.fromListWith proc_name)) & Ctx.ins "main" .~ main_proc
+      }

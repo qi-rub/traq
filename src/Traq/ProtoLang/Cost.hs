@@ -68,7 +68,6 @@ import Traq.Data.Default
 
 import Traq.Prelude
 import Traq.ProtoLang.Eval
-import Traq.ProtoLang.Prelude
 import Traq.ProtoLang.Syntax
 import Traq.ProtoLang.TypeCheck
 

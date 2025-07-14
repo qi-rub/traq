@@ -34,7 +34,6 @@ import Traq.Control.Monad
 import qualified Traq.Data.Context as Ctx
 
 import Traq.Prelude
-import Traq.ProtoLang.Prelude
 import Traq.ProtoLang.Syntax
 
 -- ================================================================================
@@ -43,8 +42,6 @@ import Traq.ProtoLang.Syntax
 
 -- | A context mapping variables to their types.
 type TypingCtx sizeT = Ctx.Context (VarType sizeT)
-
-type instance SizeType (TypingCtx sizeT) = sizeT
 
 class HasTypingCtx p where
   _typingCtx :: (sizeT ~ SizeType p) => Lens' p (TypingCtx sizeT)

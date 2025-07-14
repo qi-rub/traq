@@ -7,18 +7,28 @@ module Traq.Compiler.Utils (
   newIdent,
 
   -- * Environments for compilation
+
+  -- ** State
   LoweringCtx,
+
+  -- ** Output
+  LoweringOutput,
+  _loweredProcs,
+  addProc,
 ) where
 
 import Control.Monad (MonadPlus, msum)
 import Control.Monad.Except (MonadError, throwError)
 import Control.Monad.State (MonadState)
+import Control.Monad.Writer (MonadWriter)
 import qualified Data.Set as Set
 import Lens.Micro.GHC
 import Lens.Micro.Mtl
 
+import Traq.Control.Monad
 import Traq.Data.Default
 
+import qualified Traq.CQPL as CQPL
 import Traq.Prelude
 import qualified Traq.ProtoLang as P
 
@@ -56,6 +66,10 @@ newIdent prefix = do
       Nothing -> return name
       Just () -> throwError "next ident please!"
 
+-- ================================================================================
+-- Compiler State
+-- ================================================================================
+
 {- | A global lowering context, consisting of
 - The set of already used identifiers (to generate unique ones)
 - The typing context: mapping all variables in context to their types.
@@ -64,10 +78,26 @@ data LoweringCtx sizeT = LoweringCtx (Set.Set Ident) (P.TypingCtx sizeT)
 
 instance HasDefault (LoweringCtx sizeT) where default_ = LoweringCtx default_ default_
 
-type instance P.SizeType (LoweringCtx sizeT) = sizeT
+type instance SizeType (LoweringCtx sizeT) = sizeT
 
 instance HasUniqNamesCtx (LoweringCtx sizeT) where
   _uniqNamesCtx focus (LoweringCtx a b) = focus a <&> \a' -> LoweringCtx a' b
 
 instance P.HasTypingCtx (LoweringCtx sizeT) where
   _typingCtx focus (LoweringCtx a b) = focus b <&> \b' -> LoweringCtx a b'
+
+-- ================================================================================
+-- Compiler Output
+-- ================================================================================
+
+-- | The outputs of lowering
+type LoweringOutput holeT sizeT costT = [CQPL.ProcDef holeT sizeT costT]
+
+_loweredProcs :: Lens' (LoweringOutput holeT sizeT costT) [CQPL.ProcDef holeT sizeT costT]
+_loweredProcs = id
+
+addProc ::
+  (MonadWriter (LoweringOutput holeT sizeT costT) m) =>
+  CQPL.ProcDef holeT sizeT costT ->
+  m ()
+addProc = writeElemAt _loweredProcs

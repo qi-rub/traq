@@ -26,6 +26,7 @@ library
       Traq.Compiler.Utils
       Traq.Control.Monad
       Traq.CQPL
+      Traq.CQPL.Cost
       Traq.CQPL.Syntax
       Traq.CQPL.TypeCheck
       Traq.Data.Context
@@ -48,16 +49,12 @@ library
       Traq.ProtoLang.Cost
       Traq.ProtoLang.Eval
       Traq.ProtoLang.Parser
-      Traq.ProtoLang.Prelude
       Traq.ProtoLang.Rewrites
       Traq.ProtoLang.Syntax
       Traq.ProtoLang.TypeCheck
       Traq.ProtoLang.Vars
       Traq.UnitaryQPL
-      Traq.UnitaryQPL.Cost
-      Traq.UnitaryQPL.Rewrites
       Traq.UnitaryQPL.Syntax
-      Traq.UnitaryQPL.TypeCheck
       Traq.Utils.ASTRewriting
       Traq.Utils.Printing
   hs-source-dirs:
@@ -220,6 +217,7 @@ test-suite spec
       TestHelpers
       Traq.Compiler.QuantumSpec
       Traq.Compiler.UnitarySpec
+      Traq.CQPL.TypeCheckSpec
       Traq.Data.SymbolicSpec
       Traq.Data.TreeSpec
       Traq.Examples.MatrixSearchSpec
@@ -233,7 +231,6 @@ test-suite spec
       Traq.ProtoLang.RewritesSpec
       Traq.ProtoLang.TypeCheckSpec
       Traq.ProtoLang.VarsSpec
-      Traq.UnitaryQPL.TypeCheckSpec
   hs-source-dirs:
       test
   default-extensions:

@@ -10,11 +10,11 @@ import Text.Printf (printf)
 import qualified Traq.Data.Context as Ctx
 import qualified Traq.Data.Symbolic as Sym
 
+import qualified Traq.CQPL as CQPL
 import qualified Traq.Compiler.Quantum as CQPL
 import qualified Traq.Compiler.Unitary as UQPL
 import Traq.Prelude
 import qualified Traq.ProtoLang as P
-import qualified Traq.UnitaryQPL as UQPL
 import qualified Traq.Utils.Printing as PP
 
 import Traq.Examples.MatrixSearch
@@ -71,10 +71,10 @@ concreteEx = do
   let u_formula_cost = P.unitaryQueryCost strat delta ex uticks
 
   printDivider
-  let (Right (exU, _)) = UQPL.lowerProgram strat Ctx.empty uticks delta ex
+  Right exU <- return $ UQPL.lowerProgram strat Ctx.empty uticks delta ex
   putStrLn $ PP.toCodeString exU
 
-  let (u_true_cost, _) = UQPL.programCost exU
+  let (u_true_cost, _) = CQPL.programCost exU
 
   putStrLn "Unitary Cost:"
   putStrLn $ " - Abstract cost: " <> show u_formula_cost
@@ -97,8 +97,9 @@ concreteQEx = do
   let strat = P.SplitUsingNeedsEps
 
   printDivider
-  let (Right (exU, _)) = CQPL.lowerProgram strat Ctx.empty uticks cticks delta ex
+  Right exU <- return $ CQPL.lowerProgram strat Ctx.empty uticks cticks delta ex
   putStrLn $ PP.toCodeString exU
+  return ()
 
 main :: IO ()
 main = do
