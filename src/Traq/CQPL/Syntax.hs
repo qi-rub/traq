@@ -95,8 +95,8 @@ instance (Show holeT, Show sizeT) => PP.ToCodeString (Stmt holeT sizeT) where
   build RandomDynS{ret, max_var} =
     PP.putLine $ printf "%s :=$ [1 .. %s];" ret max_var
   build CallS{fun, meta_params, args} = do
-    meta_params_str <- PP.commaList <$> mapM (either PP.fromBuild return) meta_params
-    PP.putLine $ printf "%s[%s](%s);" (f_str fun) meta_params_str (PP.commaList args)
+    meta_params_str <- PP.wrapNonEmpty "[" "]" . PP.commaList <$> mapM (either PP.fromBuild return) meta_params
+    PP.putLine $ printf "%s%s(%s);" (f_str fun) meta_params_str (PP.commaList args)
    where
     f_str :: FunctionCall -> String
     f_str (FunctionCall fname) = printf "call %s" fname
