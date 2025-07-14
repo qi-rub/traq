@@ -43,8 +43,14 @@ spec = do
                         { CQPL.info_comment = ""
                         , CQPL.proc_name = "main"
                         , CQPL.proc_meta_params = []
-                        -- , U.proc_params = [("x", U.ParamUnk, P.Fin 10), ("y", U.ParamUnk, P.Fin 10)]
-                        -- , U.proc_body_or_tick = Right (U.UnitaryS ["x", "y"] $ U.RevEmbedU ["x"] "x")
+                        , CQPL.proc_param_types = [P.Fin 10, P.Fin 10]
+                        , CQPL.proc_body =
+                            CQPL.ProcBodyU $
+                              CQPL.UProcBody
+                                { CQPL.uproc_param_names = ["x", "y"]
+                                , CQPL.uproc_param_tags = [CQPL.ParamUnk, CQPL.ParamUnk]
+                                , CQPL.uproc_body_stmt = U.UnitaryS ["x", "y"] $ U.RevEmbedU ["x"] "x"
+                                }
                         }
                 } ::
                 CQPL.Program Void Int Double
@@ -53,7 +59,7 @@ spec = do
         assertRight $ CQPL.typeCheckProgram actual
         PP.toCodeString actual
           `shouldBe` unlines
-            [ "uproc main(x : Fin<10>, y : Fin<10>) {"
+            [ "uproc main(x: Fin<10>, y: Fin<10>) {"
             , "  x, y *= Embed[(x) => x];"
             , "}"
             , ""
