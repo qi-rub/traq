@@ -5,7 +5,7 @@ cabal-version: 1.18
 -- see: https://github.com/sol/hpack
 
 name:           traq
-version:        0.1.0.0
+version:        0.2.0.0
 synopsis:       Traq - Estimating Quantum Cost of Classical Programs
 description:    A prototype implementation of the `Traq` framework, with concrete and symbolic quantum cost analysis of classical programs, and compilation to a classical-quantum target language (CQPL). Provides the formal underpinnings of the qubrabench benchmarking library.
 category:       Math

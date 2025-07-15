@@ -10,7 +10,7 @@ name: traq
 #        +-+------- breaking API changes
 #        | | +----- non-breaking API additions
 #        | | | +--- code changes with no API change
-version: 0.1.0.0
+version: 0.2.0.0
 
 author: Anurudh Peduri <anurudhp97@gmail.com>
 maintainer: Anurudh Peduri <anurudhp97@gmail.com>
