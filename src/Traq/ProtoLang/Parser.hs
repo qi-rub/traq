@@ -160,7 +160,6 @@ namedFunDef tp@TokenParser{..} = do
   ret_types <- ((: []) <$> varType tp) <|> parens (commaSep (varType tp))
   reserved "do"
   body_stmt <- stmtP tp
-  -- _ <- semi
   reserved "return"
   ret_names <- commaSep identifier
   reserved "end"
