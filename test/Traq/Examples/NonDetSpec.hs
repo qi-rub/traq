@@ -34,34 +34,34 @@ spec = do
 
     it "all solutions" $ do
       ex <- load'
-      let oracleF = const [1]
+      let oracleF = const [P.FinV 1]
       let out = P.runProgram ex (Ctx.singleton "Oracle" oracleF) Ctx.empty
 
       out
         `shouldBe` Tree.choice
-          [ pure $ Ctx.fromList [("ok", 1), ("x", x)]
-          | x <- [0 .. 9]
+          [ pure $ Ctx.fromList [("ok", P.FinV 1), ("x", x)]
+          | x <- P.FinV <$> [0 .. 9]
           ]
 
     it "no solutions" $ do
       ex <- load'
-      let oracleF = const [0]
+      let oracleF = const [P.FinV 0]
       let out = P.runProgram ex (Ctx.singleton "Oracle" oracleF) Ctx.empty
 
       out
         `shouldBe` Tree.choice
-          [ pure $ Ctx.fromList [("ok", 0), ("x", x)]
-          | x <- [0 .. 9]
+          [ pure $ Ctx.fromList [("ok", P.FinV 0), ("x", x)]
+          | x <- P.FinV <$> [0 .. 9]
           ]
 
     it "some solutions" $ do
       ex <- load'
-      let sols = [1, 4, 6] :: [Value]
-      let oracleF = \[i] -> [P.boolToValue $ i `elem` sols]
+      let sols = [1, 4, 6] :: [SizeT]
+      let oracleF = \[P.FinV i] -> [P.boolToValue $ i `elem` sols]
       let out = P.runProgram ex (Ctx.singleton "Oracle" oracleF) Ctx.empty
 
       out
         `shouldBe` Tree.choice
-          [ pure $ Ctx.fromList [("ok", 1), ("x", x)]
+          [ pure $ Ctx.fromList [("ok", P.FinV 1), ("x", P.FinV x)]
           | x <- sols
           ]

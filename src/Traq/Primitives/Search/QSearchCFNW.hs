@@ -40,6 +40,7 @@ import Text.Printf (printf)
 
 import Traq.Control.Monad
 import qualified Traq.Data.Context as Ctx
+import Traq.Data.Default
 
 import qualified Traq.CQPL as CQPL
 import Traq.Prelude
@@ -234,7 +235,9 @@ instance
     -- number of solutions
     let space = P.range typ_x
     sols <- do
-      env <- (,) <$> view P._funCtx <*> view P._funInterpCtx
+      funCtx <- view P._funCtx
+      interpCtx <- view P._funInterpCtx
+      let env = default_ & (P._funCtx .~ funCtx) & (P._funInterpCtx .~ interpCtx)
       -- TODO this is too convoluted...
       return $
         (runMyReaderT ?? env) $
@@ -242,7 +245,7 @@ instance
             ( \v -> do
                 result <- P.evalFun (vs ++ [v]) predicate predDef
                 let [b] = result
-                return $ b /= 0
+                return $ P.valueToBool b
             )
 
     let n = length space
@@ -382,7 +385,7 @@ algoQSearchZalka ::
   Ident ->
   UQSearchBuilder primsT holeT sizeT costT ()
 algoQSearchZalka delta out_bit = do
-  P.Fin n <- view $ to search_arg_type
+  n <- view $ to search_arg_type . singular P._Fin
 
   out_bits <- forM [1 .. n_reps] $ \i -> do
     writeElem $ CQPL.UCommentS " "
@@ -674,11 +677,11 @@ algoQSearch ty n_samples eps grover_k_caller pred_caller ok = do
 
   let quantumSamplingOneRound =
         CQPL.SeqS
-          [ CQPL.AssignS [q_sum] (P.ConstE{P.val = 0, P.ty = j_type})
+          [ CQPL.AssignS [q_sum] (P.ConstE{P.val = P.FinV 0, P.ty = j_type})
           , CQPL.ForInArray
               { CQPL.loop_index = j_lim
               , CQPL.loop_index_ty = j_type
-              , CQPL.loop_values = [P.ConstE (fromIntegral j) j_type | j <- sampling_ranges]
+              , CQPL.loop_values = [P.ConstE (P.FinV $ fromIntegral v_j) j_type | v_j <- sampling_ranges]
               , CQPL.loop_body = quantumGroverOnce
               }
           ]

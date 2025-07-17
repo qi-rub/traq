@@ -24,23 +24,25 @@ import Traq.Examples.MatrixSearch
 printDivider :: IO ()
 printDivider = putStrLn $ replicate 80 '='
 
+type Value = P.Value SizeT
+
 class MatrixType t where
   nRows, nCols :: t -> Int
 
   toValueFun :: t -> [Value] -> [Value]
 
 instance MatrixType (Value, Value, Value -> Value -> Bool) where
-  nRows (n, _, _) = fromIntegral n
-  nCols (_, m, _) = fromIntegral m
+  nRows (P.FinV n, _, _) = fromIntegral n
+  nCols (_, P.FinV m, _) = fromIntegral m
 
-  toValueFun (_, _, mat) [i, j] = [if mat i j then 1 else 0]
+  toValueFun (_, _, mat) [i, j] = [P.boolToValue $ mat i j]
   toValueFun _ _ = error "unsupported"
 
 instance MatrixType [[Value]] where
   nRows mat = length mat
   nCols mat = length $ head mat
 
-  toValueFun mat [i, j] = [mat !! fromIntegral i !! fromIntegral j]
+  toValueFun mat [P.FinV i, P.FinV j] = [mat !! fromIntegral i !! fromIntegral j]
   toValueFun _ _ = error "unsupported"
 
 -- | Get the input-dependent quantum query cost.
@@ -65,7 +67,7 @@ qcost eps mat = cost
 
 randomMatrix :: SizeT -> SizeT -> IO [[Value]]
 randomMatrix n m = do
-  replicateM n $ replicateM m $ randomRIO (0, 1)
+  replicateM n $ replicateM m $ P.FinV <$> randomRIO (0, 1)
 
 randomMatrixWith ::
   -- (n, m)
@@ -81,9 +83,9 @@ randomMatrixWith (n, m) g z = do
   guard $ 1 <= z && z <= m
 
   bad_rows <- replicateM (n - g) $ do
-    shuffleM $ replicate z 0 ++ replicate (m - z) 1
+    shuffleM $ replicate z (P.FinV 0) ++ replicate (m - z) (P.FinV 1)
 
-  let rows = bad_rows ++ replicate g (replicate m 1)
+  let rows = bad_rows ++ replicate g (replicate m (P.FinV 1))
   shuffleM rows
 
 randomStat :: SizeT -> Double -> Int -> IO [Double]
@@ -120,14 +122,14 @@ computeStatsForWorstCaseMatrices =
   withFile "examples/matrix_search/stats/worstcase.csv" WriteMode $ \h -> do
     hPutStrLn h "n,cost"
     let eps = 0.001
-    forM_ ((10 :: Value) : [500, 1000 .. 4000]) $ \n -> do
+    forM_ ((10 :: Int) : [500, 1000 .. 4000]) $ \n -> do
       putStrLn $ ">> n = " <> show n
       let m = n
-      let c = qcost eps (n, m, matfun)
+      let c = qcost eps (P.FinV n, P.FinV m, matfun)
       hPutStrLn h $ printf "%d,%.2f" n c
  where
   matfun :: Value -> Value -> Bool
-  matfun i _ = i == 0
+  matfun i _ = i == P.FinV 0
 
 computeStatsForWorstCaseExample :: IO ()
 computeStatsForWorstCaseExample = do

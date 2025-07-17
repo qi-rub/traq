@@ -9,6 +9,7 @@ module Traq.ProtoLang.Syntax (
   -- ** Basic Types
   VarType (..),
   _Fin,
+  Value (..),
 
   -- ** Basic Operations
   UnOp (..),
@@ -74,6 +75,17 @@ _Fin _ t = pure t
 instance (Show a) => PP.ToCodeString (VarType a) where
   build (Fin len) = PP.putWord $ "Fin<" <> show len <> ">"
 
+-- | Basic Values
+data Value sizeT
+  = -- | value of type @Fin n@
+    FinV sizeT
+  deriving (Eq, Show, Read, Functor)
+
+type instance SizeType (Value sizeT) = sizeT
+
+instance (Show sizeT) => PP.ToCodeString (Value sizeT) where
+  build (FinV v) = PP.putWord $ show v
+
 -- | Unary operations
 data UnOp = NotOp
   deriving (Eq, Show, Read)
@@ -106,14 +118,11 @@ instance PP.ToCodeString NAryOp where
 data BasicExpr sizeT
   = VarE {var :: Ident}
   | ParamE {param :: Ident} -- compile-time constant parameter
-  | ConstE {val :: Value, ty :: VarType sizeT}
+  | ConstE {val :: Value sizeT, ty :: VarType sizeT}
   | UnOpE {un_op :: UnOp, operand :: BasicExpr sizeT}
   | BinOpE {bin_op :: BinOp, lhs, rhs :: BasicExpr sizeT}
   | TernaryE {branch, lhs, rhs :: BasicExpr sizeT}
   | NAryE {op :: NAryOp, operands :: [BasicExpr sizeT]}
-  | IndexE {arr_expr :: BasicExpr sizeT, ix_val :: sizeT}
-  | DynIndexE {arr_expr, ix_expr :: BasicExpr sizeT}
-  | UpdateArrE {arr_expr, ix_expr, rhs :: BasicExpr sizeT}
   deriving (Eq, Show, Read, Functor)
 
 -- Helpers for shorter expressions
@@ -133,7 +142,7 @@ instance (Show sizeT) => PP.ToCodeString (BasicExpr sizeT) where
   build VarE{var} = PP.putWord var
   build ParamE{param} = PP.putWord $ printf "#%s" param
   build ConstE{val, ty} =
-    PP.putWord =<< printf "%s:%s" (show val) <$> PP.fromBuild ty
+    PP.putWord =<< printf "%s:%s" <$> PP.fromBuild val <*> PP.fromBuild ty
   build UnOpE{un_op, operand} =
     PP.putWord =<< (++) <$> PP.fromBuild un_op <*> PP.fromBuild operand
   build BinOpE{bin_op, lhs, rhs} =
@@ -145,12 +154,6 @@ instance (Show sizeT) => PP.ToCodeString (BasicExpr sizeT) where
       =<< printf "%s(%s)"
         <$> PP.fromBuild op
         <*> (PP.commaList <$> mapM PP.fromBuild operands)
-  build IndexE{arr_expr, ix_val} =
-    PP.putWord =<< printf "%s[%s]" <$> PP.fromBuild arr_expr <*> pure (show ix_val)
-  build DynIndexE{arr_expr, ix_expr} =
-    PP.putWord =<< printf "%s[%s]" <$> PP.fromBuild arr_expr <*> PP.fromBuild ix_expr
-  build UpdateArrE{arr_expr, ix_expr, rhs} =
-    PP.putWord =<< printf "update %s[%s] = %s" <$> PP.fromBuild arr_expr <*> PP.fromBuild ix_expr <*> PP.fromBuild rhs
 
 -- ================================================================================
 -- Syntax

@@ -76,8 +76,13 @@ instance P.TypeCheckablePrimitive TreeSearch sizeT where
     return [P.tbool]
 
 -- | Evaluation
-runTreeSearch :: (Monad m) => (Value -> m (Value, Value)) -> (Value -> m Bool) -> Value -> m Bool
-runTreeSearch _ _ 0 = return False
+runTreeSearch ::
+  (Monad m, sizeT ~ SizeT) =>
+  (P.Value sizeT -> m (P.Value sizeT, P.Value sizeT)) ->
+  (P.Value sizeT -> m Bool) ->
+  P.Value sizeT ->
+  m Bool
+runTreeSearch _ _ (P.FinV 0) = return False
 runTreeSearch child check u = do
   ok <- check u
   if ok
@@ -91,8 +96,8 @@ instance
   P.EvaluatablePrimitive primsT TreeSearch
   where
   evalPrimitive TreeSearch{getChildren, checkNode} args = do
-    child_fun <- view $ _1 . Ctx.at getChildren . to (fromMaybe (error "unable to find predicate, please typecheck first!"))
-    check_fun <- view $ _1 . Ctx.at checkNode . to (fromMaybe (error "unable to find predicate, please typecheck first!"))
+    child_fun <- view $ P._funCtx . Ctx.at getChildren . to (fromMaybe (error "unable to find predicate, please typecheck first!"))
+    check_fun <- view $ P._funCtx . Ctx.at checkNode . to (fromMaybe (error "unable to find predicate, please typecheck first!"))
 
     let (child_args, check_args) = splitAt (length $ P.param_types child_fun) args
 
@@ -105,10 +110,10 @@ instance
           ( do
               vs <- P.evalFun (check_args ++ [u]) checkNode check_fun
               let ok = head vs
-              return $ ok /= 0
+              return $ P.valueToBool ok
           )
 
-    let root = 1
+    let root = P.FinV 1
     ok <- runTreeSearch nxt chk root
 
     return [P.boolToValue ok]

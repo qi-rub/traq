@@ -91,10 +91,6 @@ class HasClassicalTicks p where
 class HasUnitaryTicks p where
   _unitaryTicks :: (costT ~ CostType p) => Lens' p (OracleTicks costT)
 
--- | Lens to access the function interpretations (semantics)
-class HasFunInterpCtx p where
-  _funInterpCtx :: Lens' p FunInterpCtx
-
 -- ================================================================================
 -- Strategy for splitting the precison (eps/delta)
 -- ================================================================================
@@ -422,7 +418,7 @@ quantumMaxQueryCost strat a_eps Program{funCtx, stmt} uticks cticks =
 data QuantumCostEnv primsT sizeT costT
   = QuantumCostEnv
       (QuantumMaxCostEnv primsT sizeT costT)
-      FunInterpCtx
+      (FunInterpCtx sizeT)
 
 instance HasDefault (QuantumCostEnv primT sizeT costT) where
   default_ = QuantumCostEnv default_ default_
@@ -455,7 +451,7 @@ class
   quantumQueryCostPrimitive ::
     costT ->
     primT ->
-    [Value] ->
+    [Value sizeT] ->
     QuantumCostCalculator primsT sizeT costT costT
 
 instance (Show costT) => QuantumCostablePrimitive primsT Void sizeT costT where
@@ -470,7 +466,7 @@ quantumQueryCostE ::
   -- | failure probability \( \varepsilon \)
   costT ->
   -- | state \( \sigma \)
-  ProgramState ->
+  ProgramState SizeT ->
   -- | statement @S@
   Expr primsT SizeT ->
   m costT
@@ -499,13 +495,13 @@ quantumQueryCostS ::
   -- | failure probability \( \varepsilon \)
   costT ->
   -- | state \( \sigma \)
-  ProgramState ->
+  ProgramState SizeT ->
   -- | statement @S@
   Stmt primsT SizeT ->
   QuantumCostCalculator primsT SizeT costT costT
 quantumQueryCostS eps sigma ExprS{expr} = quantumQueryCostE eps sigma expr
 quantumQueryCostS eps sigma IfThenElseS{cond, s_true, s_false} =
-  let s = if sigma ^. Ctx.at cond /= Just 0 then s_true else s_false
+  let s = if valueToBool (sigma ^?! Ctx.at cond . singular _Just) then s_true else s_false
    in quantumQueryCostS eps sigma s
 quantumQueryCostS eps sigma (SeqS ss) = do
   funCtx <- view _funCtx
@@ -533,9 +529,9 @@ quantumQueryCost ::
   -- | classical ticks
   OracleTicks costT ->
   -- | data injections
-  FunInterpCtx ->
+  FunInterpCtx SizeT ->
   -- | state \( \sigma \)
-  ProgramState ->
+  ProgramState SizeT ->
   costT
 quantumQueryCost strat a_eps Program{funCtx, stmt} uticks cticks interpCtx sigma =
   let env =
@@ -564,9 +560,9 @@ quantumQueryCostBound ::
   -- | classical ticks
   OracleTicks costT ->
   -- | data injections
-  FunInterpCtx ->
+  FunInterpCtx SizeT ->
   -- | state \( \sigma \)
-  ProgramState ->
+  ProgramState SizeT ->
   costT
 quantumQueryCostBound strat a_eps p uticks cticks interp_ctx sigma =
   (1 - a_eps) * quantumQueryCost strat a_eps p uticks cticks interp_ctx sigma

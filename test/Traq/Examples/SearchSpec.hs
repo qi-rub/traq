@@ -27,12 +27,12 @@ spec = do
     it "type checks" $ do
       assertRight $ P.typeCheckProg Ctx.empty ex
 
-    let oracleF = const [0]
+    let oracleF = const [P.FinV 0]
     let interpCtx = Ctx.singleton "Oracle" oracleF
 
     it "evaluates" $ do
       let res = P.runProgram ex interpCtx Ctx.empty
-      res `shouldBe` pure (Ctx.singleton "result" 0)
+      res `shouldBe` pure (Ctx.singleton "result" (P.FinV 0))
 
     let ecF = _EQSearch
     let ucF = _QSearchZalka
@@ -74,14 +74,14 @@ spec = do
     it "type checks" $ do
       assertRight $ P.typeCheckProg Ctx.empty ex
 
-    let planted_sols = [2, 4, 5] :: [Value]
-    let oracleF = \[i] -> [if i `elem` planted_sols then 1 else 0]
+    let planted_sols = [2, 4, 5] :: [SizeT]
+    let oracleF = \[P.FinV i] -> [P.boolToValue $ i `elem` planted_sols]
     let interpCtx = Ctx.singleton "Oracle" oracleF
 
     it "evaluates" $ do
       let res = P.runProgram ex interpCtx Ctx.empty
       res
         `shouldBe` Tree.choice
-          [ pure $ Ctx.fromList [("result", 1), ("solution", i)]
+          [ pure $ Ctx.fromList [("result", P.FinV 1), ("solution", P.FinV i)]
           | i <- planted_sols
           ]

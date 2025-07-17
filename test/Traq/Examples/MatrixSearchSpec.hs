@@ -35,12 +35,12 @@ spec = do
     it "has unique vars" $ do
       P.checkVarsUnique ex `shouldBe` True
 
-    let oracleF = \[i, j] -> [if i == j then 1 else 0]
+    let oracleF = \[P.FinV i, P.FinV j] -> [P.boolToValue $ i == j]
     let interpCtx = Ctx.singleton "Oracle" oracleF
 
     it "evaluates" $ do
       let res = P.runProgram ex interpCtx Ctx.empty
-      res `shouldBe` pure (Ctx.singleton "result" 0)
+      res `shouldBe` pure (Ctx.singleton "result" (P.FinV 0))
 
     -- expected, worst, unitary
     let wcF = _EQSearchWorst
