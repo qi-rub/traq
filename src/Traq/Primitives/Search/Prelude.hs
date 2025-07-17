@@ -134,7 +134,7 @@ typeCheckPrimSearch prim args = do
 -- Evaluation
 -- ================================================================================
 
-type SearchResult = ([Value], Bool)
+type SearchResult = ([P.Value SizeT], Bool)
 
 isSolution :: SearchResult -> Bool
 isSolution = (True ==) . snd
@@ -147,7 +147,7 @@ hasSolution = any isSolution
 countSolutions :: SearchResults -> Int
 countSolutions = length . filter isSolution
 
-getSearchOutputs :: SearchResults -> [[Value]]
+getSearchOutputs :: SearchResults -> [[P.Value SizeT]]
 getSearchOutputs rets | hasSolution rets = rets & filter isSolution & map fst
 getSearchOutputs rets = map fst rets
 
@@ -155,10 +155,10 @@ getSearchOutputs rets = map fst rets
 runSearchPredicateOnAllInputs ::
   (P.EvaluatablePrimitive primsT primsT) =>
   Ident ->
-  [Value] ->
+  [P.Value SizeT] ->
   P.Evaluator primsT SizeT SearchResults
 runSearchPredicateOnAllInputs predicate arg_vals = do
-  pred_fun <- view $ _1 . Ctx.at predicate . to (fromMaybe (error "unable to find predicate, please typecheck first!"))
+  pred_fun <- view $ P._funCtx . Ctx.at predicate . to (fromMaybe (error "unable to find predicate, please typecheck first!"))
   let n_fixed_args = length arg_vals
 
   let search_tys = pred_fun ^. to P.param_types . to (drop n_fixed_args)
@@ -166,13 +166,13 @@ runSearchPredicateOnAllInputs predicate arg_vals = do
 
   forM search_range $ \s_vals -> do
     rets <- P.evalFun (arg_vals ++ s_vals) predicate pred_fun
-    return (s_vals, head rets /= 0)
+    return (s_vals, P.valueToBool $ head rets)
 
 evaluatePrimAny ::
   (HasPrimAny primT, P.EvaluatablePrimitive primsT primsT) =>
   primT ->
-  [Value] ->
-  P.Evaluator primsT SizeT [Value]
+  [P.Value SizeT] ->
+  P.Evaluator primsT SizeT [P.Value SizeT]
 evaluatePrimAny prim arg_vals = do
   let predicate = getPredicateOfAny prim
   res <- runSearchPredicateOnAllInputs predicate arg_vals
@@ -181,8 +181,8 @@ evaluatePrimAny prim arg_vals = do
 evaluatePrimSearch ::
   (HasPrimSearch primT, P.EvaluatablePrimitive primsT primsT) =>
   primT ->
-  [Value] ->
-  P.Evaluator primsT SizeT [Value]
+  [P.Value SizeT] ->
+  P.Evaluator primsT SizeT [P.Value SizeT]
 evaluatePrimSearch prim arg_vals = do
   let predicate = getPredicateOfSearch prim
   res <- runSearchPredicateOnAllInputs predicate arg_vals
@@ -193,8 +193,8 @@ evaluatePrimSearch prim arg_vals = do
 evaluatePrimCount ::
   (P.EvaluatablePrimitive primsT primsT) =>
   Ident ->
-  [Value] ->
-  P.Evaluator primsT SizeT [Value]
+  [P.Value SizeT] ->
+  P.Evaluator primsT SizeT [P.Value SizeT]
 evaluatePrimCount predicate arg_vals = do
   res <- runSearchPredicateOnAllInputs predicate arg_vals
-  return [fromIntegral $ countSolutions res]
+  return [P.FinV $ fromIntegral $ countSolutions res]

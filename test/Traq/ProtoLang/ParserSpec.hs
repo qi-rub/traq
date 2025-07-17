@@ -41,7 +41,7 @@ spec = do
         `shouldBe` Right
           ( SeqS
               [ ExprS{rets = ["x'"], expr = BasicExprE "x"}
-              , ExprS{rets = ["y'"], expr = BasicExprE ConstE{val = 3, ty = Fin (Sym.con 4)}}
+              , ExprS{rets = ["y'"], expr = BasicExprE ConstE{val = FinV 3, ty = Fin (Sym.con 4)}}
               ]
           )
     it "parses function call" $ do

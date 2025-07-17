@@ -39,4 +39,4 @@ spec = do
             . singular _Just
             . to proc_body
             . singular _ProcBodyC
-      cproc_body_stmt `shouldBe` SeqS [AssignS ["x"] (P.ConstE 0 (P.Fin 10))]
+      cproc_body_stmt `shouldBe` SeqS [AssignS ["x"] (P.ConstE (P.FinV 0) (P.Fin 10))]

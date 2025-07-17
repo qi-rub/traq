@@ -96,7 +96,7 @@ exprP tp@TokenParser{..} =
   constE = do
     reserved "const"
     (val, ty) <- typedTerm tp integer
-    return $ BasicExprE ConstE{val, ty}
+    return $ BasicExprE ConstE{val = FinV (fromInteger val), ty}
 
   funCallKind :: Parser (FunctionCallKind primT)
   funCallKind = primitiveCall <|> functionCall

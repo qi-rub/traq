@@ -10,8 +10,6 @@ type SizeT = Int
 -- | Basic symbolic type
 type SymbSize = Sym.Sym SizeT
 
-type Value = Integer
-
 -- | The size type (usually some Integral) of a given type.
 type family SizeType p
 

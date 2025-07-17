@@ -4,6 +4,8 @@
 module Traq.ProtoLang.Eval (
   -- * Evaluating Basic Expressions
   ProgramState,
+  HasProgramState (..),
+  valueToBool,
   evalBasicExpr,
 
   -- * Evaluations
@@ -15,10 +17,12 @@ module Traq.ProtoLang.Eval (
   -- * Values
   range,
   boolToValue,
+  validateValueType,
 
   -- * Types and Monad
   FunInterp,
   FunInterpCtx,
+  HasFunInterpCtx (..),
   ExecutionEnv,
   ExecutionState,
   Evaluator,
@@ -35,6 +39,7 @@ import Lens.Micro.Mtl
 
 import Traq.Control.Monad
 import qualified Traq.Data.Context as Ctx
+import Traq.Data.Default
 import qualified Traq.Data.Tree as Tree
 
 import Traq.Prelude
@@ -44,35 +49,49 @@ import Traq.ProtoLang.Syntax
 -- Evaluating Basic Expressions
 -- ================================================================================
 
--- | The deterministic state of the program
-type ProgramState = Ctx.Context Value
+-- | Check if a given runtime value is of a given type.
+validateValueType :: forall sizeT. (sizeT ~ SizeT) => VarType sizeT -> Value sizeT -> Bool
+validateValueType (Fin n) (FinV v) = 0 <= v && v < n
 
-boolToValue :: Bool -> Value
-boolToValue True = 1
-boolToValue False = 0
+boolToValue :: Bool -> Value SizeT
+boolToValue True = FinV 1
+boolToValue False = FinV 0
 
-valueToBool :: Value -> Bool
-valueToBool 0 = False
-valueToBool _ = True
+valueToBool :: Value SizeT -> Bool
+valueToBool (FinV 0) = False
+valueToBool (FinV _) = True
 
-evalUnOp :: UnOp -> Value -> Value
-evalUnOp NotOp 0 = 1
-evalUnOp NotOp _ = 0
+evalUnOp :: (sizeT ~ SizeT) => UnOp -> Value sizeT -> Value sizeT
+evalUnOp NotOp = boolToValue . not . valueToBool
 
-evalBinOp :: BinOp -> Value -> Value -> Value
-evalBinOp AddOp x y = x + y
-evalBinOp LEqOp x y
-  | x <= y = 1
-  | otherwise = 0
-evalBinOp AndOp 0 _ = 0
-evalBinOp AndOp _ 0 = 0
-evalBinOp AndOp _ _ = 1
+evalBinOp :: (sizeT ~ SizeT) => BinOp -> Value sizeT -> Value sizeT -> Value sizeT
+evalBinOp AddOp (FinV x) (FinV y) = FinV $ x + y
+evalBinOp LEqOp (FinV x) (FinV y)
+  | x <= y = boolToValue True
+  | otherwise = boolToValue False
+evalBinOp AndOp v1 v2 = boolToValue $ valueToBool v1 && valueToBool v2
+evalBinOp _ _ _ = error "invalid inputs"
 
-evalOp :: NAryOp -> [Value] -> Value
+evalOp :: (sizeT ~ SizeT) => NAryOp -> [Value sizeT] -> Value sizeT
 evalOp MultiOrOp = boolToValue . any valueToBool
 
-evalBasicExpr :: (MonadReader ProgramState m) => BasicExpr sizeT -> m Value
-evalBasicExpr VarE{var} = Ctx.unsafeLookupE var
+-- | The deterministic state of the program
+type ProgramState sizeT = Ctx.Context (Value sizeT)
+
+class HasProgramState p where
+  _state :: (sizeT ~ SizeType p) => Lens' p (ProgramState sizeT)
+
+instance HasProgramState (ProgramState sizeT) where _state = id
+
+evalBasicExpr ::
+  ( MonadReader env m
+  , HasProgramState env
+  , sizeT ~ SizeType env
+  , sizeT ~ SizeT
+  ) =>
+  BasicExpr sizeT ->
+  m (Value sizeT)
+evalBasicExpr VarE{var} = view $ _state . Ctx.at var . singular _Just
 evalBasicExpr ConstE{val} = return val
 evalBasicExpr UnOpE{un_op, operand} = do
   arg_val <- evalBasicExpr operand
@@ -94,15 +113,33 @@ evalBasicExpr ParamE{} = error "unsupported: parameters"
 -- ================================================================================
 
 -- | Inject runtime data into a program
-type FunInterp = [Value] -> [Value]
+type FunInterp sizeT = [Value sizeT] -> [Value sizeT]
+
+type instance SizeType (FunInterp sizeT) = sizeT
 
 -- | A mapping of data injections
-type FunInterpCtx = Ctx.Context FunInterp
+type FunInterpCtx sizeT = Ctx.Context (FunInterp sizeT)
+
+class HasFunInterpCtx p where
+  _funInterpCtx :: (sizeT ~ SizeType p) => Lens' p (FunInterpCtx sizeT)
+
+instance HasFunInterpCtx (FunInterpCtx sizeT) where _funInterpCtx = id
 
 -- | Environment for evaluation
-type ExecutionEnv primsT sizeT = (FunCtx primsT sizeT, FunInterpCtx)
+data ExecutionEnv primsT sizeT = ExecutionEnv (FunCtx primsT sizeT) (FunInterpCtx sizeT)
 
-type ExecutionState sizeT = ProgramState
+type instance SizeType (ExecutionEnv primsT sizeT) = sizeT
+type instance PrimitiveType (ExecutionEnv primsT sizeT) = primsT
+
+instance HasDefault (ExecutionEnv primsT sizeT) where default_ = ExecutionEnv default_ default_
+
+instance HasFunCtx (ExecutionEnv primsT sizeT) where
+  _funCtx focus (ExecutionEnv f fi) = focus f <&> \f' -> ExecutionEnv f' fi
+
+instance HasFunInterpCtx (ExecutionEnv primsT sizeT) where
+  _funInterpCtx focus (ExecutionEnv f fi) = focus fi <&> ExecutionEnv f
+
+type ExecutionState sizeT = ProgramState sizeT
 
 -- | Non-deterministic Execution Monad (i.e. no state)
 type Evaluator primsT sizeT = MyReaderT (ExecutionEnv primsT sizeT) Tree.Tree
@@ -114,26 +151,42 @@ type Executor primsT sizeT = MyReaderStateT (ExecutionEnv primsT sizeT) (Executi
  Can evaluate @primT@ under a context of @primsT@.
 -}
 class EvaluatablePrimitive primsT primT where
-  evalPrimitive :: primT -> [Value] -> Evaluator primsT SizeT [Value]
+  evalPrimitive :: (sizeT ~ SizeT) => primT -> [Value sizeT] -> Evaluator primsT sizeT [Value sizeT]
 
 instance EvaluatablePrimitive primsT Void where
   evalPrimitive = absurd
 
 -- evaluation
-range :: (Integral sizeT) => VarType sizeT -> [Value]
-range (Fin n) = [0 .. fromIntegral n - 1]
+range :: (Integral sizeT) => VarType sizeT -> [Value sizeT]
+range (Fin n) = FinV <$> [0 .. n - 1]
 
-lookupS :: (MonadState ProgramState m) => Ident -> m Value
-lookupS = Ctx.unsafeLookup
+lookupS ::
+  forall sizeT env m.
+  ( MonadState env m
+  , HasProgramState env
+  , sizeT ~ SizeType env
+  ) =>
+  Ident ->
+  m (Value sizeT)
+lookupS x = use $ _state . Ctx.at x . singular _Just
 
-putS :: (MonadState ProgramState m) => Ident -> Value -> m ()
-putS = Ctx.unsafePut
+putS ::
+  ( MonadState env m
+  , HasProgramState env
+  , sizeT ~ SizeType env
+  ) =>
+  Ident ->
+  Value sizeT ->
+  m ()
+putS x v = _state . Ctx.ins x .= v
 
 evalExpr ::
-  forall primsT.
-  (EvaluatablePrimitive primsT primsT) =>
+  forall primsT m.
+  ( EvaluatablePrimitive primsT primsT
+  , m ~ Executor primsT SizeT
+  ) =>
   Expr primsT SizeT ->
-  Executor primsT SizeT [Value]
+  m [Value SizeT]
 evalExpr BasicExprE{basic_expr} = do
   sigma <- use id
   let val = runReader (evalBasicExpr basic_expr) sigma
@@ -142,8 +195,7 @@ evalExpr BasicExprE{basic_expr} = do
 -- function calls
 evalExpr FunCallE{fun_kind = FunctionCall fun, args} = do
   arg_vals <- mapM lookupS args
-  funCtx <- view _1
-  let fun_def = funCtx ^. Ctx.at fun . singular _Just
+  fun_def <- view $ _funCtx . Ctx.at fun . singular _Just
   embedReaderT $ evalFun arg_vals fun fun_def
 
 -- subroutines
@@ -151,35 +203,53 @@ evalExpr FunCallE{fun_kind = PrimitiveCall prim, args} = do
   vals <- mapM lookupS args
   embedReaderT $ evalPrimitive prim vals
 
-execStmt :: (EvaluatablePrimitive primsT primsT) => Stmt primsT SizeT -> Executor primsT SizeT ()
+execStmt ::
+  forall primsT m.
+  ( EvaluatablePrimitive primsT primsT
+  , m ~ Executor primsT SizeT
+  ) =>
+  Stmt primsT SizeT ->
+  m ()
 execStmt ExprS{rets, expr} = do
   vals <- withSandbox $ evalExpr expr
   zipWithM_ putS rets vals
 execStmt IfThenElseS{cond, s_true, s_false} = do
   cond_val <- lookupS cond
-  let s = if cond_val == 0 then s_false else s_true
+  let s = if valueToBool cond_val then s_true else s_false
   execStmt s
 execStmt (SeqS ss) = mapM_ execStmt ss
 
 evalFun ::
-  (EvaluatablePrimitive primsT primsT) =>
+  forall primsT m.
+  ( EvaluatablePrimitive primsT primsT
+  , m ~ Evaluator primsT SizeT
+  ) =>
   -- | arguments
-  [Value] ->
+  [Value SizeT] ->
   -- | function name
   Ident ->
   -- | function
   FunDef primsT SizeT ->
-  Evaluator primsT SizeT [Value]
+  m [Value SizeT]
 evalFun vals_in _ FunDef{mbody = Just FunBody{param_names, ret_names, body_stmt}} =
   let params = Ctx.fromList $ zip param_names vals_in
    in withInjectedState params $ do
         execStmt body_stmt
         mapM lookupS ret_names
 evalFun vals_in fun_name FunDef{mbody = Nothing} = do
-  interp <- view $ _2 . Ctx.at fun_name . singular _Just
-  return $ interp vals_in
+  fn_interp <- view $ _funInterpCtx . Ctx.at fun_name . singular _Just
+  return $ fn_interp vals_in
 
-runProgram :: (EvaluatablePrimitive primsT primsT) => Program primsT SizeT -> FunInterpCtx -> ProgramState -> Tree.Tree ProgramState
-runProgram Program{funCtx, stmt} oracleF st = view _2 <$> runRWST (execStmt stmt) env st
+runProgram ::
+  forall primsT.
+  (EvaluatablePrimitive primsT primsT) =>
+  Program primsT SizeT ->
+  FunInterpCtx SizeT ->
+  ProgramState SizeT ->
+  Tree.Tree (ProgramState SizeT)
+runProgram Program{funCtx, stmt} funInterpCtx st = view _2 <$> runRWST (execStmt stmt) env st
  where
-  env = (funCtx, oracleF)
+  env =
+    default_
+      & (_funCtx .~ funCtx)
+      & (_funInterpCtx .~ funInterpCtx)

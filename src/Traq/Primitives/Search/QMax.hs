@@ -93,14 +93,15 @@ instance
   P.EvaluatablePrimitive primsT QMax
   where
   evalPrimitive QMax{predicate} arg_vals = do
-    pred_fun <- view $ _1 . Ctx.at predicate . to (fromMaybe (error "unable to find predicate, please typecheck first!"))
+    pred_fun <- view $ P._funCtx . Ctx.at predicate . to (fromMaybe (error "unable to find predicate, please typecheck first!"))
     let search_range = pred_fun ^. to P.param_types . to last . to P.range
 
-    values <- forM search_range $ \val -> do
+    vs <- forM search_range $ \val -> do
       res <- P.evalFun (arg_vals ++ [val]) predicate pred_fun
-      return $ head res
+      let [P.FinV v] = res
+      return v
 
-    return [maximum values]
+    return [P.FinV $ maximum vs]
 
 -- ================================================================================
 -- Abstract Costs
