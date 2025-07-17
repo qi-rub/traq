@@ -81,7 +81,8 @@ typedTerm tp@TokenParser{..} pa = (,) <$> pa <*> (reservedOp ":" *> varType tp)
 exprP :: forall primT. (CanParsePrimitive primT) => TokenParser () -> Parser (Expr primT SymbSize)
 exprP tp@TokenParser{..} =
   choice . map try $
-    [ funCallE
+    [ parens (exprP tp)
+    , funCallE
     , unOpE
     , binOpE
     , constE
@@ -129,6 +130,7 @@ exprP tp@TokenParser{..} =
       "+" -> return AddOp
       "<=" -> return LEqOp
       "&&" -> return AndOp
+      ">" -> return GtOp
       _ -> fail "invalid binary operator"
 
   binOpE :: Parser (Expr primT SymbSize)
@@ -139,16 +141,14 @@ exprP tp@TokenParser{..} =
     return $ BasicExprE BinOpE{bin_op, lhs, rhs}
 
 stmtP :: forall primT. (CanParsePrimitive primT) => TokenParser () -> Parser (Stmt primT SymbSize)
-stmtP tp@TokenParser{..} = SeqS <$> (someStmt <|> return [])
+stmtP tp@TokenParser{..} = SeqS <$> many exprS
  where
-  someStmt :: Parser [Stmt primT SymbSize]
-  someStmt = (:) <$> exprS <*> many (try (semi *> exprS))
-
   exprS :: Parser (Stmt primT SymbSize)
   exprS = do
     rets <- commaSep1 identifier
     reservedOp "<-"
     expr <- exprP tp
+    semi
     return ExprS{rets, expr}
 
 namedFunDef :: (CanParsePrimitive primT) => TokenParser () -> Parser (NamedFunDef primT SymbSize)
@@ -156,11 +156,13 @@ namedFunDef tp@TokenParser{..} = do
   reserved "def"
   fun_name <- identifier
   (param_names, param_types) <- unzip <$> parens (commaSep (typedTerm tp identifier))
+  reserved "->"
+  ret_types <- ((: []) <$> varType tp) <|> parens (commaSep (varType tp))
   reserved "do"
   body_stmt <- stmtP tp
-  _ <- semi
+  -- _ <- semi
   reserved "return"
-  (ret_names, ret_types) <- unzip <$> commaSep (typedTerm tp identifier)
+  ret_names <- commaSep identifier
   reserved "end"
   let mbody = Just FunBody{..}
   let fun_def = FunDef{..}
@@ -174,6 +176,7 @@ funDecl tp@TokenParser{..} = do
   reservedOp "->"
   -- single type as is, or multiple as a tuple
   ret_types <- ((: []) <$> varType tp) <|> parens (commaSep (varType tp))
+  reserved "end"
   let fun_def = FunDef{mbody = Nothing, ..}
   return NamedFunDef{..}
 
@@ -185,7 +188,9 @@ program tp = do
   return Program{..}
 
 programParser :: (CanParsePrimitive primT) => Parser (Program primT SymbSize)
-programParser = program protoLangTokenParser
+programParser = whiteSpace p *> program protoLangTokenParser <* eof
+ where
+  p = protoLangTokenParser
 
 parseCode :: (TokenParser () -> Parser a) -> String -> Either ParseError a
 parseCode parser = parse (whiteSpace p *> parser p <* eof) ""

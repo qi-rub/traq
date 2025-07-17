@@ -23,22 +23,22 @@ spec = do
     it "call oracle" $ do
       let prog =
             unsafeParseProgram . unlines $
-              [ "declare Oracle(Fin<100>) -> Bool"
+              [ "declare Oracle(Fin<100>) -> Bool end"
               , "i <- const 10 : Fin<100>;"
-              , "res <- Oracle(i)"
+              , "res <- Oracle(i);"
               ]
       let c = unitaryQueryCost SplitSimple 0.001 prog (Map.singleton "Oracle" 1.0)
       c `shouldBe` (2 :: Double)
     it "fun call of oracle" $ do
       let prog =
             unsafeParseProgram . unlines $
-              [ "declare Oracle(Fin<100>) -> Bool"
-              , "def f(i : Fin<100>) do"
+              [ "declare Oracle(Fin<100>) -> Bool end"
+              , "def f(i : Fin<100>) -> Bool do"
               , "  b <- Oracle(i);"
-              , "  return b : Fin<2>"
+              , "  return b"
               , "end"
               , "i <- const 10 : Fin<100>;"
-              , "res <- f(i)"
+              , "res <- f(i);"
               ]
       let c = unitaryQueryCost SplitSimple 0.001 prog (Map.singleton "Oracle" 1.0)
       c `shouldBe` (4 :: Double)
@@ -46,12 +46,12 @@ spec = do
     it "search with no oracle" $ do
       let prog =
             unsafeParseProgram . unlines $
-              [ "declare Oracle(Fin<100>) -> Bool"
-              , "def f(i : Fin<100>) do"
+              [ "declare Oracle(Fin<100>) -> Bool end"
+              , "def f(i : Fin<100>) -> Bool do"
               , "  b <- const 0 : Fin<2>;"
-              , "  return b : Fin<2>"
+              , "  return b"
               , "end"
-              , "res <- @any[f]()"
+              , "res <- @any[f]();"
               ]
       let c = unitaryQueryCost SplitSimple 0.001 prog (Map.singleton "Oracle" 1.0)
       c `shouldBe` (0 :: Double)
@@ -59,8 +59,8 @@ spec = do
     it "search with 1x oracle" $ do
       let prog =
             unsafeParseProgram . unlines $
-              [ "declare Oracle(Fin<100>) -> Bool"
-              , "res <- @any[Oracle]()"
+              [ "declare Oracle(Fin<100>) -> Bool end"
+              , "res <- @any[Oracle]();"
               ]
       let c = unitaryQueryCost SplitSimple 0.001 prog (Map.singleton "Oracle" 1.0)
       (c :: Double) `shouldBe` 2 * _QSearchZalka (100 :: Int) (0.001 / 2)
