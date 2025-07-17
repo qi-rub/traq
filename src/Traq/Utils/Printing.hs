@@ -1,6 +1,7 @@
 module Traq.Utils.Printing (
   ToCodeString (..),
   toCodeString,
+  toCodeStringM,
 
   -- * Simple builders
   commaList,
@@ -43,8 +44,11 @@ import Data.Void (Void, absurd)
 class ToCodeString a where
   build :: (MonadWriter [String] m, MonadFail m) => a -> m ()
 
+toCodeStringM :: (ToCodeString a, MonadFail m) => a -> m String
+toCodeStringM = fmap unlines . execWriterT . build
+
 toCodeString :: (ToCodeString a) => a -> String
-toCodeString = unlines . fromJust . execWriterT . build
+toCodeString = fromJust . toCodeStringM
 
 fromBuild :: (ToCodeString a, MonadWriter [String] m, MonadFail m) => a -> m String
 fromBuild a = censor (const mempty) $ do

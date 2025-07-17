@@ -6,8 +6,11 @@ module Traq.ProtoLang.Syntax (
   -- * Syntax
   MetaParam (..),
 
-  -- ** Basic Types and Operations
+  -- ** Basic Types
   VarType (..),
+  _Fin,
+
+  -- ** Basic Operations
   UnOp (..),
   BinOp (..),
   NAryOp (..),
@@ -33,6 +36,7 @@ module Traq.ProtoLang.Syntax (
   HasFunCtx (..),
 ) where
 
+import Control.Monad (zipWithM)
 import Data.String (IsString (..))
 import Lens.Micro.GHC
 import Text.Printf (printf)
@@ -44,7 +48,7 @@ import Traq.Utils.ASTRewriting
 import qualified Traq.Utils.Printing as PP
 
 -- | Compile-time constant parameters
-data MetaParam sizeT = MetaName String | MetaSize sizeT | MetaValue Value
+data MetaParam sizeT = MetaName String | MetaSize sizeT | MetaValue Integer
   deriving (Eq, Show, Read)
 
 instance (Show sizeT) => PP.ToCodeString (MetaParam sizeT) where
@@ -57,10 +61,15 @@ instance (Show sizeT) => PP.ToCodeString (MetaParam sizeT) where
 -- ================================================================================
 
 -- | Types
-newtype VarType sizeT = Fin sizeT -- Fin<N>
+newtype VarType sizeT
+  = Fin sizeT -- Fin<N>
   deriving (Eq, Show, Read, Functor)
 
 type instance SizeType (VarType sizeT) = sizeT
+
+_Fin :: Traversal' (VarType sizeT) sizeT
+_Fin focus (Fin n) = Fin <$> focus n
+_Fin _ t = pure t
 
 instance (Show a) => PP.ToCodeString (VarType a) where
   build (Fin len) = PP.putWord $ "Fin<" <> show len <> ">"
@@ -73,13 +82,18 @@ instance PP.ToCodeString UnOp where
   build NotOp = PP.putWord "not "
 
 -- | Binary operations
-data BinOp = AddOp | LEqOp | AndOp
+data BinOp
+  = AddOp
+  | LEqOp
+  | GtOp
+  | AndOp
   deriving (Eq, Show, Read)
 
 instance PP.ToCodeString BinOp where
   build AddOp = PP.putWord "+"
   build LEqOp = PP.putWord "<="
   build AndOp = PP.putWord "&&"
+  build GtOp = PP.putWord ">"
 
 -- | Operations which take multiple arguments
 data NAryOp = MultiOrOp
@@ -97,6 +111,9 @@ data BasicExpr sizeT
   | BinOpE {bin_op :: BinOp, lhs, rhs :: BasicExpr sizeT}
   | TernaryE {branch, lhs, rhs :: BasicExpr sizeT}
   | NAryE {op :: NAryOp, operands :: [BasicExpr sizeT]}
+  | IndexE {arr_expr :: BasicExpr sizeT, ix_val :: sizeT}
+  | DynIndexE {arr_expr, ix_expr :: BasicExpr sizeT}
+  | UpdateArrE {arr_expr, ix_expr, rhs :: BasicExpr sizeT}
   deriving (Eq, Show, Read, Functor)
 
 -- Helpers for shorter expressions
@@ -115,7 +132,8 @@ notE = UnOpE NotOp
 instance (Show sizeT) => PP.ToCodeString (BasicExpr sizeT) where
   build VarE{var} = PP.putWord var
   build ParamE{param} = PP.putWord $ printf "#%s" param
-  build ConstE{val, ty} = PP.putWord . printf "%s:%s" (show val) =<< PP.fromBuild ty
+  build ConstE{val, ty} =
+    PP.putWord =<< printf "%s:%s" (show val) <$> PP.fromBuild ty
   build UnOpE{un_op, operand} =
     PP.putWord =<< (++) <$> PP.fromBuild un_op <*> PP.fromBuild operand
   build BinOpE{bin_op, lhs, rhs} =
@@ -127,6 +145,12 @@ instance (Show sizeT) => PP.ToCodeString (BasicExpr sizeT) where
       =<< printf "%s(%s)"
         <$> PP.fromBuild op
         <*> (PP.commaList <$> mapM PP.fromBuild operands)
+  build IndexE{arr_expr, ix_val} =
+    PP.putWord =<< printf "%s[%s]" <$> PP.fromBuild arr_expr <*> pure (show ix_val)
+  build DynIndexE{arr_expr, ix_expr} =
+    PP.putWord =<< printf "%s[%s]" <$> PP.fromBuild arr_expr <*> PP.fromBuild ix_expr
+  build UpdateArrE{arr_expr, ix_expr, rhs} =
+    PP.putWord =<< printf "update %s[%s] = %s" <$> PP.fromBuild arr_expr <*> PP.fromBuild ix_expr <*> PP.fromBuild rhs
 
 -- ================================================================================
 -- Syntax
@@ -140,6 +164,10 @@ data FunctionCallKind primT
 
 type instance PrimitiveType (FunctionCallKind primT) = primT
 
+instance (PP.ToCodeString primT) => PP.ToCodeString (FunctionCallKind primT) where
+  build (FunctionCall f) = PP.putWord f
+  build (PrimitiveCall prim) = PP.putWord $ PP.toCodeString prim
+
 {- | An expression in the prototype language.
  It appears as the RHS of an assignment statement.
 -}
@@ -151,6 +179,12 @@ data Expr primT sizeT
 type instance SizeType (Expr primT sizeT) = sizeT
 type instance PrimitiveType (Expr primT sizeT) = primT
 
+instance (Show sizeT, PP.ToCodeString primT) => PP.ToCodeString (Expr primT sizeT) where
+  build BasicExprE{basic_expr} = PP.build basic_expr
+  build FunCallE{fun_kind, args} = do
+    fun_kind_s <- PP.fromBuild fun_kind
+    PP.putLine $ printf "%s(%s)" fun_kind_s (PP.commaList args)
+
 -- | A statement in the prototype language.
 data Stmt primT sizeT
   = ExprS {rets :: [Ident], expr :: Expr primT sizeT}
@@ -160,6 +194,20 @@ data Stmt primT sizeT
 
 type instance SizeType (Stmt primT sizeT) = sizeT
 type instance PrimitiveType (Stmt primT sizeT) = primT
+
+instance (Show sizeT, PP.ToCodeString primT) => PP.ToCodeString (Stmt primT sizeT) where
+  build ExprS{rets, expr} = do
+    expr_s <- PP.fromBuild expr
+    PP.putLine $ case expr_s of
+      ('$' : ' ' : expr_s') -> printf "%s <-$ %s;" (PP.commaList rets) expr_s'
+      _ -> printf "%s <- %s;" (PP.commaList rets) expr_s
+  build IfThenElseS{cond, s_true, s_false} = do
+    PP.putLine $ printf "if (%s) then" cond
+    PP.indented $ PP.build s_true
+    PP.putLine "else"
+    PP.indented $ PP.build s_false
+    PP.putLine "end"
+  build (SeqS ss) = mapM_ PP.build ss
 
 -- | The body of a function.
 data FunBody primT sizeT = FunBody
@@ -187,6 +235,49 @@ data NamedFunDef primT sizeT = NamedFunDef {fun_name :: Ident, fun_def :: FunDef
 
 type instance SizeType (NamedFunDef primT sizeT) = sizeT
 type instance PrimitiveType (NamedFunDef primT sizeT) = primT
+
+instance (Show sizeT, PP.ToCodeString primT) => PP.ToCodeString (NamedFunDef primT sizeT) where
+  -- def
+  build
+    NamedFunDef
+      { fun_name
+      , fun_def =
+        FunDef
+          { param_types
+          , ret_types
+          , mbody = Just FunBody{body_stmt, param_names, ret_names}
+          }
+      } = do
+      params <- PP.commaList <$> zipWithM showTypedVar param_names param_types
+      s_ret_tys <- case ret_types of
+        [t] -> PP.fromBuild t
+        _ -> PP.commaList <$> mapM PP.fromBuild ret_types
+      PP.putLine $ printf "def %s(%s) -> %s do" fun_name params s_ret_tys
+      PP.indented $ do
+        PP.build body_stmt
+        PP.putLine $ printf "return %s" (PP.commaList ret_names)
+      PP.putLine "end"
+     where
+      -- showTypedVar :: Ident -> VarType sizeT -> String
+      showTypedVar x ty = printf "%s: %s" x <$> PP.fromBuild ty
+  -- declare
+  build
+    NamedFunDef
+      { fun_name
+      , fun_def = FunDef{param_types, ret_types, mbody = Nothing}
+      } =
+      PP.putLine
+        =<< printf "declare %s(%s) -> (%s) end" fun_name
+          <$> (PP.commaList <$> mapM PP.fromBuild param_types)
+          <*> (PP.commaList <$> mapM PP.fromBuild ret_types)
+
+instance (Show sizeT, PP.ToCodeString primT) => PP.ToCodeString (Program primT sizeT) where
+  build Program{funCtx, stmt} = do
+    sequence_
+      [ PP.build NamedFunDef{fun_name, fun_def} >> PP.endl
+      | (fun_name, fun_def) <- Ctx.toList funCtx
+      ]
+    PP.build stmt
 
 -- | A function context contains a list of functions
 type FunCtx primT sizeT = Ctx.Context (FunDef primT sizeT)
@@ -230,70 +321,3 @@ instance HasStmt (FunDef primT sizeT) (Stmt primT sizeT) where
 
 instance HasStmt (Program primT sizeT) (Stmt primT sizeT) where
   _stmt focus (Program funCtx stmt) = Program <$> traverse (_stmt focus) funCtx <*> focus stmt
-
--- ================================================================================
--- Printing
--- ================================================================================
-
-instance (PP.ToCodeString primT) => PP.ToCodeString (FunctionCallKind primT) where
-  build (FunctionCall f) = PP.putWord f
-  build (PrimitiveCall prim) = PP.putWord $ PP.toCodeString prim
-
-instance (Show sizeT, PP.ToCodeString primT) => PP.ToCodeString (Expr primT sizeT) where
-  build BasicExprE{basic_expr} = PP.build basic_expr
-  build FunCallE{fun_kind, args} = do
-    fun_kind_s <- PP.fromBuild fun_kind
-    PP.putLine $ printf "%s(%s)" fun_kind_s (PP.commaList args)
-
-instance (Show sizeT, PP.ToCodeString primT) => PP.ToCodeString (Stmt primT sizeT) where
-  build ExprS{rets, expr} = do
-    expr_s <- PP.fromBuild expr
-    PP.putLine $ unwords [PP.commaList rets, "<-", expr_s]
-  build IfThenElseS{cond, s_true, s_false} = do
-    PP.putLine $ printf "if (%s) then" cond
-    PP.indented $ PP.build s_true
-    PP.putLine "else"
-    PP.indented $ do PP.build s_false
-    PP.putLine "end"
-  build (SeqS ss) = mapM_ PP.build ss
-
-instance (Show sizeT, PP.ToCodeString primT) => PP.ToCodeString (NamedFunDef primT sizeT) where
-  -- def
-  build
-    NamedFunDef
-      { fun_name
-      , fun_def =
-        FunDef
-          { param_types
-          , ret_types
-          , mbody = Just FunBody{body_stmt, param_names, ret_names}
-          }
-      } = do
-      PP.putLine $ printf "def %s(%s) do" fun_name (PP.commaList $ zipWith showTypedVar param_names param_types)
-      PP.indented $ do
-        PP.build body_stmt
-        PP.putLine $ unwords ["return", PP.commaList $ zipWith showTypedVar ret_names ret_types]
-      PP.putLine "end"
-     where
-      showTypedVar :: Ident -> VarType sizeT -> String
-      showTypedVar x ty = unwords [x, ":", PP.toCodeString ty]
-  -- declare
-  build
-    NamedFunDef
-      { fun_name
-      , fun_def = FunDef{param_types, ret_types, mbody = Nothing}
-      } =
-      PP.putLine $
-        printf
-          "declare %s(%s) -> (%s) end"
-          fun_name
-          (PP.commaList $ map PP.toCodeString param_types)
-          (PP.commaList $ map PP.toCodeString ret_types)
-
-instance (Show sizeT, PP.ToCodeString primT) => PP.ToCodeString (Program primT sizeT) where
-  build Program{funCtx, stmt} = do
-    sequence_
-      [ PP.build NamedFunDef{fun_name, fun_def} >> PP.endl
-      | (fun_name, fun_def) <- Ctx.toList funCtx
-      ]
-    PP.build stmt

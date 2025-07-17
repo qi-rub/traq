@@ -21,4 +21,4 @@ def HasAllOnesRow() do
 	return ok : Bool
 end
 
-result <- HasAllOnesRow()
+result <- HasAllOnesRow();

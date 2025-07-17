@@ -1,3 +1,3 @@
-declare Oracle(Fin<N>) -> Bool
+declare Oracle(Fin<N>) -> Bool end
 
-result <- @any[Oracle]()
+result <- @any[Oracle]();

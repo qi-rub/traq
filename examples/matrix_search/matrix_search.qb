@@ -1,20 +1,20 @@
-declare Oracle(Fin<N>, Fin<M>) -> Bool
+declare Oracle(Fin<N>, Fin<M>) -> Bool end
 
-def IsEntryZero(i0: Fin<N>, j0: Fin<M>) do
+def IsEntryZero(i0: Fin<N>, j0: Fin<M>) -> Bool do
 	e <- Oracle(i0, j0);
 	e' <- !e;
-	return e' : Bool
+	return e'
 end
 
-def IsRowAllOnes(i: Fin<N>) do
+def IsRowAllOnes(i: Fin<N>) -> Bool do
 	hasZero <- @any[IsEntryZero](i);
 	okr <- not hasZero;
-	return okr : Bool
+	return okr
 end
 
-def HasAllOnesRow() do
+def HasAllOnesRow() -> Bool do
 	ok <- @any[IsRowAllOnes]();
-	return ok : Bool
+	return ok
 end
 
-result <- HasAllOnesRow()
+result <- HasAllOnesRow();
