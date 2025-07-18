@@ -14,7 +14,7 @@ module Traq.CQPL.TypeCheck (
 
 import Control.Monad (forM, unless, when)
 import Control.Monad.Except (MonadError)
-import Control.Monad.Reader (MonadReader, local, runReaderT)
+import Control.Monad.Reader (MonadReader, ReaderT, local, runReaderT)
 import Control.Monad.State (execStateT)
 import Data.Foldable (toList)
 import Data.List (intersect)
@@ -106,7 +106,7 @@ instance P.HasTypingCtx (CheckingCtx holeT sizeT costT) where
   _typingCtx focus (CheckingCtx p t) = focus t <&> \t' -> CheckingCtx p t'
 
 -- | Monad for type checking
-type TypeChecker holeT sizeT costT = MyReaderT (CheckingCtx holeT sizeT costT) (Either Err.MyError)
+type TypeChecker holeT sizeT costT = ReaderT (CheckingCtx holeT sizeT costT) (Either Err.MyError)
 
 -- ================================================================================
 -- Type Checking
@@ -315,5 +315,5 @@ typeCheckProgram Program{proc_defs} = do
   let env =
         default_
           & (_procCtx .~ proc_defs)
-  runMyReaderT ?? env $ do
+  runReaderT ?? env $ do
     mapM_ typeCheckProc $ Ctx.elems proc_defs

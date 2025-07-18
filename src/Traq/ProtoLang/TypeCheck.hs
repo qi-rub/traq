@@ -23,7 +23,7 @@ module Traq.ProtoLang.TypeCheck (
 
 import Control.Monad (forM_, unless, when, zipWithM_)
 import Control.Monad.Except (MonadError, throwError)
-import Control.Monad.RWS (MonadReader)
+import Control.Monad.Reader (MonadReader, runReaderT)
 import Control.Monad.Trans (lift)
 import Data.Void (Void, absurd)
 import Lens.Micro.GHC
@@ -169,7 +169,7 @@ typeCheckExpr ::
 typeCheckExpr BasicExprE{basic_expr} = do
   gamma <- use id
   lift $ do
-    ty <- runMyReaderT ?? gamma $ typeCheckBasicExpr basic_expr
+    ty <- runReaderT ?? gamma $ typeCheckBasicExpr basic_expr
     return [ty]
 -- f(x, ...)
 typeCheckExpr FunCallE{fun_kind = FunctionCall fun, args} = do
