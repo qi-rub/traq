@@ -29,9 +29,10 @@ module Traq.Primitives.Search.QSearchCFNW (
 import Control.Applicative ((<|>))
 import Control.Monad (filterM, forM, replicateM, when)
 import Control.Monad.Except (throwError)
+import Control.Monad.RWS (evalRWST)
 import Control.Monad.Reader (runReaderT)
 import Control.Monad.Trans (lift)
-import Control.Monad.Writer (censor, listen)
+import Control.Monad.Writer (WriterT, censor, execWriterT, listen)
 import Data.Foldable (Foldable (toList))
 import Data.String (fromString)
 import Lens.Micro.GHC
@@ -466,7 +467,7 @@ instance
     -- body:
     (qsearch_body, qsearch_ancilla) <- do
       ini_binds <- use P._typingCtx
-      ((), ss) <- (\m -> evalMyReaderWriterStateT m UQSearchEnv{search_arg_type = s_ty, pred_call_builder = pred_caller} ()) $ algoQSearchZalka delta_search ret
+      ((), ss) <- (\m -> evalRWST m UQSearchEnv{search_arg_type = s_ty, pred_call_builder = pred_caller} ()) $ algoQSearchZalka delta_search ret
       fin_binds <- use P._typingCtx
       let ancillas = Ctx.toList $ fin_binds Ctx.\\ ini_binds
       return (CQPL.USeqS ss, ancillas)
@@ -566,7 +567,17 @@ instance
 -- CQ Lowering
 -- ================================================================================
 
-allocReg :: Ident -> P.VarType sizeT -> MyWriterT ([CQPL.Stmt holeT sizeT], [(Ident, P.VarType sizeT)]) (CompileQ.CompilerT primsT holeT sizeT costT) Ident
+-- | the generated QSearch procedure: body stmts and local vars
+type QSearchCompilerT primsT holeT sizeT costT =
+  WriterT
+    ([CQPL.Stmt holeT sizeT], [(Ident, P.VarType sizeT)])
+    (CompileQ.CompilerT primsT holeT sizeT costT)
+
+allocReg ::
+  (m ~ QSearchCompilerT primsT holeT sizeT costT) =>
+  Ident ->
+  P.VarType sizeT ->
+  m Ident
 allocReg prefix ty = do
   reg <- lift $ Compiler.newIdent prefix
   writeElemAt _2 (reg, ty)
@@ -635,7 +646,7 @@ algoQSearch ::
   -- | Result register
   Ident ->
   -- | the generated QSearch procedure: body stmts and local vars
-  MyWriterT ([CQPL.Stmt holeT sizeT], [(Ident, P.VarType sizeT)]) (CompileQ.CompilerT primsT holeT sizeT costT) ()
+  WriterT ([CQPL.Stmt holeT sizeT], [(Ident, P.VarType sizeT)]) (CompileQ.CompilerT primsT holeT sizeT costT) ()
 algoQSearch ty n_samples eps grover_k_caller pred_caller ok = do
   not_done <- allocReg "not_done" P.tbool
   q_sum <- allocReg "Q_sum" j_type
@@ -826,7 +837,7 @@ instance
             , CQPL.args = args ++ [x, b]
             }
 
-    (qsearch_body, qsearch_local_vars) <- execMyWriterT $ algoQSearch s_ty 0 eps_s grover_k_caller pred_caller ret
+    (qsearch_body, qsearch_local_vars) <- execWriterT $ algoQSearch s_ty 0 eps_s grover_k_caller pred_caller ret
     qsearch_proc_name <- Compiler.newIdent "QAny"
     Compiler.addProc $
       CQPL.ProcDef
