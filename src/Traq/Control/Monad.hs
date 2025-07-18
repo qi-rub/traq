@@ -8,7 +8,6 @@ module Traq.Control.Monad (
   tellAt,
   writeElemAt,
   writeElem,
-  censored,
 
   -- * Extra
   execMyReaderWriterT,
@@ -28,7 +27,6 @@ import Control.Monad.RWS (
   MonadWriter,
   RWST (..),
   evalRWST,
-  mapRWST,
   tell,
  )
 import Data.Monoid (Endo)
@@ -52,10 +50,6 @@ writeElemAt focus = tellAt focus . pure
 
 writeElem :: (Applicative f, MonadWriter (f a) m) => a -> m ()
 writeElem = writeElemAt id
-
--- | Ignore the writer output
-censored :: (Monad m, Monoid w) => RWST r () s m a -> RWST r w s m a
-censored = mapRWST $ fmap (_3 .~ mempty)
 
 -- ================================================================================
 -- State
