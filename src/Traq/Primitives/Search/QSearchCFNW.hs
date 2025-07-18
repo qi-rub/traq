@@ -29,6 +29,7 @@ module Traq.Primitives.Search.QSearchCFNW (
 import Control.Applicative ((<|>))
 import Control.Monad (filterM, forM, replicateM, when)
 import Control.Monad.Except (throwError)
+import Control.Monad.Reader (runReaderT)
 import Control.Monad.Trans (lift)
 import Control.Monad.Writer (censor, listen)
 import Data.Foldable (Foldable (toList))
@@ -40,7 +41,6 @@ import Text.Printf (printf)
 
 import Traq.Control.Monad
 import qualified Traq.Data.Context as Ctx
-import Traq.Data.Default
 
 import qualified Traq.CQPL as CQPL
 import Traq.Prelude
@@ -235,12 +235,10 @@ instance
     -- number of solutions
     let space = P.range typ_x
     sols <- do
-      funCtx <- view P._funCtx
-      interpCtx <- view P._funInterpCtx
-      let env = default_ & (P._funCtx .~ funCtx) & (P._funInterpCtx .~ interpCtx)
+      env <- view P._evaluationEnv
       -- TODO this is too convoluted...
       return $
-        (runMyReaderT ?? env) $
+        (runReaderT ?? env) $
           (filterM ?? space)
             ( \v -> do
                 result <- P.evalFun (vs ++ [v]) predicate predDef

@@ -7,6 +7,7 @@ module Traq.Primitives.Search.RandomSearch (
   RandomSearch (..),
 ) where
 
+import Control.Monad (forM)
 import Lens.Micro.GHC
 import Lens.Micro.Mtl
 import Text.Printf (printf)
@@ -30,7 +31,12 @@ _URandomSearch n = fromIntegral n
 
 -- | Worst case number of predicate queries to implement random search.
 _ERandomSearchWorst :: forall sizeT costT. (Integral sizeT, Floating costT) => sizeT -> costT -> costT
-_ERandomSearchWorst n _ = fromIntegral $ 2 * n
+_ERandomSearchWorst n eps = fromIntegral n * log (1 / eps)
+
+-- | Expected number of predicate queries to implement random search.
+_ERandomSearch :: forall sizeT costT. (Integral sizeT, Floating costT) => sizeT -> sizeT -> costT -> costT
+_ERandomSearch n 0 eps = _ERandomSearchWorst n eps
+_ERandomSearch n k _ = fromIntegral n / fromIntegral k
 
 -- ================================================================================
 -- Primitive Implementation
@@ -47,10 +53,10 @@ instance HasPrimAny RandomSearch where
   getPredicateOfAny = predicate
 
 instance PP.ToCodeString RandomSearch where
-  build RandomSearch{predicate} = PP.putWord $ printf "@any[%s]" predicate
+  build RandomSearch{predicate} = PP.putWord $ printf "@any_rand[%s]" predicate
 
 instance P.CanParsePrimitive RandomSearch where
-  primitiveParser = parsePrimAny "any"
+  primitiveParser = parsePrimAny "any_rand"
 
 instance P.TypeCheckablePrimitive RandomSearch sizeT where
   typeCheckPrimitive = typeCheckPrimAny
@@ -104,14 +110,49 @@ instance
     let eps_pred = eps - eps_search
 
     -- number of predicate queries
-    let qry = _ERandomSearchWorst n eps_search
+    let max_qry = _ERandomSearchWorst n eps_search
 
     -- fail prob per predicate call
-    let eps_per_pred_call = eps_pred / qry
+    let eps_per_pred_call = eps_pred / max_qry
 
     -- cost of each predicate call
-    cost_unitary_pred <-
+    cost_pred_call <-
       P.quantumMaxQueryCostE eps_per_pred_call $
         P.FunCallE{P.fun_kind = P.FunctionCall predicate, P.args = undefined}
 
-    return $ qry * cost_unitary_pred
+    return $ max_qry * cost_pred_call
+
+instance
+  ( Integral sizeT
+  , Floating costT
+  , Ord costT
+  , P.QuantumCostablePrimitive primsT primsT sizeT costT
+  , sizeT ~ SizeT
+  ) =>
+  P.QuantumCostablePrimitive primsT RandomSearch sizeT costT
+  where
+  quantumQueryCostPrimitive eps RandomSearch{predicate} args = do
+    P.FunDef{P.param_types} <- view $ P._funCtx . Ctx.at predicate . singular _Just
+    let ty@(P.Fin n) = last param_types
+
+    -- split the fail prob
+    let eps_search = eps / 2
+    let eps_pred = eps - eps_search
+
+    -- number of predicate queries
+    let max_qry = _ERandomSearchWorst n eps_search
+
+    -- fail prob per predicate call
+    let eps_per_pred_call = eps_pred / max_qry
+
+    let sigma = Ctx.fromList $ zip ["in" ++ show i | i <- [1 .. length args]] args
+
+    costs <- forM (P.range ty) $ \v -> do
+      let sigma' = sigma & Ctx.ins "x_s" .~ v
+      let expr = P.FunCallE{P.fun_kind = P.FunctionCall predicate, P.args = Ctx.keys sigma}
+      cost_v <- P.quantumQueryCostE eps_per_pred_call sigma' expr
+      let is_sol = error "TODO"
+      -- is_sol <- zoom P._evaluationEnv $ error "TODO"
+      return (is_sol, cost_v)
+
+    error "TODO"
