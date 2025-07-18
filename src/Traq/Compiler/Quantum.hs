@@ -17,6 +17,10 @@ module Traq.Compiler.Quantum (
 
 import Control.Monad (unless, zipWithM)
 import Control.Monad.Except (throwError)
+import Control.Monad.Reader (ReaderT, runReaderT)
+import Control.Monad.State (StateT, runStateT)
+import Control.Monad.Trans (lift)
+import Control.Monad.Writer (WriterT, runWriterT)
 import Data.Maybe (fromMaybe)
 import Data.Void (Void, absurd)
 import Lens.Micro.GHC
@@ -40,7 +44,16 @@ type LoweringEnv primT sizeT costT = P.QuantumMaxCostEnv primT sizeT costT
 This should contain the _final_ typing context for the input program,
 that is, contains both the inputs and outputs of each statement.
 -}
-type CompilerT primT holeT sizeT costT = MyReaderWriterStateT (LoweringEnv primT sizeT costT) (LoweringOutput holeT sizeT costT) (LoweringCtx sizeT) (Either String)
+type CompilerT primT holeT sizeT costT =
+  WriterT
+    (LoweringOutput holeT sizeT costT)
+    ( ReaderT
+        (LoweringEnv primT sizeT costT)
+        ( StateT
+            (LoweringCtx sizeT)
+            (Either String)
+        )
+    )
 
 -- | Primitives that support a classical-quantum lowering.
 class
@@ -172,7 +185,7 @@ lowerStmt ::
   CompilerT primsT holeT sizeT costT (Stmt holeT sizeT)
 -- single statement
 lowerStmt eps s@P.ExprS{P.rets, P.expr} = do
-  censored . magnify P._funCtx . zoom P._typingCtx $ P.typeCheckStmt s
+  lift . magnify P._funCtx . zoom P._typingCtx $ P.typeCheckStmt s
   lowerExpr eps expr rets
 
 -- compound statements
@@ -218,8 +231,12 @@ lowerProgram strat gamma_in uticks cticks eps prog@P.Program{P.funCtx, P.stmt} =
           & (P._typingCtx .~ gamma_in)
           & (_uniqNamesCtx .~ P.allNamesP prog)
 
-  let compiler = lowerStmt eps stmt
-  (stmtQ, lowering_ctx', outputU) <- runMyReaderWriterStateT compiler config lowering_ctx
+  ((stmtQ, outputU), lowering_ctx') <-
+    lowerStmt eps stmt
+      & runWriterT
+      & (runReaderT ?? config)
+      & (runStateT ?? lowering_ctx)
+
   let main_proc_vars = lowering_ctx' ^. P._typingCtx . to Ctx.toList
   let main_proc =
         ProcDef

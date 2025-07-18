@@ -7,7 +7,7 @@ module Traq.Compiler.Unitary (
   CompilerT,
 
   -- ** Compiler State
-  LoweringConfig,
+  LoweringEnv,
   LoweringCtx,
   LoweringOutput,
 
@@ -30,6 +30,10 @@ module Traq.Compiler.Unitary (
 
 import Control.Monad (forM, unless, when, zipWithM)
 import Control.Monad.Except (throwError)
+import Control.Monad.Reader (ReaderT, runReaderT)
+import Control.Monad.State (StateT, runStateT)
+import Control.Monad.Trans (lift)
+import Control.Monad.Writer (WriterT, runWriterT)
 import Data.Foldable (Foldable (toList))
 import Data.List (intersect)
 import Data.Maybe (fromMaybe)
@@ -49,13 +53,22 @@ import Traq.Prelude
 import qualified Traq.ProtoLang as P
 
 -- | Configuration for lowering
-type LoweringConfig primT sizeT costT = P.UnitaryCostEnv primT sizeT costT
+type LoweringEnv primT sizeT costT = P.UnitaryCostEnv primT sizeT costT
 
 {- | Monad to compile to Unitary CQPL programs.
 This should contain the _final_ typing context for the input program,
 that is, contains both the inputs and outputs of each statement.
 -}
-type CompilerT primT holeT sizeT costT = MyReaderWriterStateT (LoweringConfig primT sizeT costT) (LoweringOutput holeT sizeT costT) (LoweringCtx sizeT) (Either String)
+type CompilerT primT holeT sizeT costT =
+  WriterT
+    (LoweringOutput holeT sizeT costT)
+    ( ReaderT
+        (LoweringEnv primT sizeT costT)
+        ( StateT
+            (LoweringCtx sizeT)
+            (Either String)
+        )
+    )
 
 -- | Primitives that support a unitary lowering.
 class
@@ -104,6 +117,10 @@ data LoweredProc holeT sizeT costT = LoweredProc
   , aux_tys :: [P.VarType sizeT]
   -- ^ all other registers
   }
+
+type instance HoleType (LoweredProc holeT sizeT costT) = holeT
+type instance SizeType (LoweredProc holeT sizeT costT) = sizeT
+type instance CostType (LoweredProc holeT sizeT costT) = costT
 
 data ControlFlag = WithControl | WithoutControl deriving (Eq, Show, Read, Enum)
 
@@ -161,7 +178,7 @@ lowerStmt ::
   CompilerT primsT holeT sizeT costT (UStmt holeT sizeT)
 -- single statement
 lowerStmt delta s@P.ExprS{P.rets, P.expr} = do
-  censored . magnify P._funCtx . zoom P._typingCtx $ P.typeCheckStmt s
+  lift $ magnify P._funCtx . zoom P._typingCtx $ P.typeCheckStmt s
   lowerExpr delta expr rets
 
 -- compound statements
@@ -276,7 +293,7 @@ withTag tag = map $ \(x, ty) -> (x, tag, ty)
  TODO try to cache compiled procs by key (funDefName, Precision).
 -}
 lowerFunDef ::
-  forall primsT sizeT costT holeT.
+  forall primsT holeT sizeT costT.
   ( Lowerable primsT primsT holeT sizeT costT
   , P.TypeCheckable sizeT
   , Show costT
@@ -397,8 +414,11 @@ lowerProgram strat gamma_in oracle_ticks delta prog@P.Program{P.funCtx, P.stmt} 
           & (P._typingCtx .~ gamma_in)
           & (_uniqNamesCtx .~ P.allNamesP prog)
 
-  let compiler = lowerStmt delta stmt
-  (stmtU, ctx', outputU) <- runMyReaderWriterStateT compiler config ctx
+  ((stmtU, outputU), ctx') <-
+    lowerStmt delta stmt
+      & runWriterT
+      & (runReaderT ?? config)
+      & (runStateT ?? ctx)
 
   let procs = outputU ^. _loweredProcs . to (Ctx.fromListWith proc_name)
   let (arg_names, arg_tys) = ctx' ^. P._typingCtx . to Ctx.toList . to unzip

@@ -1,5 +1,8 @@
 module Traq.Primitives.QSearchSpec (spec) where
 
+import Control.Monad.Reader (runReaderT)
+import Control.Monad.State (evalStateT)
+import Control.Monad.Writer (runWriterT)
 import Lens.Micro.GHC
 
 import Traq.Control.Monad
@@ -28,6 +31,9 @@ spec = do
           expectRight $
             algoQSearchZalka eps "output_bit"
               & execMyReaderWriterT UQSearchEnv{search_arg_type = P.Fin n, pred_call_builder = pred_caller}
-              & (\m -> evalMyReaderStateT m lenv lctx)
+              & runWriterT
+              <&> fst
+              & (runReaderT ?? lenv)
+              & (evalStateT ?? lctx)
               <&> CQPL.USeqS
         PP.toCodeString circ `shouldSatisfy` (not . null)

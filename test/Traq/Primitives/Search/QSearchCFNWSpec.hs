@@ -2,7 +2,9 @@
 
 module Traq.Primitives.Search.QSearchCFNWSpec (spec) where
 
-import Control.Monad.RWS (evalRWST)
+import Control.Monad.Reader (runReaderT)
+import Control.Monad.State (evalStateT)
+import Control.Monad.Writer (runWriterT)
 import Lens.Micro.GHC
 
 import Traq.Control.Monad
@@ -47,7 +49,9 @@ spec = do
         (ss, []) <-
           algoQSearchZalka @QSearchCFNW @_ @SizeT delta "result"
             & execMyReaderWriterT (qsearch_env n)
-            & (\act -> evalRWST act compile_config default_)
+            & runWriterT
+            & (runReaderT ?? compile_config)
+            & (evalStateT ?? default_)
             & expectRight
 
         let uprog =

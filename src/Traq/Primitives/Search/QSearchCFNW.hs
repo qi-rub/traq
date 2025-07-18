@@ -1,6 +1,7 @@
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE MultiParamTypeClasses #-}
 {-# LANGUAGE OverloadedStrings #-}
+{-# LANGUAGE TypeApplications #-}
 {-# LANGUAGE UndecidableInstances #-}
 
 {- |
@@ -32,7 +33,7 @@ import Control.Monad.Except (throwError)
 import Control.Monad.RWS (evalRWST)
 import Control.Monad.Reader (runReaderT)
 import Control.Monad.Trans (lift)
-import Control.Monad.Writer (WriterT, censor, execWriterT, listen)
+import Control.Monad.Writer (WriterT (..), censor, execWriterT, listen)
 import Data.Foldable (Foldable (toList))
 import Data.String (fromString)
 import Lens.Micro.GHC
@@ -738,6 +739,7 @@ instance
   , sizeT ~ SizeT
   , holeT ~ QSearchBlackBoxes costT
   , CompileQ.Lowerable primsT primsT holeT sizeT costT
+  , CompileU.Lowerable primsT primsT holeT sizeT costT
   , Show sizeT
   , Show costT
   , P.TypeCheckable sizeT
@@ -763,14 +765,9 @@ instance
     let delta_per_pred_call = eps_per_pred_call / 2 -- norm error in unitary predicate
 
     -- lower the unitary predicate
-    let upred_compiler = CompileU.lowerFunDef CompileU.WithoutControl delta_per_pred_call predicate pred_fun
-    (pred_uproc, uprocs) <- do
-      uenv <- view P._unitaryCostEnv
-      ust <- use id
-      (a, _, w) <- lift $ runMyReaderWriterStateT upred_compiler uenv ust
-      return (a, w)
+    pred_uproc <- WriterT . magnify P._unitaryCostEnv . runWriterT $ do
+      CompileU.lowerFunDef @_ @holeT CompileU.WithoutControl delta_per_pred_call predicate pred_fun
 
-    tellAt Compiler._loweredProcs uprocs
     let CompileU.LoweredProc
           { CompileU.inp_tys = pred_inp_tys
           , CompileU.aux_tys = pred_aux_tys

@@ -3,11 +3,6 @@ module Traq.Control.Monad (
   MyReaderWriterStateT,
   runMyReaderWriterStateT,
 
-  -- ** Reader
-
-  -- MyReaderT,
-  -- runMyReaderT,
-
   -- ** State
   withSandboxOf,
   withSandbox,

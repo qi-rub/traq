@@ -23,7 +23,8 @@ module Traq.ProtoLang.TypeCheck (
 
 import Control.Monad (forM_, unless, when, zipWithM_)
 import Control.Monad.Except (MonadError, throwError)
-import Control.Monad.Reader (MonadReader, runReaderT)
+import Control.Monad.Reader (MonadReader, ReaderT, runReaderT)
+import Control.Monad.State (StateT, execStateT)
 import Control.Monad.Trans (lift)
 import Data.Void (Void, absurd)
 import Lens.Micro.GHC
@@ -144,7 +145,7 @@ lookupFunE fname =
 type TypingEnv primT sizeT = FunCtx primT sizeT
 
 -- | The TypeChecker monad
-type TypeChecker primT sizeT = MyReaderStateT (TypingEnv primT sizeT) (TypingCtx sizeT) (Either String)
+type TypeChecker primT sizeT = ReaderT (TypingEnv primT sizeT) (StateT (TypingCtx sizeT) (Either String))
 
 class TypeCheckablePrimitive primT sizeT where
   typeCheckPrimitive ::
@@ -238,7 +239,7 @@ typeCheckFun
       throwError "number of returns must match the types"
 
     let gamma = Ctx.fromList $ zip param_names param_types
-    gamma' <- execMyReaderStateT (typeCheckStmt body_stmt) funCtx gamma
+    gamma' <- execStateT ?? gamma $ runReaderT ?? funCtx $ typeCheckStmt body_stmt
     forM_ (zip ret_names ret_types) $ \(x, t) -> do
       when (has _Just (gamma ^. Ctx.at x)) $ do
         throwError $ printf "parameter `%s` cannot be returned, please copy it into a new variable and return that" x
@@ -259,7 +260,19 @@ typeCheckProg ::
   ) =>
   TypingCtx sizeT ->
   Program primT sizeT ->
-  Either String (TypingCtx sizeT)
+  Either String ()
 typeCheckProg gamma Program{funCtx, stmt} = do
   mapM_ (typeCheckFun funCtx) funCtx
-  execMyReaderStateT (typeCheckStmt stmt) funCtx gamma
+  let main_fun =
+        FunDef
+          { param_types = Ctx.elems gamma
+          , ret_types = []
+          , mbody =
+              Just
+                FunBody
+                  { param_names = Ctx.keys gamma
+                  , ret_names = []
+                  , body_stmt = stmt
+                  }
+          }
+  typeCheckFun funCtx main_fun
