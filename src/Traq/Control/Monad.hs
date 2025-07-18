@@ -1,28 +1,24 @@
 module Traq.Control.Monad (
-  -- * Monad Types
-  MyReaderWriterStateT,
-  runMyReaderWriterStateT,
-
-  -- ** State
+  -- * MonadState
   withSandboxOf,
   withSandbox,
 
-  -- ** Writer
+  -- * MonadWriter
   tell,
   tellAt,
   writeElemAt,
   writeElem,
   censored,
 
+  -- * Extra
+
   -- ** RS
   MyReaderStateT,
   runMyReaderStateT,
   evalMyReaderStateT,
-  execMyReaderStateT,
 
   -- ** RW
   MyReaderWriterT,
-  evalMyReaderWriterT,
   execMyReaderWriterT,
 
   -- * MonadError
@@ -57,12 +53,6 @@ import Traq.Data.Errors
 -- | Overly descriptive alias for RWS
 type MyReaderWriterStateT = RWST
 
-runMyReaderWriterStateT :: (Monad m) => MyReaderWriterStateT r w s m a -> r -> s -> m (a, s, w)
-runMyReaderWriterStateT = runRWST
-
-evalMyReaderWriterStateT :: (Monad m) => MyReaderWriterStateT r w s m a -> r -> s -> m (a, w)
-evalMyReaderWriterStateT = evalRWST
-
 -- ================================================================================
 -- Reader+State
 -- ================================================================================
@@ -77,20 +67,6 @@ runMyReaderStateT m r s = do
 
 evalMyReaderStateT :: (Monad m, Monoid w) => MyReaderWriterStateT r w s m a -> r -> s -> m a
 evalMyReaderStateT = ((fmap fst .) .) . runMyReaderStateT
-
-execMyReaderStateT :: (Monad m, Monoid w) => MyReaderWriterStateT r w s m a -> r -> s -> m s
-execMyReaderStateT = ((fmap snd .) .) . runMyReaderStateT
-
--- ================================================================================
--- Reader
--- ================================================================================
-
--- | Reader type using RWS
-type MyReaderT r = MyReaderWriterStateT r () ()
-
--- | @runReaderT@ for @RWST@
-runMyReaderT :: (Monad m) => MyReaderT r m a -> r -> m a
-runMyReaderT rws r = evalMyReaderStateT rws r ()
 
 -- ================================================================================
 -- Writer
@@ -133,11 +109,8 @@ withSandbox = withSandboxOf id
 -- ================================================================================
 type MyReaderWriterT r w = MyReaderWriterStateT r w ()
 
-evalMyReaderWriterT :: (Monad m, Monoid w) => r -> MyReaderWriterT r w m a -> m a
-evalMyReaderWriterT r m = fst <$> evalMyReaderWriterStateT m r ()
-
 execMyReaderWriterT :: (Monad m, Monoid w) => r -> MyReaderWriterT r w m a -> m w
-execMyReaderWriterT r m = snd <$> evalMyReaderWriterStateT m r ()
+execMyReaderWriterT r m = snd <$> evalRWST m r ()
 
 -- ================================================================================
 -- MonadError
