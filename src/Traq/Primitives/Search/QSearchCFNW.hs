@@ -30,7 +30,7 @@ module Traq.Primitives.Search.QSearchCFNW (
 import Control.Applicative ((<|>))
 import Control.Monad (filterM, forM, replicateM, when)
 import Control.Monad.Except (throwError)
-import Control.Monad.RWS (evalRWST)
+import Control.Monad.RWS (RWST, evalRWST)
 import Control.Monad.Reader (runReaderT)
 import Control.Monad.Trans (lift)
 import Control.Monad.Writer (WriterT (..), censor, execWriterT, listen)
@@ -286,7 +286,12 @@ data UQSearchEnv holeT sizeT = UQSearchEnv
   }
 
 -- | A layer on top of the unitary compiler, holding the relevant QSearch context, and storing the produced statements.
-type UQSearchBuilder primsT holeT sizeT costT = MyReaderWriterT (UQSearchEnv holeT sizeT) [CQPL.UStmt holeT sizeT] (CompileU.CompilerT primsT holeT sizeT costT)
+type UQSearchBuilder primsT holeT sizeT costT =
+  RWST
+    (UQSearchEnv holeT sizeT)
+    [CQPL.UStmt holeT sizeT]
+    ()
+    (CompileU.CompilerT primsT holeT sizeT costT)
 
 allocSearchArgReg :: UQSearchBuilder primsT holeT sizeT costT Ident
 allocSearchArgReg = do

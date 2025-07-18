@@ -11,14 +11,6 @@ module Traq.Control.Monad (
   censored,
 
   -- * Extra
-
-  -- ** RS
-  MyReaderStateT,
-  runMyReaderStateT,
-  evalMyReaderStateT,
-
-  -- ** RW
-  MyReaderWriterT,
   execMyReaderWriterT,
 
   -- * MonadError
@@ -37,7 +29,6 @@ import Control.Monad.RWS (
   RWST (..),
   evalRWST,
   mapRWST,
-  runRWST,
   tell,
  )
 import Data.Monoid (Endo)
@@ -45,28 +36,6 @@ import Lens.Micro.GHC
 import Lens.Micro.Mtl
 
 import Traq.Data.Errors
-
--- ================================================================================
--- RWS
--- ================================================================================
-
--- | Overly descriptive alias for RWS
-type MyReaderWriterStateT = RWST
-
--- ================================================================================
--- Reader+State
--- ================================================================================
-
--- | Reader+State monad using RWS
-type MyReaderStateT r s = MyReaderWriterStateT r () s
-
-runMyReaderStateT :: (Monad m, Monoid w) => MyReaderWriterStateT r w s m a -> r -> s -> m (a, s)
-runMyReaderStateT m r s = do
-  (a, s', _) <- runRWST m r s
-  return (a, s')
-
-evalMyReaderStateT :: (Monad m, Monoid w) => MyReaderWriterStateT r w s m a -> r -> s -> m a
-evalMyReaderStateT = ((fmap fst .) .) . runMyReaderStateT
 
 -- ================================================================================
 -- Writer
@@ -107,10 +76,9 @@ withSandbox = withSandboxOf id
 -- ================================================================================
 -- Reader + Writer
 -- ================================================================================
-type MyReaderWriterT r w = MyReaderWriterStateT r w ()
-
-execMyReaderWriterT :: (Monad m, Monoid w) => r -> MyReaderWriterT r w m a -> m w
+execMyReaderWriterT :: (Monad m, Monoid w) => r -> RWST r w () m a -> m w
 execMyReaderWriterT r m = snd <$> evalRWST m r ()
+{-# DEPRECATED execMyReaderWriterT "Remove" #-}
 
 -- ================================================================================
 -- MonadError
