@@ -1,3 +1,4 @@
+{-# LANGUAGE DuplicateRecordFields #-}
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE MultiParamTypeClasses #-}
 {-# LANGUAGE UndecidableInstances #-}
@@ -6,6 +7,9 @@ module Traq.Primitives (
   DefaultPrims (..),
   QSearchCFNW (..),
 ) where
+
+import Control.Applicative ((<|>))
+import Text.Printf (printf)
 
 import qualified Traq.Compiler.Quantum as CompileQ
 import qualified Traq.Compiler.Unitary as CompileU
@@ -35,11 +39,13 @@ instance HasPrimSearch DefaultPrims where
 -- Printing
 instance PP.ToCodeString DefaultPrims where
   build (QAny prim) = PP.build prim
-  build (RAny prim) = PP.build prim
+  build (RAny RandomSearch{predicate}) = PP.putWord $ printf "@any_rand[%s]" predicate
 
 -- Parsing
 instance P.CanParsePrimitive DefaultPrims where
-  primitiveParser tp = QAny <$> P.primitiveParser tp
+  primitiveParser tp =
+    (QAny <$> P.primitiveParser tp)
+      <|> (RAny <$> parsePrimAny "any_rand" tp)
 
 -- Type Checking
 instance P.TypeCheckablePrimitive DefaultPrims sizeT where

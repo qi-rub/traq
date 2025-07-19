@@ -56,10 +56,10 @@ instance HasPrimAny RandomSearch where
   getPredicateOfAny = predicate
 
 instance PP.ToCodeString RandomSearch where
-  build RandomSearch{predicate} = PP.putWord $ printf "@any_rand[%s]" predicate
+  build RandomSearch{predicate} = PP.putWord $ printf "@any[%s]" predicate
 
 instance P.CanParsePrimitive RandomSearch where
-  primitiveParser = parsePrimAny "any_rand"
+  primitiveParser = parsePrimAny "any"
 
 instance P.TypeCheckablePrimitive RandomSearch sizeT where
   typeCheckPrimitive = typeCheckPrimAny
@@ -156,7 +156,11 @@ instance
 
     costs <- forM (P.range ty) $ \v -> do
       let sigma' = sigma & Ctx.ins "x_s" .~ v
-      let pred_call_expr = P.FunCallE{P.fun_kind = P.FunctionCall predicate, P.args = Ctx.keys sigma}
+      let pred_call_expr =
+            P.FunCallE
+              { P.fun_kind = P.FunctionCall predicate
+              , P.args = Ctx.keys sigma'
+              }
 
       -- cost of predicate on input `v`
       cost_v <- P.quantumQueryCostE eps_per_pred_call sigma' pred_call_expr

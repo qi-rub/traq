@@ -16,6 +16,7 @@ import Traq.Prelude
 import qualified Traq.CQPL as CQPL
 import Traq.Primitives.Search.QSearchCFNW
 import qualified Traq.ProtoLang as P
+import qualified Traq.Utils.Printing as PP
 
 import Test.Hspec
 import Test.Hspec.QuickCheck
@@ -37,6 +38,24 @@ instance Arbitrary SearchParams where
 
 spec :: Spec
 spec = do
+  describe "Grover circuit" $ do
+    it "for simple values" $ do
+      let n = 10 :: Int
+      let eps = 0.001 :: Float
+      let pred_caller c x b = CQPL.UCallS{CQPL.uproc_id = "Oracle", CQPL.dagger = False, CQPL.qargs = [c, x, b]}
+      let lenv = default_ & (P._unitaryTicks . at "Oracle" ?~ 1)
+      let lctx = default_
+      circ <-
+        expectRight $
+          algoQSearchZalka eps "output_bit"
+            & execRWT UQSearchEnv{search_arg_type = P.Fin n, pred_call_builder = pred_caller}
+            & runWriterT
+            <&> fst
+            & (runReaderT ?? lenv)
+            & (evalStateT ?? lctx)
+            <&> CQPL.USeqS
+      PP.toCodeString circ `shouldSatisfy` (not . null)
+
   describe "QSearch_Zalka circuit" $ do
     let qsearch_env n =
           UQSearchEnv
