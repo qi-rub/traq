@@ -9,9 +9,6 @@ module Traq.Control.Monad (
   writeElemAt,
   writeElem,
 
-  -- * Extra
-  execMyReaderWriterT,
-
   -- * MonadError
   throwFrom,
   singularM,
@@ -22,13 +19,7 @@ module Traq.Control.Monad (
 ) where
 
 import Control.Monad.Except (MonadError, catchError, throwError)
-import Control.Monad.RWS (
-  MonadState,
-  MonadWriter,
-  RWST (..),
-  evalRWST,
-  tell,
- )
+import Control.Monad.RWS (MonadState, MonadWriter, tell)
 import Data.Monoid (Endo)
 import Lens.Micro.GHC
 import Lens.Micro.Mtl
@@ -66,13 +57,6 @@ withSandboxOf part action = do
 -- | Save the current state, run a computation and restore the saved state.
 withSandbox :: (MonadState s m) => m a -> m a
 withSandbox = withSandboxOf id
-
--- ================================================================================
--- Reader + Writer
--- ================================================================================
-execMyReaderWriterT :: (Monad m, Monoid w) => r -> RWST r w () m a -> m w
-execMyReaderWriterT r m = snd <$> evalRWST m r ()
-{-# DEPRECATED execMyReaderWriterT "Remove" #-}
 
 -- ================================================================================
 -- MonadError

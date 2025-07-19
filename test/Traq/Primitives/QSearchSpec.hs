@@ -1,5 +1,6 @@
 module Traq.Primitives.QSearchSpec (spec) where
 
+import Control.Monad.RWS (RWST, evalRWST)
 import Control.Monad.Reader (runReaderT)
 import Control.Monad.State (evalStateT)
 import Control.Monad.Writer (runWriterT)
@@ -17,6 +18,9 @@ import Traq.Primitives.Search.QSearchCFNW
 import Test.Hspec
 import TestHelpers
 
+execRWT :: (Monad m, Monoid w) => r -> RWST r w () m a -> m w
+execRWT r m = snd <$> evalRWST m r ()
+
 spec :: Spec
 spec = do
   describe "Grover circuit" $ do
@@ -30,7 +34,7 @@ spec = do
         circ <-
           expectRight $
             algoQSearchZalka eps "output_bit"
-              & execMyReaderWriterT UQSearchEnv{search_arg_type = P.Fin n, pred_call_builder = pred_caller}
+              & execRWT UQSearchEnv{search_arg_type = P.Fin n, pred_call_builder = pred_caller}
               & runWriterT
               <&> fst
               & (runReaderT ?? lenv)

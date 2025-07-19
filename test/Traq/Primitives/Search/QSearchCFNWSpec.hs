@@ -2,6 +2,7 @@
 
 module Traq.Primitives.Search.QSearchCFNWSpec (spec) where
 
+import Control.Monad.RWS (RWST, evalRWST)
 import Control.Monad.Reader (runReaderT)
 import Control.Monad.State (evalStateT)
 import Control.Monad.Writer (runWriterT)
@@ -21,6 +22,9 @@ import Test.Hspec.QuickCheck
 import Test.QuickCheck
 import Test.QuickCheck.Gen (genDouble)
 import TestHelpers
+
+execRWT :: (Monad m, Monoid w) => r -> RWST r w () m a -> m w
+execRWT r m = snd <$> evalRWST m r ()
 
 data SearchParams = SearchParams {space_size :: Int, precision :: Double}
   deriving (Show, Eq, Read)
@@ -48,7 +52,7 @@ spec = do
       (n > 1) ==> do
         (ss, []) <-
           algoQSearchZalka @QSearchCFNW @_ @SizeT delta "result"
-            & execMyReaderWriterT (qsearch_env n)
+            & execRWT (qsearch_env n)
             & runWriterT
             & (runReaderT ?? compile_config)
             & (evalStateT ?? default_)
