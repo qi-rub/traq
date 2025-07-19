@@ -49,7 +49,7 @@ instance PP.ToCodeString DefaultPrims where
 -- Parsing
 instance P.CanParsePrimitive DefaultPrims where
   primitiveParser tp =
-    (QAny <$> parsePrimAny "any" tp)
+    (QAny <$> P.primitiveParser tp)
       <|> (RAny <$> parsePrimAny "any_rand" tp)
       <|> (DAny <$> parsePrimAny "any_det" tp)
 
