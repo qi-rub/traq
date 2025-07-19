@@ -38,6 +38,7 @@ library
       Traq.Examples.Search
       Traq.Prelude
       Traq.Primitives
+      Traq.Primitives.Search.DetSearch
       Traq.Primitives.Search.Prelude
       Traq.Primitives.Search.QCount
       Traq.Primitives.Search.QMax
