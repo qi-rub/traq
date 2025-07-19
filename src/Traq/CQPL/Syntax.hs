@@ -170,10 +170,7 @@ instance (Show holeT, Show sizeT) => PP.ToCodeString (UStmt holeT sizeT) where
   build UCallS{uproc_id, dagger, qargs} = PP.concatenated $ do
     PP.putWord "call"
     PP.putWord $ showDagger dagger
-    PP.putWord " "
-    PP.putWord uproc_id
-    PP.putWord $ PP.commaList qargs
-    PP.putWord ";"
+    PP.putWord $ printf " %s(%s);" uproc_id $ PP.commaList qargs
   build (USeqS ps) = mapM_ PP.build ps
   -- syntax sugar
   build (UHoleS info dagger) = PP.putLine $ printf "HOLE :: %s%s;" (show info) (showDagger dagger)
