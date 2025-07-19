@@ -157,7 +157,8 @@ computeStatsForWorstCaseMatrices phantom =
   withFile "examples/matrix_search/stats/worstcase.csv" WriteMode $ \h -> do
     hPutStrLn h "n,cost"
     let eps = 0.001
-    forM_ ((10 :: Int) : [500, 1000 .. 4000]) $ \n -> do
+    -- forM_ ((10 :: Int) : [500, 1000 .. 4000]) $ \n -> do
+    forM_ ((10 :: Int) : [20, 40, 100]) $ \n -> do
       putStrLn $ ">> n = " <> show n
       let m = n
       let c = qcost phantom eps (P.FinV n, P.FinV m, matfun)
@@ -211,6 +212,7 @@ main = do
 
   -- computeStatsForRandomMatrices
   -- computeStatsForPlantedRandomMatrices
+  timeIt $ computeStatsForWorstCaseMatrices detSearchP
   timeIt $ computeStatsForWorstCaseMatrices qSearchP
   -- timeIt computeStatsForWorstCaseExample
   -- timeIt triangular
