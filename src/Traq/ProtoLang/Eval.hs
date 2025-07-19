@@ -20,19 +20,25 @@ module Traq.ProtoLang.Eval (
   validateValueType,
 
   -- * Types and Monad
+  EvaluatablePrimitive (..),
+
+  -- ** Evaluation
   FunInterp,
   FunInterpCtx,
   HasFunInterpCtx (..),
-  ExecutionEnv,
-  ExecutionState,
+  EvaluationEnv,
+  HasEvaluationEnv (..),
   Evaluator,
+
+  -- ** Execution (state updating)
+  ExecutionState,
   Executor,
-  EvaluatablePrimitive (..),
 ) where
 
 import Control.Monad (zipWithM_)
-import Control.Monad.RWS (MonadState, runRWST)
-import Control.Monad.Reader (MonadReader, runReader)
+import Control.Monad.Reader (MonadReader, ReaderT, runReaderT)
+import Control.Monad.State (MonadState, StateT, evalStateT, execStateT)
+import Control.Monad.Trans (lift)
 import Data.Void (Void, absurd)
 import Lens.Micro.GHC
 import Lens.Micro.Mtl
@@ -126,26 +132,33 @@ class HasFunInterpCtx p where
 instance HasFunInterpCtx (FunInterpCtx sizeT) where _funInterpCtx = id
 
 -- | Environment for evaluation
-data ExecutionEnv primsT sizeT = ExecutionEnv (FunCtx primsT sizeT) (FunInterpCtx sizeT)
+data EvaluationEnv primsT sizeT = EvaluationEnv (FunCtx primsT sizeT) (FunInterpCtx sizeT)
 
-type instance SizeType (ExecutionEnv primsT sizeT) = sizeT
-type instance PrimitiveType (ExecutionEnv primsT sizeT) = primsT
+type instance SizeType (EvaluationEnv primsT sizeT) = sizeT
+type instance PrimitiveType (EvaluationEnv primsT sizeT) = primsT
 
-instance HasDefault (ExecutionEnv primsT sizeT) where default_ = ExecutionEnv default_ default_
+class HasEvaluationEnv p where
+  _evaluationEnv ::
+    (primsT ~ PrimitiveType p, sizeT ~ SizeType p) =>
+    Lens' p (EvaluationEnv primsT sizeT)
 
-instance HasFunCtx (ExecutionEnv primsT sizeT) where
-  _funCtx focus (ExecutionEnv f fi) = focus f <&> \f' -> ExecutionEnv f' fi
+instance HasEvaluationEnv (EvaluationEnv primsT sizeT) where _evaluationEnv = id
 
-instance HasFunInterpCtx (ExecutionEnv primsT sizeT) where
-  _funInterpCtx focus (ExecutionEnv f fi) = focus fi <&> ExecutionEnv f
+instance HasDefault (EvaluationEnv primsT sizeT) where default_ = EvaluationEnv default_ default_
+
+instance HasFunCtx (EvaluationEnv primsT sizeT) where
+  _funCtx focus (EvaluationEnv f fi) = focus f <&> \f' -> EvaluationEnv f' fi
+
+instance HasFunInterpCtx (EvaluationEnv primsT sizeT) where
+  _funInterpCtx focus (EvaluationEnv f fi) = focus fi <&> EvaluationEnv f
 
 type ExecutionState sizeT = ProgramState sizeT
 
 -- | Non-deterministic Execution Monad (i.e. no state)
-type Evaluator primsT sizeT = MyReaderT (ExecutionEnv primsT sizeT) Tree.Tree
+type Evaluator primsT sizeT = ReaderT (EvaluationEnv primsT sizeT) Tree.Tree
 
 -- | Non-deterministic Execution Monad
-type Executor primsT sizeT = MyReaderStateT (ExecutionEnv primsT sizeT) (ExecutionState sizeT) Tree.Tree
+type Executor primsT sizeT = StateT (ExecutionState sizeT) (Evaluator primsT sizeT)
 
 {- | Primitives that support evaluation:
  Can evaluate @primT@ under a context of @primsT@.
@@ -183,25 +196,25 @@ putS x v = _state . Ctx.ins x .= v
 evalExpr ::
   forall primsT m.
   ( EvaluatablePrimitive primsT primsT
-  , m ~ Executor primsT SizeT
+  , m ~ Evaluator primsT SizeT
   ) =>
   Expr primsT SizeT ->
+  ProgramState SizeT ->
   m [Value SizeT]
-evalExpr BasicExprE{basic_expr} = do
-  sigma <- use id
-  let val = runReader (evalBasicExpr basic_expr) sigma
+evalExpr BasicExprE{basic_expr} sigma = do
+  val <- runReaderT ?? sigma $ evalBasicExpr basic_expr
   return [val]
 
 -- function calls
-evalExpr FunCallE{fun_kind = FunctionCall fun, args} = do
-  arg_vals <- mapM lookupS args
+evalExpr FunCallE{fun_kind = FunctionCall fun, args} sigma = do
+  arg_vals <- evalStateT ?? sigma $ mapM lookupS args
   fun_def <- view $ _funCtx . Ctx.at fun . singular _Just
-  embedReaderT $ evalFun arg_vals fun fun_def
+  evalFun arg_vals fun fun_def
 
 -- subroutines
-evalExpr FunCallE{fun_kind = PrimitiveCall prim, args} = do
-  vals <- mapM lookupS args
-  embedReaderT $ evalPrimitive prim vals
+evalExpr FunCallE{fun_kind = PrimitiveCall prim, args} sigma = do
+  vals <- evalStateT ?? sigma $ mapM lookupS args
+  evalPrimitive prim vals
 
 execStmt ::
   forall primsT m.
@@ -211,7 +224,8 @@ execStmt ::
   Stmt primsT SizeT ->
   m ()
 execStmt ExprS{rets, expr} = do
-  vals <- withSandbox $ evalExpr expr
+  sigma <- use _state
+  vals <- lift $ evalExpr expr sigma
   zipWithM_ putS rets vals
 execStmt IfThenElseS{cond, s_true, s_false} = do
   cond_val <- lookupS cond
@@ -233,7 +247,7 @@ evalFun ::
   m [Value SizeT]
 evalFun vals_in _ FunDef{mbody = Just FunBody{param_names, ret_names, body_stmt}} =
   let params = Ctx.fromList $ zip param_names vals_in
-   in withInjectedState params $ do
+   in (evalStateT ?? params) $ do
         execStmt body_stmt
         mapM lookupS ret_names
 evalFun vals_in fun_name FunDef{mbody = Nothing} = do
@@ -247,7 +261,10 @@ runProgram ::
   FunInterpCtx SizeT ->
   ProgramState SizeT ->
   Tree.Tree (ProgramState SizeT)
-runProgram Program{funCtx, stmt} funInterpCtx st = view _2 <$> runRWST (execStmt stmt) env st
+runProgram Program{funCtx, stmt} funInterpCtx st =
+  execStmt stmt
+    & (execStateT ?? st)
+    & (runReaderT ?? env)
  where
   env =
     default_

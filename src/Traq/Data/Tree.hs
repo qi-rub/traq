@@ -4,10 +4,12 @@ module Traq.Data.Tree (
   choice,
   flattenTrivial,
   termProb,
+  detExtract,
 ) where
 
 import Control.Applicative
 import Control.Monad
+import Data.Foldable (toList)
 
 -- | A representation of a non-deterministic value
 data Tree a
@@ -50,6 +52,11 @@ instance Foldable Tree where
   foldr _ b Fail = b
   foldr f b (Leaf a) = f a b
   foldr f b (Choice t t' ts) = foldr (flip (foldr f)) b (t : t' : ts)
+
+detExtract :: (Foldable t) => t a -> a
+detExtract xs = case toList xs of
+  [x] -> x
+  _ -> error "unexpected non-determinism"
 
 instance Functor Tree where
   fmap _ Fail = Fail

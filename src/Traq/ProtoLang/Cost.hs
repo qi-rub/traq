@@ -54,27 +54,21 @@ module Traq.ProtoLang.Cost (
 ) where
 
 import Control.Monad (foldM, forM, zipWithM)
-import Control.Monad.Reader (MonadReader)
-import Data.Foldable (toList)
+import Control.Monad.Reader (MonadReader, ReaderT, runReaderT)
 import qualified Data.Map as Map
 import Data.Maybe (fromMaybe)
 import Data.Void (Void, absurd)
 import Lens.Micro.GHC
 import Lens.Micro.Mtl
 
-import Traq.Control.Monad
 import qualified Traq.Data.Context as Ctx
 import Traq.Data.Default
+import qualified Traq.Data.Tree as Tree
 
 import Traq.Prelude
 import Traq.ProtoLang.Eval
 import Traq.ProtoLang.Syntax
 import Traq.ProtoLang.TypeCheck
-
-detExtract :: (Foldable t) => t a -> a
-detExtract xs = case toList xs of
-  [x] -> x
-  _ -> error "unexpected non-determinism"
 
 -- ================================================================================
 -- Lenses for accessing the "tick" costs and semantics function declarations
@@ -108,7 +102,10 @@ class HasNeedsEps p where
   needsEps ::
     ( primT ~ PrimitiveType p
     , sizeT ~ SizeType p
-    , MonadReader (FunCtx primT sizeT) m
+    , MonadReader env m
+    , HasFunCtx env
+    , sizeT ~ SizeType env
+    , primT ~ PrimitiveType env
     ) =>
     p ->
     m Bool
@@ -133,10 +130,10 @@ instance HasNeedsEps (FunDef primT sizeT) where
     Just FunBody{body_stmt} -> needsEps body_stmt
 
 splitEps ::
+  forall primT sizeT costT env m.
   ( Floating costT
-  , Monad m'
-  , Monoid w
-  , m ~ MyReaderWriterStateT env w s m'
+  , Monad m
+  , MonadReader env m
   , HasFunCtx env
   , HasPrecisionSplittingStrategy env
   , HasNeedsEps (Stmt primT sizeT)
@@ -158,7 +155,7 @@ splitEps eps ss = do
     return $ epss ++ [last epss]
 
   split_using_need_eps = do
-    flags <- forM ss $ \s -> magnify _funCtx $ needsEps s
+    flags <- forM ss $ \s -> needsEps s
     let n_fail = length $ filter id flags
 
     let eps_each = if n_fail == 0 then 0 else eps / fromIntegral n_fail
@@ -200,7 +197,7 @@ class HasUnitaryCostEnv p where
 instance HasUnitaryCostEnv (UnitaryCostEnv p s c) where _unitaryCostEnv = id
 
 -- | Monad to compute unitary cost.
-type UnitaryCostCalculator primsT sizeT costT = MyReaderT (UnitaryCostEnv primsT sizeT costT) Maybe
+type UnitaryCostCalculator primsT sizeT costT = ReaderT (UnitaryCostEnv primsT sizeT costT) Maybe
 
 -- | Primitives that have a unitary cost
 class
@@ -283,7 +280,7 @@ unitaryQueryCost strat delta Program{funCtx, stmt} ticks =
           & (_funCtx .~ funCtx)
           & (_unitaryTicks .~ ticks)
           & (_precSplitStrat .~ strat)
-   in unitaryQueryCostS delta stmt `runMyReaderT` env ^. singular _Just
+   in unitaryQueryCostS delta stmt `runReaderT` env ^. singular _Just
 
 -- ================================================================================
 -- Quantum Max Cost
@@ -325,7 +322,7 @@ class HasQuantumMaxCostEnv p where
 instance HasQuantumMaxCostEnv (QuantumMaxCostEnv primT sizeT costT) where _quantumMaxCostEnv = id
 
 -- Environment to compute the max quantum cost (input independent)
-type QuantumMaxCostCalculator primsT sizeT costT = MyReaderT (QuantumMaxCostEnv primsT sizeT costT) Maybe
+type QuantumMaxCostCalculator primsT sizeT costT = ReaderT (QuantumMaxCostEnv primsT sizeT costT) Maybe
 
 -- | Primitives that have a quantum max cost
 class
@@ -408,7 +405,7 @@ quantumMaxQueryCost strat a_eps Program{funCtx, stmt} uticks cticks =
           & (_unitaryTicks .~ uticks)
           & (_classicalTicks .~ cticks)
           & (_precSplitStrat .~ strat)
-   in quantumMaxQueryCostS a_eps stmt `runMyReaderT` env ^. singular _Just
+   in quantumMaxQueryCostS a_eps stmt `runReaderT` env ^. singular _Just
 
 -- ================================================================================
 -- Quantum Cost
@@ -439,7 +436,19 @@ instance HasUnitaryTicks (QuantumCostEnv primsT sizeT costT) where _unitaryTicks
 instance HasClassicalTicks (QuantumCostEnv primsT sizeT costT) where _classicalTicks = _quantumMaxCostEnv . _classicalTicks
 instance HasPrecisionSplittingStrategy (QuantumCostEnv primsT sizeT costT) where _precSplitStrat = _quantumMaxCostEnv . _precSplitStrat
 
-type QuantumCostCalculator primsT sizeT costT = MyReaderT (QuantumCostEnv primsT sizeT costT) Maybe
+instance HasEvaluationEnv (QuantumCostEnv primsT sizeT costT) where
+  _evaluationEnv = lens _get _set
+   where
+    _get ce =
+      default_
+        & (_funCtx .~ (ce ^. _funCtx))
+        & (_funInterpCtx .~ (ce ^. _funInterpCtx))
+    _set ce ee =
+      ce
+        & (_funCtx .~ (ee ^. _funCtx))
+        & (_funInterpCtx .~ (ee ^. _funInterpCtx))
+
+type QuantumCostCalculator primsT sizeT costT = ReaderT (QuantumCostEnv primsT sizeT costT) Maybe
 
 -- | Primitives that have a input dependent expected quantum cost
 class
@@ -506,7 +515,7 @@ quantumQueryCostS eps sigma IfThenElseS{cond, s_true, s_false} =
 quantumQueryCostS eps sigma (SeqS ss) = do
   funCtx <- view _funCtx
   interpCtx <- view _funInterpCtx
-  let stepS s sigma_s = detExtract $ runProgram Program{funCtx, stmt = s} interpCtx sigma_s
+  let stepS s sigma_s = Tree.detExtract $ runProgram Program{funCtx, stmt = s} interpCtx sigma_s
 
   eps_each <- splitEps eps ss
 
@@ -541,7 +550,7 @@ quantumQueryCost strat a_eps Program{funCtx, stmt} uticks cticks interpCtx sigma
           & (_classicalTicks .~ cticks)
           & (_precSplitStrat .~ strat)
           & (_funInterpCtx .~ interpCtx)
-   in quantumQueryCostS a_eps sigma stmt `runMyReaderT` env ^. singular _Just
+   in quantumQueryCostS a_eps sigma stmt `runReaderT` env ^. singular _Just
 
 -- | The bound on the true expected runtime which fails with probability <= \eps.
 quantumQueryCostBound ::

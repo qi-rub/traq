@@ -1,6 +1,7 @@
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE MultiParamTypeClasses #-}
 {-# LANGUAGE OverloadedStrings #-}
+{-# LANGUAGE TypeApplications #-}
 {-# LANGUAGE UndecidableInstances #-}
 
 {- |
@@ -29,8 +30,10 @@ module Traq.Primitives.Search.QSearchCFNW (
 import Control.Applicative ((<|>))
 import Control.Monad (filterM, forM, replicateM, when)
 import Control.Monad.Except (throwError)
+import Control.Monad.RWS (RWST, evalRWST)
+import Control.Monad.Reader (runReaderT)
 import Control.Monad.Trans (lift)
-import Control.Monad.Writer (censor, listen)
+import Control.Monad.Writer (WriterT (..), censor, execWriterT, listen)
 import Data.Foldable (Foldable (toList))
 import Data.String (fromString)
 import Lens.Micro.GHC
@@ -40,7 +43,6 @@ import Text.Printf (printf)
 
 import Traq.Control.Monad
 import qualified Traq.Data.Context as Ctx
-import Traq.Data.Default
 
 import qualified Traq.CQPL as CQPL
 import Traq.Prelude
@@ -235,12 +237,10 @@ instance
     -- number of solutions
     let space = P.range typ_x
     sols <- do
-      funCtx <- view P._funCtx
-      interpCtx <- view P._funInterpCtx
-      let env = default_ & (P._funCtx .~ funCtx) & (P._funInterpCtx .~ interpCtx)
+      env <- view P._evaluationEnv
       -- TODO this is too convoluted...
       return $
-        (runMyReaderT ?? env) $
+        (runReaderT ?? env) $
           (filterM ?? space)
             ( \v -> do
                 result <- P.evalFun (vs ++ [v]) predicate predDef
@@ -286,7 +286,12 @@ data UQSearchEnv holeT sizeT = UQSearchEnv
   }
 
 -- | A layer on top of the unitary compiler, holding the relevant QSearch context, and storing the produced statements.
-type UQSearchBuilder primsT holeT sizeT costT = MyReaderWriterT (UQSearchEnv holeT sizeT) [CQPL.UStmt holeT sizeT] (CompileU.CompilerT primsT holeT sizeT costT)
+type UQSearchBuilder primsT holeT sizeT costT =
+  RWST
+    (UQSearchEnv holeT sizeT)
+    [CQPL.UStmt holeT sizeT]
+    ()
+    (CompileU.CompilerT primsT holeT sizeT costT)
 
 allocSearchArgReg :: UQSearchBuilder primsT holeT sizeT costT Ident
 allocSearchArgReg = do
@@ -468,7 +473,7 @@ instance
     -- body:
     (qsearch_body, qsearch_ancilla) <- do
       ini_binds <- use P._typingCtx
-      ((), ss) <- (\m -> evalMyReaderWriterStateT m UQSearchEnv{search_arg_type = s_ty, pred_call_builder = pred_caller} ()) $ algoQSearchZalka delta_search ret
+      ((), ss) <- (\m -> evalRWST m UQSearchEnv{search_arg_type = s_ty, pred_call_builder = pred_caller} ()) $ algoQSearchZalka delta_search ret
       fin_binds <- use P._typingCtx
       let ancillas = Ctx.toList $ fin_binds Ctx.\\ ini_binds
       return (CQPL.USeqS ss, ancillas)
@@ -568,7 +573,17 @@ instance
 -- CQ Lowering
 -- ================================================================================
 
-allocReg :: Ident -> P.VarType sizeT -> MyWriterT ([CQPL.Stmt holeT sizeT], [(Ident, P.VarType sizeT)]) (CompileQ.CompilerT primsT holeT sizeT costT) Ident
+-- | the generated QSearch procedure: body stmts and local vars
+type QSearchCompilerT primsT holeT sizeT costT =
+  WriterT
+    ([CQPL.Stmt holeT sizeT], [(Ident, P.VarType sizeT)])
+    (CompileQ.CompilerT primsT holeT sizeT costT)
+
+allocReg ::
+  (m ~ QSearchCompilerT primsT holeT sizeT costT) =>
+  Ident ->
+  P.VarType sizeT ->
+  m Ident
 allocReg prefix ty = do
   reg <- lift $ Compiler.newIdent prefix
   writeElemAt _2 (reg, ty)
@@ -637,7 +652,7 @@ algoQSearch ::
   -- | Result register
   Ident ->
   -- | the generated QSearch procedure: body stmts and local vars
-  MyWriterT ([CQPL.Stmt holeT sizeT], [(Ident, P.VarType sizeT)]) (CompileQ.CompilerT primsT holeT sizeT costT) ()
+  WriterT ([CQPL.Stmt holeT sizeT], [(Ident, P.VarType sizeT)]) (CompileQ.CompilerT primsT holeT sizeT costT) ()
 algoQSearch ty n_samples eps grover_k_caller pred_caller ok = do
   not_done <- allocReg "not_done" P.tbool
   q_sum <- allocReg "Q_sum" j_type
@@ -729,6 +744,7 @@ instance
   , sizeT ~ SizeT
   , holeT ~ QSearchBlackBoxes costT
   , CompileQ.Lowerable primsT primsT holeT sizeT costT
+  , CompileU.Lowerable primsT primsT holeT sizeT costT
   , Show sizeT
   , Show costT
   , P.TypeCheckable sizeT
@@ -754,14 +770,9 @@ instance
     let delta_per_pred_call = eps_per_pred_call / 2 -- norm error in unitary predicate
 
     -- lower the unitary predicate
-    let upred_compiler = CompileU.lowerFunDef CompileU.WithoutControl delta_per_pred_call predicate pred_fun
-    (pred_uproc, uprocs) <- do
-      uenv <- view P._unitaryCostEnv
-      ust <- use id
-      (a, _, w) <- lift $ runMyReaderWriterStateT upred_compiler uenv ust
-      return (a, w)
+    pred_uproc <- WriterT . magnify P._unitaryCostEnv . runWriterT $ do
+      CompileU.lowerFunDef @_ @holeT CompileU.WithoutControl delta_per_pred_call predicate pred_fun
 
-    tellAt Compiler._loweredProcs uprocs
     let CompileU.LoweredProc
           { CompileU.inp_tys = pred_inp_tys
           , CompileU.aux_tys = pred_aux_tys
@@ -828,7 +839,7 @@ instance
             , CQPL.args = args ++ [x, b]
             }
 
-    (qsearch_body, qsearch_local_vars) <- execMyWriterT $ algoQSearch s_ty 0 eps_s grover_k_caller pred_caller ret
+    (qsearch_body, qsearch_local_vars) <- execWriterT $ algoQSearch s_ty 0 eps_s grover_k_caller pred_caller ret
     qsearch_proc_name <- Compiler.newIdent "QAny"
     Compiler.addProc $
       CQPL.ProcDef

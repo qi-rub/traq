@@ -2,6 +2,10 @@
 
 module Traq.Primitives.Search.QSearchCFNWSpec (spec) where
 
+import Control.Monad.RWS (RWST, evalRWST)
+import Control.Monad.Reader (runReaderT)
+import Control.Monad.State (evalStateT)
+import Control.Monad.Writer (runWriterT)
 import Lens.Micro.GHC
 
 import Traq.Control.Monad
@@ -12,12 +16,16 @@ import Traq.Prelude
 import qualified Traq.CQPL as CQPL
 import Traq.Primitives.Search.QSearchCFNW
 import qualified Traq.ProtoLang as P
+import qualified Traq.Utils.Printing as PP
 
 import Test.Hspec
 import Test.Hspec.QuickCheck
 import Test.QuickCheck
 import Test.QuickCheck.Gen (genDouble)
 import TestHelpers
+
+execRWT :: (Monad m, Monoid w) => r -> RWST r w () m a -> m w
+execRWT r m = snd <$> evalRWST m r ()
 
 data SearchParams = SearchParams {space_size :: Int, precision :: Double}
   deriving (Show, Eq, Read)
@@ -30,6 +38,24 @@ instance Arbitrary SearchParams where
 
 spec :: Spec
 spec = do
+  describe "Grover circuit" $ do
+    it "for simple values" $ do
+      let n = 10 :: Int
+      let eps = 0.001 :: Float
+      let pred_caller c x b = CQPL.UCallS{CQPL.uproc_id = "Oracle", CQPL.dagger = False, CQPL.qargs = [c, x, b]}
+      let lenv = default_ & (P._unitaryTicks . at "Oracle" ?~ 1)
+      let lctx = default_
+      circ <-
+        expectRight $
+          algoQSearchZalka eps "output_bit"
+            & execRWT UQSearchEnv{search_arg_type = P.Fin n, pred_call_builder = pred_caller}
+            & runWriterT
+            <&> fst
+            & (runReaderT ?? lenv)
+            & (evalStateT ?? lctx)
+            <&> CQPL.USeqS
+      PP.toCodeString circ `shouldSatisfy` (not . null)
+
   describe "QSearch_Zalka circuit" $ do
     let qsearch_env n =
           UQSearchEnv
@@ -45,8 +71,10 @@ spec = do
       (n > 1) ==> do
         (ss, []) <-
           algoQSearchZalka @QSearchCFNW @_ @SizeT delta "result"
-            & execMyReaderWriterT (qsearch_env n)
-            & (\act -> evalMyReaderWriterStateT act compile_config default_)
+            & execRWT (qsearch_env n)
+            & runWriterT
+            & (runReaderT ?? compile_config)
+            & (evalStateT ?? default_)
             & expectRight
 
         let uprog =

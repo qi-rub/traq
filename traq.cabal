@@ -221,8 +221,8 @@ test-suite spec
       Traq.Examples.MatrixSearchSpec
       Traq.Examples.NonDetSpec
       Traq.Examples.SearchSpec
-      Traq.Primitives.QSearchSpec
       Traq.Primitives.Search.QSearchCFNWSpec
+      Traq.Primitives.Search.RandomSearchSpec
       Traq.Primitives.TreeSearchSpec
       Traq.ProtoLang.CostSpec
       Traq.ProtoLang.ParserSpec

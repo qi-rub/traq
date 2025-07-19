@@ -15,6 +15,8 @@ module Traq.CQPL.Cost (
 ) where
 
 import Control.Monad.Except (throwError)
+import Control.Monad.Reader (ReaderT, runReaderT)
+import Control.Monad.State (StateT, runStateT)
 import Data.Either (fromRight)
 import qualified Data.Map as Map
 import Data.Void (Void, absurd)
@@ -37,10 +39,12 @@ type CostEnv holeT sizeT costT = ProcCtx holeT sizeT costT
 
 -- | Monad to compute unitary cost.
 type CostCalculator holeT sizeT costT =
-  MyReaderStateT
+  ReaderT
     (CostEnv holeT sizeT costT)
-    (CostMap costT)
-    (Either String)
+    ( StateT
+        (CostMap costT)
+        (Either String)
+    )
 
 -- | Compute the cost of a placeholder (hole) program.
 class HoleCost holeT costT where
@@ -151,4 +155,6 @@ programCost ::
   (costT, CostMap costT)
 programCost Program{proc_defs} = fromRight (error "could not compute cost") $ do
   let env = proc_defs
-  runMyReaderStateT (procCost "main") env Map.empty
+  procCost "main"
+    & (runReaderT ?? env)
+    & (runStateT ?? mempty)
