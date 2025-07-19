@@ -8,11 +8,14 @@ module Traq.Primitives.Search.RandomSearch (
 ) where
 
 import Control.Monad (forM)
+import Control.Monad.Reader (runReaderT)
 import Lens.Micro.GHC
 import Lens.Micro.Mtl
 import Text.Printf (printf)
 
+import Traq.Control.Monad
 import qualified Traq.Data.Context as Ctx
+import qualified Traq.Data.Tree as Tree
 
 import Traq.Prelude
 import qualified Traq.ProtoLang as P
@@ -122,6 +125,10 @@ instance
 
     return $ max_qry * cost_pred_call
 
+average :: (Floating a) => [a] -> a
+average [] = 0
+average xs = sum xs / fromIntegral (length xs)
+
 instance
   ( Integral sizeT
   , Floating costT
@@ -149,10 +156,27 @@ instance
 
     costs <- forM (P.range ty) $ \v -> do
       let sigma' = sigma & Ctx.ins "x_s" .~ v
-      let expr = P.FunCallE{P.fun_kind = P.FunctionCall predicate, P.args = Ctx.keys sigma}
-      cost_v <- P.quantumQueryCostE eps_per_pred_call sigma' expr
-      let is_sol = error "TODO"
-      -- is_sol <- zoom P._evaluationEnv $ error "TODO"
+      let pred_call_expr = P.FunCallE{P.fun_kind = P.FunctionCall predicate, P.args = Ctx.keys sigma}
+
+      -- cost of predicate on input `v`
+      cost_v <- P.quantumQueryCostE eps_per_pred_call sigma' pred_call_expr
+
+      -- evaluate predicate on `v` to check if it is a solution
+      eval_env <- view P._evaluationEnv
+      let is_sol =
+            P.evalExpr pred_call_expr sigma'
+              & (runReaderT ?? eval_env)
+              & Tree.detExtract
+              & head
+              & P.valueToBool
       return (is_sol, cost_v)
 
-    error "TODO"
+    -- number of solutions
+    let k = length $ filter fst costs
+    let qry = _ERandomSearch n k eps_search
+
+    -- average costs of a solution and a non-solution respectively
+    let avg_sol_cost = average . map snd . filter fst $ costs
+    let avg_non_sol_cost = average . map snd . filter (not . fst) $ costs
+
+    return $ qry * avg_non_sol_cost + avg_sol_cost

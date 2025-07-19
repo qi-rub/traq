@@ -88,6 +88,7 @@ instance
   P.QuantumCostablePrimitive primsT DefaultPrims sizeT costT
   where
   quantumQueryCostPrimitive delta (QAny prim) = P.quantumQueryCostPrimitive delta prim
+  quantumQueryCostPrimitive delta (RAny prim) = P.quantumQueryCostPrimitive delta prim
 
 -- Lowering
 instance
@@ -101,6 +102,7 @@ instance
   CompileU.Lowerable primsT DefaultPrims holeT sizeT costT
   where
   lowerPrimitive delta (QAny q) = CompileU.lowerPrimitive delta q
+  lowerPrimitive _ _ = error "TODO: lowerPrimitive"
 
 instance
   ( Integral sizeT
@@ -113,3 +115,4 @@ instance
   CompileQ.Lowerable primsT DefaultPrims holeT sizeT costT
   where
   lowerPrimitive eps (QAny q) = CompileQ.lowerPrimitive eps q
+  lowerPrimitive _ _ = error "TODO: lowerPrimitive"

@@ -55,7 +55,6 @@ module Traq.ProtoLang.Cost (
 
 import Control.Monad (foldM, forM, zipWithM)
 import Control.Monad.Reader (MonadReader, ReaderT, runReaderT)
-import Data.Foldable (toList)
 import qualified Data.Map as Map
 import Data.Maybe (fromMaybe)
 import Data.Void (Void, absurd)
@@ -64,16 +63,12 @@ import Lens.Micro.Mtl
 
 import qualified Traq.Data.Context as Ctx
 import Traq.Data.Default
+import qualified Traq.Data.Tree as Tree
 
 import Traq.Prelude
 import Traq.ProtoLang.Eval
 import Traq.ProtoLang.Syntax
 import Traq.ProtoLang.TypeCheck
-
-detExtract :: (Foldable t) => t a -> a
-detExtract xs = case toList xs of
-  [x] -> x
-  _ -> error "unexpected non-determinism"
 
 -- ================================================================================
 -- Lenses for accessing the "tick" costs and semantics function declarations
@@ -520,7 +515,7 @@ quantumQueryCostS eps sigma IfThenElseS{cond, s_true, s_false} =
 quantumQueryCostS eps sigma (SeqS ss) = do
   funCtx <- view _funCtx
   interpCtx <- view _funInterpCtx
-  let stepS s sigma_s = detExtract $ runProgram Program{funCtx, stmt = s} interpCtx sigma_s
+  let stepS s sigma_s = Tree.detExtract $ runProgram Program{funCtx, stmt = s} interpCtx sigma_s
 
   eps_each <- splitEps eps ss
 
