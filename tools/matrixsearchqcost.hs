@@ -1,5 +1,7 @@
 {-# LANGUAGE FlexibleInstances #-}
+{-# LANGUAGE RankNTypes #-}
 {-# LANGUAGE TypeApplications #-}
+{-# OPTIONS_GHC -Wno-unused-top-binds #-}
 
 module Main (main) where
 
@@ -20,9 +22,40 @@ import Traq.Primitives (DefaultPrims)
 import qualified Traq.ProtoLang as P
 
 import Traq.Examples.MatrixSearch
+import Traq.Primitives.Search.DetSearch (DetSearch)
+import Traq.Primitives.Search.Prelude (HasPrimAny)
+import Traq.Primitives.Search.QSearchCFNW (QSearchCFNW)
+import Traq.Primitives.Search.RandomSearch (RandomSearch)
 
 printDivider :: IO ()
 printDivider = putStrLn $ replicate 80 '='
+
+-- | Data to box a type @p@
+data Phantom p = Phantom
+
+class
+  ( P.CanParsePrimitive p
+  , P.QuantumCostablePrimitive p p SizeT Double
+  , HasPrimAny p
+  ) =>
+  MyPrim p
+
+instance MyPrim DefaultPrims
+instance MyPrim RandomSearch
+instance MyPrim QSearchCFNW
+instance MyPrim DetSearch
+
+defPrims :: Phantom DefaultPrims
+defPrims = Phantom
+
+randSearchP :: Phantom RandomSearch
+randSearchP = Phantom
+
+qSearchP :: Phantom QSearchCFNW
+qSearchP = Phantom
+
+detSearchP :: Phantom DetSearch
+detSearchP = Phantom
 
 type Value = P.Value SizeT
 
@@ -39,26 +72,28 @@ instance MatrixType (Value, Value, Value -> Value -> Bool) where
   toValueFun _ _ = error "unsupported"
 
 instance MatrixType [[Value]] where
-  nRows mat = length mat
-  nCols mat = length $ head mat
+  nRows = length
+  nCols = length . head
 
   toValueFun mat [P.FinV i, P.FinV j] = [mat !! fromIntegral i !! fromIntegral j]
   toValueFun _ _ = error "unsupported"
 
 -- | Get the input-dependent quantum query cost.
 qcost ::
-  (MatrixType matT) =>
+  forall primsT matT.
+  (MatrixType matT, MyPrim primsT) =>
+  Phantom primsT ->
   -- | eps (max. fail probability)
   Double ->
   -- | matrix
   matT ->
   Double
-qcost eps mat = cost
+qcost _ eps mat = cost
  where
   n = nRows mat
   m = nCols mat
 
-  ex = matrixExampleS n m
+  ex = matrixExample @primsT n m P.tbool
 
   dataCtx = Ctx.singleton "Oracle" (toValueFun mat)
   ticks = mempty & at "Oracle" ?~ 1.0
@@ -88,24 +123,24 @@ randomMatrixWith (n, m) g z = do
   let rows = bad_rows ++ replicate g (replicate m (P.FinV 1))
   shuffleM rows
 
-randomStat :: SizeT -> Double -> Int -> IO [Double]
-randomStat nruns eps n =
+randomStat :: (MyPrim primsT) => Phantom primsT -> SizeT -> Double -> Int -> IO [Double]
+randomStat phantom nruns eps n =
   replicateM nruns $ do
     mat <- randomMatrix n n
-    return $ qcost eps mat
+    return $ qcost phantom eps mat
 
-computeStatsForRandomMatrices :: IO ()
-computeStatsForRandomMatrices =
+computeStatsForRandomMatrices :: (MyPrim primsT) => Phantom primsT -> IO ()
+computeStatsForRandomMatrices phantom =
   withFile "examples/matrix_search/stats/qcost.csv" WriteMode $ \h -> do
     hPutStrLn h "eps,n,cost"
     forM_ [0.001, 0.0005, 0.0001] $ \eps -> do
       forM_ [10, 20 .. 100] $ \n -> do
-        cs <- randomStat 20 eps n
+        cs <- randomStat phantom 20 eps n
         forM cs $ \c -> do
           hPutStrLn h $ printf "%f,%d,%.2f" eps n c
 
-computeStatsForPlantedRandomMatrices :: IO ()
-computeStatsForPlantedRandomMatrices =
+computeStatsForPlantedRandomMatrices :: (MyPrim primsT) => Phantom primsT -> IO ()
+computeStatsForPlantedRandomMatrices phantom =
   withFile "examples/matrix_search/stats/datadep.csv" WriteMode $ \h -> do
     hPutStrLn h "eps,n,m,good,zeros,cost"
     let eps = 0.001
@@ -114,18 +149,18 @@ computeStatsForPlantedRandomMatrices =
       forM_ [0 .. n `div` 4 + 1] $ \g -> do
         forM_ [1] $ \z -> do
           mat <- randomMatrixWith (n, m) g z
-          let c = qcost eps mat
+          let c = qcost phantom eps mat
           hPutStrLn h $ printf "%f,%d,%d,%d,%d,%.2f" eps n m g z c
 
-computeStatsForWorstCaseMatrices :: IO ()
-computeStatsForWorstCaseMatrices =
+computeStatsForWorstCaseMatrices :: (MyPrim primsT) => Phantom primsT -> IO ()
+computeStatsForWorstCaseMatrices phantom =
   withFile "examples/matrix_search/stats/worstcase.csv" WriteMode $ \h -> do
     hPutStrLn h "n,cost"
     let eps = 0.001
     forM_ ((10 :: Int) : [500, 1000 .. 4000]) $ \n -> do
       putStrLn $ ">> n = " <> show n
       let m = n
-      let c = qcost eps (P.FinV n, P.FinV m, matfun)
+      let c = qcost phantom eps (P.FinV n, P.FinV m, matfun)
       hPutStrLn h $ printf "%d,%.2f" n c
  where
   matfun :: Value -> Value -> Bool
@@ -176,7 +211,7 @@ main = do
 
   -- computeStatsForRandomMatrices
   -- computeStatsForPlantedRandomMatrices
-  timeIt computeStatsForWorstCaseMatrices
+  timeIt $ computeStatsForWorstCaseMatrices qSearchP
   -- timeIt computeStatsForWorstCaseExample
   -- timeIt triangular
   putStrLn "done"
