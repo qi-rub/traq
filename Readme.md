@@ -1,4 +1,4 @@
-Traq: Estimating Quantum Cost of Classical Programs [![CI](/actions/workflows/ci.yml/badge.svg)](/actions/workflows/ci.yml)
+Traq: Estimating Quantum Cost of Classical Programs [![CI](../../actions/workflows/ci.yml/badge.svg)](../../actions/workflows/ci.yml)
 ================
 
 A Haskell tool to estimate data-dependent expected quantum costs of high-level classical programs.
