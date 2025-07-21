@@ -1,7 +1,7 @@
-declare Oracle(Fin<N>, Fin<M>) -> Bool end
+declare Matrix(Fin<N>, Fin<M>) -> Bool end
 
 def IsEntryZero(i0: Fin<N>, j0: Fin<M>) -> Bool do
-	e <- Oracle(i0, j0);
+	e <- Matrix(i0, j0);
 	e' <- !e;
 	return e'
 end

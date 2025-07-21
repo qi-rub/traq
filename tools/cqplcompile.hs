@@ -2,13 +2,15 @@ module Main (main) where
 
 import qualified Data.Map as Map
 import Options.Applicative
+import Text.Printf (printf)
 import Text.Read (readMaybe)
 
 import qualified Traq.Data.Context as Ctx
 import Traq.Data.Default
 import qualified Traq.Data.Symbolic as Sym
 
-import qualified Traq.Compiler.Quantum as CQPL
+import qualified Traq.CQPL as CQPL
+import qualified Traq.Compiler.Quantum as CompileQ
 import Traq.Prelude
 import qualified Traq.ProtoLang as P
 import qualified Traq.Utils.Printing as PP
@@ -60,10 +62,12 @@ subsNM params s = Sym.unSym $ foldr subsOnce s params
 
 compile :: (RealFloat costT, Show costT) => P.Program DefaultPrims SizeT -> costT -> IO String
 compile prog eps = do
-  let oracle_ticks = Map.singleton "Oracle" 1.0
-  Right cqpl_prog <- return $ CQPL.lowerProgram default_ Ctx.empty oracle_ticks oracle_ticks eps prog
+  let oracle_name = "Matrix"
+  let oracle_ticks = Map.singleton oracle_name 1.0
+  Right cqpl_prog <- return $ CompileQ.lowerProgram default_ Ctx.empty oracle_ticks oracle_ticks eps prog
+  let nqubits = CQPL.numQubits cqpl_prog
 
-  return $ PP.toCodeString cqpl_prog
+  return $ PP.toCodeString cqpl_prog ++ printf "\n// qubits: %d\n" nqubits
 
 main :: IO ()
 main = do

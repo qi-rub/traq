@@ -12,8 +12,14 @@ Currently being developed against `GHC 9.6.7`. See the CI for other compatible v
 1. `cabal run` to run the main entry point.
 1. `cabal test` to run the tests.
 
+Usage
+-----
+
+Traq takes high-level classical programs in our prototype language, and produces expected cost estimates.
+See [demo.hs](examples/matrix_search/demo.hs) for the code to run the matrix search example.
+
 
 Contributing
 ------------
 
-See [Contributing.md](Contributing.md) for details.
+Please see [Contributing.md](Contributing.md).

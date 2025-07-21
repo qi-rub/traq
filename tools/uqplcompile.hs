@@ -5,6 +5,7 @@ import Control.Monad.Writer (MonadWriter, execWriterT, tell)
 import Data.Maybe (fromMaybe)
 import Lens.Micro.GHC
 import Options.Applicative
+import Text.Printf (printf)
 import Text.Read (readMaybe)
 
 import qualified Traq.Data.Context as Ctx
@@ -67,7 +68,8 @@ tellLn x = tell $ unlines [x]
 
 compile :: forall costT. (RealFloat costT, Show costT) => P.Program DefaultPrims SizeT -> costT -> IO String
 compile prog delta = do
-  let oracle_ticks = mempty & at "Oracle" ?~ (fromRational 1.0 :: costT)
+  let oracle_name = "Matrix"
+  let oracle_ticks = mempty & at oracle_name ?~ (fromRational 1.0 :: costT)
   Right cqpl_prog <- return $ CompileU.lowerProgram default_ Ctx.empty oracle_ticks delta prog
   -- get costs
   let (_ :: costT, proc_costs) = CQPL.programCost cqpl_prog
@@ -77,7 +79,7 @@ compile prog delta = do
     forM_ (cqpl_prog ^. to CQPL.proc_defs . to Ctx.elems) $ \p -> do
       let pname = p ^. to CQPL.proc_name
 
-      when (pname /= "Oracle") $ do
+      when (pname /= oracle_name) $ do
         let f_cost =
               fromMaybe
                 "()"
@@ -96,14 +98,17 @@ compile prog delta = do
                               { stmt = body ^. to P.body_stmt
                               , funCtx = prog ^. to P.funCtx
                               }
-                            (mempty & at "Oracle" ?~ 1.0)
+                            (mempty & at oracle_name ?~ 1.0)
                     return $ show cf
                 )
 
         let t_cost = proc_costs ^. at pname
         tellLn $ "// Cost         : " <> maybe "()" show t_cost
         tellLn $ "// Formula Cost : " <> f_cost
+
       tellLn $ PP.toCodeString p
+
+    tellLn $ printf "\n// qubits: %d\n" $ CQPL.numQubits cqpl_prog
 
 main :: IO ()
 main = do
