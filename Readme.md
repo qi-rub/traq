@@ -1,4 +1,4 @@
-Traq: Estimating Quantum Cost of Classical Programs [![CI](https://github.com/qi-rub/hs-traq/actions/workflows/ci.yml/badge.svg)](https://github.com/qi-rub/hs-traq/actions/workflows/ci.yml)
+Traq: Estimating Quantum Cost of Classical Programs [![CI](/actions/workflows/ci.yml/badge.svg)](/actions/workflows/ci.yml)
 ================
 
 A Haskell tool to estimate data-dependent expected quantum costs of high-level classical programs.
@@ -17,3 +17,4 @@ Develop
 
 1. `hpack` to regenerate the `.cabal` configuration (from `package.yaml`).
 2. Tests are written using [`hspec`](https://hackage.haskell.org/package/hspec), in `test/`.
+3. Formatting: [`formolu`](https://fourmolu.github.io/).
