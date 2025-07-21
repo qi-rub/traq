@@ -12,9 +12,8 @@ Currently being developed against `GHC 9.6.7`. See the CI for other compatible v
 1. `cabal run` to run the main entry point.
 1. `cabal test` to run the tests.
 
-Develop
--------
 
-1. `hpack` to regenerate the `.cabal` configuration (from `package.yaml`).
-2. Tests are written using [`hspec`](https://hackage.haskell.org/package/hspec), in `test/`.
-3. Formatting: [`formolu`](https://fourmolu.github.io/).
+Contributing
+------------
+
+See [Contributing.md](Contributing.md) for details.
