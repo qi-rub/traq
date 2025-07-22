@@ -1,15 +1,15 @@
-uproc Oracle(Fin<20>, Fin<10>, Fin<2>) :: tick(1.0)
+uproc Matrix(Fin<20>, Fin<10>, Fin<2>) :: tick(1.0)
 
-// Clean[Oracle, 6.14927e-11]
-uproc Oracle_1(in_0 : IN Fin<20>, in_1 : IN Fin<10>, out_0 : OUT Fin<2>, aux : AUX Fin<2>) {
-  call Oracle(in_0, in_1, aux);
+// Clean[Matrix, 6.14927e-11]
+uproc Matrix_1(in_0 : IN Fin<20>, in_1 : IN Fin<10>, out_0 : OUT Fin<2>, aux : AUX Fin<2>) {
+  call Matrix(in_0, in_1, aux);
   aux, out_0 *= Embed[(a) => a];
-  call-adj Oracle(in_0, in_1, aux);
+  call-adj Matrix(in_0, in_1, aux);
 }
 
 // IsEntryZero[1.229854e-10]
 uproc IsEntryZero(i0 : IN Fin<20>, j0 : IN Fin<10>, e' : OUT Fin<2>, e : AUX Fin<2>, aux_1 : AUX Fin<2>) {
-  call Oracle_1(i0, j0, e, aux_1);
+  call Matrix_1(i0, j0, e, aux_1);
   e, e' *= Embed[(e) => not e];
 }
 
@@ -1509,3 +1509,5 @@ proc main(result : Fin<2>) { locals : () } {
   call HasAllOnesRow(result);
 }
 
+
+// qubits: 555

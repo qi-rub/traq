@@ -1,4 +1,4 @@
-Traq: Estimating Quantum Cost of Classical Programs [![CI](https://github.com/qi-rub/hs-traq/actions/workflows/ci.yml/badge.svg)](https://github.com/qi-rub/hs-traq/actions/workflows/ci.yml)
+Traq: Estimating Quantum Cost of Classical Programs [![CI](../../actions/workflows/ci.yml/badge.svg)](../../actions/workflows/ci.yml)
 ================
 
 A Haskell tool to estimate data-dependent expected quantum costs of high-level classical programs.
@@ -12,8 +12,14 @@ Currently being developed against `GHC 9.6.7`. See the CI for other compatible v
 1. `cabal run` to run the main entry point.
 1. `cabal test` to run the tests.
 
-Develop
--------
+Usage
+-----
 
-1. `hpack` to regenerate the `.cabal` configuration (from `package.yaml`).
-2. Tests are written using [`hspec`](https://hackage.haskell.org/package/hspec), in `test/`.
+Traq takes high-level classical programs in our prototype language, and produces expected cost estimates.
+See [demo.hs](examples/matrix_search/demo.hs) for the code to run the matrix search example.
+
+
+Contributing
+------------
+
+Please see [Contributing.md](Contributing.md).

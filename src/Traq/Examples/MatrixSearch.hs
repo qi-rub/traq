@@ -25,7 +25,7 @@ matrixExample n m tyBool =
   tyJ = Fin m
 
   oracle_name :: Ident
-  oracle_name = "Oracle"
+  oracle_name = "Matrix"
 
   oracle_decl :: FunDef primsT sizeT
   oracle_decl = FunDef{param_types = [tyI, tyJ], ret_types = [tyBool], mbody = Nothing}

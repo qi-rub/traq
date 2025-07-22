@@ -136,7 +136,7 @@ instance
       return (is_sol, cost_v)
 
     -- average costs of a solution and a non-solution respectively
-    let (non_sols, sol_and_rest) = span fst costs & (each %~ map snd)
+    let (non_sols, sol_and_rest) = break fst costs & (each %~ map snd)
     let sol_cost = case sol_and_rest of [] -> 0; (c : _) -> c
 
     return $ sum non_sols + sol_cost
