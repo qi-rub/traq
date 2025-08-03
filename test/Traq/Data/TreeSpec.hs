@@ -1,3 +1,4 @@
+{-# LANGUAGE FlexibleInstances #-}
 {-# OPTIONS_GHC -Wno-orphans #-}
 
 module Traq.Data.TreeSpec where
@@ -15,15 +16,12 @@ import TestHelpers
 instance (Arbitrary a) => Arbitrary (Tree a) where
   arbitrary = sized $ \n -> chooseInt (0, n) >>= go
    where
-    go 0 = return Fail
-    go 1 = Leaf <$> arbitrary
+    go 0 = return empty
+    go 1 = pure <$> arbitrary
     go n = do
       ss <- partSubtreeSizes (n - 1)
       ts <- mapM go ss
-      return $ case ts of
-        [] -> Fail
-        [t] -> t
-        (t : t' : ts') -> Choice t t' ts'
+      return $ choice ts
 
     partSubtreeSizes :: Int -> Gen [Int]
     partSubtreeSizes 1 = return [1]
@@ -56,21 +54,12 @@ _alt = (<|>)
 
 spec :: Spec
 spec = do
-  describe "termProb" $ do
-    prop "is a probability" $ \t ->
-      termProb (t :: Tree ()) `shouldSatisfy` \p -> 0 <= p && p <= 1
-
-    it "examples" $ do
-      termProb (Leaf ()) `shouldBe` 1
-      termProb Fail `shouldBe` 0
-      termProb (Choice (Leaf ()) Fail []) `shouldBe` 0.5
-
   describe "Instance Laws" $ do
     let f = (+ 1) :: Int -> Int
     let g = (* 2) :: Int -> Int
 
     describe "Foldable" $ do
-      let fromList = choice . map Leaf :: [Int] -> Tree Int
+      let fromList = choice . map pure :: [Int] -> Tree Int
       prop "toList . fromList = id" $
         toList . fromList `shouldEqual` id
 
@@ -122,7 +111,7 @@ spec = do
         u `_alt` (v `_alt` w) `shouldBe` (u `_alt` v) `_alt` w
 
     describe "MonadPlus laws" $ do
-      let mf a = Choice (Leaf a) (Leaf a) []
+      let mf a = choice [pure a, pure a]
       prop "Left zero" $
         (_empty >>= mf) `shouldBe` _empty
 

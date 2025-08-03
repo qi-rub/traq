@@ -32,6 +32,7 @@ library
       Traq.Data.Context
       Traq.Data.Default
       Traq.Data.Errors
+      Traq.Data.Probability
       Traq.Data.Symbolic
       Traq.Data.Tree
       Traq.Examples.MatrixSearch
@@ -216,6 +217,7 @@ test-suite spec
       Traq.Compiler.QuantumSpec
       Traq.Compiler.UnitarySpec
       Traq.CQPL.TypeCheckSpec
+      Traq.Data.ProbabilitySpec
       Traq.Data.SymbolicSpec
       Traq.Data.TreeSpec
       Traq.Examples.MatrixSearchSpec
