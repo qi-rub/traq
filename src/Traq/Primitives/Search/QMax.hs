@@ -89,12 +89,12 @@ instance P.TypeCheckablePrimitive QMax sizeT where
  and or-ing the results.
 -}
 instance
-  (P.EvaluatablePrimitive primsT primsT) =>
-  P.EvaluatablePrimitive primsT QMax
+  (Fractional costT, P.EvaluatablePrimitive primsT primsT costT) =>
+  P.EvaluatablePrimitive primsT QMax costT
   where
   evalPrimitive QMax{predicate} arg_vals = do
     pred_fun <- view $ P._funCtx . Ctx.at predicate . to (fromMaybe (error "unable to find predicate, please typecheck first!"))
-    let search_range = pred_fun ^. to P.param_types . to last . to P.range
+    let search_range = pred_fun ^. to P.param_types . to last . to P.domain
 
     vs <- forM search_range $ \val -> do
       res <- P.evalFun (arg_vals ++ [val]) predicate pred_fun
@@ -170,7 +170,7 @@ instance
 instance
   ( Integral sizeT
   , Floating costT
-  , P.EvaluatablePrimitive primsT QMax
+  , P.EvaluatablePrimitive primsT QMax costT
   , P.QuantumCostablePrimitive primsT primsT sizeT costT
   , sizeT ~ SizeT
   ) =>

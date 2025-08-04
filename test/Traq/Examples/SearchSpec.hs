@@ -4,7 +4,7 @@ import qualified Data.Map as Map
 
 import qualified Traq.Data.Context as Ctx
 import Traq.Data.Default
-import qualified Traq.Data.Tree as Tree
+import qualified Traq.Data.Probability as Prob
 
 import qualified Traq.CQPL as CQPL
 import qualified Traq.Compiler.Unitary as CompileU
@@ -75,13 +75,13 @@ spec = do
       assertRight $ P.typeCheckProg Ctx.empty ex
 
     let planted_sols = [2, 4, 5] :: [SizeT]
-    let oracleF = \[P.FinV i] -> [P.boolToValue $ i `elem` planted_sols]
+    let oracleF = \[P.FinV i] -> [P.toValue $ i `elem` planted_sols]
     let interpCtx = Ctx.singleton "Oracle" oracleF
 
     it "evaluates" $ do
       let res = P.runProgram ex interpCtx Ctx.empty
       res
-        `shouldBe` Tree.choice
-          [ pure $ Ctx.fromList [("result", P.FinV 1), ("solution", P.FinV i)]
+        `shouldBe` Prob.uniform
+          [ Ctx.fromList [("result", P.FinV 1), ("solution", P.FinV i)]
           | i <- planted_sols
           ]

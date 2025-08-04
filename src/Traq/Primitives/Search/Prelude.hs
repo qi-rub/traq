@@ -27,7 +27,6 @@ module Traq.Primitives.Search.Prelude (
 
 import Control.Monad (forM, replicateM, when)
 import Control.Monad.Except (throwError)
-import Control.Monad.Trans (lift)
 import Data.Maybe (fromMaybe)
 import Lens.Micro.GHC
 import Lens.Micro.Mtl
@@ -37,7 +36,7 @@ import Text.Printf (printf)
 
 import Traq.Control.Monad
 import qualified Traq.Data.Context as Ctx
-import qualified Traq.Data.Tree as Tree
+import qualified Traq.Data.Probability as Prob
 
 import Traq.Prelude
 import qualified Traq.ProtoLang as P
@@ -153,48 +152,59 @@ getSearchOutputs rets = map fst rets
 
 -- | Run the predicate on each input, and return the input along with the result.
 runSearchPredicateOnAllInputs ::
-  (P.EvaluatablePrimitive primsT primsT) =>
+  forall primsT costT.
+  ( P.EvaluatablePrimitive primsT primsT costT
+  , Fractional costT
+  ) =>
   Ident ->
   [P.Value SizeT] ->
-  P.Evaluator primsT SizeT SearchResults
+  P.Evaluator primsT SizeT costT SearchResults
 runSearchPredicateOnAllInputs predicate arg_vals = do
   pred_fun <- view $ P._funCtx . Ctx.at predicate . to (fromMaybe (error "unable to find predicate, please typecheck first!"))
   let n_fixed_args = length arg_vals
 
   let search_tys = pred_fun ^. to P.param_types . to (drop n_fixed_args)
-  let search_range = mapM P.range search_tys
+  let search_range = mapM P.domain search_tys
 
   forM search_range $ \s_vals -> do
     rets <- P.evalFun (arg_vals ++ s_vals) predicate pred_fun
     return (s_vals, P.valueToBool $ head rets)
 
 evaluatePrimAny ::
-  (HasPrimAny primT, P.EvaluatablePrimitive primsT primsT) =>
+  ( HasPrimAny primT
+  , P.EvaluatablePrimitive primsT primsT costT
+  , Fractional costT
+  ) =>
   primT ->
   [P.Value SizeT] ->
-  P.Evaluator primsT SizeT [P.Value SizeT]
+  P.Evaluator primsT SizeT costT [P.Value SizeT]
 evaluatePrimAny prim arg_vals = do
   let predicate = getPredicateOfAny prim
   res <- runSearchPredicateOnAllInputs predicate arg_vals
-  return [P.boolToValue $ hasSolution res]
+  return [P.toValue $ hasSolution res]
 
 evaluatePrimSearch ::
-  (HasPrimSearch primT, P.EvaluatablePrimitive primsT primsT) =>
+  ( HasPrimSearch primT
+  , P.EvaluatablePrimitive primsT primsT costT
+  , Fractional costT
+  ) =>
   primT ->
   [P.Value SizeT] ->
-  P.Evaluator primsT SizeT [P.Value SizeT]
+  P.Evaluator primsT SizeT costT [P.Value SizeT]
 evaluatePrimSearch prim arg_vals = do
   let predicate = getPredicateOfSearch prim
   res <- runSearchPredicateOnAllInputs predicate arg_vals
-  let ok = P.boolToValue $ hasSolution res
+  let ok = P.toValue $ hasSolution res
   let outs = getSearchOutputs res
-  lift $ Tree.choice [pure (ok : v) | v <- outs]
+  Prob.uniform [ok : v | v <- outs]
 
 evaluatePrimCount ::
-  (P.EvaluatablePrimitive primsT primsT) =>
+  ( P.EvaluatablePrimitive primsT primsT costT
+  , Fractional costT
+  ) =>
   Ident ->
   [P.Value SizeT] ->
-  P.Evaluator primsT SizeT [P.Value SizeT]
+  P.Evaluator primsT SizeT costT [P.Value SizeT]
 evaluatePrimCount predicate arg_vals = do
   res <- runSearchPredicateOnAllInputs predicate arg_vals
   return [P.FinV $ fromIntegral $ countSolutions res]

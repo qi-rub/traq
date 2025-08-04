@@ -44,7 +44,7 @@ instance P.TypeCheckablePrimitive QCount sizeT where
     return [P.Fin (n_items + 1)]
 
 instance
-  (P.EvaluatablePrimitive primsT primsT) =>
-  P.EvaluatablePrimitive primsT QCount
+  (Fractional costT, P.EvaluatablePrimitive primsT primsT costT) =>
+  P.EvaluatablePrimitive primsT QCount costT
   where
   evalPrimitive QCount{predicate} = evaluatePrimCount predicate

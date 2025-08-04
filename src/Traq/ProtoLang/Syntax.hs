@@ -9,7 +9,12 @@ module Traq.ProtoLang.Syntax (
   -- ** Basic Types
   VarType (..),
   _Fin,
+  _Arr,
+  _Tup,
   Value (..),
+  _FinV,
+  _ArrV,
+  _TupV,
 
   -- ** Basic Operations
   UnOp (..),
@@ -62,8 +67,10 @@ instance (Show sizeT) => PP.ToCodeString (MetaParam sizeT) where
 -- ================================================================================
 
 -- | Types
-newtype VarType sizeT
+data VarType sizeT
   = Fin sizeT -- Fin<N>
+  | Arr sizeT (VarType sizeT) -- Arr<N, T>
+  | Tup [VarType sizeT] -- (T_1, ..., T_k)
   deriving (Eq, Show, Read, Functor)
 
 type instance SizeType (VarType sizeT) = sizeT
@@ -72,19 +79,49 @@ _Fin :: Traversal' (VarType sizeT) sizeT
 _Fin focus (Fin n) = Fin <$> focus n
 _Fin _ t = pure t
 
+_Arr :: Traversal' (VarType sizeT) (sizeT, VarType sizeT)
+_Arr focus (Arr n t) = uncurry Arr <$> focus (n, t)
+_Arr _ t = pure t
+
+_Tup :: Traversal' (VarType sizeT) [VarType sizeT]
+_Tup focus (Tup ts) = Tup <$> focus ts
+_Tup _ t = pure t
+
 instance (Show a) => PP.ToCodeString (VarType a) where
   build (Fin len) = PP.putWord $ "Fin<" <> show len <> ">"
+  build (Arr n t) = PP.putWord . printf "Arr<%s, %s>" (show n) =<< PP.fromBuild t
+  build (Tup ts) = do
+    ws <- mapM PP.fromBuild ts
+    PP.putWord $ printf "Tup<%s>" $ PP.commaList ws
 
 -- | Basic Values
 data Value sizeT
   = -- | value of type @Fin n@
     FinV sizeT
-  deriving (Eq, Show, Read, Functor)
+  | -- | value of type @Arr n t@
+    ArrV [Value sizeT]
+  | -- | tuple value
+    TupV [Value sizeT]
+  deriving (Eq, Ord, Show, Read, Functor)
 
 type instance SizeType (Value sizeT) = sizeT
 
+_FinV :: Traversal' (Value sizeT) sizeT
+_FinV focus (FinV n) = FinV <$> focus n
+_FinV _ t = pure t
+
+_ArrV :: Traversal' (Value sizeT) [Value sizeT]
+_ArrV focus (ArrV vs) = ArrV <$> focus vs
+_ArrV _ t = pure t
+
+_TupV :: Traversal' (Value sizeT) [Value sizeT]
+_TupV focus (TupV vs) = TupV <$> focus vs
+_TupV _ t = pure t
+
 instance (Show sizeT) => PP.ToCodeString (Value sizeT) where
   build (FinV v) = PP.putWord $ show v
+  build (ArrV vs) = PP.joined (printf "[%s]" . PP.commaList) $ mapM_ PP.build vs
+  build (TupV vs) = PP.joined (printf "(%s)" . PP.commaList) $ mapM_ PP.build vs
 
 -- | Unary operations
 data UnOp = NotOp
@@ -123,6 +160,12 @@ data BasicExpr sizeT
   | BinOpE {bin_op :: BinOp, lhs, rhs :: BasicExpr sizeT}
   | TernaryE {branch, lhs, rhs :: BasicExpr sizeT}
   | NAryE {op :: NAryOp, operands :: [BasicExpr sizeT]}
+  | -- array
+    IndexE {arr_expr :: BasicExpr sizeT, ix_val :: sizeT}
+  | DynIndexE {arr_expr, ix_expr :: BasicExpr sizeT}
+  | UpdateArrE {arr_expr, ix_expr, rhs :: BasicExpr sizeT}
+  | -- tuple
+    ProjectE {tup_expr :: BasicExpr sizeT, ix_val :: sizeT}
   deriving (Eq, Show, Read, Functor)
 
 -- Helpers for shorter expressions
@@ -154,6 +197,14 @@ instance (Show sizeT) => PP.ToCodeString (BasicExpr sizeT) where
       =<< printf "%s(%s)"
         <$> PP.fromBuild op
         <*> (PP.commaList <$> mapM PP.fromBuild operands)
+  build IndexE{arr_expr, ix_val} =
+    PP.putWord =<< printf "%s[%s]" <$> PP.fromBuild arr_expr <*> pure (show ix_val)
+  build DynIndexE{arr_expr, ix_expr} =
+    PP.putWord =<< printf "%s[%s]" <$> PP.fromBuild arr_expr <*> PP.fromBuild ix_expr
+  build UpdateArrE{arr_expr, ix_expr, rhs} =
+    PP.putWord =<< printf "update %s[%s] = %s" <$> PP.fromBuild arr_expr <*> PP.fromBuild ix_expr <*> PP.fromBuild rhs
+  build ProjectE{tup_expr, ix_val} =
+    PP.putWord =<< printf "%s.%s" <$> PP.fromBuild tup_expr <*> pure (show ix_val)
 
 -- ================================================================================
 -- Syntax
@@ -176,6 +227,8 @@ instance (PP.ToCodeString primT) => PP.ToCodeString (FunctionCallKind primT) whe
 -}
 data Expr primT sizeT
   = BasicExprE {basic_expr :: BasicExpr sizeT}
+  | UniformRandomE {sample_ty :: VarType sizeT}
+  | BiasedCoinE {prob_one :: Double}
   | FunCallE {fun_kind :: FunctionCallKind primT, args :: [Ident]}
   deriving (Eq, Show, Read, Functor)
 
@@ -184,6 +237,8 @@ type instance PrimitiveType (Expr primT sizeT) = primT
 
 instance (Show sizeT, PP.ToCodeString primT) => PP.ToCodeString (Expr primT sizeT) where
   build BasicExprE{basic_expr} = PP.build basic_expr
+  build UniformRandomE{sample_ty} = PP.putLine . printf "$ uniform %s" =<< PP.fromBuild sample_ty
+  build BiasedCoinE{prob_one} = PP.putLine $ printf "$ coin[%s]" (show prob_one)
   build FunCallE{fun_kind, args} = do
     fun_kind_s <- PP.fromBuild fun_kind
     PP.putLine $ printf "%s(%s)" fun_kind_s (PP.commaList args)

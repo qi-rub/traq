@@ -54,8 +54,10 @@ instance P.TypeCheckablePrimitive DefaultPrims sizeT where
 
 -- Evaluation
 instance
-  (P.EvaluatablePrimitive primsT primsT) =>
-  P.EvaluatablePrimitive primsT DefaultPrims
+  ( Fractional costT
+  , P.EvaluatablePrimitive primsT primsT costT
+  ) =>
+  P.EvaluatablePrimitive primsT DefaultPrims costT
   where
   evalPrimitive (QAny prim) = P.evalPrimitive prim
   evalPrimitive (RAny prim) = P.evalPrimitive prim
@@ -87,7 +89,7 @@ instance
   ( Integral sizeT
   , Floating costT
   , Ord costT
-  , P.EvaluatablePrimitive primsT primsT
+  , P.EvaluatablePrimitive primsT primsT costT
   , P.QuantumCostablePrimitive primsT primsT sizeT costT
   , sizeT ~ SizeT
   ) =>

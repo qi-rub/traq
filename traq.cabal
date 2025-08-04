@@ -34,7 +34,6 @@ library
       Traq.Data.Errors
       Traq.Data.Probability
       Traq.Data.Symbolic
-      Traq.Data.Tree
       Traq.Examples.MatrixSearch
       Traq.Examples.Search
       Traq.Prelude

@@ -1,4 +1,7 @@
 {-# LANGUAGE FlexibleInstances #-}
+{-# LANGUAGE FunctionalDependencies #-}
+{-# LANGUAGE TupleSections #-}
+{-# LANGUAGE UndecidableInstances #-}
 
 -- | Probabilistic computation monad.
 module Traq.Data.Probability (
@@ -8,6 +11,8 @@ module Traq.Data.Probability (
   -- ** Properties
   weight,
   outcomes,
+  deterministicValue,
+  fromDiracDelta,
 
   -- ** Transformers
   flatten,
@@ -17,21 +22,25 @@ module Traq.Data.Probability (
   uniform,
   choice,
   Tree,
-  nondetChoice,
 
   -- * Monad Transformer
   ProbT (..),
   Prob,
   runProb,
+
+  -- * Monad Class
+  MonadProb (..),
 ) where
 
 import Control.Applicative (Alternative (..))
 import Control.Arrow ((>>>))
-import Control.Monad (MonadPlus (..), join)
+import Control.Monad (MonadPlus (..), guard, join)
 import Control.Monad.Fail (MonadFail (..))
 import Control.Monad.Identity (Identity (..))
+import Control.Monad.Reader (ReaderT (..))
 import Control.Monad.Trans (MonadTrans (..))
 import Data.Bifunctor (second)
+import Data.Foldable (toList)
 import Data.List (sortOn)
 import Data.List.Extra (groupOn)
 import Lens.Micro.GHC
@@ -96,16 +105,6 @@ outcomes = go 1
 fromOutcomes :: [(probT, a)] -> Distr probT a
 fromOutcomes = Branch . map (second Leaf)
 
--- | Construct a uniform probabilistic choice
-uniform :: (Fractional probT) => [Distr probT a] -> Distr probT a
-uniform [] = Branch []
-uniform [a] = a
-uniform as = let p = fromRational (1.0 / fromIntegral (length as)) in Branch [(p, a) | a <- as]
-
--- | Biased binary choice
-choice :: (Num probT) => probT -> Distr probT a -> Distr probT a -> Distr probT a
-choice p x y = Branch [(p, x), (1 - p, y)]
-
 flattenWith :: (Num probT, Eq a, Ord a) => (Outcomes probT a -> Outcomes probT a) -> Distr probT a -> Distr probT a
 flattenWith f = fromOutcomes . f . outcomes
 
@@ -117,18 +116,27 @@ flatten = fromOutcomes . outcomes
 fullFlatten :: (Num probT, Eq a, Ord a) => Distr probT a -> Distr probT a
 fullFlatten = flattenWith compressOutcomes
 
-type Tree = Distr ()
+-- | Convert a distribution into a single value, and raise an error if not a delta-distribution.
+deterministicValue :: (Eq a, Foldable f) => f a -> Maybe a
+deterministicValue t = do
+  (x : xs) <- pure $ toList t
+  guard $ all (== x) xs
+  return x
 
--- | Construct a non-deterministic choice
-nondetChoice :: [Tree a] -> Tree a
-nondetChoice [a] = a
-nondetChoice as = Branch [((), a) | a <- as]
+-- | Convert a dirac-delta distribution to a value.
+fromDiracDelta :: (Eq a) => Distr probT a -> Maybe a
+fromDiracDelta = deterministicValue
+
+type Tree = Distr ()
 
 instance Alternative Tree where
   empty = Branch []
 
-  t1 <|> t2 = nondetChoice $ to_l t1 ++ to_l t2
+  t1 <|> t2 = from_l $ to_l t1 ++ to_l t2
    where
+    from_l [a] = a
+    from_l as = Branch $ map ((),) as
+
     to_l (Branch ts) = map snd ts
     to_l t = [t]
 
@@ -157,3 +165,40 @@ type Prob probT = ProbT probT Identity
 
 runProb :: Prob probT a -> Distr probT a
 runProb = runIdentity . runProbT
+
+-- | mtl-style class for probability monads
+class (Monad m) => MonadProb probT m | m -> probT where
+  -- | weighted choice over a given set of monadic actions
+  choiceM :: [(probT, m a)] -> m a
+
+-- | Construct a uniform probabilistic choice
+uniform :: (Fractional probT, MonadProb probT m, Foldable f) => f a -> m a
+uniform ms = choiceM . map ((p,) . pure) . toList $ ms
+ where
+  n = length ms
+  p = if n == 0 then 1.0 else 1.0 / fromIntegral n
+
+-- | Biased binary choice
+choice :: (MonadProb probT m, Num probT) => probT -> a -> a -> m a
+choice p x y = choiceM [(p, pure x), (1 - p, pure y)]
+
+instance MonadProb probT (Distr probT) where
+  choiceM = Branch
+
+instance (Monad m) => MonadProb probT (ProbT probT m) where
+  choiceM =
+    unzip
+      >>> second (mapM runProbT)
+      >>> sequence
+      >>> fmap (uncurry zip)
+      >>> fmap choiceM
+      >>> ProbT
+
+instance (MonadProb probT m) => MonadProb probT (ReaderT r m) where
+  choiceM =
+    unzip
+      >>> second (mapM runReaderT)
+      >>> sequence
+      >>> fmap (uncurry zip)
+      >>> fmap choiceM
+      >>> ReaderT

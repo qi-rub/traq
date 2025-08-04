@@ -1,5 +1,6 @@
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE MultiParamTypeClasses #-}
+{-# LANGUAGE TypeApplications #-}
 {-# LANGUAGE UndecidableInstances #-}
 {-# OPTIONS_GHC -Wno-unrecognised-pragmas #-}
 
@@ -9,13 +10,14 @@ module Traq.Primitives.Search.RandomSearch (
 
 import Control.Monad (forM)
 import Control.Monad.Reader (runReaderT)
+import Control.Monad.Trans (lift)
 import Lens.Micro.GHC
 import Lens.Micro.Mtl
 import Text.Printf (printf)
 
 import Traq.Control.Monad
 import qualified Traq.Data.Context as Ctx
-import qualified Traq.Data.Tree as Tree
+import qualified Traq.Data.Probability as Prob
 
 import Traq.Prelude
 import qualified Traq.ProtoLang as P
@@ -64,7 +66,12 @@ instance P.CanParsePrimitive RandomSearch where
 instance P.TypeCheckablePrimitive RandomSearch sizeT where
   typeCheckPrimitive = typeCheckPrimAny
 
-instance (P.EvaluatablePrimitive primsT primsT) => P.EvaluatablePrimitive primsT RandomSearch where
+instance
+  ( Fractional costT
+  , P.EvaluatablePrimitive primsT primsT costT
+  ) =>
+  P.EvaluatablePrimitive primsT RandomSearch costT
+  where
   evalPrimitive = evaluatePrimAny
 
 -- ================================================================================
@@ -154,7 +161,7 @@ instance
 
     let sigma = Ctx.fromList $ zip ["in" ++ show i | i <- [1 .. length args]] args
 
-    costs <- forM (P.range ty) $ \v -> do
+    costs <- forM (P.domain ty) $ \v -> do
       let sigma' = sigma & Ctx.ins "x_s" .~ v
       let pred_call_expr =
             P.FunCallE
@@ -167,13 +174,13 @@ instance
 
       -- evaluate predicate on `v` to check if it is a solution
       eval_env <- view P._evaluationEnv
-      let is_sol =
-            P.evalExpr pred_call_expr sigma'
-              & (runReaderT ?? eval_env)
-              & Tree.detExtract
-              & head
-              & P.valueToBool
-      return (is_sol, cost_v)
+      [is_sol_v] <-
+        lift $
+          P.evalExpr @primsT @costT pred_call_expr sigma'
+            & (runReaderT ?? eval_env)
+            & Prob.runProb
+            & Prob.fromDiracDelta
+      return (P.valueToBool is_sol_v, cost_v)
 
     -- number of solutions
     let k = length $ filter fst costs

@@ -41,6 +41,8 @@ protoLangDef =
     , reservedNames =
         [ -- statements
           "const"
+        , "update"
+        , "set"
         , -- functions
           "def"
         , "declare"
@@ -50,6 +52,7 @@ protoLangDef =
         , -- types
           "Fin"
         , "Bool"
+        , "Arr"
         , -- operators
           "not"
         ]
@@ -70,10 +73,17 @@ symbSize :: TokenParser () -> Parser SymbSize
 symbSize TokenParser{..} = (Sym.con . fromIntegral <$> integer) <|> (Sym.var <$> identifier)
 
 varType :: TokenParser () -> Parser (VarType SymbSize)
-varType tp@TokenParser{..} = boolType <|> finType
+varType tp@TokenParser{..} = boolType <|> finType <|> arrType
  where
   boolType = reserved "Bool" $> Fin (Sym.con 2)
   finType = reserved "Fin" >> Fin <$> angles (symbSize tp)
+  arrType = do
+    reserved "Arr"
+    angles $ do
+      n <- symbSize tp
+      comma
+      ty <- varType tp
+      pure $ Arr n ty
 
 typedTerm :: TokenParser () -> Parser a -> Parser (a, VarType SymbSize)
 typedTerm tp@TokenParser{..} pa = (,) <$> pa <*> (reservedOp ":" *> varType tp)
@@ -86,6 +96,9 @@ exprP tp@TokenParser{..} =
     , unOpE
     , binOpE
     , constE
+    , dynIndexE
+    , indexE
+    , updateArrE
     , varE
     ]
  where
@@ -140,14 +153,49 @@ exprP tp@TokenParser{..} =
     rhs <- VarE <$> identifier
     return $ BasicExprE BinOpE{bin_op, lhs, rhs}
 
+  indexE :: Parser (Expr primT SymbSize)
+  indexE = do
+    arr_expr <- VarE <$> identifier
+    ix_val <- brackets $ symbSize tp
+    return $ BasicExprE IndexE{arr_expr, ix_val}
+
+  dynIndexE :: Parser (Expr primT SymbSize)
+  dynIndexE = do
+    arr_expr <- VarE <$> identifier
+    ix_expr <- VarE <$> brackets identifier
+    return $ BasicExprE DynIndexE{arr_expr, ix_expr}
+
+  updateArrE :: Parser (Expr primT SymbSize)
+  updateArrE = do
+    reserved "update" <|> reserved "set"
+    arr_expr <- VarE <$> identifier
+    ix_expr <- VarE <$> brackets identifier
+    "=" <- operator
+    rhs <- VarE <$> identifier
+    return $ BasicExprE UpdateArrE{arr_expr, ix_expr, rhs}
+
+randExprP :: forall primT. (CanParsePrimitive primT) => TokenParser () -> Parser (Expr primT SymbSize)
+randExprP tp@TokenParser{..} = choice $ map try [uniformE, biasedCoinE]
+ where
+  uniformE :: Parser (Expr primT SymbSize)
+  uniformE = do
+    reserved "uniform"
+    sample_ty <- varType tp
+    return UniformRandomE{..}
+
+  biasedCoinE :: Parser (Expr primT SymbSize)
+  biasedCoinE = do
+    reserved "coin"
+    prob_one <- float
+    return BiasedCoinE{..}
+
 stmtP :: forall primT. (CanParsePrimitive primT) => TokenParser () -> Parser (Stmt primT SymbSize)
 stmtP tp@TokenParser{..} = SeqS <$> many exprS
  where
   exprS :: Parser (Stmt primT SymbSize)
   exprS = do
     rets <- commaSep1 identifier
-    reservedOp "<-"
-    expr <- exprP tp
+    expr <- (reserved "<-$" *> randExprP tp) <|> (reserved "<-" *> exprP tp)
     semi
     return ExprS{rets, expr}
 

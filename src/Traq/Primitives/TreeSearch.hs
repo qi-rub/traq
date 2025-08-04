@@ -92,8 +92,10 @@ runTreeSearch child check u = do
       (||) <$> check l <*> check r
 
 instance
-  (P.EvaluatablePrimitive primsT primsT) =>
-  P.EvaluatablePrimitive primsT TreeSearch
+  ( Fractional costT
+  , P.EvaluatablePrimitive primsT primsT costT
+  ) =>
+  P.EvaluatablePrimitive primsT TreeSearch costT
   where
   evalPrimitive TreeSearch{getChildren, checkNode} args = do
     child_fun <- view $ P._funCtx . Ctx.at getChildren . to (fromMaybe (error "unable to find predicate, please typecheck first!"))
@@ -116,4 +118,4 @@ instance
     let root = P.FinV 1
     ok <- runTreeSearch nxt chk root
 
-    return [P.boolToValue ok]
+    return [P.toValue ok]

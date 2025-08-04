@@ -1,5 +1,6 @@
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE MultiParamTypeClasses #-}
+{-# LANGUAGE TypeApplications #-}
 {-# LANGUAGE UndecidableInstances #-}
 
 module Traq.ProtoLang.Cost (
@@ -55,6 +56,7 @@ module Traq.ProtoLang.Cost (
 
 import Control.Monad (foldM, forM, zipWithM)
 import Control.Monad.Reader (MonadReader, ReaderT, runReaderT)
+import Control.Monad.Trans (lift)
 import qualified Data.Map as Map
 import Data.Maybe (fromMaybe)
 import Data.Void (Void, absurd)
@@ -63,7 +65,7 @@ import Lens.Micro.Mtl
 
 import qualified Traq.Data.Context as Ctx
 import Traq.Data.Default
-import qualified Traq.Data.Tree as Tree
+import qualified Traq.Data.Probability as Prob
 
 import Traq.Prelude
 import Traq.ProtoLang.Eval
@@ -236,6 +238,8 @@ unitaryQueryCostE delta FunCallE{fun_kind = PrimitiveCall prim, args} =
   unitaryQueryCostPrimitive delta prim args
 -- zero-cost expressions
 unitaryQueryCostE _ BasicExprE{} = return 0
+unitaryQueryCostE _ UniformRandomE{} = return 0
+unitaryQueryCostE _ BiasedCoinE{} = return 0
 
 -- Evaluate the query cost of a statement
 unitaryQueryCostS ::
@@ -360,6 +364,8 @@ quantumMaxQueryCostE eps FunCallE{fun_kind = PrimitiveCall prim} =
   quantumMaxQueryCostPrimitive eps prim
 -- -- zero-cost expressions
 quantumMaxQueryCostE _ BasicExprE{} = return 0
+quantumMaxQueryCostE _ UniformRandomE{} = return 0
+quantumMaxQueryCostE _ BiasedCoinE{} = return 0
 
 quantumMaxQueryCostS ::
   forall primsT sizeT costT.
@@ -453,7 +459,7 @@ type QuantumCostCalculator primsT sizeT costT = ReaderT (QuantumCostEnv primsT s
 -- | Primitives that have a input dependent expected quantum cost
 class
   ( QuantumMaxCostablePrimitive primsT primT sizeT costT
-  , EvaluatablePrimitive primsT primT
+  , EvaluatablePrimitive primsT primT costT
   ) =>
   QuantumCostablePrimitive primsT primT sizeT costT
   where
@@ -463,7 +469,7 @@ class
     [Value sizeT] ->
     QuantumCostCalculator primsT sizeT costT costT
 
-instance (Show costT) => QuantumCostablePrimitive primsT Void sizeT costT where
+instance (Show costT, Fractional costT) => QuantumCostablePrimitive primsT Void sizeT costT where
   quantumQueryCostPrimitive _ = absurd
 
 quantumQueryCostE ::
@@ -494,6 +500,8 @@ quantumQueryCostE eps sigma FunCallE{fun_kind = PrimitiveCall prim, args} = do
   quantumQueryCostPrimitive eps prim vals
 -- -- zero-cost expressions
 quantumQueryCostE _ _ BasicExprE{} = return 0
+quantumQueryCostE _ _ UniformRandomE{} = return 0
+quantumQueryCostE _ _ BiasedCoinE{} = return 0
 
 quantumQueryCostS ::
   forall primsT costT m.
@@ -515,14 +523,15 @@ quantumQueryCostS eps sigma IfThenElseS{cond, s_true, s_false} =
 quantumQueryCostS eps sigma (SeqS ss) = do
   funCtx <- view _funCtx
   interpCtx <- view _funInterpCtx
-  let stepS s sigma_s = Tree.detExtract $ runProgram Program{funCtx, stmt = s} interpCtx sigma_s
+  let stepS s sigma_s = Prob.deterministicValue $ runProgram @primsT @costT Program{funCtx, stmt = s} interpCtx sigma_s
 
   eps_each <- splitEps eps ss
 
   (_, cs) <- (\r -> foldM r (sigma, 0) (zip ss eps_each)) $
     \(sigma_s, acc) (s, eps_s) -> do
       c <- quantumQueryCostS eps_s sigma_s s
-      return (stepS s sigma_s, acc + c)
+      s' <- lift $ stepS s sigma_s
+      return (s', acc + c)
   return cs
 
 quantumQueryCost ::

@@ -43,6 +43,7 @@ import Text.Printf (printf)
 
 import Traq.Control.Monad
 import qualified Traq.Data.Context as Ctx
+import qualified Traq.Data.Probability as Prob
 
 import qualified Traq.CQPL as CQPL
 import Traq.Prelude
@@ -146,8 +147,10 @@ instance P.TypeCheckablePrimitive QSearchCFNW sizeT where
  and or-ing the results.
 -}
 instance
-  (P.EvaluatablePrimitive primsT primsT) =>
-  P.EvaluatablePrimitive primsT QSearchCFNW
+  ( Fractional costT
+  , P.EvaluatablePrimitive primsT primsT costT
+  ) =>
+  P.EvaluatablePrimitive primsT QSearchCFNW costT
   where
   evalPrimitive prim@QSearchCFNW{return_sol = False} = evaluatePrimAny prim
   evalPrimitive prim@QSearchCFNW{return_sol = True} = evaluatePrimSearch prim
@@ -220,7 +223,7 @@ instance
   ( Integral sizeT
   , Floating costT
   , Show costT
-  , P.EvaluatablePrimitive primsT QSearchCFNW
+  , P.EvaluatablePrimitive primsT QSearchCFNW costT
   , P.QuantumCostablePrimitive primsT primsT sizeT costT
   , sizeT ~ SizeT
   ) =>
@@ -235,21 +238,16 @@ instance
     let eps_pred = eps - eps_search
 
     -- number of solutions
-    let space = P.range typ_x
-    sols <- do
-      env <- view P._evaluationEnv
-      -- TODO this is too convoluted...
-      return $
-        (runReaderT ?? env) $
-          (filterM ?? space)
-            ( \v -> do
-                result <- P.evalFun (vs ++ [v]) predicate predDef
-                let [b] = result
-                return $ P.valueToBool b
-            )
-
+    let space = P.domain typ_x
     let n = length space
-    [t] <- return $ toList $ fmap length sols
+    t <- do
+      env <- view P._evaluationEnv
+      runSearchPredicateOnAllInputs @primsT @costT predicate space
+        & (runReaderT ?? env)
+        & Prob.runProb
+        & Prob.fromDiracDelta
+        & fmap countSolutions
+        & lift
 
     -- number of predicate queries
     let qry = _EQSearch n t eps_search

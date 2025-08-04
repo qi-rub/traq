@@ -1,4 +1,5 @@
 {-# LANGUAGE FlexibleInstances #-}
+{-# LANGUAGE TupleSections #-}
 {-# LANGUAGE TypeApplications #-}
 {-# OPTIONS_GHC -Wno-orphans #-}
 
@@ -64,7 +65,7 @@ spec = do
     let g = (* 2) :: Int -> Int
 
     describe "Foldable" $ do
-      let fromList = uniform . map pure :: [Int] -> Distr' Int
+      let fromList = uniform :: [Int] -> Distr' Int
       prop "toList . fromList = id" $
         toList . fromList `shouldEqual` id
 
@@ -93,8 +94,8 @@ spec = do
           `shouldBe` u `_splat` (v `_splat` w)
 
     describe "Monad laws" $ do
-      let mf a = uniform [pure a, pure a]
-      let mg a = uniform [pure a, Branch [], pure a]
+      let mf a = uniform [a, a]
+      let mg a = Branch $ map (1.0 / 3.0,) [pure a, Branch [], pure a]
 
       prop "Right Unit" $ \m ->
         m `_bind` return @Distr' `shouldBe` m
@@ -106,8 +107,8 @@ spec = do
         (m `_bind` mf) `_bind` mg `shouldBe` m `_bind` (\x -> mf x `_bind` mg)
 
   describe "compose" $ do
-    let coin = uniform [pure 0, pure 1] :: Distr' Int
-    let dice = uniform (map pure [1 .. 6]) :: Distr' Int
+    let coin = uniform [0, 1] :: Distr' Int
+    let dice = uniform [1 .. 6] :: Distr' Int
 
     it ">>=" $ do
       let m = do
@@ -115,18 +116,18 @@ spec = do
             if c == 0
               then do
                 d <- dice
-                uniform $ replicate d (pure d)
+                uniform $ replicate d d
               else coin
       m
-        `shouldBe` uniform
-          [ uniform [uniform (replicate d $ pure d) | d <- [1 .. 6]]
-          , coin
+        `shouldBe` Branch
+          [ (0.5, Branch [(1.0 / 6, uniform (replicate d d)) | d <- [1 .. 6]])
+          , (0.5, Branch [(0.5, Leaf 0), (0.5, Leaf 1)])
           ]
 
     it "mapM" $ do
       let m = mapM (const coin) [(), ()]
       m
-        `shouldBe` uniform
-          [ uniform [pure [0, 0], pure [0, 1]]
-          , uniform [pure [1, 0], pure [1, 1]]
+        `shouldBe` Branch
+          [ (0.5, uniform [[0, 0], [0, 1]])
+          , (0.5, uniform [[1, 0], [1, 1]])
           ]

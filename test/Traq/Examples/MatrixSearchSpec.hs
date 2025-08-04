@@ -35,7 +35,7 @@ spec = do
     it "has unique vars" $ do
       P.checkVarsUnique ex `shouldBe` True
 
-    let oracleF = \[P.FinV i, P.FinV j] -> [P.boolToValue $ i == j]
+    let oracleF = \[P.FinV i, P.FinV j] -> [P.toValue $ i == j]
     let interpCtx = Ctx.singleton "Oracle" oracleF
 
     it "evaluates" $ do

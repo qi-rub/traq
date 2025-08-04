@@ -1,4 +1,5 @@
 {-# LANGUAGE FlexibleInstances #-}
+{-# LANGUAGE TypeApplications #-}
 {-# OPTIONS_GHC -Wno-orphans #-}
 
 module Traq.Data.TreeSpec where
@@ -6,12 +7,20 @@ module Traq.Data.TreeSpec where
 import Control.Applicative
 import Data.Foldable (toList)
 
-import Traq.Data.Tree
+import Traq.Data.Probability (Distr (..), Tree)
 
 import Test.Hspec
 import Test.Hspec.QuickCheck
 import Test.QuickCheck
 import TestHelpers
+
+-- | Construct a non-deterministic choice
+nondetChoice :: forall a. [Tree a] -> Tree a
+nondetChoice [a] = a
+nondetChoice as = Branch [((), a) | a <- as]
+
+fromList :: forall a. [a] -> Tree a
+fromList = nondetChoice . map pure
 
 instance (Arbitrary a) => Arbitrary (Tree a) where
   arbitrary = sized $ \n -> chooseInt (0, n) >>= go
@@ -21,7 +30,7 @@ instance (Arbitrary a) => Arbitrary (Tree a) where
     go n = do
       ss <- partSubtreeSizes (n - 1)
       ts <- mapM go ss
-      return $ choice ts
+      return $ nondetChoice ts
 
     partSubtreeSizes :: Int -> Gen [Int]
     partSubtreeSizes 1 = return [1]
@@ -59,9 +68,8 @@ spec = do
     let g = (* 2) :: Int -> Int
 
     describe "Foldable" $ do
-      let fromList = choice . map pure :: [Int] -> Tree Int
       prop "toList . fromList = id" $
-        toList . fromList `shouldEqual` id
+        toList . (fromList @Int) `shouldEqual` id
 
     describe "Functor laws" $ do
       prop "Identity" $
@@ -88,8 +96,8 @@ spec = do
           `shouldBe` u `_splat` (v `_splat` w)
 
     describe "Monad laws" $ do
-      let mf a = choice [pure a, pure a]
-      let mg a = choice [pure a, empty, pure a]
+      let mf a = fromList [a, a]
+      let mg a = nondetChoice [pure a, empty, pure a]
 
       prop "Right Unit" $ \m ->
         m `_bind` _return `shouldBe` m
@@ -111,7 +119,7 @@ spec = do
         u `_alt` (v `_alt` w) `shouldBe` (u `_alt` v) `_alt` w
 
     describe "MonadPlus laws" $ do
-      let mf a = choice [pure a, pure a]
+      let mf a = nondetChoice [pure a, pure a]
       prop "Left zero" $
         (_empty >>= mf) `shouldBe` _empty
 
@@ -121,8 +129,8 @@ spec = do
         ((m :: Tree Int) >> _empty) `shouldSatisfy` null
 
   describe "compose" $ do
-    let coin = choice [pure 0, pure 1] :: Tree Int
-    let dice = choice (map pure [1 .. 6]) :: Tree Int
+    let coin = fromList [0, 1] :: Tree Int
+    let dice = fromList [1 .. 6] :: Tree Int
 
     it ">>=" $ do
       let m = do
@@ -130,18 +138,18 @@ spec = do
             if c == 0
               then do
                 d <- dice
-                choice $ replicate d (pure d)
+                nondetChoice $ replicate d (pure d)
               else coin
       m
-        `shouldBe` choice
-          [ choice [choice (replicate d $ pure d) | d <- [1 .. 6]]
+        `shouldBe` nondetChoice
+          [ nondetChoice [nondetChoice (replicate d $ pure d) | d <- [1 .. 6]]
           , coin
           ]
 
     it "mapM" $ do
       let m = mapM (const coin) [(), ()]
       m
-        `shouldBe` choice
-          [ choice [pure [0, 0], pure [0, 1]]
-          , choice [pure [1, 0], pure [1, 1]]
+        `shouldBe` nondetChoice
+          [ fromList [[0, 0], [0, 1]]
+          , fromList [[1, 0], [1, 1]]
           ]

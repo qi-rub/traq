@@ -96,3 +96,12 @@ spec = do
     it "matrixExampleS" $ do
       roundTrip (matrixExampleS 4 5)
       roundTrip (matrixExampleS 10 10)
+    it "max_sat_hillclimb" $ do
+      e_sym <- expectRight =<< parseFromFile (programParser @DefaultPrims) "examples/hillclimb/max_sat_hillclimb.qb"
+      let e =
+            e_sym
+              & fmap (Sym.subst "n" 10)
+              & fmap (Sym.subst "W" 1000)
+              & fmap Sym.unSym
+              & rewriteAST flattenSeq
+      roundTrip e

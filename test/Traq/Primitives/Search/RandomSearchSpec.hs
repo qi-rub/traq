@@ -16,7 +16,7 @@ import Traq.Primitives.Search.RandomSearch
 import Test.Hspec
 
 diagMatrix :: [P.Value SizeT] -> [P.Value SizeT]
-diagMatrix [P.FinV i, P.FinV j] = [P.boolToValue $ i < j]
+diagMatrix [P.FinV i, P.FinV j] = [P.toValue $ i < j]
 diagMatrix _ = error "invalid input"
 
 spec :: Spec

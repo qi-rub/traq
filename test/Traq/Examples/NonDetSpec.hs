@@ -8,7 +8,7 @@ import Text.Parsec.String (parseFromFile)
 import qualified Traq.Data.Symbolic as Sym
 
 import qualified Traq.Data.Context as Ctx
-import qualified Traq.Data.Tree as Tree
+import qualified Traq.Data.Probability as Prob
 
 import Traq.Prelude
 import Traq.Primitives (DefaultPrims)
@@ -38,8 +38,8 @@ spec = do
       let out = P.runProgram ex (Ctx.singleton "Oracle" oracleF) Ctx.empty
 
       out
-        `shouldBe` Tree.choice
-          [ pure $ Ctx.fromList [("ok", P.FinV 1), ("x", x)]
+        `shouldBe` Prob.uniform
+          [ Ctx.fromList [("ok", P.FinV 1), ("x", x)]
           | x <- P.FinV <$> [0 .. 9]
           ]
 
@@ -49,19 +49,19 @@ spec = do
       let out = P.runProgram ex (Ctx.singleton "Oracle" oracleF) Ctx.empty
 
       out
-        `shouldBe` Tree.choice
-          [ pure $ Ctx.fromList [("ok", P.FinV 0), ("x", x)]
+        `shouldBe` Prob.uniform
+          [ Ctx.fromList [("ok", P.FinV 0), ("x", x)]
           | x <- P.FinV <$> [0 .. 9]
           ]
 
     it "some solutions" $ do
       ex <- load'
       let sols = [1, 4, 6] :: [SizeT]
-      let oracleF = \[P.FinV i] -> [P.boolToValue $ i `elem` sols]
+      let oracleF = \[P.FinV i] -> [P.toValue $ i `elem` sols]
       let out = P.runProgram ex (Ctx.singleton "Oracle" oracleF) Ctx.empty
 
       out
-        `shouldBe` Tree.choice
-          [ pure $ Ctx.fromList [("ok", P.FinV 1), ("x", P.FinV x)]
+        `shouldBe` Prob.uniform
+          [ Ctx.fromList [("ok", P.FinV 1), ("x", P.FinV x)]
           | x <- sols
           ]

@@ -35,7 +35,7 @@ instance MatrixType (Value, Value, Value -> Value -> Bool) where
   nRows (P.FinV n, _, _) = fromIntegral n
   nCols (_, P.FinV m, _) = fromIntegral m
 
-  toValueFun (_, _, mat) [i, j] = [P.boolToValue $ mat i j]
+  toValueFun (_, _, mat) [i, j] = [P.toValue $ mat i j]
   toValueFun _ _ = error "unsupported"
 
 instance MatrixType [[Value]] where
