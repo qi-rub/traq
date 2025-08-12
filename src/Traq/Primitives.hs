@@ -17,11 +17,15 @@ import Traq.Prelude
 import qualified Traq.ProtoLang as P
 import qualified Traq.Utils.Printing as PP
 
+import Traq.Primitives.Search.DetSearch
 import Traq.Primitives.Search.Prelude
 import Traq.Primitives.Search.QSearchCFNW
 import Traq.Primitives.Search.RandomSearch
 
-data DefaultPrims = QAny QSearchCFNW | RAny RandomSearch
+data DefaultPrims
+  = QAny QSearchCFNW
+  | RAny RandomSearch
+  | DAny DetSearch
   deriving (Eq, Show, Read)
 
 instance HasPrimAny DefaultPrims where
@@ -40,17 +44,20 @@ instance HasPrimSearch DefaultPrims where
 instance PP.ToCodeString DefaultPrims where
   build (QAny prim) = PP.build prim
   build (RAny RandomSearch{predicate}) = PP.putWord $ printf "@any_rand[%s]" predicate
+  build (DAny DetSearch{predicate}) = PP.putWord $ printf "@any_det[%s]" predicate
 
 -- Parsing
 instance P.CanParsePrimitive DefaultPrims where
   primitiveParser tp =
     (QAny <$> P.primitiveParser tp)
       <|> (RAny <$> parsePrimAny "any_rand" tp)
+      <|> (DAny <$> parsePrimAny "any_det" tp)
 
 -- Type Checking
 instance P.TypeCheckablePrimitive DefaultPrims sizeT where
   typeCheckPrimitive (QAny prim) = P.typeCheckPrimitive prim
   typeCheckPrimitive (RAny prim) = P.typeCheckPrimitive prim
+  typeCheckPrimitive (DAny prim) = P.typeCheckPrimitive prim
 
 -- Evaluation
 instance
@@ -61,6 +68,7 @@ instance
   where
   evalPrimitive (QAny prim) = P.evalPrimitive prim
   evalPrimitive (RAny prim) = P.evalPrimitive prim
+  evalPrimitive (DAny prim) = P.evalPrimitive prim
 
 -- Costs
 instance
@@ -73,6 +81,7 @@ instance
   where
   unitaryQueryCostPrimitive delta (QAny prim) = P.unitaryQueryCostPrimitive delta prim
   unitaryQueryCostPrimitive delta (RAny prim) = P.unitaryQueryCostPrimitive delta prim
+  unitaryQueryCostPrimitive delta (DAny prim) = P.unitaryQueryCostPrimitive delta prim
 
 instance
   ( Integral sizeT
@@ -84,6 +93,7 @@ instance
   where
   quantumMaxQueryCostPrimitive delta (QAny prim) = P.quantumMaxQueryCostPrimitive delta prim
   quantumMaxQueryCostPrimitive delta (RAny prim) = P.quantumMaxQueryCostPrimitive delta prim
+  quantumMaxQueryCostPrimitive delta (DAny prim) = P.quantumMaxQueryCostPrimitive delta prim
 
 instance
   ( Integral sizeT
@@ -97,6 +107,7 @@ instance
   where
   quantumQueryCostPrimitive delta (QAny prim) = P.quantumQueryCostPrimitive delta prim
   quantumQueryCostPrimitive delta (RAny prim) = P.quantumQueryCostPrimitive delta prim
+  quantumQueryCostPrimitive delta (DAny prim) = P.quantumQueryCostPrimitive delta prim
 
 -- Lowering
 instance

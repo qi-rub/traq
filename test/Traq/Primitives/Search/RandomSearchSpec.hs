@@ -26,7 +26,7 @@ spec = do
     it "expected cost" $ do
       let eps = 0.001
       let n = 10
-      let ticks = mempty & at "Oracle" ?~ 1.0
-      let fun_interp = Ctx.singleton "Oracle" diagMatrix
+      let ticks = mempty & at "Matrix" ?~ 1.0
+      let fun_interp = Ctx.singleton "Matrix" diagMatrix
       let c = P.quantumQueryCost default_ eps (mat_prog n n) ticks ticks fun_interp default_
       c `shouldSatisfy` (< (292 :: Double))

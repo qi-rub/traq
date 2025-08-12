@@ -26,8 +26,8 @@ spec = do
   describe "matrix search example" $ do
     let (n, m) = (5, 5)
     let ex = matrixExampleS n m
-    let uticks = mempty & at "Oracle" ?~ 1.0
-    let cticks = mempty & at "Oracle" ?~ 1.0
+    let uticks = mempty & at "Matrix" ?~ 1.0
+    let cticks = mempty & at "Matrix" ?~ 1.0
 
     it "type checks" $ do
       assertRight $ P.typeCheckProg Ctx.empty ex
@@ -36,7 +36,7 @@ spec = do
       P.checkVarsUnique ex `shouldBe` True
 
     let oracleF = \[P.FinV i, P.FinV j] -> [P.toValue $ i == j]
-    let interpCtx = Ctx.singleton "Oracle" oracleF
+    let interpCtx = Ctx.singleton "Matrix" oracleF
 
     it "evaluates" $ do
       let res = P.runProgram ex interpCtx Ctx.empty
@@ -96,8 +96,8 @@ spec = do
     let m = Sym.var "m" :: Sym.Sym Int
     let sbool = P.Fin (Sym.con 2) :: P.VarType (Sym.Sym Int)
     let ex = matrixExample @QSearchSym n m sbool
-    let uticks = mempty & at "Oracle" ?~ 1.0
-    let cticks = mempty & at "Oracle" ?~ 1.0
+    let uticks = mempty & at "Matrix" ?~ 1.0
+    let cticks = mempty & at "Matrix" ?~ 1.0
 
     -- expected, worst, unitary
     let ucF = _QryU
