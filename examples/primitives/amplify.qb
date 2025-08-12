@@ -1,0 +1,6 @@
+declare f(Fin<N>, Fin<N>) -> (Bool, Fin<N>) end
+
+x1 <- const 1 : Fin<N>;
+x2 <- const 2 : Fin<N>;
+
+ok, result <- @amplify[f, 0.02](x1, x2);

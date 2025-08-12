@@ -1,6 +1,6 @@
 cabal-version: 1.18
 
--- This file has been generated from package.yaml by hpack version 0.38.0.
+-- This file has been generated from package.yaml by hpack version 0.38.1.
 --
 -- see: https://github.com/sol/hpack
 
@@ -38,6 +38,7 @@ library
       Traq.Examples.Search
       Traq.Prelude
       Traq.Primitives
+      Traq.Primitives.Amplify
       Traq.Primitives.Search.Prelude
       Traq.Primitives.Search.QCount
       Traq.Primitives.Search.QMax
@@ -222,6 +223,7 @@ test-suite spec
       Traq.Examples.MatrixSearchSpec
       Traq.Examples.NonDetSpec
       Traq.Examples.SearchSpec
+      Traq.Primitives.AmplifySpec
       Traq.Primitives.Search.QSearchCFNWSpec
       Traq.Primitives.Search.RandomSearchSpec
       Traq.Primitives.TreeSearchSpec
