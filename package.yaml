@@ -48,6 +48,7 @@ default-extensions:
   - FlexibleContexts
   - TypeFamilies
   - TypeOperators
+  - MultiWayIf
 
 library:
   source-dirs: src

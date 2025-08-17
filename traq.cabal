@@ -69,6 +69,7 @@ library
       FlexibleContexts
       TypeFamilies
       TypeOperators
+      MultiWayIf
       Safe
   ghc-options: -Wall
   build-depends:
@@ -96,6 +97,7 @@ executable cqplcompile
       FlexibleContexts
       TypeFamilies
       TypeOperators
+      MultiWayIf
       RecordWildCards
   ghc-options: -Wall
   build-depends:
@@ -128,6 +130,7 @@ executable matrixsearch
       FlexibleContexts
       TypeFamilies
       TypeOperators
+      MultiWayIf
       RecordWildCards
   ghc-options: -Wall
   build-depends:
@@ -160,6 +163,7 @@ executable matrixsearchdemo
       FlexibleContexts
       TypeFamilies
       TypeOperators
+      MultiWayIf
       RecordWildCards
   ghc-options: -Wall
   build-depends:
@@ -192,6 +196,7 @@ executable matrixsearchqcost
       FlexibleContexts
       TypeFamilies
       TypeOperators
+      MultiWayIf
       RecordWildCards
   ghc-options: -Wall
   build-depends:
@@ -224,6 +229,7 @@ executable uqplcompile
       FlexibleContexts
       TypeFamilies
       TypeOperators
+      MultiWayIf
       RecordWildCards
   ghc-options: -Wall
   build-depends:
@@ -277,6 +283,7 @@ test-suite spec
       FlexibleContexts
       TypeFamilies
       TypeOperators
+      MultiWayIf
   ghc-options: -Wall
   cpp-options: -DTEST
   build-tool-depends:

@@ -28,13 +28,11 @@ module Traq.Data.Probability (
   -- * Monad Transformer
   ProbT (..),
   Prob,
-  prob,
   runProb,
 
   -- * Monad Class
   MonadProb (..),
-)
-where
+) where
 
 import Control.Applicative (Alternative (..))
 import Control.Arrow ((>>>))
@@ -48,7 +46,6 @@ import Data.Foldable (toList)
 import Data.List (sortOn)
 import Data.List.Extra (groupOn)
 import Lens.Micro.GHC
-import Text.Printf (printf)
 
 type Outcomes probT a = [(probT, a)]
 
@@ -185,19 +182,22 @@ instance (Applicative m) => Applicative (ProbT probT m) where
 instance (Monad m) => Monad (ProbT probT m) where
   (ProbT mta) >>= f = ProbT $ mta >>= traverse (runProbT . f) <&> join
 
+instance (MonadFail m) => MonadFail (ProbT probT m) where
+  fail = ProbT . fail
+
 instance MonadTrans (ProbT probT) where
   lift = ProbT . fmap pure
 
 type Prob probT = ProbT probT Identity
-
-prob :: Distr probT a -> Prob probT a
-prob = ProbT . pure
 
 runProb :: Prob probT a -> Distr probT a
 runProb = runIdentity . runProbT
 
 -- | mtl-style class for probability monads
 class (Monad m) => MonadProb probT m | m -> probT where
+  -- | Lift a distribution to the monad.
+  prob :: Distr probT a -> m a
+
   -- | weighted choice over a given set of monadic actions
   choiceM :: [(probT, m a)] -> m a
 
@@ -213,9 +213,12 @@ choice :: (MonadProb probT m, Num probT) => probT -> a -> a -> m a
 choice p x y = choiceM [(p, pure x), (1 - p, pure y)]
 
 instance MonadProb probT (Distr probT) where
+  prob = id
   choiceM = Branch
 
 instance (Monad m) => MonadProb probT (ProbT probT m) where
+  prob = ProbT . pure
+
   choiceM =
     unzip
       >>> second (mapM runProbT)
@@ -225,6 +228,8 @@ instance (Monad m) => MonadProb probT (ProbT probT m) where
       >>> ProbT
 
 instance (MonadProb probT m) => MonadProb probT (ReaderT r m) where
+  prob = lift . prob
+
   choiceM =
     unzip
       >>> second (mapM runReaderT)

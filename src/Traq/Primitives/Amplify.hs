@@ -144,11 +144,11 @@ evaluatePrimAmplify prim arg_vals = do
   let p_succ = Prob.conditionalProbability predicateBTrue mu
   let p_min' = realToFrac p_min
 
-  case () of
-    _
-      | p_succ >= p_min' -> lift $ Prob.prob (Prob.getConditionalDistr predicateBTrue mu)
-      | p_succ == 0 -> lift $ Prob.prob mu
-      | otherwise -> lift $ Prob.prob (Prob.Branch [])
+  Prob.prob $
+    if
+      | p_succ >= p_min' -> Prob.getConditionalDistr predicateBTrue mu
+      | p_succ == 0 -> mu
+      | otherwise -> fail "invalid p_min"
  where
   predicateBTrue =
     \case
