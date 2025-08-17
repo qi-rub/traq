@@ -11,6 +11,7 @@ module Traq.ProtoLang.Eval (
   evalExpr,
   execStmt,
   evalFun,
+  evalAndFlatten,
   runProgram,
 
   -- * Values
@@ -279,8 +280,8 @@ evalExpr BasicExprE{basic_expr} sigma = do
   return [val]
 
 -- probabilistic instructions
-evalExpr UniformRandomE{sample_ty} _ = error "TODO"
-evalExpr BiasedCoinE{prob_one} _ = error "TODO"
+evalExpr UniformRandomE{sample_ty} _ = pure <$> (Prob.uniform . domain) sample_ty
+evalExpr BiasedCoinE{prob_one} _ = pure . toValue <$> Prob.choice (realToFrac prob_one) True False
 -- function calls
 evalExpr FunCallE{fun_kind = FunctionCall fun, args} sigma = do
   arg_vals <- evalStateT ?? sigma $ mapM lookupS args
@@ -329,6 +330,19 @@ evalFun vals_in _ FunDef{mbody = Just FunBody{param_names, ret_names, body_stmt}
 evalFun vals_in fun_name FunDef{mbody = Nothing} = do
   fn_interp <- view $ _funInterpCtx . Ctx.at fun_name . singular _Just
   return $ fn_interp vals_in
+
+{- | Given a probabilistic computation within the `Evaluator` monad,
+ run it with a given environment to produce a fully-flattened
+ probability distribution over its outcomes.
+-}
+evalAndFlatten ::
+  (Fractional costT, Ord costT, Eq a, Ord a) =>
+  -- | Probabilistic computation to run
+  Evaluator primsT SizeT costT a ->
+  -- | Environment
+  EvaluationEnv primsT SizeT ->
+  Prob.Distr costT a
+evalAndFlatten f env = (Prob.fullFlatten . Prob.runProb) (runReaderT f env)
 
 runProgram ::
   forall primsT costT.

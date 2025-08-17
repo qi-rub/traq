@@ -17,6 +17,8 @@ module Traq.Data.Probability (
   -- ** Transformers
   flatten,
   fullFlatten,
+  getConditionalDistr,
+  conditionalProbability,
 
   -- ** Special case constructors
   uniform,
@@ -26,11 +28,13 @@ module Traq.Data.Probability (
   -- * Monad Transformer
   ProbT (..),
   Prob,
+  prob,
   runProb,
 
   -- * Monad Class
   MonadProb (..),
-) where
+)
+where
 
 import Control.Applicative (Alternative (..))
 import Control.Arrow ((>>>))
@@ -44,14 +48,9 @@ import Data.Foldable (toList)
 import Data.List (sortOn)
 import Data.List.Extra (groupOn)
 import Lens.Micro.GHC
+import Text.Printf (printf)
 
 type Outcomes probT a = [(probT, a)]
-
-compressOutcomes :: (Num probT, Eq a, Ord a) => Outcomes probT a -> Outcomes probT a
-compressOutcomes =
-  sortOn snd
-    >>> groupOn snd
-    >>> map (\t -> (sum . map fst $ t, snd . head $ t))
 
 {- | A tree representation of a probability distributions.
 E.g. @Distr Double a@ for real-valued probabilities.
@@ -101,9 +100,23 @@ outcomes = go 1
   go p (Leaf a) = [(p, a)]
   go p (Branch ts) = concat [go (p * pt) t | (pt, t) <- ts]
 
+-- | Filter outcomes that satisfy a predicate
+getOutcomesAndFilter :: (Num probT) => (a -> Bool) -> Distr probT a -> Outcomes probT a
+getOutcomesAndFilter predicate dist = filter (predicate . snd) (outcomes dist)
+
+-- | Calculate the total probability of outcomes that satisfy a predicate.
+conditionalProbability :: (Num probT) => (a -> Bool) -> Distr probT a -> probT
+conditionalProbability predicate dist = sum . map fst $ getOutcomesAndFilter predicate dist
+
 -- | Construct a distribution given a list of samples with probabilities.
 fromOutcomes :: [(probT, a)] -> Distr probT a
 fromOutcomes = Branch . map (second Leaf)
+
+compressOutcomes :: (Num probT, Eq a, Ord a) => Outcomes probT a -> Outcomes probT a
+compressOutcomes =
+  sortOn snd
+    >>> groupOn snd
+    >>> map (\t -> (sum . map fst $ t, snd . head $ t))
 
 flattenWith :: (Num probT, Eq a, Ord a) => (Outcomes probT a -> Outcomes probT a) -> Distr probT a -> Distr probT a
 flattenWith f = fromOutcomes . f . outcomes
@@ -126,6 +139,20 @@ deterministicValue t = do
 -- | Convert a dirac-delta distribution to a value.
 fromDiracDelta :: (Eq a) => Distr probT a -> Maybe a
 fromDiracDelta = deterministicValue
+
+-- | Normalize a distribution
+normalizeDistr :: (Fractional probT, Eq probT, Eq a, Ord a) => Distr probT a -> Distr probT a
+normalizeDistr distr =
+  let total = weight distr
+   in if total == 0
+        then Branch []
+        else Branch [(p / total, Leaf a) | (p, a) <- outcomes distr]
+
+-- | Get conditional distribution based on a predicate
+getConditionalDistr :: (Fractional probT, Eq probT, Eq a, Ord a) => (a -> Bool) -> Distr probT a -> Distr probT a
+getConditionalDistr f distr =
+  let good = getOutcomesAndFilter f distr
+   in (fullFlatten . normalizeDistr) (Branch (map (second Leaf) good))
 
 type Tree = Distr ()
 
@@ -162,6 +189,9 @@ instance MonadTrans (ProbT probT) where
   lift = ProbT . fmap pure
 
 type Prob probT = ProbT probT Identity
+
+prob :: Distr probT a -> Prob probT a
+prob = ProbT . pure
 
 runProb :: Prob probT a -> Distr probT a
 runProb = runIdentity . runProbT

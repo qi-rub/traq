@@ -1,0 +1,9 @@
+def f(y : Fin<N>) -> (Bool, Fin<N>) 
+do
+  x <-$ uniform Fin<N>;
+  ok <-  y <= x;
+  return ok, x
+end
+
+y <- const 1 : Fin<N>;
+ok, result <- @amplify[f, 0.6](y);

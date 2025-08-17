@@ -184,6 +184,8 @@ typeCheckExpr FunCallE{fun_kind = FunctionCall fun, args} = do
 
 -- `primitive`[...](...)
 typeCheckExpr FunCallE{fun_kind = PrimitiveCall prim, args} = typeCheckPrimitive prim args
+typeCheckExpr UniformRandomE{sample_ty} = pure [sample_ty]
+typeCheckExpr BiasedCoinE{} = pure [tbool]
 
 {- | Typecheck a statement, given the current context and function definitions.
  If successful, the typing context is updated.

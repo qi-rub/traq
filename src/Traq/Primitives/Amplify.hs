@@ -1,6 +1,7 @@
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE MultiParamTypeClasses #-}
 {-# LANGUAGE OverloadedStrings #-}
+{-# LANGUAGE TypeApplications #-}
 {-# LANGUAGE UndecidableInstances #-}
 
 module Traq.Primitives.Amplify (
@@ -10,11 +11,15 @@ module Traq.Primitives.Amplify (
 
 import Control.Monad (when)
 import Control.Monad.Except (throwError)
+import Control.Monad.Trans (lift)
+import Data.Maybe (fromMaybe)
+import Lens.Micro.GHC (to)
 import Lens.Micro.Mtl (view)
 import Text.Parsec.Token (GenTokenParser (brackets, float, identifier, symbol))
 import Text.Printf (printf)
 import Traq.Control.Monad (maybeWithError)
 import qualified Traq.Data.Context as Ctx
+import qualified Traq.Data.Probability as Prob
 import Traq.Prelude
 import qualified Traq.ProtoLang as P
 import qualified Traq.Utils.Printing as PP
@@ -100,3 +105,52 @@ typeCheckPrimAmplify prim args =
         )
 
     return [P.tbool, head ret_types]
+
+{- | Evaluate an `amplify` call by evaluating the sampler f to get distribution μ
+and get success probability Psucc := P(b=1) conditioned on μ. Finally, returning the distribution
+based on Psucc.
+-}
+instance
+  ( Fractional costT
+  , Ord costT
+  , P.EvaluatablePrimitive primsT primsT costT
+  ) =>
+  P.EvaluatablePrimitive primsT QAmplify costT
+  where
+  evalPrimitive = evaluatePrimAmplify
+
+evaluatePrimAmplify ::
+  forall primsT primT costT.
+  ( Fractional costT
+  , HasPrimAmplify primT
+  , Ord costT
+  , P.EvaluatablePrimitive primsT primsT costT
+  ) =>
+  primT ->
+  [P.Value SizeT] ->
+  P.Evaluator primsT SizeT costT [P.Value SizeT]
+evaluatePrimAmplify prim arg_vals = do
+  let sampler = getSamplerOfAmplify prim
+  let p_min = getPMinOfAmplify prim
+  sampler_fundef <-
+    view $
+      P._funCtx
+        . Ctx.at sampler
+        . to
+          (fromMaybe (error "unable to find sampler, please typecheck first!"))
+  let sampler_action = P.evalFun @primsT @costT arg_vals sampler sampler_fundef
+  eval_env <- view id -- current environment
+  let mu = P.evalAndFlatten sampler_action eval_env -- result distribution
+  let p_succ = Prob.conditionalProbability predicateBTrue mu
+  let p_min' = realToFrac p_min
+
+  case () of
+    _
+      | p_succ >= p_min' -> lift $ Prob.prob (Prob.getConditionalDistr predicateBTrue mu)
+      | p_succ == 0 -> lift $ Prob.prob mu
+      | otherwise -> lift $ Prob.prob (Prob.Branch [])
+ where
+  predicateBTrue =
+    \case
+      (b_val : _) -> P.valueToBool b_val
+      _ -> False

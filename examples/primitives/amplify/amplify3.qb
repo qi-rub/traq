@@ -1,0 +1,13 @@
+def sampler(l: Fin<N>, r: Fin<N>) -> (Bool, Fin<N>)
+do
+  x <-$ uniform Fin<N>;
+  ok_l <- l <= x;
+  ok_r <- x <= r;
+  ok <- ok_l && ok_r;
+  return ok, x
+end
+
+l <- const 1 : Fin<N>;
+r <- const 4 : Fin<N>;
+
+ok, x <- @amplify[sampler, 0.2](l, r);
