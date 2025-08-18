@@ -118,11 +118,11 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Set up GHC 8.6.5
+      - name: Set up GHC 9.6.7
         uses: haskell-actions/setup@v2
         id: setup
         with:
-          ghc-version: "8.6.5"
+          ghc-version: "9.6.7"
 
       - name: Configure the build
         run: |
