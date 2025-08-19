@@ -37,9 +37,9 @@ module Traq.Data.Probability (
 import Control.Applicative (Alternative (..))
 import Control.Arrow ((>>>))
 import Control.Monad (MonadPlus (..), guard, join)
-import Control.Monad.Fail (MonadFail (..))
 import Control.Monad.Identity (Identity (..))
 import Control.Monad.Reader (ReaderT (..))
+import Control.Monad.State (StateT (..))
 import Control.Monad.Trans (MonadTrans (..))
 import Data.Bifunctor (second)
 import Data.Foldable (toList)
@@ -198,42 +198,25 @@ class (Monad m) => MonadProb probT m | m -> probT where
   -- | Lift a distribution to the monad.
   prob :: Distr probT a -> m a
 
-  -- | weighted choice over a given set of monadic actions
-  choiceM :: [(probT, m a)] -> m a
-
 -- | Construct a uniform probabilistic choice
 uniform :: (Fractional probT, MonadProb probT m, Foldable f) => f a -> m a
-uniform ms = choiceM . map ((p,) . pure) . toList $ ms
+uniform ms = prob . fromOutcomes . map (p,) . toList $ ms
  where
   n = length ms
   p = if n == 0 then 1.0 else 1.0 / fromIntegral n
 
 -- | Biased binary choice
 choice :: (MonadProb probT m, Num probT) => probT -> a -> a -> m a
-choice p x y = choiceM [(p, pure x), (1 - p, pure y)]
+choice p x y = prob $ fromOutcomes [(p, x), (1 - p, y)]
 
 instance MonadProb probT (Distr probT) where
   prob = id
-  choiceM = Branch
 
 instance (Monad m) => MonadProb probT (ProbT probT m) where
   prob = ProbT . pure
 
-  choiceM =
-    unzip
-      >>> second (mapM runProbT)
-      >>> sequence
-      >>> fmap (uncurry zip)
-      >>> fmap choiceM
-      >>> ProbT
-
 instance (MonadProb probT m) => MonadProb probT (ReaderT r m) where
   prob = lift . prob
 
-  choiceM =
-    unzip
-      >>> second (mapM runReaderT)
-      >>> sequence
-      >>> fmap (uncurry zip)
-      >>> fmap choiceM
-      >>> ReaderT
+instance (MonadProb probT m) => MonadProb probT (StateT s m) where
+  prob = lift . prob
