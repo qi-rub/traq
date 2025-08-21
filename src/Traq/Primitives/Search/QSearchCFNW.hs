@@ -28,13 +28,12 @@ module Traq.Primitives.Search.QSearchCFNW (
 ) where
 
 import Control.Applicative ((<|>))
-import Control.Monad (filterM, forM, replicateM, when)
+import Control.Monad (forM, replicateM, when)
 import Control.Monad.Except (throwError)
 import Control.Monad.RWS (RWST, evalRWST)
 import Control.Monad.Reader (runReaderT)
 import Control.Monad.Trans (lift)
 import Control.Monad.Writer (WriterT (..), censor, execWriterT, listen)
-import Data.Foldable (Foldable (toList))
 import Data.String (fromString)
 import Lens.Micro.GHC
 import Lens.Micro.Mtl
@@ -170,7 +169,7 @@ instance
   where
   unitaryQueryCostPrimitive delta QSearchCFNW{predicate} _ = do
     P.FunDef{P.param_types} <- view $ P._funCtx . Ctx.at predicate . singular _Just
-    let P.Fin n = last param_types
+    let n = last param_types ^?! P._Fin
 
     -- split the precision
     let delta_search = delta / 2
@@ -198,7 +197,7 @@ instance
   where
   quantumMaxQueryCostPrimitive eps QSearchCFNW{predicate} = do
     P.FunDef{P.param_types} <- view $ P._funCtx . Ctx.at predicate . singular _Just
-    let P.Fin n = last param_types
+    let n = last param_types ^?! P._Fin
 
     -- split the fail prob
     let eps_search = eps / 2
@@ -229,8 +228,8 @@ instance
   ) =>
   P.QuantumCostablePrimitive primsT QSearchCFNW sizeT costT
   where
-  quantumQueryCostPrimitive eps QSearchCFNW{predicate} vs = do
-    predDef@P.FunDef{P.param_types} <- view $ P._funCtx . Ctx.at predicate . singular _Just
+  quantumQueryCostPrimitive eps QSearchCFNW{predicate} _ = do
+    P.FunDef{P.param_types} <- view $ P._funCtx . Ctx.at predicate . singular _Just
     let typ_x = last param_types
 
     -- split the fail prob
@@ -244,8 +243,7 @@ instance
       env <- view P._evaluationEnv
       runSearchPredicateOnAllInputs @primsT @costT predicate space
         & (runReaderT ?? env)
-        & Prob.runProb
-        & Prob.fromDiracDelta
+        & Prob.toDeterministicValue
         & fmap countSolutions
         & lift
 
@@ -435,7 +433,8 @@ instance
         >>= maybeWithError ("cannot find predicate " <> predicate)
 
     -- size of the search space
-    let s_ty@(P.Fin n) = last param_types
+    let s_ty = last param_types
+    let n = s_ty ^?! P._Fin
 
     -- split the precision
     let delta_search = delta / 2
@@ -703,7 +702,7 @@ algoQSearch ty n_samples eps grover_k_caller pred_caller ok = do
 
   writeElemAt _1 quantumSampling
  where
-  P.Fin n = ty
+  n = ty ^?! P._Fin
 
   alpha = 9.2
   lambda = 6 / 5
@@ -756,7 +755,8 @@ instance
         >>= maybeWithError ("cannot find predicate " <> predicate)
 
     -- size of the search space
-    let s_ty@(P.Fin n) = last param_types
+    let s_ty = last param_types
+    let n = s_ty ^?! P._Fin
 
     -- fail prob of search
     let eps_s = eps / 2

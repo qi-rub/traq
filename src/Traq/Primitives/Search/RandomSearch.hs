@@ -178,8 +178,7 @@ instance
         lift $
           P.evalExpr @primsT @costT pred_call_expr sigma'
             & (runReaderT ?? eval_env)
-            & Prob.runProb
-            & Prob.fromDiracDelta
+            & Prob.toDeterministicValue
       return (P.valueToBool is_sol_v, cost_v)
 
     -- number of solutions

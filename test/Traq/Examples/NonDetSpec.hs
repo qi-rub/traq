@@ -8,7 +8,6 @@ import Text.Parsec.String (parseFromFile)
 import qualified Traq.Data.Symbolic as Sym
 
 import qualified Traq.Data.Context as Ctx
-import qualified Traq.Data.Probability as Prob
 
 import Traq.Prelude
 import Traq.Primitives (DefaultPrims)
@@ -38,10 +37,10 @@ spec = do
       let out = P.runProgram ex (Ctx.singleton "Oracle" oracleF) Ctx.empty
 
       out
-        `shouldBe` Prob.uniform
-          [ Ctx.fromList [("ok", P.FinV 1), ("x", x)]
-          | x <- P.FinV <$> [0 .. 9]
-          ]
+        `shouldBeDistribution` [ (sigma, 0.1 :: Double)
+                               | x <- [0 .. 9]
+                               , let sigma = Ctx.fromList [("ok", P.FinV 1), ("x", P.FinV x)]
+                               ]
 
     it "no solutions" $ do
       ex <- load'
@@ -49,19 +48,19 @@ spec = do
       let out = P.runProgram ex (Ctx.singleton "Oracle" oracleF) Ctx.empty
 
       out
-        `shouldBe` Prob.uniform
-          [ Ctx.fromList [("ok", P.FinV 0), ("x", x)]
-          | x <- P.FinV <$> [0 .. 9]
-          ]
+        `shouldBeDistribution` [ (sigma, 0.1 :: Double)
+                               | x <- [0 .. 9]
+                               , let sigma = Ctx.fromList [("ok", P.FinV 0), ("x", P.FinV x)]
+                               ]
 
     it "some solutions" $ do
       ex <- load'
       let sols = [1, 4, 6] :: [SizeT]
       let oracleF = \[P.FinV i] -> [P.toValue $ i `elem` sols]
-      let out = P.runProgram ex (Ctx.singleton "Oracle" oracleF) Ctx.empty
+      let out = P.runProgram @_ @Double ex (Ctx.singleton "Oracle" oracleF) Ctx.empty
 
       out
-        `shouldBe` Prob.uniform
-          [ Ctx.fromList [("ok", P.FinV 1), ("x", P.FinV x)]
-          | x <- sols
-          ]
+        `shouldBeDistribution` [ (sigma, 1 / 3 :: Double)
+                               | x <- sols
+                               , let sigma = Ctx.fromList [("ok", P.FinV 1), ("x", P.FinV x)]
+                               ]

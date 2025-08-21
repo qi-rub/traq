@@ -34,6 +34,11 @@ library
       Traq.Data.Default
       Traq.Data.Errors
       Traq.Data.Probability
+      Traq.Data.Probability.Class
+      Traq.Data.Probability.Cont
+      Traq.Data.Probability.List
+      Traq.Data.Probability.Trans
+      Traq.Data.Probability.Tree
       Traq.Data.Symbolic
       Traq.Examples.MatrixSearch
       Traq.Examples.Search
@@ -257,9 +262,9 @@ test-suite spec
       Traq.Compiler.QuantumSpec
       Traq.Compiler.UnitarySpec
       Traq.CQPL.TypeCheckSpec
-      Traq.Data.ProbabilitySpec
+      Traq.Data.Probability.ContSpec
+      Traq.Data.Probability.TreeSpec
       Traq.Data.SymbolicSpec
-      Traq.Data.TreeSpec
       Traq.Examples.MatrixSearchSpec
       Traq.Examples.NonDetSpec
       Traq.Examples.SearchSpec
@@ -289,7 +294,8 @@ test-suite spec
   build-tool-depends:
       hspec-discover:hspec-discover
   build-depends:
-      QuickCheck
+      HUnit-approx
+    , QuickCheck
     , base >=4.10 && <5
     , containers >=0.6 && <1
     , extra >=1.8 && <2

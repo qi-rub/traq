@@ -1,8 +1,14 @@
+{-# LANGUAGE ImplicitParams #-}
+
 module TestHelpers where
 
+import Control.Monad (forM_)
 import Data.Either
 import Data.Maybe
+import Test.HUnit.Approx
 import Test.Hspec
+
+import qualified Traq.Data.Probability as Prob
 
 assertJust :: (Show a) => Maybe a -> IO ()
 assertJust v = v `shouldSatisfy` isJust
@@ -25,3 +31,22 @@ shouldEqual :: (HasCallStack, Show a, Eq a) => (t -> a) -> (t -> a) -> (t -> Exp
 shouldEqual f g x = f x `shouldBe` g x
 
 infix 1 `shouldEqual`
+
+-- | Check if a given probability distribution matches a list of weighted outcomes.
+shouldBeDistribution ::
+  forall probT m a.
+  ( HasCallStack
+  , Prob.MonadExp probT m
+  , Fractional probT
+  , Ord probT
+  , Show probT
+  , Show a
+  , Eq a
+  ) =>
+  m a ->
+  [(a, probT)] ->
+  Expectation
+shouldBeDistribution mu vals =
+  let epsilon = 1e-6 :: probT
+   in forM_ vals $ \(x, p) ->
+        assertApproxEqual ("Prob[" <> show x <> "]") epsilon p $ Prob.probabilityOf (== x) mu

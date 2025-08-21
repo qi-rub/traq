@@ -11,7 +11,6 @@ module Traq.ProtoLang.Eval (
   evalExpr,
   execStmt,
   evalFun,
-  evalAndFlatten,
   runProgram,
 
   -- * Values
@@ -233,7 +232,7 @@ instance HasFunInterpCtx (EvaluationEnv primsT sizeT) where
 type ExecutionState sizeT = ProgramState sizeT
 
 -- | Non-deterministic Execution Monad (i.e. no state)
-type Evaluator primsT sizeT costT = ReaderT (EvaluationEnv primsT sizeT) (Prob.Prob costT)
+type Evaluator primsT sizeT costT = ReaderT (EvaluationEnv primsT sizeT) (Prob.Distr costT)
 
 -- | Non-deterministic Execution Monad
 type Executor primsT sizeT costT = StateT (ExecutionState sizeT) (Evaluator primsT sizeT costT)
@@ -280,8 +279,11 @@ evalExpr BasicExprE{basic_expr} sigma = do
   return [val]
 
 -- probabilistic instructions
-evalExpr UniformRandomE{sample_ty} _ = pure <$> (Prob.uniform . domain) sample_ty
-evalExpr BiasedCoinE{prob_one} _ = pure . toValue <$> Prob.choice (realToFrac prob_one) True False
+evalExpr UniformRandomE{sample_ty} _ = (: []) <$> Prob.uniform (domain sample_ty)
+evalExpr BiasedCoinE{prob_one} _ = do
+  b <- Prob.bernoulli (realToFrac prob_one)
+  return [toValue b]
+
 -- function calls
 evalExpr FunCallE{fun_kind = FunctionCall fun, args} sigma = do
   arg_vals <- evalStateT ?? sigma $ mapM lookupS args
@@ -331,19 +333,6 @@ evalFun vals_in fun_name FunDef{mbody = Nothing} = do
   fn_interp <- view $ _funInterpCtx . Ctx.at fun_name . singular _Just
   return $ fn_interp vals_in
 
-{- | Given a probabilistic computation within the `Evaluator` monad,
- run it with a given environment to produce a fully-flattened
- probability distribution over its outcomes.
--}
-evalAndFlatten ::
-  (Fractional costT, Ord costT, Eq a, Ord a) =>
-  -- | Probabilistic computation to run
-  Evaluator primsT SizeT costT a ->
-  -- | Environment
-  EvaluationEnv primsT SizeT ->
-  Prob.Distr costT a
-evalAndFlatten f env = (Prob.fullFlatten . Prob.runProb) (runReaderT f env)
-
 runProgram ::
   forall primsT costT.
   (EvaluatablePrimitive primsT primsT costT) =>
@@ -355,7 +344,6 @@ runProgram Program{funCtx, stmt} funInterpCtx st =
   execStmt stmt
     & (execStateT ?? st)
     & (runReaderT ?? env)
-    & Prob.runProb
  where
   env =
     default_

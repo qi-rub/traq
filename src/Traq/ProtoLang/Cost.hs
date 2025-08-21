@@ -57,7 +57,6 @@ where
 
 import Control.Monad (foldM, forM, zipWithM)
 import Control.Monad.Reader (MonadReader, ReaderT, runReaderT)
-import Control.Monad.Trans (lift)
 import qualified Data.Map as Map
 import Data.Maybe (fromMaybe)
 import Data.Void (Void, absurd)
@@ -539,13 +538,10 @@ quantumQueryCostS eps sigma (SeqS ss) = do
   let stepS s = runProgram @primsT @costT Program{funCtx, stmt = s} interpCtx
   eps_each <- splitEps eps ss
 
-  (_, cs) <- (\r -> foldM r (Prob.Branch [(1.0, Prob.Leaf sigma)], 0) (zip ss eps_each)) $
+  (_, cs) <- (\r -> foldM r (pure sigma, 0) (zip ss eps_each)) $
     \(distr, acc) (s, eps_s) -> do
-      let weightedCosts = [(p, quantumQueryCostS eps_s sigma' s) | (p, sigma') <- Prob.outcomes distr]
+      c <- Prob.expectationA (\sigma' -> quantumQueryCostS eps_s sigma' s) distr
       let distr' = distr >>= \state -> stepS s state
-
-      c <- sum <$> mapM (\(p, m) -> fmap (p *) m) weightedCosts
-
       return (distr', acc + c)
 
   return cs

@@ -6,10 +6,13 @@
 :set -XApplicativeDo 
 :set -XRankNTypes 
 :set -XFlexibleContexts 
-:set -XTypeOperators
-
 :set -XTypeFamilies 
+:set -XTypeOperators
+:set -XMultiWayIf
+
 :set -XFlexibleInstances
 :set -XFunctionalDependencies 
 :set -XMultiParamTypeClasses 
 :set -XUndecidableInstances
+:set -XTupleSections
+:set -XTypeApplications

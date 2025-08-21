@@ -1,5 +1,9 @@
+{-# LANGUAGE ImplicitParams #-}
+{-# LANGUAGE TypeApplications #-}
+
 module Traq.Examples.SearchSpec (spec) where
 
+import Control.Monad (forM_)
 import qualified Data.Map as Map
 
 import qualified Traq.Data.Context as Ctx
@@ -15,11 +19,14 @@ import qualified Traq.Utils.Printing as PP
 import Traq.Examples.Search
 import Traq.Primitives.Search.QSearchCFNW (_EQSearch, _QSearchZalka)
 
+import Test.HUnit.Approx
 import Test.Hspec
 import TestHelpers
 
 spec :: Spec
 spec = do
+  let ?epsilon = 1e-6 :: Double
+
   describe "arraySearch: no solutions" $ do
     let n = 6
     let ex = arraySearch n
@@ -79,9 +86,10 @@ spec = do
     let interpCtx = Ctx.singleton "Oracle" oracleF
 
     it "evaluates" $ do
-      let res = P.runProgram ex interpCtx Ctx.empty
-      res
-        `shouldBe` Prob.uniform
-          [ Ctx.fromList [("result", P.FinV 1), ("solution", P.FinV i)]
-          | i <- planted_sols
-          ]
+      let res = P.runProgram @_ @Double ex interpCtx Ctx.empty
+
+      Prob.mass res @?~ 1
+
+      forM_ planted_sols $ \i ->
+        let sigma = Ctx.fromList [("result", P.FinV 1), ("solution", P.FinV i)]
+         in Prob.probabilityOf (== sigma) res @?~ 1 / 3

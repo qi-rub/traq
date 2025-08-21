@@ -2,16 +2,18 @@
 
 module Traq.Primitives.AmplifySpec (spec) where
 
+import Text.Parsec.String
+
+import qualified Traq.Data.Context as Ctx
+import qualified Traq.Data.Symbolic as Sym
+
+import qualified Traq.ProtoLang as P
+import qualified Traq.Utils.Printing as PP
+
+import Traq.Primitives.Amplify (QAmplify (..))
+
 import Test.Hspec
 import TestHelpers
-import Text.Parsec.String
-import qualified Traq.Data.Context as Ctx
-import qualified Traq.Data.Probability as Prob
-import qualified Traq.Data.Symbolic as Sym
-import Traq.Primitives.Amplify (QAmplify (..))
-import qualified Traq.ProtoLang as P
-import Traq.ProtoLang.Parser (programParser)
-import qualified Traq.Utils.Printing as PP
 
 exampleProgram1 :: (Num sizeT) => sizeT -> sizeT -> P.Program QAmplify sizeT
 exampleProgram1 two n = P.Program{P.funCtx = fun_ctx, P.stmt = P.SeqS [stmt_x, amplify_call]}
@@ -216,7 +218,7 @@ spec = do
     it "parses" $ do
       p <-
         parseFromFile
-          (programParser)
+          P.programParser
           "examples/primitives/amplify/amplify1.qb"
           >>= expectRight
       p `shouldBe` exampleProgram1 (Sym.con 2) (Sym.var "N")
@@ -235,16 +237,15 @@ spec = do
     it "evaluates" $ do
       let funInterpCtx = Ctx.singleton "sampler" (\[P.FinV x1] -> [P.toValue True, P.FinV x1])
       let initialState = Ctx.empty
-      let expectedResult = Prob.Branch [(1.0, Prob.Leaf $ Ctx.fromList [("x", P.FinV 1), ("ok", P.FinV 1), ("result", P.FinV 1)])]
       let result = P.runProgram program1 funInterpCtx initialState
 
-      result `shouldBe` expectedResult
+      result `shouldBeDistribution` [(Ctx.fromList [("x", P.FinV 1), ("ok", P.FinV 1), ("result", P.FinV 1)], 1 :: Double)]
 
   describe "amplify example2" $ do
     it "parses" $ do
       p <-
         parseFromFile
-          programParser
+          P.programParser
           "examples/primitives/amplify/amplify2.qb"
           >>= expectRight
       p `shouldBe` exampleProgram2 (Sym.con 2) (Sym.var "N")
@@ -257,20 +258,18 @@ spec = do
     it "evaluates" $ do
       let funInterpCtx = Ctx.singleton "sampler" (\[P.FinV x1, P.FinV x2] -> [P.toValue True, P.FinV x1])
       let initialState = Ctx.empty
-      let expectedResult =
-            Prob.Branch
-              [ (0.5, Prob.Leaf $ Ctx.fromList [("y", P.FinV 1), ("ok", P.FinV 1), ("result", P.FinV 1)])
-              , (0.5, Prob.Leaf $ Ctx.fromList [("y", P.FinV 1), ("ok", P.FinV 1), ("result", P.FinV 2)])
-              ]
       let result = P.runProgram program2 funInterpCtx initialState
 
-      result `shouldBe` expectedResult
+      result
+        `shouldBeDistribution` [ (Ctx.fromList [("y", P.FinV 1), ("ok", P.FinV 1), ("result", P.FinV 1)], 0.5 :: Double)
+                               , (Ctx.fromList [("y", P.FinV 1), ("ok", P.FinV 1), ("result", P.FinV 2)], 0.5)
+                               ]
 
   describe "amplify example3" $ do
     it "parses" $ do
       p <-
         parseFromFile
-          programParser
+          P.programParser
           "examples/primitives/amplify/amplify3.qb"
           >>= expectRight
       p `shouldBe` exampleProgram3 (Sym.con 2) (Sym.var "N")
@@ -283,12 +282,10 @@ spec = do
     it "evaluates" $ do
       let funInterpCtx = Ctx.singleton "sampler" (\[P.FinV x1, P.FinV x2] -> [P.toValue True, P.FinV x1])
       let initialState = Ctx.empty
-      let expectedResult =
-            Prob.Branch
-              [ (0.5, Prob.Leaf $ Ctx.fromList [("l", P.FinV 1), ("r", P.FinV 4), ("ok", P.FinV 1), ("x", P.FinV 1)])
-              , (0.5, Prob.Leaf $ Ctx.fromList [("l", P.FinV 1), ("r", P.FinV 4), ("ok", P.FinV 1), ("x", P.FinV 2)])
-              ]
 
       let result = P.runProgram program3 funInterpCtx initialState
 
-      result `shouldBe` expectedResult
+      result
+        `shouldBeDistribution` [ (Ctx.fromList [("l", P.FinV 1), ("r", P.FinV 4), ("ok", P.FinV 1), ("x", P.FinV 1)], 0.5 :: Double)
+                               , (Ctx.fromList [("l", P.FinV 1), ("r", P.FinV 4), ("ok", P.FinV 1), ("x", P.FinV 2)], 0.5)
+                               ]

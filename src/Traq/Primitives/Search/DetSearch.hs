@@ -135,8 +135,7 @@ instance
       [is_sol_v] <-
         P.evalExpr @primsT @costT pred_call_expr sigma'
           & (runReaderT ?? eval_env)
-          & Prob.runProb
-          & Prob.fromDiracDelta
+          & Prob.toDeterministicValue
           & lift
 
       return (P.valueToBool is_sol_v, cost_v)

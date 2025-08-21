@@ -11,15 +11,18 @@ module Traq.Primitives.Amplify (
 
 import Control.Monad (when)
 import Control.Monad.Except (throwError)
+import Control.Monad.Reader (ReaderT (..))
 import Control.Monad.Trans (lift)
 import Data.Maybe (fromMaybe)
 import Lens.Micro.GHC (to)
 import Lens.Micro.Mtl (view)
 import Text.Parsec.Token (GenTokenParser (brackets, float, identifier, symbol))
 import Text.Printf (printf)
+
 import Traq.Control.Monad (maybeWithError)
 import qualified Traq.Data.Context as Ctx
 import qualified Traq.Data.Probability as Prob
+
 import Traq.Prelude
 import qualified Traq.ProtoLang as P
 import qualified Traq.Utils.Printing as PP
@@ -140,13 +143,13 @@ evaluatePrimAmplify prim arg_vals = do
           (fromMaybe (error "unable to find sampler, please typecheck first!"))
   let sampler_action = P.evalFun @primsT @costT arg_vals sampler sampler_fundef
   eval_env <- view id -- current environment
-  let mu = P.evalAndFlatten sampler_action eval_env -- result distribution
-  let p_succ = Prob.conditionalProbability predicateBTrue mu
+  let mu = runReaderT sampler_action eval_env -- result distribution
+  let p_succ = Prob.probabilityOf predicateBTrue mu
   let p_min' = realToFrac p_min
 
-  Prob.prob $
+  lift $
     if
-      | p_succ >= p_min' -> Prob.getConditionalDistr predicateBTrue mu
+      | p_succ >= p_min' -> Prob.postselect predicateBTrue mu
       | p_succ == 0 -> mu
       | otherwise -> fail "invalid p_min"
  where
