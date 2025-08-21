@@ -3,9 +3,11 @@
 module Traq.ProtoLang.VarsSpec (spec) where
 
 import qualified Data.Set as Set
-import Test.Hspec
+
 import Traq.ProtoLang.Syntax
 import Traq.ProtoLang.Vars
+
+import Test.Hspec
 
 spec :: Spec
 spec = do

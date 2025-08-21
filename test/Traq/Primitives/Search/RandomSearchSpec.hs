@@ -6,12 +6,11 @@ import Lens.Micro.GHC
 
 import qualified Traq.Data.Context as Ctx
 import Traq.Data.Default
-import Traq.Prelude
-
-import qualified Traq.ProtoLang as P
 
 import Traq.Examples.MatrixSearch (matrixExample)
+import Traq.Prelude
 import Traq.Primitives.Search.RandomSearch
+import qualified Traq.ProtoLang as P
 
 import Test.Hspec
 

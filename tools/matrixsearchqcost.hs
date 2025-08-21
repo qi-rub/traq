@@ -17,15 +17,14 @@ import Text.Printf (printf)
 import qualified Traq.Data.Context as Ctx
 import qualified Traq.Data.Symbolic as Sym
 
+import Traq.Examples.MatrixSearch
 import Traq.Prelude
 import Traq.Primitives (DefaultPrims)
-import qualified Traq.ProtoLang as P
-
-import Traq.Examples.MatrixSearch
 import Traq.Primitives.Search.DetSearch (DetSearch)
 import Traq.Primitives.Search.Prelude (HasPrimAny)
 import Traq.Primitives.Search.QSearchCFNW (QSearchCFNW)
 import Traq.Primitives.Search.RandomSearch (RandomSearch)
+import qualified Traq.ProtoLang as P
 
 printDivider :: IO ()
 printDivider = putStrLn $ replicate 80 '='

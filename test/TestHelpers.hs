@@ -5,10 +5,11 @@ module TestHelpers where
 import Control.Monad (forM_)
 import Data.Either
 import Data.Maybe
-import Test.HUnit.Approx
-import Test.Hspec
 
 import qualified Traq.Data.Probability as Prob
+
+import Test.HUnit.Approx
+import Test.Hspec
 
 assertJust :: (Show a) => Maybe a -> IO ()
 assertJust v = v `shouldSatisfy` isJust

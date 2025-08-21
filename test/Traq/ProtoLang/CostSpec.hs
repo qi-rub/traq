@@ -1,20 +1,20 @@
 module Traq.ProtoLang.CostSpec (spec) where
 
+import Prelude
+
 import qualified Data.Map as Map
 
+import Traq.Data.Default
 import qualified Traq.Data.Symbolic as Sym
 
 import Traq.Prelude
+import Traq.Primitives
+import Traq.Primitives.Search.QSearchCFNW (_QSearchZalka)
 import Traq.ProtoLang.Cost
 import Traq.ProtoLang.Parser
 import Traq.ProtoLang.Syntax
 
-import Traq.Primitives
-import Traq.Primitives.Search.QSearchCFNW (_QSearchZalka)
-
 import Test.Hspec
-import Traq.Data.Default
-import Prelude
 
 unsafeParseProgram :: String -> Program DefaultPrims SizeT
 unsafeParseProgram = fmap Sym.unSym . either (error . show) id . parseProgram

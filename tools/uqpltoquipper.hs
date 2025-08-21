@@ -9,6 +9,8 @@ import Data.Void (Void)
 import GHC.IO.Handle
 import Lens.Micro.GHC
 import Lens.Micro.Mtl
+import qualified Quipper as Q
+import qualified Quipper.Libraries.Qureg as Q
 import System.IO
 import Text.Printf (printf)
 
@@ -22,9 +24,6 @@ import qualified Traq.Compiler.Unitary as CompileU
 import Traq.Prelude
 import qualified Traq.ProtoLang as P
 import qualified Traq.Utils.Printing as PP
-
-import qualified Quipper as Q
-import qualified Quipper.Libraries.Qureg as Q
 
 -- ================================================================================
 -- Conversion

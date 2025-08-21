@@ -52,8 +52,7 @@ module Traq.ProtoLang.Cost (
   HasPrecisionSplittingStrategy (..),
   HasNeedsEps (..),
   splitEps,
-)
-where
+) where
 
 import Control.Monad (foldM, forM, zipWithM)
 import Control.Monad.Reader (MonadReader, ReaderT, runReaderT)
@@ -62,9 +61,11 @@ import Data.Maybe (fromMaybe)
 import Data.Void (Void, absurd)
 import Lens.Micro.GHC
 import Lens.Micro.Mtl
+
 import qualified Traq.Data.Context as Ctx
 import Traq.Data.Default
 import qualified Traq.Data.Probability as Prob
+
 import Traq.Prelude
 import Traq.ProtoLang.Eval
 import Traq.ProtoLang.Syntax

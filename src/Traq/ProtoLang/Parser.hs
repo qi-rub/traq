@@ -27,9 +27,9 @@ import Text.Parsec.Token (
   reservedNames,
   reservedOpNames,
  )
-import qualified Traq.Data.Symbolic as Sym
 
 import qualified Traq.Data.Context as Ctx
+import qualified Traq.Data.Symbolic as Sym
 
 import Traq.Prelude
 import Traq.ProtoLang.Syntax

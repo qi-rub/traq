@@ -20,10 +20,9 @@ import qualified Traq.Data.Context as Ctx
 import qualified Traq.Data.Probability as Prob
 
 import Traq.Prelude
+import Traq.Primitives.Search.Prelude
 import qualified Traq.ProtoLang as P
 import qualified Traq.Utils.Printing as PP
-
-import Traq.Primitives.Search.Prelude
 
 -- ================================================================================
 -- Cost Formulas

@@ -12,13 +12,12 @@ import qualified Traq.Data.Symbolic as Sym
 import Traq.Examples.MatrixSearch (matrixExample, matrixExampleS)
 import Traq.Prelude
 import Traq.Primitives
+import Traq.Primitives.Search.Symbolic
 import Traq.ProtoLang.Parser
 import Traq.ProtoLang.Rewrites
 import Traq.ProtoLang.Syntax
 import Traq.Utils.ASTRewriting
 import qualified Traq.Utils.Printing as PP
-
-import Traq.Primitives.Search.Symbolic
 
 import Test.Hspec
 import TestHelpers

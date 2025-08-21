@@ -45,16 +45,14 @@ import qualified Traq.Data.Context as Ctx
 import qualified Traq.Data.Probability as Prob
 
 import qualified Traq.CQPL as CQPL
-import Traq.Prelude
-import Traq.ProtoLang (notE, (.&&.), (.+.), (.<=.))
-import qualified Traq.ProtoLang as P
-import qualified Traq.Utils.Printing as PP
-
 import qualified Traq.Compiler as Compiler
 import qualified Traq.Compiler.Quantum as CompileQ
 import qualified Traq.Compiler.Unitary as CompileU
-
+import Traq.Prelude
 import Traq.Primitives.Search.Prelude
+import Traq.ProtoLang (notE, (.&&.), (.+.), (.<=.))
+import qualified Traq.ProtoLang as P
+import qualified Traq.Utils.Printing as PP
 
 -- ================================================================================
 -- Cost Formulas

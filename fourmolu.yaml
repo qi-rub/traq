@@ -1,2 +1,22 @@
 indentation : 2
-indent - wheres : true
+import-grouping:
+  - name: "Prelude"
+    rules:
+      - glob: Prelude
+  - name: "External modules"
+    rules:
+      - match: all
+        priority: 100
+  - name: "Local Helpers"
+    rules:
+      - glob: Traq.Data.**
+      - glob: Traq.Control.**
+  - name: "Local"
+    rules:
+      - match: local-modules
+        priority: 50
+  - name: "Test"
+    rules:
+      - glob: TestHelpers
+        priority: 20
+      - glob: Test.**

@@ -4,10 +4,13 @@ module Traq.Compiler.UnitarySpec (spec) where
 
 import qualified Data.Map as Map
 import Data.Void (Void)
+
+-- TODO remove
+
 import qualified Traq.Data.Context as Ctx
 
 import qualified Traq.CQPL as CQPL
-import qualified Traq.CQPL as U -- TODO remove
+import qualified Traq.CQPL as U
 import Traq.Compiler.Unitary
 import qualified Traq.ProtoLang as P
 import qualified Traq.Utils.Printing as PP

@@ -11,9 +11,9 @@ import Lens.Micro.GHC
 import Traq.Control.Monad
 import qualified Traq.Data.Context as Ctx
 import Traq.Data.Default
-import Traq.Prelude
 
 import qualified Traq.CQPL as CQPL
+import Traq.Prelude
 import Traq.Primitives.Search.QSearchCFNW
 import qualified Traq.ProtoLang as P
 import qualified Traq.Utils.Printing as PP

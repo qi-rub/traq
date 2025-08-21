@@ -13,12 +13,11 @@ import qualified Traq.Data.Symbolic as Sym
 import qualified Traq.CQPL as CQPL
 import qualified Traq.Compiler.Quantum as CompileQ
 import qualified Traq.Compiler.Unitary as CompileU
+import Traq.Examples.MatrixSearch
 import Traq.Prelude
+import Traq.Primitives.Search.Symbolic
 import qualified Traq.ProtoLang as P
 import qualified Traq.Utils.Printing as PP
-
-import Traq.Examples.MatrixSearch
-import Traq.Primitives.Search.Symbolic
 
 printDivider :: IO ()
 printDivider = putStrLn $ replicate 80 '='

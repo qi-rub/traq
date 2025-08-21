@@ -12,12 +12,11 @@ import qualified Traq.Data.Probability as Prob
 
 import qualified Traq.CQPL as CQPL
 import qualified Traq.Compiler.Unitary as CompileU
+import Traq.Examples.Search
 import Traq.Prelude
+import Traq.Primitives.Search.QSearchCFNW (_EQSearch, _QSearchZalka)
 import qualified Traq.ProtoLang as P
 import qualified Traq.Utils.Printing as PP
-
-import Traq.Examples.Search
-import Traq.Primitives.Search.QSearchCFNW (_EQSearch, _QSearchZalka)
 
 import Test.HUnit.Approx
 import Test.Hspec

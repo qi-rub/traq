@@ -14,13 +14,12 @@ import Text.Printf (printf)
 import qualified Traq.Compiler.Quantum as CompileQ
 import qualified Traq.Compiler.Unitary as CompileU
 import Traq.Prelude
-import qualified Traq.ProtoLang as P
-import qualified Traq.Utils.Printing as PP
-
 import Traq.Primitives.Search.DetSearch
 import Traq.Primitives.Search.Prelude
 import Traq.Primitives.Search.QSearchCFNW
 import Traq.Primitives.Search.RandomSearch
+import qualified Traq.ProtoLang as P
+import qualified Traq.Utils.Printing as PP
 
 data DefaultPrims
   = QAny QSearchCFNW
