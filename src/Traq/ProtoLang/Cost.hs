@@ -52,7 +52,8 @@ module Traq.ProtoLang.Cost (
   HasPrecisionSplittingStrategy (..),
   HasNeedsEps (..),
   splitEps,
-) where
+)
+where
 
 import Control.Monad (foldM, forM, zipWithM)
 import Control.Monad.Reader (MonadReader, ReaderT, runReaderT)
@@ -62,11 +63,9 @@ import Data.Maybe (fromMaybe)
 import Data.Void (Void, absurd)
 import Lens.Micro.GHC
 import Lens.Micro.Mtl
-
 import qualified Traq.Data.Context as Ctx
 import Traq.Data.Default
 import qualified Traq.Data.Probability as Prob
-
 import Traq.Prelude
 import Traq.ProtoLang.Eval
 import Traq.ProtoLang.Syntax
@@ -96,10 +95,11 @@ data PrecisionSplittingStrategy = SplitSimple | SplitUsingNeedsEps
 instance HasDefault PrecisionSplittingStrategy where
   default_ = SplitSimple
 
+-- Predicate for checking if a type has precision splitting strategy
 class HasPrecisionSplittingStrategy p where
   _precSplitStrat :: Lens' p PrecisionSplittingStrategy
 
--- | Predicate for checking if a expr/stmt/prog can fail
+-- | Predicate for checking if an expr/stmt/prog can fail
 class HasNeedsEps p where
   needsEps ::
     ( primT ~ PrimitiveType p
@@ -175,7 +175,9 @@ instance HasDefault (UnitaryCostEnv primT sizeT costT) where
 
 -- Types and instances
 type instance PrimitiveType (UnitaryCostEnv primT sizeT costT) = primT
+
 type instance SizeType (UnitaryCostEnv primT sizeT costT) = sizeT
+
 type instance CostType (UnitaryCostEnv primT sizeT costT) = costT
 
 instance HasFunCtx (UnitaryCostEnv primT sizeT costT) where
@@ -301,7 +303,9 @@ instance HasDefault (QuantumMaxCostEnv primT sizeT costT) where
 
 -- instances
 type instance PrimitiveType (QuantumMaxCostEnv primT sizeT costT) = primT
+
 type instance SizeType (QuantumMaxCostEnv primT sizeT costT) = sizeT
+
 type instance CostType (QuantumMaxCostEnv primT sizeT costT) = costT
 
 instance HasUnitaryCostEnv (QuantumMaxCostEnv primT sizeT costT) where
@@ -311,7 +315,9 @@ instance HasClassicalTicks (QuantumMaxCostEnv primT sizeT costT) where
   _classicalTicks focus (QuantumMaxCostEnv u t) = focus t <&> QuantumMaxCostEnv u
 
 instance HasFunCtx (QuantumMaxCostEnv primT sizeT costT) where _funCtx = _unitaryCostEnv . _funCtx
+
 instance HasUnitaryTicks (QuantumMaxCostEnv primT sizeT costT) where _unitaryTicks = _unitaryCostEnv . _unitaryTicks
+
 instance HasPrecisionSplittingStrategy (QuantumMaxCostEnv primT sizeT costT) where _precSplitStrat = _unitaryCostEnv . _precSplitStrat
 
 -- lens
@@ -427,7 +433,9 @@ instance HasDefault (QuantumCostEnv primT sizeT costT) where
   default_ = QuantumCostEnv default_ default_
 
 type instance PrimitiveType (QuantumCostEnv primsT sizeT costT) = primsT
+
 type instance SizeType (QuantumCostEnv primsT sizeT costT) = sizeT
+
 type instance CostType (QuantumCostEnv primsT sizeT costT) = costT
 
 instance HasQuantumMaxCostEnv (QuantumCostEnv primsT sizeT costT) where
@@ -437,9 +445,13 @@ instance HasFunInterpCtx (QuantumCostEnv primsT sizeT costT) where
   _funInterpCtx focus (QuantumCostEnv e f) = focus f <&> QuantumCostEnv e
 
 instance HasUnitaryCostEnv (QuantumCostEnv primsT sizeT costT) where _unitaryCostEnv = _quantumMaxCostEnv . _unitaryCostEnv
+
 instance HasFunCtx (QuantumCostEnv primsT sizeT costT) where _funCtx = _quantumMaxCostEnv . _funCtx
+
 instance HasUnitaryTicks (QuantumCostEnv primsT sizeT costT) where _unitaryTicks = _quantumMaxCostEnv . _unitaryTicks
+
 instance HasClassicalTicks (QuantumCostEnv primsT sizeT costT) where _classicalTicks = _quantumMaxCostEnv . _classicalTicks
+
 instance HasPrecisionSplittingStrategy (QuantumCostEnv primsT sizeT costT) where _precSplitStrat = _quantumMaxCostEnv . _precSplitStrat
 
 instance HasEvaluationEnv (QuantumCostEnv primsT sizeT costT) where
@@ -523,15 +535,19 @@ quantumQueryCostS eps sigma IfThenElseS{cond, s_true, s_false} =
 quantumQueryCostS eps sigma (SeqS ss) = do
   funCtx <- view _funCtx
   interpCtx <- view _funInterpCtx
-  let stepS s sigma_s = Prob.deterministicValue $ runProgram @primsT @costT Program{funCtx, stmt = s} interpCtx sigma_s
 
+  let stepS s = runProgram @primsT @costT Program{funCtx, stmt = s} interpCtx
   eps_each <- splitEps eps ss
 
-  (_, cs) <- (\r -> foldM r (sigma, 0) (zip ss eps_each)) $
-    \(sigma_s, acc) (s, eps_s) -> do
-      c <- quantumQueryCostS eps_s sigma_s s
-      s' <- lift $ stepS s sigma_s
-      return (s', acc + c)
+  (_, cs) <- (\r -> foldM r (Prob.Branch [(1.0, Prob.Leaf sigma)], 0) (zip ss eps_each)) $
+    \(distr, acc) (s, eps_s) -> do
+      let weightedCosts = [(p, quantumQueryCostS eps_s sigma' s) | (p, sigma') <- Prob.outcomes distr]
+      let distr' = distr >>= \state -> stepS s state
+
+      c <- sum <$> mapM (\(p, m) -> fmap (p *) m) weightedCosts
+
+      return (distr', acc + c)
+
   return cs
 
 quantumQueryCost ::

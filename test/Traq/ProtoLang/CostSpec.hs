@@ -13,6 +13,8 @@ import Traq.Primitives
 import Traq.Primitives.Search.QSearchCFNW (_QSearchZalka)
 
 import Test.Hspec
+import Traq.Data.Default
+import Prelude
 
 unsafeParseProgram :: String -> Program DefaultPrims SizeT
 unsafeParseProgram = fmap Sym.unSym . either (error . show) id . parseProgram
@@ -29,6 +31,7 @@ spec = do
               ]
       let c = unitaryQueryCost SplitSimple 0.001 prog (Map.singleton "Oracle" 1.0)
       c `shouldBe` (2 :: Double)
+
     it "fun call of oracle" $ do
       let prog =
             unsafeParseProgram . unlines $
@@ -64,3 +67,12 @@ spec = do
               ]
       let c = unitaryQueryCost SplitSimple 0.001 prog (Map.singleton "Oracle" 1.0)
       (c :: Double) `shouldBe` 2 * _QSearchZalka (100 :: Int) (0.001 / 2)
+
+    it "probabilistic outcome" $ do
+      let prog =
+            unsafeParseProgram . unlines $
+              [ "declare Oracle(Fin<100>) -> Bool end"
+              , "res1 <-$ uniform Fin<2>;"
+              ]
+      let c = quantumQueryCost SplitSimple 0.001 prog default_ default_ default_ default_
+      (c :: Double) `shouldBe` 0
