@@ -96,12 +96,12 @@ instance
 instance
   ( Integral sizeT
   , Floating costT
-  , CompileU.Lowerable primsT primsT holeT sizeT costT
-  , CompileU.Lowerable primsT QSearchCFNW holeT sizeT costT
+  , CompileU.Lowerable primsT primsT sizeT costT
+  , CompileU.Lowerable primsT QSearchCFNW sizeT costT
   , P.TypeCheckable sizeT
   , Show costT
   ) =>
-  CompileU.Lowerable primsT DefaultPrims holeT sizeT costT
+  CompileU.Lowerable primsT DefaultPrims sizeT costT
   where
   lowerPrimitive delta (QAny q) = CompileU.lowerPrimitive delta q
   lowerPrimitive _ _ = error "TODO: lowerPrimitive"
@@ -109,12 +109,12 @@ instance
 instance
   ( Integral sizeT
   , Floating costT
-  , CompileQ.Lowerable primsT primsT holeT sizeT costT
-  , CompileQ.Lowerable primsT QSearchCFNW holeT sizeT costT
+  , CompileQ.Lowerable primsT primsT sizeT costT
+  , CompileQ.Lowerable primsT QSearchCFNW sizeT costT
   , P.TypeCheckable sizeT
   , Show costT
   ) =>
-  CompileQ.Lowerable primsT DefaultPrims holeT sizeT costT
+  CompileQ.Lowerable primsT DefaultPrims sizeT costT
   where
   lowerPrimitive eps (QAny q) = CompileQ.lowerPrimitive eps q
   lowerPrimitive _ _ = error "TODO: lowerPrimitive"

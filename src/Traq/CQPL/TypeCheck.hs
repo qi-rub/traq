@@ -89,31 +89,27 @@ verifyArgs args tys = do
 -- ================================================================================
 
 -- | Env for type checking
-data CheckingCtx holeT sizeT costT
-  = CheckingCtx
-      (ProcCtx holeT sizeT costT)
-      (P.TypingCtx sizeT)
+data CheckingCtx sizeT costT = CheckingCtx (ProcCtx sizeT costT) (P.TypingCtx sizeT)
 
-type instance SizeType (CheckingCtx holeT sizeT costT) = sizeT
-type instance CostType (CheckingCtx holeT sizeT costT) = costT
-type instance HoleType (CheckingCtx holeT sizeT costT) = holeT
+type instance SizeType (CheckingCtx sizeT costT) = sizeT
+type instance CostType (CheckingCtx sizeT costT) = costT
 
-instance HasDefault (CheckingCtx holeT sizeT costT) where default_ = CheckingCtx default_ default_
+instance HasDefault (CheckingCtx sizeT costT) where default_ = CheckingCtx default_ default_
 
-instance HasProcCtx (CheckingCtx holeT sizeT costT) where
+instance HasProcCtx (CheckingCtx sizeT costT) where
   _procCtx focus (CheckingCtx p t) = focus p <&> \p' -> CheckingCtx p' t
 
-instance P.HasTypingCtx (CheckingCtx holeT sizeT costT) where
+instance P.HasTypingCtx (CheckingCtx sizeT costT) where
   _typingCtx focus (CheckingCtx p t) = focus t <&> \t' -> CheckingCtx p t'
 
 -- | Monad for type checking
-type TypeChecker holeT sizeT costT = ReaderT (CheckingCtx holeT sizeT costT) (Either Err.MyError)
+type TypeChecker sizeT costT = ReaderT (CheckingCtx sizeT costT) (Either Err.MyError)
 
 -- ================================================================================
 -- Type Checking
 -- ================================================================================
 
-typeCheckUnitary :: forall holeT costT sizeT. (P.TypeCheckable sizeT) => Unitary sizeT -> [P.VarType sizeT] -> TypeChecker holeT sizeT costT ()
+typeCheckUnitary :: forall costT sizeT. (P.TypeCheckable sizeT) => Unitary sizeT -> [P.VarType sizeT] -> TypeChecker sizeT costT ()
 typeCheckUnitary Toffoli tys = verifyArgTys tys [P.tbool, P.tbool, P.tbool]
 typeCheckUnitary CNOT tys = verifyArgTys tys [P.tbool, P.tbool]
 typeCheckUnitary XGate tys = verifyArgTys tys [P.tbool]
@@ -145,10 +141,9 @@ typeCheckUnitary (LoadData f) tys = do
 
   verifyArgTys tys proc_param_types
 
-typeCheckUStmt :: forall holeT sizeT costT. (Show holeT, P.TypeCheckable sizeT) => UStmt holeT sizeT -> TypeChecker holeT sizeT costT ()
+typeCheckUStmt :: forall sizeT costT. (P.TypeCheckable sizeT) => UStmt sizeT -> TypeChecker sizeT costT ()
 -- single statements
 typeCheckUStmt USkipS = return ()
-typeCheckUStmt UHoleS{} = return ()
 typeCheckUStmt (UCommentS _) = return ()
 typeCheckUStmt UnitaryS{unitary, qargs} = do
   arg_tys <- forM qargs $ \x -> do
@@ -173,7 +168,7 @@ typeCheckUStmt UForInRangeS{iter_meta_var, iter_lim, uloop_body} = do
     typeCheckUStmt' uloop_body
 typeCheckUStmt UWithComputedS{with_ustmt, body_ustmt} = mapM_ typeCheckUStmt' [with_ustmt, body_ustmt]
 
-typeCheckUStmt' :: (Show holeT, P.TypeCheckable sizeT) => UStmt holeT sizeT -> TypeChecker holeT sizeT costT ()
+typeCheckUStmt' :: (P.TypeCheckable sizeT) => UStmt sizeT -> TypeChecker sizeT costT ()
 typeCheckUStmt' s = do
   gamma <- view P._typingCtx
   typeCheckUStmt s
@@ -182,14 +177,12 @@ typeCheckUStmt' s = do
 
 -- | Check a statement
 typeCheckStmt ::
-  forall sizeT costT holeT.
-  (P.TypeCheckable sizeT, Show holeT) =>
-  Stmt holeT sizeT ->
-  TypeChecker holeT sizeT costT ()
+  forall sizeT costT.
+  (P.TypeCheckable sizeT) =>
+  Stmt sizeT ->
+  TypeChecker sizeT costT ()
 typeCheckStmt SkipS = return ()
 typeCheckStmt (CommentS _) = return ()
--- ignore holes
-typeCheckStmt (HoleS _) = return ()
 -- Simple statements
 typeCheckStmt AssignS{rets, expr} = do
   let expr_vars = toList $ P.freeVars expr
@@ -256,12 +249,12 @@ typeCheckStmt s = case desugarS s of
   Nothing -> error $ "Unable to TypeCheck: " ++ show s
 
 typeCheckUProcBody ::
-  forall sizeT costT holeT.
-  (P.TypeCheckable sizeT, Show costT, Show holeT) =>
-  UProcBody holeT sizeT costT ->
+  forall sizeT costT.
+  (P.TypeCheckable sizeT, Show costT) =>
+  UProcBody sizeT costT ->
   -- | parameter types
   [P.VarType sizeT] ->
-  TypeChecker holeT sizeT costT ()
+  TypeChecker sizeT costT ()
 -- declaration with a tick
 typeCheckUProcBody UProcDecl{} _ = return ()
 -- definition with a body
@@ -275,12 +268,12 @@ typeCheckUProcBody procdef@UProcBody{uproc_param_names, uproc_body_stmt} tys = d
 
 -- | Check a procedure def
 typeCheckCProcBody ::
-  forall sizeT costT holeT.
-  (P.TypeCheckable sizeT, Show holeT) =>
-  CProcBody holeT sizeT costT ->
+  forall sizeT costT.
+  (P.TypeCheckable sizeT) =>
+  CProcBody sizeT costT ->
   -- | parameter types
   [P.VarType sizeT] ->
-  TypeChecker holeT sizeT costT ()
+  TypeChecker sizeT costT ()
 -- declaration with a tick
 typeCheckCProcBody CProcDecl{} _ = return ()
 -- definition with a body
@@ -297,10 +290,10 @@ typeCheckCProcBody CProcBody{cproc_param_names, cproc_local_vars, cproc_body_stm
     typeCheckStmt cproc_body_stmt
 
 typeCheckProc ::
-  forall sizeT costT holeT.
-  (P.TypeCheckable sizeT, Show costT, Show holeT) =>
-  ProcDef holeT sizeT costT ->
-  TypeChecker holeT sizeT costT ()
+  forall sizeT costT.
+  (P.TypeCheckable sizeT, Show costT) =>
+  ProcDef sizeT costT ->
+  TypeChecker sizeT costT ()
 typeCheckProc ProcDef{proc_param_types, proc_body} =
   case proc_body of
     ProcBodyC cbody -> typeCheckCProcBody cbody proc_param_types
@@ -308,9 +301,9 @@ typeCheckProc ProcDef{proc_param_types, proc_body} =
 
 -- | Check an entire program given the input bindings.
 typeCheckProgram ::
-  forall sizeT costT holeT.
-  (P.TypeCheckable sizeT, Show holeT, Show costT) =>
-  Program holeT sizeT costT ->
+  forall sizeT costT.
+  (P.TypeCheckable sizeT, Show costT) =>
+  Program sizeT costT ->
   Either Err.MyError ()
 typeCheckProgram Program{proc_defs} = do
   let env =

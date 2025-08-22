@@ -6,7 +6,6 @@ module Traq.CQPL.TypeCheckSpec (spec) where
 
 import Control.Monad (forM_)
 import Control.Monad.Reader (runReaderT)
-import Data.Void (Void)
 
 import Lens.Micro.GHC
 
@@ -26,7 +25,7 @@ spec = do
     let tb = P.Fin (2 :: Int)
     let checker gamma s =
           runReaderT
-            (CQPL.typeCheckUStmt @Void @Int @Float s)
+            (CQPL.typeCheckUStmt @Int @Float s)
             (default_ & P._typingCtx .~ gamma)
     describe "unitary embed" $ do
       it "AndOp" $

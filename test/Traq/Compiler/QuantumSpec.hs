@@ -19,7 +19,7 @@ import qualified Traq.ProtoLang as P
 import Test.Hspec
 import TestHelpers
 
-_ProcBodyC :: Traversal' (ProcBody holeT sizeT costT) (CProcBody holeT sizeT costT)
+_ProcBodyC :: Traversal' (ProcBody sizeT costT) (CProcBody sizeT costT)
 _ProcBodyC _focus (ProcBodyC cb) = ProcBodyC <$> _focus cb
 _ProcBodyC _ b = pure b
 
@@ -31,7 +31,7 @@ spec = do
       ex_ <- expectRight $ P.parseProgram @Void "x <- const 0 : Fin<10>;"
       let ex = Sym.unSym <$> ex_
       let ticks = Map.singleton "Oracle" 1.0
-      (cq :: Program' SizeT Double) <- expectRight $ lowerProgram default_ Ctx.empty ticks ticks eps ex
+      (cq :: Program SizeT Double) <- expectRight $ lowerProgram default_ Ctx.empty ticks ticks eps ex
       CProcBody{cproc_body_stmt} <-
         return $
           cq

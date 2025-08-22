@@ -92,13 +92,13 @@ instance P.HasTypingCtx (LoweringCtx sizeT) where
 -- ================================================================================
 
 -- | The outputs of lowering
-type LoweringOutput holeT sizeT costT = [CQPL.ProcDef holeT sizeT costT]
+type LoweringOutput sizeT costT = [CQPL.ProcDef sizeT costT]
 
-_loweredProcs :: Lens' (LoweringOutput holeT sizeT costT) [CQPL.ProcDef holeT sizeT costT]
+_loweredProcs :: Lens' (LoweringOutput sizeT costT) [CQPL.ProcDef sizeT costT]
 _loweredProcs = id
 
 addProc ::
-  (MonadWriter (LoweringOutput holeT sizeT costT) m) =>
-  CQPL.ProcDef holeT sizeT costT ->
+  (MonadWriter (LoweringOutput sizeT costT) m) =>
+  CQPL.ProcDef sizeT costT ->
   m ()
 addProc = writeElemAt _loweredProcs

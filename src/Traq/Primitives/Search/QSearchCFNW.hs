@@ -269,43 +269,31 @@ instance
 -- Unitary Lowering
 -- ================================================================================
 
--- | Temporary black-boxes for un-implemented parts of the quantum search algorithms.
-data QSearchBlackBoxes costT
-  = QSearchBlackBox {q_pred_name :: Ident, n_pred_calls :: costT}
-  | TODOHole String
-  deriving (Eq, Show)
-
-instance CQPL.HoleCost (QSearchBlackBoxes costT) costT where
-  holeCost QSearchBlackBox{q_pred_name, n_pred_calls} = do
-    pred_cost <- CQPL.procCost q_pred_name
-    return $ n_pred_calls * pred_cost
-  holeCost (TODOHole s) = error $ "no cost of unknown hole: " <> s
-
 -- | Information for building QSearch_Zalka
-data UQSearchEnv holeT sizeT = UQSearchEnv
+data UQSearchEnv sizeT = UQSearchEnv
   { search_arg_type :: P.VarType sizeT
-  , pred_call_builder :: Ident -> Ident -> Ident -> CQPL.UStmt holeT sizeT
+  , pred_call_builder :: Ident -> Ident -> Ident -> CQPL.UStmt sizeT
   }
 
 -- | A layer on top of the unitary compiler, holding the relevant QSearch context, and storing the produced statements.
-type UQSearchBuilder primsT holeT sizeT costT =
+type UQSearchBuilder primsT sizeT costT =
   RWST
-    (UQSearchEnv holeT sizeT)
-    [CQPL.UStmt holeT sizeT]
+    (UQSearchEnv sizeT)
+    [CQPL.UStmt sizeT]
     ()
-    (CompileU.CompilerT primsT holeT sizeT costT)
+    (CompileU.CompilerT primsT sizeT costT)
 
-allocSearchArgReg :: UQSearchBuilder primsT holeT sizeT costT Ident
+allocSearchArgReg :: UQSearchBuilder primsT sizeT costT Ident
 allocSearchArgReg = do
   ty <- view $ to search_arg_type
   lift $ CompileU.allocAncillaWithPref "s_arg" ty
 
-addPredCall :: Ident -> Ident -> Ident -> UQSearchBuilder primsT holeT sizeT costT ()
+addPredCall :: Ident -> Ident -> Ident -> UQSearchBuilder primsT sizeT costT ()
 addPredCall c x b = do
   mk_pred <- view $ to pred_call_builder
   writeElem $ mk_pred c x b
 
-withComputed :: CQPL.UStmt holeT sizeT -> UQSearchBuilder primsT holeT sizeT costT a -> UQSearchBuilder primsT holeT sizeT costT a
+withComputed :: CQPL.UStmt sizeT -> UQSearchBuilder primsT sizeT costT a -> UQSearchBuilder primsT sizeT costT a
 withComputed s m = do
   writeElem s
   a <- m
@@ -313,10 +301,9 @@ withComputed s m = do
   return a
 
 addGroverIteration ::
-  forall primsT holeT sizeT costT.
+  forall primsT sizeT costT.
   ( Integral sizeT
   , RealFloat costT
-  , holeT ~ QSearchBlackBoxes costT
   , P.TypeCheckable sizeT
   ) =>
   -- | ctrl
@@ -325,7 +312,7 @@ addGroverIteration ::
   Ident ->
   -- | b
   Ident ->
-  UQSearchBuilder primsT holeT sizeT costT ()
+  UQSearchBuilder primsT sizeT costT ()
 addGroverIteration c x b = do
   addPredCall c x b
   writeElem $ CQPL.UnitaryS [x] (CQPL.Adjoint CQPL.Unif)
@@ -333,15 +320,14 @@ addGroverIteration c x b = do
   writeElem $ CQPL.UnitaryS [x] CQPL.Unif
 
 algoQSearchZalkaRandomIterStep ::
-  forall primsT holeT sizeT costT.
+  forall primsT sizeT costT.
   ( Integral sizeT
   , RealFloat costT
-  , holeT ~ QSearchBlackBoxes costT
   , P.TypeCheckable sizeT
   ) =>
   -- | max num of iteration
   sizeT ->
-  UQSearchBuilder primsT holeT sizeT costT Ident
+  UQSearchBuilder primsT sizeT costT Ident
 algoQSearchZalkaRandomIterStep r = do
   -- time register
   let r_ty = P.Fin r
@@ -380,17 +366,16 @@ algoQSearchZalkaRandomIterStep r = do
   return b_reg
 
 algoQSearchZalka ::
-  forall primsT holeT sizeT costT.
+  forall primsT sizeT costT.
   ( Integral sizeT
   , RealFloat costT
-  , holeT ~ QSearchBlackBoxes costT
   , P.TypeCheckable sizeT
   ) =>
   -- | max. norm error @\delta@
   costT ->
   -- | output bit
   Ident ->
-  UQSearchBuilder primsT holeT sizeT costT ()
+  UQSearchBuilder primsT sizeT costT ()
 algoQSearchZalka delta out_bit = do
   n <- view $ to search_arg_type . singular P._Fin
 
@@ -424,13 +409,12 @@ shouldUncomputeQSearch = False
 instance
   ( Integral sizeT
   , RealFloat costT
-  , holeT ~ QSearchBlackBoxes costT
-  , CompileU.Lowerable primsT primsT holeT sizeT costT
+  , CompileU.Lowerable primsT primsT sizeT costT
   , Show sizeT
   , Show costT
   , P.TypeCheckable sizeT
   ) =>
-  CompileU.Lowerable primsT QSearchCFNW holeT sizeT costT
+  CompileU.Lowerable primsT QSearchCFNW sizeT costT
   where
   lowerPrimitive delta QSearchCFNW{predicate, return_sol = False, pred_args = args} [ret] = do
     -- the predicate
@@ -577,13 +561,13 @@ instance
 -- ================================================================================
 
 -- | the generated QSearch procedure: body stmts and local vars
-type QSearchCompilerT primsT holeT sizeT costT =
+type QSearchCompilerT primsT sizeT costT =
   WriterT
-    ([CQPL.Stmt holeT sizeT], [(Ident, P.VarType sizeT)])
-    (CompileQ.CompilerT primsT holeT sizeT costT)
+    ([CQPL.Stmt sizeT], [(Ident, P.VarType sizeT)])
+    (CompileQ.CompilerT primsT sizeT costT)
 
 allocReg ::
-  (m ~ QSearchCompilerT primsT holeT sizeT costT) =>
+  (m ~ QSearchCompilerT primsT sizeT costT) =>
   Ident ->
   P.VarType sizeT ->
   m Ident
@@ -594,7 +578,7 @@ allocReg prefix ty = do
 
 -- | Run K grover iterations
 groverK ::
-  forall holeT sizeT.
+  forall sizeT.
   -- | number of rounds
   P.MetaParam sizeT ->
   -- | the element and type to search for. @x : T@
@@ -602,8 +586,8 @@ groverK ::
   -- | the output bit
   Ident ->
   -- | run the predicate
-  (Ident -> Ident -> CQPL.UStmt holeT sizeT) ->
-  CQPL.UStmt holeT sizeT
+  (Ident -> Ident -> CQPL.UStmt sizeT) ->
+  CQPL.UStmt sizeT
 groverK k (x, _) b mk_pred =
   CQPL.USeqS
     [ prepb
@@ -613,7 +597,7 @@ groverK k (x, _) b mk_pred =
     ]
  where
   -- map b to |-> and x to uniform
-  prepb, prepx :: CQPL.UStmt holeT sizeT
+  prepb, prepx :: CQPL.UStmt sizeT
   prepb =
     CQPL.USeqS
       [ CQPL.UnitaryS [b] CQPL.XGate
@@ -621,7 +605,7 @@ groverK k (x, _) b mk_pred =
       ]
   prepx = CQPL.UnitaryS [x] CQPL.Unif
 
-  grover_iterate :: CQPL.UStmt holeT sizeT
+  grover_iterate :: CQPL.UStmt sizeT
   grover_iterate =
     CQPL.USeqS
       [ mk_pred x b
@@ -632,12 +616,11 @@ groverK k (x, _) b mk_pred =
 
 -- | Implementation of the hybrid quantum search algorithm \( \textbf{QSearch} \).
 algoQSearch ::
-  forall primsT holeT sizeT costT.
+  forall primsT sizeT costT.
   ( Integral sizeT
   , RealFloat costT
   , sizeT ~ SizeT
-  , holeT ~ QSearchBlackBoxes costT
-  , CompileQ.Lowerable primsT primsT holeT sizeT costT
+  , CompileQ.Lowerable primsT primsT sizeT costT
   , Show sizeT
   , Show costT
   , P.TypeCheckable sizeT
@@ -649,13 +632,13 @@ algoQSearch ::
   -- | max fail prob
   costT ->
   -- | grover_k caller: k, x, b
-  (Either (CQPL.MetaParam sizeT) Ident -> Ident -> Ident -> CQPL.Stmt holeT sizeT) ->
+  (Either (CQPL.MetaParam sizeT) Ident -> Ident -> Ident -> CQPL.Stmt sizeT) ->
   -- | cqpl predicate caller
-  (Ident -> Ident -> CQPL.Stmt holeT sizeT) ->
+  (Ident -> Ident -> CQPL.Stmt sizeT) ->
   -- | Result register
   Ident ->
   -- | the generated QSearch procedure: body stmts and local vars
-  WriterT ([CQPL.Stmt holeT sizeT], [(Ident, P.VarType sizeT)]) (CompileQ.CompilerT primsT holeT sizeT costT) ()
+  WriterT ([CQPL.Stmt sizeT], [(Ident, P.VarType sizeT)]) (CompileQ.CompilerT primsT sizeT costT) ()
 algoQSearch ty n_samples eps grover_k_caller pred_caller ok = do
   not_done <- allocReg "not_done" P.tbool
   q_sum <- allocReg "Q_sum" j_type
@@ -745,14 +728,13 @@ instance
   ( Integral sizeT
   , RealFloat costT
   , sizeT ~ SizeT
-  , holeT ~ QSearchBlackBoxes costT
-  , CompileQ.Lowerable primsT primsT holeT sizeT costT
-  , CompileU.Lowerable primsT primsT holeT sizeT costT
+  , CompileQ.Lowerable primsT primsT sizeT costT
+  , CompileU.Lowerable primsT primsT sizeT costT
   , Show sizeT
   , Show costT
   , P.TypeCheckable sizeT
   ) =>
-  CompileQ.Lowerable primsT QSearchCFNW holeT sizeT costT
+  CompileQ.Lowerable primsT QSearchCFNW sizeT costT
   where
   lowerPrimitive eps QSearchCFNW{predicate, return_sol = False, pred_args = args} [ret] = do
     -- the predicate
@@ -775,7 +757,7 @@ instance
 
     -- lower the unitary predicate
     pred_uproc <- WriterT . magnify P._unitaryCostEnv . runWriterT $ do
-      CompileU.lowerFunDef @_ @holeT CompileU.WithoutControl delta_per_pred_call predicate pred_fun
+      CompileU.lowerFunDef @_ CompileU.WithoutControl delta_per_pred_call predicate pred_fun
 
     let CompileU.LoweredProc
           { CompileU.inp_tys = pred_inp_tys
@@ -833,8 +815,6 @@ instance
     qsearch_params <- forM (args ++ [ret]) $ \x -> do
       ty <- use $ P._typingCtx . Ctx.at x . singular _Just
       return (x, ty)
-
-    -- let upred_caller = (\x b -> CQPL.holeS $ TODOHole $ printf "unitary predicate call (%s, %s)" x b)
 
     let pred_caller x b =
           CQPL.CallS

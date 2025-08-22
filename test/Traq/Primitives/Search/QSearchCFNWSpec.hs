@@ -71,7 +71,7 @@ spec = do
       let compile_config = default_ & (P._unitaryTicks . at "Oracle" ?~ 1.0)
       (n > 1) ==> do
         (ss, []) <-
-          algoQSearchZalka @QSearchCFNW @_ @SizeT delta "result"
+          algoQSearchZalka @QSearchCFNW @SizeT delta "result"
             & execRWT (qsearch_env n)
             & runWriterT
             & (runReaderT ?? compile_config)

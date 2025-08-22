@@ -5,8 +5,6 @@ module Traq.Compiler.UnitarySpec (spec) where
 import qualified Data.Map as Map
 import Data.Void (Void)
 
--- TODO remove
-
 import qualified Traq.Data.Context as Ctx
 
 import qualified Traq.CQPL as CQPL
@@ -56,7 +54,7 @@ spec = do
                                 }
                         }
                 } ::
-                CQPL.Program Void Int Double
+                CQPL.Program Int Double
 
         actual `shouldBe` expected
         assertRight $ CQPL.typeCheckProgram actual

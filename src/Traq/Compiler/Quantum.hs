@@ -46,9 +46,9 @@ type LoweringEnv primT sizeT costT = P.QuantumMaxCostEnv primT sizeT costT
 This should contain the _final_ typing context for the input program,
 that is, contains both the inputs and outputs of each statement.
 -}
-type CompilerT primT holeT sizeT costT =
+type CompilerT primT sizeT costT =
   WriterT
-    (LoweringOutput holeT sizeT costT)
+    (LoweringOutput sizeT costT)
     ( ReaderT
         (LoweringEnv primT sizeT costT)
         ( StateT
@@ -59,8 +59,8 @@ type CompilerT primT holeT sizeT costT =
 
 -- | Primitives that support a classical-quantum lowering.
 class
-  (CompileU.Lowerable primsT primT holeT sizeT costT) =>
-  Lowerable primsT primT holeT sizeT costT
+  (CompileU.Lowerable primsT primT sizeT costT) =>
+  Lowerable primsT primT sizeT costT
   where
   lowerPrimitive ::
     -- | fail prob
@@ -68,36 +68,36 @@ class
     primT ->
     -- | rets
     [Ident] ->
-    CompilerT primsT holeT sizeT costT (Stmt holeT sizeT)
+    CompilerT primsT sizeT costT (Stmt sizeT)
 
-instance (Show costT) => Lowerable primsT Void holeT sizeT costT where
+instance (Show costT) => Lowerable primsT Void sizeT costT where
   lowerPrimitive _ = absurd
 
 -- | Generic
-class GLowerable primsT f holeT sizeT costT where
+class GLowerable primsT f sizeT costT where
   glowerPrimitive ::
     f primT ->
     costT ->
     -- | rets
     [Ident] ->
-    CompilerT primsT holeT sizeT costT (Stmt holeT sizeT)
+    CompilerT primsT sizeT costT (Stmt sizeT)
 
 instance
-  (GLowerable primsT f1 holeT sizeT costT, GLowerable primsT f2 holeT sizeT costT) =>
-  GLowerable primsT (f1 :+: f2) holeT sizeT costT
+  (GLowerable primsT f1 sizeT costT, GLowerable primsT f2 sizeT costT) =>
+  GLowerable primsT (f1 :+: f2) sizeT costT
   where
   glowerPrimitive (L1 p) = glowerPrimitive p
   glowerPrimitive (R1 p) = glowerPrimitive p
 
 instance
-  (GLowerable primsT f holeT sizeT costT) =>
-  GLowerable primsT (M1 i c f) holeT sizeT costT
+  (GLowerable primsT f sizeT costT) =>
+  GLowerable primsT (M1 i c f) sizeT costT
   where
   glowerPrimitive (M1 x) = glowerPrimitive x
 
 instance
-  (Lowerable primsT f holeT sizeT costT) =>
-  GLowerable primsT (K1 i f) holeT sizeT costT
+  (Lowerable primsT f sizeT costT) =>
+  GLowerable primsT (K1 i f) sizeT costT
   where
   glowerPrimitive (K1 x) delta = lowerPrimitive delta x
 
@@ -107,8 +107,8 @@ instance
 
 -- | Lower a source function to a procedure call.
 lowerFunDef ::
-  forall primsT sizeT costT holeT.
-  ( Lowerable primsT primsT holeT sizeT costT
+  forall primsT sizeT costT.
+  ( Lowerable primsT primsT sizeT costT
   , P.TypeCheckable sizeT
   , Show costT
   , Floating costT
@@ -119,7 +119,7 @@ lowerFunDef ::
   Ident ->
   -- | source function
   P.FunDef primsT sizeT ->
-  CompilerT primsT holeT sizeT costT Ident
+  CompilerT primsT sizeT costT Ident
 -- lower declarations as-is, ignoring fail prob
 lowerFunDef _ fun_name P.FunDef{P.param_types, P.ret_types, P.mbody = Nothing} = do
   tick <- view $ P._classicalTicks . at fun_name . to (fromMaybe 0)
@@ -163,8 +163,8 @@ lowerFunDef eps fun_name P.FunDef{P.param_types, P.mbody = Just body} = do
 
 -- | Lookup a source function by name, and lower it to a procedure call.
 lowerFunDefByName ::
-  forall primsT sizeT costT holeT.
-  ( Lowerable primsT primsT holeT sizeT costT
+  forall primsT sizeT costT.
+  ( Lowerable primsT primsT sizeT costT
   , P.TypeCheckable sizeT
   , Show costT
   , Floating costT
@@ -173,15 +173,15 @@ lowerFunDefByName ::
   costT ->
   -- | source function name
   Ident ->
-  CompilerT primsT holeT sizeT costT Ident
+  CompilerT primsT sizeT costT Ident
 lowerFunDefByName eps f = do
   fun_def <- view $ P._funCtx . Ctx.at f . singular _Just
   lowerFunDef eps f fun_def
 
 -- | Lower a source expression to a statement.
 lowerExpr ::
-  forall primsT sizeT costT holeT.
-  ( Lowerable primsT primsT holeT sizeT costT
+  forall primsT sizeT costT.
+  ( Lowerable primsT primsT sizeT costT
   , P.TypeCheckable sizeT
   , Show costT
   , Floating costT
@@ -192,7 +192,7 @@ lowerExpr ::
   P.Expr primsT sizeT ->
   -- return variables
   [Ident] ->
-  CompilerT primsT holeT sizeT costT (Stmt holeT sizeT)
+  CompilerT primsT sizeT costT (Stmt sizeT)
 -- basic expressions
 lowerExpr _ P.BasicExprE{P.basic_expr} rets = return $ AssignS rets basic_expr
 -- random sampling expressions
@@ -209,15 +209,15 @@ lowerExpr eps P.PrimCallE{P.prim} rets =
 
 -- | Lower a single statement
 lowerStmt ::
-  forall primsT sizeT costT holeT.
-  ( Lowerable primsT primsT holeT sizeT costT
+  forall primsT sizeT costT.
+  ( Lowerable primsT primsT sizeT costT
   , P.TypeCheckable sizeT
   , Show costT
   , Floating costT
   ) =>
   costT ->
   P.Stmt primsT sizeT ->
-  CompilerT primsT holeT sizeT costT (Stmt holeT sizeT)
+  CompilerT primsT sizeT costT (Stmt sizeT)
 -- single statement
 lowerStmt eps s@P.ExprS{P.rets, P.expr} = do
   lift . magnify P._funCtx . zoom P._typingCtx $ P.typeCheckStmt s
@@ -233,8 +233,8 @@ lowerStmt _ _ = throwError "lowering: unsupported"
 
 -- | Lower a full program into a CQPL program.
 lowerProgram ::
-  forall primsT holeT sizeT costT.
-  ( Lowerable primsT primsT holeT sizeT costT
+  forall primsT sizeT costT.
+  ( Lowerable primsT primsT sizeT costT
   , P.TypeCheckable sizeT
   , Show costT
   , Floating costT
@@ -251,7 +251,7 @@ lowerProgram ::
   costT ->
   -- | source program
   P.Program primsT sizeT ->
-  Either String (Program holeT sizeT costT)
+  Either String (Program sizeT costT)
 lowerProgram strat gamma_in uticks cticks eps prog@P.Program{P.funCtx, P.stmt} = do
   unless (P.checkVarsUnique prog) $
     throwError "program does not have unique variables!"
