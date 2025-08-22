@@ -9,8 +9,9 @@ module Traq.Primitives (
 ) where
 
 import Control.Applicative ((<|>))
-import Lens.Micro.GHC
 import Text.Printf (printf)
+
+import Lens.Micro.GHC
 
 import qualified Traq.Compiler.Quantum as CompileQ
 import qualified Traq.Compiler.Unitary as CompileU

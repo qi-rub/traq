@@ -42,8 +42,9 @@ module Traq.CQPL.Syntax (
 import Control.Monad ((>=>))
 import Control.Monad.Writer (MonadWriter)
 import Data.Void (Void)
-import Lens.Micro.GHC
 import Text.Printf (printf)
+
+import Lens.Micro.GHC
 
 import qualified Traq.Data.Context as Ctx
 

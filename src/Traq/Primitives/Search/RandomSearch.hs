@@ -11,9 +11,10 @@ module Traq.Primitives.Search.RandomSearch (
 import Control.Monad (forM)
 import Control.Monad.Reader (runReaderT)
 import Control.Monad.Trans (lift)
+import Text.Printf (printf)
+
 import Lens.Micro.GHC
 import Lens.Micro.Mtl
-import Text.Printf (printf)
 
 import Traq.Control.Monad
 import qualified Traq.Data.Context as Ctx

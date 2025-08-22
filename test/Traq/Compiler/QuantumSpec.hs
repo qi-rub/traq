@@ -4,6 +4,7 @@ module Traq.Compiler.QuantumSpec (spec) where
 
 import qualified Data.Map as Map
 import Data.Void
+
 import Lens.Micro.GHC
 
 import qualified Traq.Data.Context as Ctx

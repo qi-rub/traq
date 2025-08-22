@@ -3,10 +3,11 @@ module Main (main) where
 import Control.Monad (forM_, guard, when)
 import Control.Monad.Writer (MonadWriter, execWriterT, tell)
 import Data.Maybe (fromMaybe)
-import Lens.Micro.GHC
 import Options.Applicative
 import Text.Printf (printf)
 import Text.Read (readMaybe)
+
+import Lens.Micro.GHC
 
 import qualified Traq.Data.Context as Ctx
 import Traq.Data.Default

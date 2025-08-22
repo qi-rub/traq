@@ -20,9 +20,10 @@ import Control.Monad.State (StateT, runStateT)
 import Data.Either (fromRight)
 import qualified Data.Map as Map
 import Data.Void (Void, absurd)
+import Text.Printf (printf)
+
 import Lens.Micro.GHC
 import Lens.Micro.Mtl
-import Text.Printf (printf)
 
 import Traq.Control.Monad
 import qualified Traq.Data.Context as Ctx

@@ -41,8 +41,9 @@ module Traq.ProtoLang.Syntax (
 
 import Control.Monad (zipWithM)
 import Data.String (IsString (..))
-import Lens.Micro.GHC
 import Text.Printf (printf)
+
+import Lens.Micro.GHC
 
 import qualified Traq.Data.Context as Ctx
 

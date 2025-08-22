@@ -35,10 +35,11 @@ import Control.Monad.Reader (runReaderT)
 import Control.Monad.Trans (lift)
 import Control.Monad.Writer (WriterT (..), censor, execWriterT, listen)
 import Data.String (fromString)
-import Lens.Micro.GHC
-import Lens.Micro.Mtl
 import Text.Parsec (try)
 import Text.Printf (printf)
+
+import Lens.Micro.GHC
+import Lens.Micro.Mtl
 
 import Traq.Control.Monad
 import qualified Traq.Data.Context as Ctx

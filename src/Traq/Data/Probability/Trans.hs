@@ -8,6 +8,7 @@ module Traq.Data.Probability.Trans where
 import Control.Monad (join)
 import Control.Monad.Identity (Identity (..))
 import Control.Monad.Trans (MonadTrans (..))
+
 import Lens.Micro.GHC
 
 import Traq.Data.Probability.Class

@@ -40,9 +40,10 @@ import Control.Monad.Reader (MonadReader)
 import Control.Monad.State (MonadState)
 import qualified Data.Foldable as Foldable
 import qualified Data.List as List
+import Text.Printf (printf)
+
 import Lens.Micro.GHC hiding (at, ix)
 import Lens.Micro.Mtl
-import Text.Printf (printf)
 
 import Traq.Control.Monad (maybeWithError)
 import Traq.Data.Default

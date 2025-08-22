@@ -18,9 +18,10 @@ import Control.Monad.Reader (MonadReader, ReaderT, local, runReaderT)
 import Control.Monad.State (execStateT)
 import Data.Foldable (toList)
 import Data.List (intersect)
+import Text.Printf (printf)
+
 import Lens.Micro.GHC
 import Lens.Micro.Mtl
-import Text.Printf (printf)
 
 import Traq.Control.Monad
 import qualified Traq.Data.Context as Ctx

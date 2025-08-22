@@ -21,6 +21,7 @@ module Traq.Control.Monad (
 import Control.Monad.Except (MonadError, catchError, throwError)
 import Control.Monad.RWS (MonadState, MonadWriter, tell)
 import Data.Monoid (Endo)
+
 import Lens.Micro.GHC
 import Lens.Micro.Mtl
 

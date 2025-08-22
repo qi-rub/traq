@@ -6,13 +6,14 @@
 module Main (main) where
 
 import Control.Monad
-import Lens.Micro.GHC
 import System.IO
 import System.Random
 import System.Random.Shuffle (shuffleM)
 import System.TimeIt (timeIt)
 import Text.Parsec.String (parseFromFile)
 import Text.Printf (printf)
+
+import Lens.Micro.GHC
 
 import qualified Traq.Data.Context as Ctx
 import qualified Traq.Data.Symbolic as Sym

@@ -7,12 +7,13 @@ import Control.Monad (forM_, zipWithM_)
 import Control.Monad.Trans (lift)
 import Data.Void (Void)
 import GHC.IO.Handle
-import Lens.Micro.GHC
-import Lens.Micro.Mtl
 import qualified Quipper as Q
 import qualified Quipper.Libraries.Qureg as Q
 import System.IO
 import Text.Printf (printf)
+
+import Lens.Micro.GHC
+import Lens.Micro.Mtl
 
 import Traq.Control.Monad
 import qualified Traq.Data.Context as Ctx

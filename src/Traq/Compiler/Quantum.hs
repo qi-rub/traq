@@ -23,9 +23,10 @@ import Control.Monad.Trans (lift)
 import Control.Monad.Writer (WriterT, runWriterT)
 import Data.Maybe (fromMaybe)
 import Data.Void (Void, absurd)
+import Text.Printf (printf)
+
 import Lens.Micro.GHC
 import Lens.Micro.Mtl
-import Text.Printf (printf)
 
 import Traq.Control.Monad
 import qualified Traq.Data.Context as Ctx

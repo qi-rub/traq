@@ -4,8 +4,9 @@
 module Traq.ProtoLang.ParserSpec (spec) where
 
 import Data.Void (Void)
-import Lens.Micro.GHC
 import Text.Parsec.String
+
+import Lens.Micro.GHC
 
 import qualified Traq.Data.Symbolic as Sym
 

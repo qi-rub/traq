@@ -7,6 +7,12 @@ import-grouping:
     rules:
       - match: all
         priority: 100
+  - name: "Heavy external deps (Lens)"
+    rules:
+      - glob: Lens.**
+        priority: 90
+      - glob: Control.Lens.**
+        priority: 90
   - name: "Local Helpers"
     rules:
       - glob: Traq.Data.**

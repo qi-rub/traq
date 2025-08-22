@@ -9,6 +9,7 @@ import Control.Monad (foldM, guard)
 import Data.Maybe (isJust, mapMaybe)
 import qualified Data.Set as Set
 import Data.Void (Void, absurd)
+
 import Lens.Micro.GHC
 
 import qualified Traq.Data.Context as Ctx

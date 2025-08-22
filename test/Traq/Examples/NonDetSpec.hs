@@ -3,8 +3,9 @@
 module Traq.Examples.NonDetSpec (spec) where
 
 import Data.Either (fromRight, isRight)
-import Lens.Micro.GHC
 import Text.Parsec.String (parseFromFile)
+
+import Lens.Micro.GHC
 
 import qualified Traq.Data.Context as Ctx
 import qualified Traq.Data.Symbolic as Sym

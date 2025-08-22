@@ -7,6 +7,7 @@ module Traq.CQPL.TypeCheckSpec (spec) where
 import Control.Monad (forM_)
 import Control.Monad.Reader (runReaderT)
 import Data.Void (Void)
+
 import Lens.Micro.GHC
 
 import qualified Traq.Data.Context as Ctx

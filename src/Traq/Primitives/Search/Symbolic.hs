@@ -12,9 +12,10 @@ module Traq.Primitives.Search.Symbolic (
 ) where
 
 import Control.Applicative ((<|>))
-import Lens.Micro.Mtl
 import Text.Parsec (try)
 import Text.Printf (printf)
+
+import Lens.Micro.Mtl
 
 import qualified Traq.Data.Context as Ctx
 import qualified Traq.Data.Symbolic as Sym
