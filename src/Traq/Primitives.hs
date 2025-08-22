@@ -1,3 +1,6 @@
+{-# LANGUAGE DeriveAnyClass #-}
+{-# LANGUAGE DeriveGeneric #-}
+{-# LANGUAGE DerivingStrategies #-}
 {-# LANGUAGE DuplicateRecordFields #-}
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE MultiParamTypeClasses #-}
@@ -9,6 +12,7 @@ module Traq.Primitives (
 ) where
 
 import Control.Applicative ((<|>))
+import GHC.Generics
 import Text.Printf (printf)
 
 import Lens.Micro.GHC
@@ -27,7 +31,11 @@ data DefaultPrims
   = QAny QSearchCFNW
   | RAny RandomSearch
   | DAny DetSearch
-  deriving (Eq, Show, Read)
+  deriving (Eq, Show, Read, Generic)
+  deriving
+    ( P.TypeCheckablePrimitive
+    , P.HasFreeVars
+    )
 
 _QAny :: Traversal' DefaultPrims QSearchCFNW
 _QAny focus (QAny p) = QAny <$> focus p
@@ -40,11 +48,6 @@ instance HasPrimAny DefaultPrims where
 instance HasPrimSearch DefaultPrims where
   _PrimSearch = _QAny . _PrimSearch
   mkPrimSearch a b = QAny $ mkPrimSearch a b
-
-instance P.HasFreeVars DefaultPrims where
-  freeVars (QAny p) = P.freeVars p
-  freeVars (RAny p) = P.freeVars p
-  freeVars (DAny p) = P.freeVars p
 
 -- Printing
 instance PP.ToCodeString DefaultPrims where
@@ -59,22 +62,10 @@ instance P.CanParsePrimitive DefaultPrims where
       <|> (RAny <$> parsePrimAny "any_rand" tp)
       <|> (DAny <$> parsePrimAny "any_det" tp)
 
--- Type Checking
-instance P.TypeCheckablePrimitive DefaultPrims sizeT where
-  typeCheckPrimitive (QAny prim) = P.typeCheckPrimitive prim
-  typeCheckPrimitive (RAny prim) = P.typeCheckPrimitive prim
-  typeCheckPrimitive (DAny prim) = P.typeCheckPrimitive prim
-
 -- Evaluation
 instance
-  ( Fractional costT
-  , P.EvaluatablePrimitive primsT primsT costT
-  ) =>
+  (Fractional costT, P.EvaluatablePrimitive primsT primsT costT) =>
   P.EvaluatablePrimitive primsT DefaultPrims costT
-  where
-  evalPrimitive (QAny prim) = P.evalPrimitive prim
-  evalPrimitive (RAny prim) = P.evalPrimitive prim
-  evalPrimitive (DAny prim) = P.evalPrimitive prim
 
 -- Costs
 instance
@@ -84,10 +75,6 @@ instance
   , P.UnitaryCostablePrimitive primsT primsT sizeT costT
   ) =>
   P.UnitaryCostablePrimitive primsT DefaultPrims sizeT costT
-  where
-  unitaryQueryCostPrimitive delta (QAny prim) = P.unitaryQueryCostPrimitive delta prim
-  unitaryQueryCostPrimitive delta (RAny prim) = P.unitaryQueryCostPrimitive delta prim
-  unitaryQueryCostPrimitive delta (DAny prim) = P.unitaryQueryCostPrimitive delta prim
 
 instance
   ( Integral sizeT
@@ -96,24 +83,14 @@ instance
   , P.QuantumMaxCostablePrimitive primsT primsT sizeT costT
   ) =>
   P.QuantumMaxCostablePrimitive primsT DefaultPrims sizeT costT
-  where
-  quantumMaxQueryCostPrimitive delta (QAny prim) = P.quantumMaxQueryCostPrimitive delta prim
-  quantumMaxQueryCostPrimitive delta (RAny prim) = P.quantumMaxQueryCostPrimitive delta prim
-  quantumMaxQueryCostPrimitive delta (DAny prim) = P.quantumMaxQueryCostPrimitive delta prim
 
 instance
-  ( Integral sizeT
-  , Floating costT
+  ( Floating costT
   , Ord costT
-  , P.EvaluatablePrimitive primsT primsT costT
-  , P.QuantumCostablePrimitive primsT primsT sizeT costT
   , sizeT ~ SizeT
+  , P.QuantumCostablePrimitive primsT primsT sizeT costT
   ) =>
   P.QuantumCostablePrimitive primsT DefaultPrims sizeT costT
-  where
-  quantumQueryCostPrimitive delta (QAny prim) = P.quantumQueryCostPrimitive delta prim
-  quantumQueryCostPrimitive delta (RAny prim) = P.quantumQueryCostPrimitive delta prim
-  quantumQueryCostPrimitive delta (DAny prim) = P.quantumQueryCostPrimitive delta prim
 
 -- Lowering
 instance

@@ -64,7 +64,7 @@ instance P.CanParsePrimitive TreeSearch where
     return TreeSearch{getChildren, getChildrenArgs, checkNode, checkNodeArgs}
 
 -- Type check
-instance P.TypeCheckablePrimitive TreeSearch sizeT where
+instance P.TypeCheckablePrimitive TreeSearch where
   typeCheckPrimitive TreeSearch{getChildren, getChildrenArgs, checkNode, checkNodeArgs} = do
     P.FunDef{P.param_types = gc_param_tys, P.ret_types = gc_ret_tys} <-
       view (Ctx.at getChildren)

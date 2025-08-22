@@ -67,7 +67,7 @@ instance P.CanParsePrimitive QSearchSym where
   primitiveParser tp = try (parsePrimAny "any" tp) <|> try (parsePrimSearch "search" tp)
 
 -- Type check
-instance P.TypeCheckablePrimitive QSearchSym sizeT where
+instance P.TypeCheckablePrimitive QSearchSym where
   typeCheckPrimitive prim@(QAnySym _) = typeCheckPrimAny prim
   typeCheckPrimitive prim@(QSearchSym _) = typeCheckPrimSearch prim
 

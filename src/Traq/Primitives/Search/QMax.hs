@@ -72,7 +72,7 @@ instance P.CanParsePrimitive QMax where
     return QMax{predicate, pred_args}
 
 -- Type check
-instance P.TypeCheckablePrimitive QMax sizeT where
+instance P.TypeCheckablePrimitive QMax where
   typeCheckPrimitive QMax{predicate, pred_args} = do
     P.FunDef{P.param_types, P.ret_types} <-
       view (Ctx.at predicate)

@@ -1,5 +1,7 @@
+{-# LANGUAGE DefaultSignatures #-}
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE MultiParamTypeClasses #-}
+{-# LANGUAGE UndecidableInstances #-}
 
 module Traq.ProtoLang.Eval (
   -- * Evaluating Basic Expressions
@@ -45,6 +47,7 @@ import Control.Monad.State (MonadState, StateT, evalStateT, execStateT)
 import Control.Monad.Trans (lift)
 import Data.Maybe (fromJust)
 import Data.Void (Void, absurd)
+import GHC.Generics
 
 import Lens.Micro.GHC
 import Lens.Micro.Mtl
@@ -244,18 +247,64 @@ type Evaluator primsT sizeT costT = ReaderT (EvaluationEnv primsT sizeT) (Prob.D
 -- | Non-deterministic Execution Monad
 type Executor primsT sizeT costT = StateT (ExecutionState sizeT) (Evaluator primsT sizeT costT)
 
+-- --------------------------------------------------------------------------------
+-- Primitives (with generics)
+-- --------------------------------------------------------------------------------
+
 {- | Primitives that support evaluation:
  Can evaluate @primT@ under a context of @primsT@.
 -}
 class (Fractional costT) => EvaluatablePrimitive primsT primT costT where
   evalPrimitive ::
-    (sizeT ~ SizeT) =>
+    ( sizeT ~ SizeT
+    , m ~ Evaluator primsT sizeT costT
+    ) =>
     primT ->
     ProgramState sizeT ->
-    Evaluator primsT sizeT costT [Value sizeT]
+    m [Value sizeT]
+  default evalPrimitive ::
+    ( Generic primT
+    , GEvaluatablePrimitive primsT (Rep primT) costT
+    , sizeT ~ SizeT
+    , m ~ Evaluator primsT sizeT costT
+    ) =>
+    primT ->
+    ProgramState sizeT ->
+    m [Value sizeT]
+  evalPrimitive x = gevalPrimitive (from x)
 
 instance (Fractional costT) => EvaluatablePrimitive primsT Void costT where
   evalPrimitive = absurd
+
+class GEvaluatablePrimitive primsT f costT where
+  gevalPrimitive ::
+    (sizeT ~ SizeT) =>
+    f primT ->
+    ProgramState sizeT ->
+    Evaluator primsT sizeT costT [Value sizeT]
+
+instance
+  (GEvaluatablePrimitive primsT f1 costT, GEvaluatablePrimitive primsT f2 costT) =>
+  GEvaluatablePrimitive primsT (f1 :+: f2) costT
+  where
+  gevalPrimitive (L1 p) = gevalPrimitive p
+  gevalPrimitive (R1 p) = gevalPrimitive p
+
+instance
+  (GEvaluatablePrimitive primsT f costT) =>
+  GEvaluatablePrimitive primsT (M1 i c f) costT
+  where
+  gevalPrimitive (M1 x) = gevalPrimitive x
+
+instance
+  (EvaluatablePrimitive primsT f costT) =>
+  GEvaluatablePrimitive primsT (K1 i f) costT
+  where
+  gevalPrimitive (K1 x) = evalPrimitive x
+
+-- --------------------------------------------------------------------------------
+-- Core Language
+-- --------------------------------------------------------------------------------
 
 lookupS ::
   forall sizeT env m.

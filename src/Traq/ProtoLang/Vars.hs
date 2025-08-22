@@ -1,6 +1,9 @@
+{-# LANGUAGE DefaultSignatures #-}
+
 module Traq.ProtoLang.Vars (
   VarSet,
   HasFreeVars (..),
+  freeVars,
   checkVarsUnique,
   allNamesP,
 ) where
@@ -9,6 +12,7 @@ import Control.Monad (foldM, guard)
 import Data.Maybe (isJust, mapMaybe)
 import qualified Data.Set as Set
 import Data.Void (Void, absurd)
+import GHC.Generics
 
 import Lens.Micro.GHC
 
@@ -21,42 +25,61 @@ type VarSet = Set.Set Ident
 
 -- | Any language term/expr/... that has a (possibly empty) set of free variables.
 class HasFreeVars t where
-  freeVars :: t -> VarSet
-  freeVars = Set.fromList . freeVarsList
-
   freeVarsList :: t -> [Ident]
-  freeVarsList = Set.elems . freeVars
+  default freeVarsList :: (Generic t, GHasFreeVars (Rep t)) => t -> [Ident]
+  freeVarsList t = gfreeVarsList (from t)
 
-  {-# MINIMAL freeVars | freeVarsList #-}
+-- Generics
+class GHasFreeVars f where
+  gfreeVarsList :: f t -> [Ident]
 
-instance HasFreeVars Void where freeVars = absurd
+instance GHasFreeVars U1 where
+  gfreeVarsList U1 = []
+
+instance (GHasFreeVars a, GHasFreeVars b) => GHasFreeVars (a :+: b) where
+  gfreeVarsList (L1 a) = gfreeVarsList a
+  gfreeVarsList (R1 b) = gfreeVarsList b
+
+instance (GHasFreeVars a, GHasFreeVars b) => GHasFreeVars (a :*: b) where
+  gfreeVarsList (a :*: b) = gfreeVarsList a ++ gfreeVarsList b
+
+instance (GHasFreeVars a) => GHasFreeVars (M1 i c a) where
+  gfreeVarsList (M1 x) = gfreeVarsList x
+
+instance (HasFreeVars a) => GHasFreeVars (K1 i a) where
+  gfreeVarsList (K1 x) = freeVarsList x
+
+instance HasFreeVars Void where freeVarsList = absurd
+
+freeVars :: (HasFreeVars t) => t -> VarSet
+freeVars = Set.fromList . freeVarsList
 
 instance HasFreeVars (BasicExpr sizeT) where
-  freeVars VarE{var} = Set.singleton var
-  freeVars ConstE{} = Set.empty
-  freeVars ParamE{} = Set.empty
-  freeVars UnOpE{operand} = freeVars operand
-  freeVars BinOpE{lhs, rhs} = Set.unions $ map freeVars [lhs, rhs]
-  freeVars TernaryE{branch, lhs, rhs} = Set.unions $ map freeVars [branch, lhs, rhs]
-  freeVars NAryE{operands} = Set.unions $ map freeVars operands
-  freeVars IndexE{arr_expr} = freeVars arr_expr
-  freeVars DynIndexE{arr_expr, ix_expr} = Set.unions $ map freeVars [arr_expr, ix_expr]
-  freeVars UpdateArrE{arr_expr, ix_expr, rhs} = Set.unions $ map freeVars [arr_expr, ix_expr, rhs]
-  freeVars ProjectE{tup_expr} = freeVars tup_expr
+  freeVarsList VarE{var} = [var]
+  freeVarsList ConstE{} = []
+  freeVarsList ParamE{} = []
+  freeVarsList UnOpE{operand} = freeVarsList operand
+  freeVarsList BinOpE{lhs, rhs} = concatMap freeVarsList [lhs, rhs]
+  freeVarsList TernaryE{branch, lhs, rhs} = concatMap freeVarsList [branch, lhs, rhs]
+  freeVarsList NAryE{operands} = concatMap freeVarsList operands
+  freeVarsList IndexE{arr_expr} = freeVarsList arr_expr
+  freeVarsList DynIndexE{arr_expr, ix_expr} = concatMap freeVarsList [arr_expr, ix_expr]
+  freeVarsList UpdateArrE{arr_expr, ix_expr, rhs} = concatMap freeVarsList [arr_expr, ix_expr, rhs]
+  freeVarsList ProjectE{tup_expr} = freeVarsList tup_expr
 
 -- | The set of free (unbound) variables in an expression
 instance (HasFreeVars primT) => HasFreeVars (Expr primT sizeT) where
-  freeVars BasicExprE{basic_expr} = freeVars basic_expr
-  freeVars FunCallE{args} = Set.fromList args
-  freeVars PrimCallE{prim} = freeVars prim
-  freeVars UniformRandomE{} = Set.empty
-  freeVars BiasedCoinE{} = Set.empty
+  freeVarsList BasicExprE{basic_expr} = freeVarsList basic_expr
+  freeVarsList FunCallE{args} = args
+  freeVarsList PrimCallE{prim} = freeVarsList prim
+  freeVarsList UniformRandomE{} = []
+  freeVarsList BiasedCoinE{} = []
 
 -- | The set of free (unbound) variables
 instance (HasFreeVars primT) => HasFreeVars (Stmt primT sizeT) where
-  freeVars IfThenElseS{cond, s_true, s_false} = Set.unions [Set.singleton cond, freeVars s_true, freeVars s_false]
-  freeVars (SeqS ss) = Set.unions (map freeVars ss) Set.\\ outVars (SeqS ss)
-  freeVars ExprS{expr} = freeVars expr
+  freeVarsList IfThenElseS{cond, s_true, s_false} = cond : freeVarsList s_true ++ freeVarsList s_false
+  freeVarsList (SeqS ss) = Set.elems $ Set.fromList (concatMap freeVarsList ss) Set.\\ outVars (SeqS ss)
+  freeVarsList ExprS{expr} = freeVarsList expr
 
 -- | The set of generated output variables
 outVars :: Stmt primT sizeT -> VarSet

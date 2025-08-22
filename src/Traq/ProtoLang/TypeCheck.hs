@@ -1,4 +1,5 @@
 {-# LANGUAGE ConstraintKinds #-}
+{-# LANGUAGE DefaultSignatures #-}
 {-# LANGUAGE DuplicateRecordFields #-}
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE MultiParamTypeClasses #-}
@@ -33,6 +34,7 @@ import Control.Monad.Reader (MonadReader, ReaderT, runReaderT)
 import Control.Monad.State (StateT, execStateT)
 import Control.Monad.Trans (lift)
 import Data.Void (Void, absurd)
+import GHC.Generics
 import Text.Printf (printf)
 
 import Lens.Micro.GHC
@@ -188,16 +190,44 @@ type TypingEnv primT sizeT = FunCtx primT sizeT
 -- | The TypeChecker monad
 type TypeChecker primT sizeT = ReaderT (TypingEnv primT sizeT) (StateT (TypingCtx sizeT) (Either String))
 
-class TypeCheckablePrimitive primT sizeT where
+-- --------------------------------------------------------------------------------
+-- Primitives
+-- --------------------------------------------------------------------------------
+class TypeCheckablePrimitive primT where
   typeCheckPrimitive :: (TypeCheckable sizeT) => primT -> TypeChecker primsT sizeT [VarType sizeT]
+  default typeCheckPrimitive ::
+    ( Generic primT
+    , GTypeCheckablePrimitive (Rep primT)
+    , TypeCheckable sizeT
+    ) =>
+    primT ->
+    TypeChecker primsT sizeT [VarType sizeT]
+  typeCheckPrimitive p = gtypeCheckPrimitive (from p)
 
-instance TypeCheckablePrimitive Void sizeT where
+instance TypeCheckablePrimitive Void where
   typeCheckPrimitive = absurd
+
+class GTypeCheckablePrimitive f where
+  gtypeCheckPrimitive :: (TypeCheckable sizeT) => f primT -> TypeChecker primsT sizeT [VarType sizeT]
+
+instance (GTypeCheckablePrimitive p1, GTypeCheckablePrimitive p2) => GTypeCheckablePrimitive (p1 :+: p2) where
+  gtypeCheckPrimitive (L1 p) = gtypeCheckPrimitive p
+  gtypeCheckPrimitive (R1 p) = gtypeCheckPrimitive p
+
+instance (GTypeCheckablePrimitive p) => GTypeCheckablePrimitive (M1 i c p) where
+  gtypeCheckPrimitive (M1 x) = gtypeCheckPrimitive x
+
+instance (TypeCheckablePrimitive p) => GTypeCheckablePrimitive (K1 i p) where
+  gtypeCheckPrimitive (K1 x) = typeCheckPrimitive x
+
+-- --------------------------------------------------------------------------------
+-- Core Language
+-- --------------------------------------------------------------------------------
 
 -- | Typecheck an expression and return the output types
 typeCheckExpr ::
   forall primT sizeT.
-  ( TypeCheckablePrimitive primT sizeT
+  ( TypeCheckablePrimitive primT
   , TypeCheckable sizeT
   ) =>
   Expr primT sizeT ->
@@ -227,7 +257,7 @@ typeCheckExpr PrimCallE{prim} = typeCheckPrimitive prim
 -}
 typeCheckStmt ::
   forall primT sizeT.
-  ( TypeCheckablePrimitive primT sizeT
+  ( TypeCheckablePrimitive primT
   , TypeCheckable sizeT
   ) =>
   Stmt primT sizeT ->
@@ -257,7 +287,7 @@ typeCheckStmt IfThenElseS{cond, s_true, s_false} = do
 
 -- | Type check a single function.
 typeCheckFun ::
-  ( TypeCheckablePrimitive primT sizeT
+  ( TypeCheckablePrimitive primT
   , TypeCheckable sizeT
   ) =>
   FunCtx primT sizeT ->
@@ -292,7 +322,7 @@ typeCheckFun _ FunDef{mbody = Nothing} = return ()
 
 -- | Type check a full program (i.e. list of functions).
 typeCheckProg ::
-  ( TypeCheckablePrimitive primT sizeT
+  ( TypeCheckablePrimitive primT
   , TypeCheckable sizeT
   ) =>
   TypingCtx sizeT ->

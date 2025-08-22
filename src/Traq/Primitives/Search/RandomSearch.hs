@@ -66,7 +66,7 @@ instance PP.ToCodeString RandomSearch where
 instance P.CanParsePrimitive RandomSearch where
   primitiveParser = parsePrimAny "any"
 
-instance P.TypeCheckablePrimitive RandomSearch sizeT where
+instance P.TypeCheckablePrimitive RandomSearch where
   typeCheckPrimitive = typeCheckPrimAny
 
 instance

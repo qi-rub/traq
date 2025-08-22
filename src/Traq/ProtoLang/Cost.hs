@@ -1,3 +1,4 @@
+{-# LANGUAGE DefaultSignatures #-}
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE MultiParamTypeClasses #-}
 {-# LANGUAGE TypeApplications #-}
@@ -61,6 +62,7 @@ import Control.Monad.Trans (lift)
 import qualified Data.Map as Map
 import Data.Maybe (fromMaybe)
 import Data.Void (Void, absurd)
+import GHC.Generics hiding (to)
 
 import Lens.Micro.GHC
 import Lens.Micro.Mtl
@@ -207,18 +209,56 @@ instance HasUnitaryCostEnv (UnitaryCostEnv p s c) where _unitaryCostEnv = id
 -- | Monad to compute unitary cost.
 type UnitaryCostCalculator primsT sizeT costT = ReaderT (UnitaryCostEnv primsT sizeT costT) Maybe
 
+-- --------------------------------------------------------------------------------
+-- Unitary Cost: Primitives (with generics)
+-- --------------------------------------------------------------------------------
+
 -- | Primitives that have a unitary cost
 class
-  (TypeCheckablePrimitive primT sizeT, Show costT) =>
+  (TypeCheckablePrimitive primT, Show costT) =>
   UnitaryCostablePrimitive primsT primT sizeT costT
   where
   unitaryQueryCostPrimitive ::
     costT ->
     primT ->
     UnitaryCostCalculator primsT sizeT costT costT
+  default unitaryQueryCostPrimitive ::
+    ( Generic primT
+    , GUnitaryCostablePrimitive primsT (Rep primT) sizeT costT
+    ) =>
+    costT ->
+    primT ->
+    UnitaryCostCalculator primsT sizeT costT costT
+  unitaryQueryCostPrimitive delta p = gunitaryQueryCostPrimitive delta (from p)
 
 instance (Show costT) => UnitaryCostablePrimitive primsT Void sizeT costT where
   unitaryQueryCostPrimitive _ = absurd
+
+class GUnitaryCostablePrimitive primsT f sizeT costT where
+  gunitaryQueryCostPrimitive ::
+    costT ->
+    f primT ->
+    UnitaryCostCalculator primsT sizeT costT costT
+
+instance
+  (GUnitaryCostablePrimitive primsT f1 sizeT costT, GUnitaryCostablePrimitive primsT f2 sizeT costT) =>
+  GUnitaryCostablePrimitive primsT (f1 :+: f2) sizeT costT
+  where
+  gunitaryQueryCostPrimitive delta (L1 p) = gunitaryQueryCostPrimitive delta p
+  gunitaryQueryCostPrimitive delta (R1 p) = gunitaryQueryCostPrimitive delta p
+
+instance (GUnitaryCostablePrimitive primsT f sizeT costT) => GUnitaryCostablePrimitive primsT (M1 i c f) sizeT costT where
+  gunitaryQueryCostPrimitive delta (M1 x) = gunitaryQueryCostPrimitive delta x
+
+instance
+  (UnitaryCostablePrimitive primsT f sizeT costT) =>
+  GUnitaryCostablePrimitive primsT (K1 i f) sizeT costT
+  where
+  gunitaryQueryCostPrimitive delta (K1 x) = unitaryQueryCostPrimitive delta x
+
+-- --------------------------------------------------------------------------------
+-- Unitary Cost: Core Language
+-- --------------------------------------------------------------------------------
 
 -- | Evaluate the query cost of an expression
 unitaryQueryCostE ::
@@ -336,6 +376,10 @@ instance HasQuantumMaxCostEnv (QuantumMaxCostEnv primT sizeT costT) where _quant
 -- Environment to compute the max quantum cost (input independent)
 type QuantumMaxCostCalculator primsT sizeT costT = ReaderT (QuantumMaxCostEnv primsT sizeT costT) Maybe
 
+-- --------------------------------------------------------------------------------
+-- Quantum Max Cost: Primitives (with generics)
+-- --------------------------------------------------------------------------------
+
 -- | Primitives that have a quantum max cost
 class
   (UnitaryCostablePrimitive primsT primT sizeT costT) =>
@@ -345,9 +389,43 @@ class
     costT ->
     primT ->
     QuantumMaxCostCalculator primsT sizeT costT costT
+  default quantumMaxQueryCostPrimitive ::
+    ( Generic primT
+    , GQuantumMaxCostablePrimitive primsT (Rep primT) sizeT costT
+    ) =>
+    costT ->
+    primT ->
+    QuantumMaxCostCalculator primsT sizeT costT costT
+  quantumMaxQueryCostPrimitive eps p = gquantumMaxQueryCostPrimitive eps (from p)
 
 instance (Show costT) => QuantumMaxCostablePrimitive primsT Void sizeT costT where
   quantumMaxQueryCostPrimitive _ = absurd
+
+class GQuantumMaxCostablePrimitive primsT f sizeT costT where
+  gquantumMaxQueryCostPrimitive ::
+    costT ->
+    f primT ->
+    QuantumMaxCostCalculator primsT sizeT costT costT
+
+instance
+  (GQuantumMaxCostablePrimitive primsT f1 sizeT costT, GQuantumMaxCostablePrimitive primsT f2 sizeT costT) =>
+  GQuantumMaxCostablePrimitive primsT (f1 :+: f2) sizeT costT
+  where
+  gquantumMaxQueryCostPrimitive eps (L1 p) = gquantumMaxQueryCostPrimitive eps p
+  gquantumMaxQueryCostPrimitive eps (R1 p) = gquantumMaxQueryCostPrimitive eps p
+
+instance (GQuantumMaxCostablePrimitive primsT f sizeT costT) => GQuantumMaxCostablePrimitive primsT (M1 i c f) sizeT costT where
+  gquantumMaxQueryCostPrimitive eps (M1 x) = gquantumMaxQueryCostPrimitive eps x
+
+instance
+  (QuantumMaxCostablePrimitive primsT f sizeT costT) =>
+  GQuantumMaxCostablePrimitive primsT (K1 i f) sizeT costT
+  where
+  gquantumMaxQueryCostPrimitive eps (K1 x) = quantumMaxQueryCostPrimitive eps x
+
+-- --------------------------------------------------------------------------------
+-- Quantum Max Cost: Core Language
+-- --------------------------------------------------------------------------------
 
 quantumMaxQueryCostE ::
   forall primsT sizeT costT.
@@ -470,6 +548,10 @@ instance HasEvaluationEnv (QuantumCostEnv primsT sizeT costT) where
 
 type QuantumCostCalculator primsT sizeT costT = ReaderT (QuantumCostEnv primsT sizeT costT) Maybe
 
+-- --------------------------------------------------------------------------------
+-- Quantum Expected Cost: Primitives
+-- --------------------------------------------------------------------------------
+
 -- | Primitives that have a input dependent expected quantum cost
 class
   ( QuantumMaxCostablePrimitive primsT primT sizeT costT
@@ -482,10 +564,45 @@ class
     primT ->
     ProgramState sizeT ->
     QuantumCostCalculator primsT sizeT costT costT
+  default quantumQueryCostPrimitive ::
+    ( Generic primT
+    , GQuantumCostablePrimitive primsT (Rep primT) sizeT costT
+    ) =>
+    costT ->
+    primT ->
+    ProgramState sizeT ->
+    QuantumCostCalculator primsT sizeT costT costT
+  quantumQueryCostPrimitive eps p = gquantumQueryCostPrimitive eps (from p)
 
 instance (Show costT, Fractional costT) => QuantumCostablePrimitive primsT Void sizeT costT where
   quantumQueryCostPrimitive _ = absurd
 
+class GQuantumCostablePrimitive primsT f sizeT costT where
+  gquantumQueryCostPrimitive ::
+    costT ->
+    f primT ->
+    ProgramState sizeT ->
+    QuantumCostCalculator primsT sizeT costT costT
+
+instance
+  (GQuantumCostablePrimitive primsT f1 sizeT costT, GQuantumCostablePrimitive primsT f2 sizeT costT) =>
+  GQuantumCostablePrimitive primsT (f1 :+: f2) sizeT costT
+  where
+  gquantumQueryCostPrimitive eps (L1 p) = gquantumQueryCostPrimitive eps p
+  gquantumQueryCostPrimitive eps (R1 p) = gquantumQueryCostPrimitive eps p
+
+instance (GQuantumCostablePrimitive primsT f sizeT costT) => GQuantumCostablePrimitive primsT (M1 i c f) sizeT costT where
+  gquantumQueryCostPrimitive eps (M1 x) = gquantumQueryCostPrimitive eps x
+
+instance
+  (QuantumCostablePrimitive primsT f sizeT costT) =>
+  GQuantumCostablePrimitive primsT (K1 i f) sizeT costT
+  where
+  gquantumQueryCostPrimitive eps (K1 x) = quantumQueryCostPrimitive eps x
+
+-- --------------------------------------------------------------------------------
+-- Quantum Expected Cost: Core Language
+-- --------------------------------------------------------------------------------
 quantumQueryCostE ::
   forall primsT costT m.
   ( Floating costT

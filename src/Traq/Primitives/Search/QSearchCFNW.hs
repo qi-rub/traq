@@ -144,7 +144,7 @@ instance P.CanParsePrimitive QSearchCFNW where
       return QSearchCFNW{predicate, return_sol = True, pred_args}
 
 -- Type check
-instance P.TypeCheckablePrimitive QSearchCFNW sizeT where
+instance P.TypeCheckablePrimitive QSearchCFNW where
   typeCheckPrimitive prim@QSearchCFNW{return_sol = False} = typeCheckPrimAny prim
   typeCheckPrimitive prim@QSearchCFNW{return_sol = True} = typeCheckPrimSearch prim
 

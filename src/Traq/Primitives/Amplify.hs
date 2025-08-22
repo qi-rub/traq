@@ -72,7 +72,7 @@ instance P.CanParsePrimitive QAmplify where
         return QAmplify{sampler, p_min, sampler_args}
 
 -- Type check
-instance P.TypeCheckablePrimitive QAmplify sizeT where
+instance P.TypeCheckablePrimitive QAmplify where
   typeCheckPrimitive = typeCheckPrimAmplify
 
 typeCheckPrimAmplify ::

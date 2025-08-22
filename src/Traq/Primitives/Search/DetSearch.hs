@@ -45,7 +45,7 @@ instance PP.ToCodeString DetSearch where
 instance P.CanParsePrimitive DetSearch where
   primitiveParser = parsePrimAny "any"
 
-instance P.TypeCheckablePrimitive DetSearch sizeT where
+instance P.TypeCheckablePrimitive DetSearch where
   typeCheckPrimitive = typeCheckPrimAny
 
 instance

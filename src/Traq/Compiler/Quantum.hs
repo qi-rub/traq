@@ -23,6 +23,7 @@ import Control.Monad.Trans (lift)
 import Control.Monad.Writer (WriterT, runWriterT)
 import Data.Maybe (fromMaybe)
 import Data.Void (Void, absurd)
+import GHC.Generics hiding (to)
 import Text.Printf (printf)
 
 import Lens.Micro.GHC
@@ -71,6 +72,34 @@ class
 
 instance (Show costT) => Lowerable primsT Void holeT sizeT costT where
   lowerPrimitive _ = absurd
+
+-- | Generic
+class GLowerable primsT f holeT sizeT costT where
+  glowerPrimitive ::
+    f primT ->
+    costT ->
+    -- | rets
+    [Ident] ->
+    CompilerT primsT holeT sizeT costT (Stmt holeT sizeT)
+
+instance
+  (GLowerable primsT f1 holeT sizeT costT, GLowerable primsT f2 holeT sizeT costT) =>
+  GLowerable primsT (f1 :+: f2) holeT sizeT costT
+  where
+  glowerPrimitive (L1 p) = glowerPrimitive p
+  glowerPrimitive (R1 p) = glowerPrimitive p
+
+instance
+  (GLowerable primsT f holeT sizeT costT) =>
+  GLowerable primsT (M1 i c f) holeT sizeT costT
+  where
+  glowerPrimitive (M1 x) = glowerPrimitive x
+
+instance
+  (Lowerable primsT f holeT sizeT costT) =>
+  GLowerable primsT (K1 i f) holeT sizeT costT
+  where
+  glowerPrimitive (K1 x) delta = lowerPrimitive delta x
 
 -- ================================================================================
 -- Compilation
