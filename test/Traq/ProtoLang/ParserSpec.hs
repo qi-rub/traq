@@ -89,7 +89,7 @@ spec = do
     it "parses example" $ do
       e <- parseFromFile (programParser @QSearchSym) "examples/matrix_search/matrix_search.qb" >>= expectRight
       let e' = rewriteAST flattenSeq e
-      e' `shouldBe` matrixExample (Sym.var "N") (Sym.var "M") (Fin (Sym.con 2))
+      e' `shouldBe` matrixExample (Sym.var "N") (Sym.var "M")
 
   describe "round trip" $ do
     it "matrixExampleS" $ do

@@ -40,7 +40,7 @@ instance P.CanParsePrimitive QCount where
 instance P.TypeCheckablePrimitive QCount sizeT where
   typeCheckPrimitive QCount{predicate} args = do
     s_tys <- typeCheckSearchPredicate predicate args
-    let n_items = product $ map (\(P.Fin n) -> n) s_tys
+    let n_items = product $ map P.domainSize s_tys
     return [P.Fin (n_items + 1)]
 
 instance

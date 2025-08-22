@@ -28,7 +28,7 @@ symbolicEx = do
 
   let n = Sym.var "N" :: Sym.Sym SizeT
   let m = Sym.var "M" :: Sym.Sym SizeT
-  let ex = matrixExample @QSearchSym n m (P.Fin $ Sym.con 2)
+  let ex = matrixExample @QSearchSym n m
   let strat = P.SplitUsingNeedsEps
   let uticks = Map.singleton "Oracle" (Sym.var "c_u")
   let cticks = Map.singleton "Oracle" (Sym.var "c_c")

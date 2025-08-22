@@ -66,7 +66,7 @@ instance
   where
   unitaryQueryCostPrimitive delta DetSearch{predicate} _ = do
     P.FunDef{P.param_types} <- view $ P._funCtx . Ctx.at predicate . singular _Just
-    let P.Fin n = last param_types
+    P.Fin n <- pure $ last param_types
 
     -- precision per predicate call
     let delta_per_pred_call = delta / fromIntegral n
@@ -88,7 +88,7 @@ instance
   where
   quantumMaxQueryCostPrimitive eps DetSearch{predicate} = do
     P.FunDef{P.param_types} <- view $ P._funCtx . Ctx.at predicate . singular _Just
-    let P.Fin n = last param_types
+    P.Fin n <- pure $ last param_types
 
     -- fail prob per predicate call
     let eps_per_pred_call = eps / fromIntegral n
@@ -111,7 +111,7 @@ instance
   where
   quantumQueryCostPrimitive eps DetSearch{predicate} args = do
     P.FunDef{P.param_types} <- view $ P._funCtx . Ctx.at predicate . singular _Just
-    let ty@(P.Fin n) = last param_types
+    ty@(P.Fin n) <- pure $ last param_types
 
     -- fail prob per predicate call
     let eps_per_pred_call = eps / fromIntegral n

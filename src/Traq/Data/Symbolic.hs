@@ -1,3 +1,5 @@
+{-# OPTIONS_GHC -Wno-incomplete-uni-patterns #-}
+
 -- | Based on https://hackage.haskell.org/package/numbers-3000.2.0.2
 module Traq.Data.Symbolic (
   Sym,

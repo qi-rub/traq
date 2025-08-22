@@ -37,7 +37,7 @@ spec = do
     let interpCtx = Ctx.singleton "Oracle" oracleF
 
     it "evaluates" $ do
-      let res = P.runProgram ex interpCtx Ctx.empty
+      let res = P.runProgram @_ @Double ex interpCtx Ctx.empty
       res `shouldBe` pure (Ctx.singleton "result" (P.FinV 0))
 
     let ecF = _EQSearch

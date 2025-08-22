@@ -1,3 +1,4 @@
+{-# LANGUAGE ConstraintKinds #-}
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE MultiParamTypeClasses #-}
 
@@ -7,7 +8,8 @@ module Traq.ProtoLang.TypeCheck (
   HasTypingCtx (..),
 
   -- * Typeable size types
-  TypeCheckable (..),
+  TypeCheckable,
+  tbool,
 
   -- * Types
   TypingEnv,
@@ -53,21 +55,12 @@ instance HasTypingCtx (TypingCtx sizeT) where _typingCtx = id
 -- Typecheckable size types
 -- ================================================================================
 
--- | SizeT that can be type-checked. Needs to have a boolean type, and max of two types.
-class (Eq sizeT, Show sizeT, Num sizeT) => TypeCheckable sizeT where
-  tbool :: VarType sizeT
-  tmax :: VarType sizeT -> VarType sizeT -> VarType sizeT
-  irange :: sizeT -> Int
+-- | Type @sizeT@ that can be type-checked.
+type TypeCheckable sizeT = (Ord sizeT, Show sizeT, Num sizeT)
 
-instance TypeCheckable Integer where
-  tbool = Fin 2
-  tmax (Fin n) (Fin m) = Fin (max n m)
-  irange n = fromIntegral n
-
-instance TypeCheckable Int where
-  tbool = Fin 2
-  tmax (Fin n) (Fin m) = Fin (max n m)
-  irange n = n
+-- | Boolean type in our language.
+tbool :: (Num sizeT) => VarType sizeT
+tbool = Fin 2
 
 -- ================================================================================
 -- Typing inference for basic expressions
@@ -104,7 +97,12 @@ typeCheckBasicExpr BinOpE{bin_op, lhs, rhs} = do
         throwError ("`and` requires bools, got " <> show [ty_lhs, ty_rhs])
       return tbool
     LEqOp -> return tbool
-    AddOp -> return $ tmax ty_lhs ty_rhs
+    LtOp -> return tbool
+    AddOp -> do
+      unless (ty_lhs == ty_rhs) $
+        throwError
+          ("`+` requires same type args, got " <> show [ty_lhs, ty_rhs])
+      return ty_lhs
 typeCheckBasicExpr TernaryE{branch, lhs, rhs} = do
   ty_branch <- typeCheckBasicExpr branch
   unless (ty_branch == tbool) $
@@ -123,6 +121,44 @@ typeCheckBasicExpr NAryE{op, operands} = do
       unless (all (== tbool) arg_tys) $
         throwError ("`Or` requires bools, got " <> show arg_tys)
       return tbool
+
+-- Array operations
+typeCheckBasicExpr IndexE{arr_expr} = do
+  typeCheckBasicExpr arr_expr >>= \case
+    Arr _ t -> return t
+    ty -> throwError ("expected array for index op, got " <> show ty)
+typeCheckBasicExpr DynIndexE{arr_expr, ix_expr} = do
+  t <-
+    typeCheckBasicExpr arr_expr >>= \case
+      Arr _ t -> return t
+      ty -> throwError ("expected array for index op, got " <> show ty)
+
+  typeCheckBasicExpr ix_expr >>= \case
+    Fin _ -> return ()
+    ty -> throwError ("expected value for index, got " <> show ty)
+
+  return t
+typeCheckBasicExpr UpdateArrE{arr_expr, ix_expr, rhs} = do
+  t <-
+    typeCheckBasicExpr arr_expr >>= \case
+      Arr _ t -> return t
+      ty -> throwError ("expected array for index op, got " <> show ty)
+
+  typeCheckBasicExpr ix_expr >>= \case
+    Fin _ -> return ()
+    ty -> throwError ("expected value for index, got " <> show ty)
+
+  rhs_ty <- typeCheckBasicExpr rhs
+  when (rhs_ty /= t) $ do
+    throwError (printf "expected array value type %s, got %s" (show t) (show rhs_ty))
+
+  return t
+typeCheckBasicExpr ProjectE{tup_expr, tup_ix_val} = do
+  ts <-
+    typeCheckBasicExpr tup_expr >>= \case
+      Tup ts -> return ts
+      ty -> throwError ("expected array for index op, got " <> show ty)
+  return $ ts !! tup_ix_val
 
 -- ================================================================================
 -- Typing inference for ProtoLang statements and programs

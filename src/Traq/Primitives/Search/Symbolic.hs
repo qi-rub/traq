@@ -84,7 +84,7 @@ instance
   unitaryQueryCostPrimitive delta prim _ = do
     fun_def@P.FunDef{P.param_types} <- view $ P._funCtx . Ctx.at (prim ^. _predicate) . singular _Just
 
-    let P.Fin n = last param_types
+    P.Fin n <- pure $ last param_types
 
     -- split the precision
     delta_search <-
@@ -122,7 +122,7 @@ instance
   where
   quantumMaxQueryCostPrimitive eps prim = do
     fun_def@P.FunDef{P.param_types} <- view $ P._funCtx . Ctx.at (prim ^. _predicate) . singular _Just
-    let P.Fin n = last param_types
+    P.Fin n <- pure $ last param_types
 
     -- split the fail prob
     eps_search <-

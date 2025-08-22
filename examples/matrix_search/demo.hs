@@ -60,7 +60,7 @@ main = do
   putStrLn "Demo: Matrix Search"
 
   let (n, m) = (1000, 1000)
-  let sample_matrix i j = j /= m - 1
+  let sample_matrix _i j = j /= m - 1
   let eps = 0.01
 
   putStrLn "Costs for sample matrix:"

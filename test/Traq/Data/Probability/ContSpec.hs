@@ -3,9 +3,7 @@ module Traq.Data.Probability.ContSpec (spec) where
 import Lens.Micro.GHC
 
 import qualified Traq.Data.Probability as Prob
-import Traq.Data.Probability.Cont
 
-import Test.HUnit.Approx
 import Test.Hspec
 import TestHelpers
 

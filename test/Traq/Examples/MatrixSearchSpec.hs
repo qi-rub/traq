@@ -38,7 +38,7 @@ spec = do
     let interpCtx = Ctx.singleton "Matrix" oracleF
 
     it "evaluates" $ do
-      let res = P.runProgram ex interpCtx Ctx.empty
+      let res = P.runProgram @_ @Double ex interpCtx Ctx.empty
       res `shouldBe` pure (Ctx.singleton "result" (P.FinV 0))
 
     -- expected, worst, unitary
@@ -93,8 +93,7 @@ spec = do
   describe "matrix search symbolic" $ do
     let n = Sym.var "n" :: Sym.Sym Int
     let m = Sym.var "m" :: Sym.Sym Int
-    let sbool = P.Fin (Sym.con 2) :: P.VarType (Sym.Sym Int)
-    let ex = matrixExample @QSearchSym n m sbool
+    let ex = matrixExample @QSearchSym n m
     let uticks = mempty & at "Matrix" ?~ 1.0
     let cticks = mempty & at "Matrix" ?~ 1.0
 

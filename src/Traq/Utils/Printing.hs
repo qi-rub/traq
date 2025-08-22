@@ -32,7 +32,6 @@ module Traq.Utils.Printing (
   prepended,
 ) where
 
-import Control.Monad.Fail (MonadFail)
 import Control.Monad.Writer (MonadWriter, censor, execWriterT, listen, tell)
 import Data.List (intercalate)
 import Data.Maybe (fromJust)

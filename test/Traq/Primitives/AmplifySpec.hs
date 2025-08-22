@@ -14,10 +14,10 @@ import qualified Traq.Utils.Printing as PP
 import Test.Hspec
 import TestHelpers
 
-exampleProgram1 :: (Num sizeT) => sizeT -> sizeT -> P.Program QAmplify sizeT
-exampleProgram1 two n = P.Program{P.funCtx = fun_ctx, P.stmt = P.SeqS [stmt_x, amplify_call]}
+exampleProgram1 :: (Num sizeT) => sizeT -> P.Program QAmplify sizeT
+exampleProgram1 n = P.Program{P.funCtx = fun_ctx, P.stmt = P.SeqS [stmt_x, amplify_call]}
  where
-  bool_ty = P.Fin two
+  bool_ty = P.Fin 2
   node_ty = P.Fin n
 
   -- sampler of type (Fin<N>) -> (Bool, Fin<N>)
@@ -51,14 +51,14 @@ exampleProgram1 two n = P.Program{P.funCtx = fun_ctx, P.stmt = P.SeqS [stmt_x, a
             }
       }
 
-exampleProgram2 :: (Num sizeT) => sizeT -> sizeT -> P.Program QAmplify sizeT
-exampleProgram2 two n =
+exampleProgram2 :: (Num sizeT) => sizeT -> P.Program QAmplify sizeT
+exampleProgram2 n =
   P.Program
     { P.funCtx = fun_ctx
     , P.stmt = P.SeqS [stmt_y, amplify_call]
     }
  where
-  bool_ty = P.Fin two
+  bool_ty = P.Fin 2
   node_ty = P.Fin n
 
   funBody =
@@ -117,14 +117,14 @@ exampleProgram2 two n =
             }
       }
 
-exampleProgram3 :: (Num sizeT) => sizeT -> sizeT -> P.Program QAmplify sizeT
-exampleProgram3 two n =
+exampleProgram3 :: (Num sizeT) => sizeT -> P.Program QAmplify sizeT
+exampleProgram3 n =
   P.Program
     { P.funCtx = fun_ctx
     , P.stmt = P.SeqS [stmt_l, stmt_r, amplify_call]
     }
  where
-  bool_ty = P.Fin two
+  bool_ty = P.Fin 2
   node_ty = P.Fin n
 
   funBody =
@@ -220,7 +220,7 @@ spec = do
           P.programParser
           "examples/primitives/amplify/amplify1.qb"
           >>= expectRight
-      p `shouldBe` exampleProgram1 (Sym.con 2) (Sym.var "N")
+      p `shouldBe` exampleProgram1 (Sym.var "N")
 
     it "round-trips through print/parse" $ do
       let stmt = "ok, result <- @amplify[f, 0.02]\n(x1, x2);\n"
@@ -228,7 +228,7 @@ spec = do
       let printed = PP.toCodeString <$> parsed
       printed `shouldBe` Right stmt
 
-    let program1 = exampleProgram1 2 20
+    let program1 = exampleProgram1 20
 
     it "type checks" $ do
       assertRight $ P.typeCheckProg Ctx.empty program1
@@ -247,15 +247,15 @@ spec = do
           P.programParser
           "examples/primitives/amplify/amplify2.qb"
           >>= expectRight
-      p `shouldBe` exampleProgram2 (Sym.con 2) (Sym.var "N")
+      p `shouldBe` exampleProgram2 (Sym.var "N")
 
-    let program2 = exampleProgram2 2 3
+    let program2 = exampleProgram2 3
 
     it "type checks" $ do
       assertRight $ P.typeCheckProg Ctx.empty program2
 
     it "evaluates" $ do
-      let funInterpCtx = Ctx.singleton "sampler" (\[P.FinV x1, P.FinV x2] -> [P.toValue True, P.FinV x1])
+      let funInterpCtx = Ctx.singleton "sampler" (\[P.FinV x1, P.FinV _] -> [P.toValue True, P.FinV x1])
       let initialState = Ctx.empty
       let result = P.runProgram program2 funInterpCtx initialState
 
@@ -271,15 +271,15 @@ spec = do
           P.programParser
           "examples/primitives/amplify/amplify3.qb"
           >>= expectRight
-      p `shouldBe` exampleProgram3 (Sym.con 2) (Sym.var "N")
+      p `shouldBe` exampleProgram3 (Sym.var "N")
 
-    let program3 = exampleProgram3 2 3
+    let program3 = exampleProgram3 3
 
     it "type checks" $ do
       assertRight $ P.typeCheckProg Ctx.empty program3
 
     it "evaluates" $ do
-      let funInterpCtx = Ctx.singleton "sampler" (\[P.FinV x1, P.FinV x2] -> [P.toValue True, P.FinV x1])
+      let funInterpCtx = Ctx.singleton "sampler" (\[P.FinV x1, P.FinV _] -> [P.toValue True, P.FinV x1])
       let initialState = Ctx.empty
 
       let result = P.runProgram program3 funInterpCtx initialState

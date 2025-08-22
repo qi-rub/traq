@@ -95,6 +95,7 @@ exprP tp@TokenParser{..} =
     , funCallE
     , unOpE
     , binOpE
+    , binOpFlippedE
     , constE
     , dynIndexE
     , indexE
@@ -143,7 +144,7 @@ exprP tp@TokenParser{..} =
       "+" -> return AddOp
       "<=" -> return LEqOp
       "&&" -> return AndOp
-      ">" -> return GtOp
+      "<" -> return LtOp
       _ -> fail "invalid binary operator"
 
   binOpE :: Parser (Expr primT SymbSize)
@@ -151,6 +152,20 @@ exprP tp@TokenParser{..} =
     lhs <- VarE <$> identifier
     bin_op <- binOp
     rhs <- VarE <$> identifier
+    return $ BasicExprE BinOpE{bin_op, lhs, rhs}
+
+  binOpFlipped :: Parser BinOp
+  binOpFlipped =
+    operator >>= \case
+      ">" -> return LtOp
+      ">=" -> return LEqOp
+      _ -> fail "invalid flipped binary operator"
+
+  binOpFlippedE :: Parser (Expr primT SymbSize)
+  binOpFlippedE = do
+    rhs <- VarE <$> identifier
+    bin_op <- binOpFlipped
+    lhs <- VarE <$> identifier
     return $ BasicExprE BinOpE{bin_op, lhs, rhs}
 
   indexE :: Parser (Expr primT SymbSize)

@@ -63,9 +63,10 @@ class MatrixType t where
 
   toValueFun :: t -> [Value] -> [Value]
 
-instance MatrixType (Value, Value, Value -> Value -> Bool) where
-  nRows (P.FinV n, _, _) = fromIntegral n
-  nCols (_, P.FinV m, _) = fromIntegral m
+instance MatrixType (SizeT, SizeT, Value -> Value -> Bool) where
+  nRows (n, _, _) = fromIntegral n
+
+  nCols (_, m, _) = fromIntegral m
 
   toValueFun (_, _, mat) [i, j] = [P.toValue $ mat i j]
   toValueFun _ _ = error "unsupported"
@@ -92,7 +93,7 @@ qcost _ eps mat = cost
   n = nRows mat
   m = nCols mat
 
-  ex = matrixExample @primsT n m P.tbool
+  ex = matrixExample @primsT n m
 
   dataCtx = Ctx.singleton "Oracle" (toValueFun mat)
   ticks = mempty & at "Oracle" ?~ 1.0
@@ -160,7 +161,7 @@ computeStatsForWorstCaseMatrices phantom =
     forM_ ((10 :: Int) : [20, 40, 100]) $ \n -> do
       putStrLn $ ">> n = " <> show n
       let m = n
-      let c = qcost phantom eps (P.FinV n, P.FinV m, matfun)
+      let c = qcost phantom eps (n, m, matfun)
       hPutStrLn h $ printf "%d,%.2f" n c
  where
   matfun :: Value -> Value -> Bool

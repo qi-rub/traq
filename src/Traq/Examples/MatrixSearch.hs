@@ -8,9 +8,10 @@ import Traq.Prelude
 import Traq.Primitives
 import Traq.Primitives.Search.Prelude (HasPrimAny (..))
 import Traq.ProtoLang.Syntax
+import Traq.ProtoLang.TypeCheck (tbool)
 
-matrixExample :: forall primsT sizeT. (HasPrimAny primsT) => sizeT -> sizeT -> VarType sizeT -> Program primsT sizeT
-matrixExample n m tyBool =
+matrixExample :: forall primsT sizeT. (HasPrimAny primsT, Num sizeT) => sizeT -> sizeT -> Program primsT sizeT
+matrixExample n m =
   Program
     { funCtx = Ctx.fromList [(oracle_name, oracle_decl), (check_entry_name, check_entry), (check_row_name, check_row), (check_matrix_name, check_matrix)]
     , stmt =
@@ -28,7 +29,7 @@ matrixExample n m tyBool =
   oracle_name = "Matrix"
 
   oracle_decl :: FunDef primsT sizeT
-  oracle_decl = FunDef{param_types = [tyI, tyJ], ret_types = [tyBool], mbody = Nothing}
+  oracle_decl = FunDef{param_types = [tyI, tyJ], ret_types = [tbool], mbody = Nothing}
 
   check_entry_name :: Ident
   check_entry_name = "IsEntryZero"
@@ -48,7 +49,7 @@ matrixExample n m tyBool =
                     ]
               , ret_names = [e']
               }
-      , ret_types = [tyBool]
+      , ret_types = [tbool]
       }
    where
     i = "i0"
@@ -74,7 +75,7 @@ matrixExample n m tyBool =
                     ]
               , ret_names = [ok']
               }
-      , ret_types = [tyBool]
+      , ret_types = [tbool]
       }
    where
     i = "i"
@@ -95,10 +96,10 @@ matrixExample n m tyBool =
               , body_stmt = ExprS{rets = [ok], expr = FunCallE{fun_kind = PrimitiveCall (mkAny check_row_name), args = []}}
               , ret_names = [ok]
               }
-      , ret_types = [tyBool]
+      , ret_types = [tbool]
       }
    where
     ok = "ok"
 
 matrixExampleS :: SizeT -> SizeT -> Program DefaultPrims SizeT
-matrixExampleS n m = matrixExample n m (Fin 2)
+matrixExampleS = matrixExample

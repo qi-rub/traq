@@ -40,7 +40,6 @@ module Traq.CQPL.Syntax (
 ) where
 
 import Control.Monad ((>=>))
-import Control.Monad.Fail (MonadFail)
 import Control.Monad.Writer (MonadWriter)
 import Data.Void (Void)
 import Lens.Micro.GHC

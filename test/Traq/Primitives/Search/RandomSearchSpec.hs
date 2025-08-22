@@ -21,7 +21,7 @@ diagMatrix _ = error "invalid input"
 spec :: Spec
 spec = do
   describe "RandomSearch" $ do
-    let mat_prog n m = matrixExample @RandomSearch n m (P.Fin (2 :: Int))
+    let mat_prog n m = matrixExample @RandomSearch n m
     it "expected cost" $ do
       let eps = 0.001
       let n = 10

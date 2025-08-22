@@ -134,15 +134,15 @@ instance PP.ToCodeString UnOp where
 data BinOp
   = AddOp
   | LEqOp
-  | GtOp
+  | LtOp
   | AndOp
   deriving (Eq, Show, Read)
 
 instance PP.ToCodeString BinOp where
   build AddOp = PP.putWord "+"
   build LEqOp = PP.putWord "<="
+  build LtOp = PP.putWord "<"
   build AndOp = PP.putWord "&&"
-  build GtOp = PP.putWord ">"
 
 -- | Operations which take multiple arguments
 data NAryOp = MultiOrOp
@@ -165,7 +165,7 @@ data BasicExpr sizeT
   | DynIndexE {arr_expr, ix_expr :: BasicExpr sizeT}
   | UpdateArrE {arr_expr, ix_expr, rhs :: BasicExpr sizeT}
   | -- tuple
-    ProjectE {tup_expr :: BasicExpr sizeT, ix_val :: sizeT}
+    ProjectE {tup_expr :: BasicExpr sizeT, tup_ix_val :: Int}
   deriving (Eq, Show, Read, Functor)
 
 -- Helpers for shorter expressions
@@ -203,8 +203,8 @@ instance (Show sizeT) => PP.ToCodeString (BasicExpr sizeT) where
     PP.putWord =<< printf "%s[%s]" <$> PP.fromBuild arr_expr <*> PP.fromBuild ix_expr
   build UpdateArrE{arr_expr, ix_expr, rhs} =
     PP.putWord =<< printf "update %s[%s] = %s" <$> PP.fromBuild arr_expr <*> PP.fromBuild ix_expr <*> PP.fromBuild rhs
-  build ProjectE{tup_expr, ix_val} =
-    PP.putWord =<< printf "%s.%s" <$> PP.fromBuild tup_expr <*> pure (show ix_val)
+  build ProjectE{tup_expr, tup_ix_val} =
+    PP.putWord =<< printf "%s.%d" <$> PP.fromBuild tup_expr <*> pure tup_ix_val
 
 -- ================================================================================
 -- Syntax

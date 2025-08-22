@@ -54,14 +54,17 @@ module Traq.ProtoLang.Cost (
   splitEps,
 ) where
 
-import Control.Monad (foldM, forM, zipWithM)
+import Control.Monad (forM, forM_, zipWithM)
 import Control.Monad.Reader (MonadReader, ReaderT, runReaderT)
+import Control.Monad.State (execStateT)
+import Control.Monad.Trans (lift)
 import qualified Data.Map as Map
 import Data.Maybe (fromMaybe)
 import Data.Void (Void, absurd)
 import Lens.Micro.GHC
 import Lens.Micro.Mtl
 
+import Traq.Control.Monad
 import qualified Traq.Data.Context as Ctx
 import Traq.Data.Default
 import qualified Traq.Data.Probability as Prob
@@ -539,11 +542,14 @@ quantumQueryCostS eps sigma (SeqS ss) = do
   let stepS s = runProgram @primsT @costT Program{funCtx, stmt = s} interpCtx
   eps_each <- splitEps eps ss
 
-  (_, cs) <- (\r -> foldM r (pure sigma, 0) (zip ss eps_each)) $
-    \(distr, acc) (s, eps_s) -> do
-      c <- Prob.expectationA (\sigma' -> quantumQueryCostS eps_s sigma' s) distr
-      let distr' = distr >>= \state -> stepS s state
-      return (distr', acc + c)
+  (_, cs) <- execStateT ?? (pure sigma, 0) $
+    forM_ (zip ss eps_each) $ \(s, eps_s) -> do
+      distr <- use _1
+
+      c <- lift $ Prob.expectationA (\sigma' -> quantumQueryCostS eps_s sigma' s) distr
+      _2 += c
+
+      _1 .= (distr >>= stepS s)
 
   return cs
 

@@ -98,7 +98,7 @@ instance
 
     vs <- forM search_range $ \val -> do
       res <- P.evalFun (arg_vals ++ [val]) predicate pred_fun
-      let [P.FinV v] = res
+      [P.FinV v] <- pure res
       return v
 
     return [P.FinV $ maximum vs]
@@ -118,7 +118,7 @@ instance
   where
   unitaryQueryCostPrimitive delta QMax{predicate} _ = do
     P.FunDef{P.param_types} <- view $ P._funCtx . Ctx.at predicate . singular _Just
-    let P.Fin n = last param_types
+    P.Fin n <- pure $ last param_types
 
     -- split the precision
     let delta_search = delta / 2
@@ -146,7 +146,7 @@ instance
   where
   quantumMaxQueryCostPrimitive eps QMax{predicate} = do
     P.FunDef{P.param_types} <- view $ P._funCtx . Ctx.at predicate . singular _Just
-    let P.Fin n = last param_types
+    P.Fin n <- pure $ last param_types
 
     -- split the fail prob
     let eps_search = eps / 2
@@ -178,7 +178,7 @@ instance
   where
   quantumQueryCostPrimitive eps QMax{predicate} _ = do
     P.FunDef{P.param_types} <- view $ P._funCtx . Ctx.at predicate . singular _Just
-    let P.Fin n = last param_types
+    P.Fin n <- pure $ last param_types
 
     -- split the fail prob
     let eps_prim = eps / 2

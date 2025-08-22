@@ -20,6 +20,7 @@ module Traq.ProtoLang.Eval (
   toValue,
   fromValue,
   valueToBool,
+  domainSize,
   domain,
 
   -- * Types and Monad
@@ -105,6 +106,12 @@ fromValue = fromJust . safeFromValue
 valueToBool :: Value SizeT -> Bool
 valueToBool = fromValue
 
+-- | Size of the value set of a given type.
+domainSize :: (Num sizeT) => VarType sizeT -> sizeT
+domainSize (Fin n) = n
+domainSize (Arr n t) = n * domainSize t
+domainSize (Tup ts) = product $ map domainSize ts
+
 -- | Set of all values of a given type
 domain :: (Integral sizeT) => VarType sizeT -> [Value sizeT]
 domain (Fin n) = FinV <$> [0 .. n - 1]
@@ -120,9 +127,8 @@ evalUnOp NotOp = toValue . not . fromValue
 
 evalBinOp :: (sizeT ~ SizeT) => BinOp -> Value sizeT -> Value sizeT -> Value sizeT
 evalBinOp AddOp (FinV x) (FinV y) = FinV $ x + y
-evalBinOp LEqOp (FinV x) (FinV y)
-  | x <= y = toValue True
-  | otherwise = toValue False
+evalBinOp LEqOp (FinV x) (FinV y) = toValue $ x <= y
+evalBinOp LtOp (FinV x) (FinV y) = toValue $ x < y
 evalBinOp AndOp v1 v2 = toValue $ fromValue v1 && fromValue v2
 evalBinOp _ _ _ = error "invalid inputs"
 
@@ -183,9 +189,9 @@ evalBasicExpr UpdateArrE{arr_expr, ix_expr, rhs} = do
   i <- evalBasicExpr ix_expr
   v <- evalBasicExpr rhs
   return $ modifyArr arr i v
-evalBasicExpr ProjectE{tup_expr, ix_val} = do
+evalBasicExpr ProjectE{tup_expr, tup_ix_val} = do
   arr <- evalBasicExpr tup_expr
-  return $ arr ^?! _TupV . ix ix_val
+  return $ arr ^?! _TupV . ix tup_ix_val
 
 -- ================================================================================
 -- Program Evaluation Context

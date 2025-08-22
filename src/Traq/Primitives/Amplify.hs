@@ -7,6 +7,7 @@
 module Traq.Primitives.Amplify (
   -- * Amplify Primitive
   QAmplify (..),
+  HasPrimAmplify (..),
 ) where
 
 import Control.Monad (when)

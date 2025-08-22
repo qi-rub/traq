@@ -28,11 +28,17 @@ freeVarsBE UnOpE{operand} = freeVarsBE operand
 freeVarsBE BinOpE{lhs, rhs} = Set.unions $ map freeVarsBE [lhs, rhs]
 freeVarsBE TernaryE{branch, lhs, rhs} = Set.unions $ map freeVarsBE [branch, lhs, rhs]
 freeVarsBE NAryE{operands} = Set.unions $ map freeVarsBE operands
+freeVarsBE IndexE{arr_expr} = freeVarsBE arr_expr
+freeVarsBE DynIndexE{arr_expr, ix_expr} = Set.unions $ map freeVarsBE [arr_expr, ix_expr]
+freeVarsBE UpdateArrE{arr_expr, ix_expr, rhs} = Set.unions $ map freeVarsBE [arr_expr, ix_expr, rhs]
+freeVarsBE ProjectE{tup_expr} = freeVarsBE tup_expr
 
 -- | The set of free (unbound) variables in an expression
 freeVarsE :: Expr primT sizeT -> VarSet
 freeVarsE BasicExprE{basic_expr} = freeVarsBE basic_expr
 freeVarsE FunCallE{args} = Set.fromList args
+freeVarsE UniformRandomE{} = Set.empty
+freeVarsE BiasedCoinE{} = Set.empty
 
 -- | The set of free (unbound) variables
 freeVars :: Stmt primT sizeT -> VarSet

@@ -165,10 +165,17 @@ lowerExpr ::
   -- return variables
   [Ident] ->
   CompilerT primsT holeT sizeT costT (Stmt holeT sizeT)
+-- basic expressions
 lowerExpr _ P.BasicExprE{P.basic_expr} rets = return $ AssignS rets basic_expr
+-- random sampling expressions
+lowerExpr _ P.UniformRandomE{} _ = error "TODO uniform random sampling operation"
+lowerExpr _ P.BiasedCoinE{} _ = error "TODO biased coin toss"
+-- function call
 lowerExpr eps P.FunCallE{P.fun_kind = P.FunctionCall f, P.args} rets = do
   proc_name <- lowerFunDefByName eps f
   return $ CallS{fun = FunctionCall proc_name, args = args ++ rets, meta_params = []}
+
+-- primitive call
 lowerExpr eps P.FunCallE{P.fun_kind = P.PrimitiveCall prim, P.args} rets =
   lowerPrimitive eps prim args rets
 

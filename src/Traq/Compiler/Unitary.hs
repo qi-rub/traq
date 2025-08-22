@@ -142,6 +142,12 @@ lowerExpr _ P.BasicExprE{P.basic_expr} rets = do
   let args = toList $ P.freeVarsBE basic_expr
   return $ UnitaryS{qargs = args ++ rets, unitary = RevEmbedU args basic_expr}
 
+-- random sampling expressions
+lowerExpr _ P.UniformRandomE{} rets = do
+  return $ UnitaryS{qargs = rets, unitary = Unif}
+lowerExpr _ P.BiasedCoinE{} rets = do
+  return $ UnitaryS{qargs = rets, unitary = error "TODO: Add Ry gate"}
+
 -- function call
 lowerExpr delta P.FunCallE{P.fun_kind = P.FunctionCall fun_name, P.args} rets = do
   fun <-
