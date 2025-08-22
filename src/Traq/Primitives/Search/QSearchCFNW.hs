@@ -109,31 +109,38 @@ _QSearchZalka n delta = 2 * nq_simple -- 2x for compute-uncompute
 -- Primitive Class Implementation
 -- ================================================================================
 
-data QSearchCFNW = QSearchCFNW {predicate :: Ident, return_sol :: Bool}
+data QSearchCFNW = QSearchCFNW {predicate :: Ident, return_sol :: Bool, pred_args :: [Ident]}
   deriving (Eq, Show, Read)
 
 instance HasPrimAny QSearchCFNW where
-  mkAny p = QSearchCFNW{predicate = p, return_sol = False}
-  getPredicateOfAny = predicate
+  _PrimAny focus (QSearchCFNW p False args) = focus (p, args) <&> \(p', args') -> (QSearchCFNW p' False args')
+  _PrimAny _ q = pure q
+
+  mkPrimAny predicate pred_args = QSearchCFNW{predicate, return_sol = False, pred_args}
 
 instance HasPrimSearch QSearchCFNW where
-  mkSearch p = QSearchCFNW{predicate = p, return_sol = True}
-  getPredicateOfSearch = predicate
+  _PrimSearch focus (QSearchCFNW p True args) = focus (p, args) <&> \(p', args') -> (QSearchCFNW p' True args')
+  _PrimSearch _ q = pure q
+
+  mkPrimSearch predicate pred_args = QSearchCFNW{predicate, return_sol = True, pred_args}
+
+instance P.HasFreeVars QSearchCFNW where
+  freeVarsList QSearchCFNW{pred_args} = pred_args
 
 instance PP.ToCodeString QSearchCFNW where
-  build QSearchCFNW{predicate, return_sol = False} = PP.putWord $ printf "@any[%s]" predicate
-  build QSearchCFNW{predicate, return_sol = True} = PP.putWord $ printf "@search[%s]" predicate
+  build QSearchCFNW{predicate, return_sol = False, pred_args} = PP.putWord $ printf "@any[%s](%s)" predicate (PP.commaList pred_args)
+  build QSearchCFNW{predicate, return_sol = True, pred_args} = PP.putWord $ printf "@search[%s](%s)" predicate (PP.commaList pred_args)
 
 -- Parsing
 instance P.CanParsePrimitive QSearchCFNW where
   primitiveParser tp = try parseAny <|> try parseSearch
    where
     parseAny = do
-      [predicate] <- parsePrimWithPredicates "any" 1 tp
-      return QSearchCFNW{predicate, return_sol = False}
+      [(predicate, pred_args)] <- parsePrimWithPredicates "any" 1 tp
+      return QSearchCFNW{predicate, return_sol = False, pred_args}
     parseSearch = do
-      [predicate] <- parsePrimWithPredicates "search" 1 tp
-      return QSearchCFNW{predicate, return_sol = True}
+      [(predicate, pred_args)] <- parsePrimWithPredicates "search" 1 tp
+      return QSearchCFNW{predicate, return_sol = True, pred_args}
 
 -- Type check
 instance P.TypeCheckablePrimitive QSearchCFNW sizeT where
@@ -165,7 +172,7 @@ instance
   ) =>
   P.UnitaryCostablePrimitive primsT QSearchCFNW sizeT costT
   where
-  unitaryQueryCostPrimitive delta QSearchCFNW{predicate} _ = do
+  unitaryQueryCostPrimitive delta QSearchCFNW{predicate} = do
     P.FunDef{P.param_types} <- view $ P._funCtx . Ctx.at predicate . singular _Just
     let n = last param_types ^?! P._Fin
 
@@ -182,7 +189,7 @@ instance
     -- cost of each predicate call
     cost_pred <-
       P.unitaryQueryCostE delta_per_pred_call $
-        P.FunCallE{P.fun_kind = P.FunctionCall predicate, P.args = undefined}
+        P.FunCallE{P.fname = predicate, P.args = undefined}
 
     return $ qry * cost_pred
 
@@ -212,7 +219,7 @@ instance
     cost_unitary_pred <-
       magnify P._unitaryCostEnv $
         P.unitaryQueryCostE delta_per_pred_call $
-          P.FunCallE{P.fun_kind = P.FunctionCall predicate, P.args = undefined}
+          P.FunCallE{P.fname = predicate, P.args = undefined}
 
     return $ qry * cost_unitary_pred
 
@@ -254,7 +261,7 @@ instance
 
     pred_unitary_cost <-
       magnify P._unitaryCostEnv $
-        P.unitaryQueryCostE delta_per_pred_call P.FunCallE{P.fun_kind = P.FunctionCall predicate, P.args = undefined}
+        P.unitaryQueryCostE delta_per_pred_call P.FunCallE{P.fname = predicate, P.args = undefined}
     return $ qry * pred_unitary_cost
 
 -- ================================================================================
@@ -424,7 +431,7 @@ instance
   ) =>
   CompileU.Lowerable primsT QSearchCFNW holeT sizeT costT
   where
-  lowerPrimitive delta QSearchCFNW{predicate, return_sol = False} args [ret] = do
+  lowerPrimitive delta QSearchCFNW{predicate, return_sol = False, pred_args = args} [ret] = do
     -- the predicate
     pred_fun@P.FunDef{P.param_types} <-
       view (P._funCtx . Ctx.at predicate)
@@ -562,7 +569,7 @@ instance
             }
 
   -- fallback
-  lowerPrimitive _ _ _ _ = throwError "Unsupported"
+  lowerPrimitive _ _ _ = throwError "Unsupported"
 
 -- ================================================================================
 -- CQ Lowering
@@ -746,7 +753,7 @@ instance
   ) =>
   CompileQ.Lowerable primsT QSearchCFNW holeT sizeT costT
   where
-  lowerPrimitive eps QSearchCFNW{predicate, return_sol = False} args [ret] = do
+  lowerPrimitive eps QSearchCFNW{predicate, return_sol = False, pred_args = args} [ret] = do
     -- the predicate
     pred_fun@P.FunDef{P.param_types} <-
       view (P._funCtx . Ctx.at predicate)
@@ -858,4 +865,4 @@ instance
         , CQPL.args = args ++ [ret]
         , CQPL.meta_params = []
         }
-  lowerPrimitive _ _ _ _ = error "Unsupported"
+  lowerPrimitive _ _ _ = error "Unsupported"

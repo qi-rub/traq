@@ -6,15 +6,16 @@ module Traq.Primitives.TreeSearch (
   TreeSearch (..),
 ) where
 
-import Control.Monad (when)
+import Control.Monad (forM, when)
 import Control.Monad.Except (throwError)
+import Control.Monad.Reader (ReaderT (runReaderT))
 import Data.Maybe (fromMaybe)
 import Lens.Micro.GHC
 import Lens.Micro.Mtl
 import Text.Parsec.Token (GenTokenParser (..))
 import Text.Printf (printf)
 
-import Traq.Control.Monad (maybeWithError)
+import Traq.Control.Monad
 import qualified Traq.Data.Context as Ctx
 
 import Traq.Prelude
@@ -29,12 +30,24 @@ import qualified Traq.Utils.Printing as PP
 
  @checkNode@ returns a boolean value.
 -}
-data TreeSearch = TreeSearch {getChildren :: Ident, checkNode :: Ident}
+data TreeSearch = TreeSearch
+  { getChildren :: Ident
+  , getChildrenArgs :: [Ident]
+  , checkNode :: Ident
+  , checkNodeArgs :: [Ident]
+  }
   deriving (Eq, Show, Read)
 
 -- Printing
 instance PP.ToCodeString TreeSearch where
-  build TreeSearch{getChildren, checkNode} = PP.putWord $ printf "@treesearch[%s, %s]" getChildren checkNode
+  build TreeSearch{getChildren, getChildrenArgs, checkNode, checkNodeArgs} =
+    PP.putWord $
+      printf
+        "@treesearch[%s, %s](%s)(%s)"
+        getChildren
+        checkNode
+        (PP.commaList getChildrenArgs)
+        (PP.commaList checkNodeArgs)
 
 -- Parsing
 instance P.CanParsePrimitive TreeSearch where
@@ -45,11 +58,13 @@ instance P.CanParsePrimitive TreeSearch where
       comma tp
       cn <- identifier tp
       return (gc, cn)
-    return TreeSearch{getChildren, checkNode}
+    getChildrenArgs <- parens tp $ commaSep tp $ identifier tp
+    checkNodeArgs <- parens tp $ commaSep tp $ identifier tp
+    return TreeSearch{getChildren, getChildrenArgs, checkNode, checkNodeArgs}
 
 -- Type check
 instance P.TypeCheckablePrimitive TreeSearch sizeT where
-  typeCheckPrimitive TreeSearch{getChildren, checkNode} args = do
+  typeCheckPrimitive TreeSearch{getChildren, getChildrenArgs, checkNode, checkNodeArgs} = do
     P.FunDef{P.param_types = gc_param_tys, P.ret_types = gc_ret_tys} <-
       view (Ctx.at getChildren)
         >>= maybeWithError (printf "cannot find getChildren function `%s`" getChildren)
@@ -69,9 +84,13 @@ instance P.TypeCheckablePrimitive TreeSearch sizeT where
     when (cn_ret_tys /= [P.tbool]) $
       throwError "checkNode must return a Bool"
 
-    arg_tys <- mapM Ctx.lookup args
-    when (init gc_param_tys ++ init cn_param_tys /= arg_tys) $
-      throwError "Invalid arguments to bind to getChildren & checkNode"
+    gc_arg_tys <- mapM Ctx.lookup getChildrenArgs
+    when (init gc_param_tys /= gc_arg_tys) $
+      throwError "Invalid arguments to bind to getChildren"
+
+    cn_arg_tys <- mapM Ctx.lookup checkNodeArgs
+    when (init cn_param_tys /= cn_arg_tys) $
+      throwError "Invalid arguments to bind to checkNode"
 
     return [P.tbool]
 
@@ -97,11 +116,14 @@ instance
   ) =>
   P.EvaluatablePrimitive primsT TreeSearch costT
   where
-  evalPrimitive TreeSearch{getChildren, checkNode} args = do
+  evalPrimitive TreeSearch{getChildren, getChildrenArgs, checkNode, checkNodeArgs} sigma = do
     child_fun <- view $ P._funCtx . Ctx.at getChildren . to (fromMaybe (error "unable to find predicate, please typecheck first!"))
     check_fun <- view $ P._funCtx . Ctx.at checkNode . to (fromMaybe (error "unable to find predicate, please typecheck first!"))
 
-    let (child_args, check_args) = splitAt (length $ P.param_types child_fun) args
+    child_args <- runReaderT ?? sigma $ forM getChildrenArgs $ \x -> do
+      view $ Ctx.at x . non (error "invalid arg")
+    check_args <- runReaderT ?? sigma $ forM checkNodeArgs $ \x -> do
+      view $ Ctx.at x . non (error "invalid arg")
 
     let nxt u =
           ( do

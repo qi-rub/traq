@@ -48,7 +48,7 @@ spec = do
         `shouldBe` Right
           ( SeqS
               [ ExprS
-                  { expr = FunCallE{fun_kind = FunctionCall "f", args = ["x", "y", "z"]}
+                  { expr = FunCallE{fname = "f", args = ["x", "y", "z"]}
                   , rets = ["a", "b"]
                   }
               ]
@@ -76,7 +76,7 @@ spec = do
                           { param_names = ["i", "j"]
                           , body_stmt =
                               SeqS
-                                [ ExprS{rets = ["e"], expr = FunCallE{fun_kind = FunctionCall "Oracle", args = ["i", "j"]}}
+                                [ ExprS{rets = ["e"], expr = FunCallE{fname = "Oracle", args = ["i", "j"]}}
                                 , ExprS{rets = ["e'"], expr = BasicExprE UnOpE{un_op = NotOp, operand = "e"}}
                                 ]
                           , ret_names = ["e'"]

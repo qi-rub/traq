@@ -39,10 +39,13 @@ exampleProgram n two = P.Program{P.funCtx, P.stmt = P.SeqS [stmt]}
     P.ExprS
       { P.rets = ["ok"]
       , P.expr =
-          P.FunCallE
-            { P.fun_kind = P.PrimitiveCall TreeSearch{getChildren = "child", checkNode = "check"}
-            , P.args = []
-            }
+          P.PrimCallE $
+            TreeSearch
+              { getChildren = "child"
+              , getChildrenArgs = []
+              , checkNode = "check"
+              , checkNodeArgs = []
+              }
       }
 
 spec :: Spec

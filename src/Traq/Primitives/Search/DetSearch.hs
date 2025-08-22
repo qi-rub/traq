@@ -28,12 +28,15 @@ import qualified Traq.Utils.Printing as PP
 -- ================================================================================
 
 -- | Primitive implementing brute-force classical search.
-newtype DetSearch = DetSearch {predicate :: Ident}
+data DetSearch = DetSearch {predicate :: Ident, args :: [Ident]}
   deriving (Eq, Show, Read)
 
 instance HasPrimAny DetSearch where
-  mkAny = DetSearch
-  getPredicateOfAny = predicate
+  mkPrimAny = DetSearch
+  _PrimAny focus (DetSearch p args) = uncurry DetSearch <$> focus (p, args)
+
+instance P.HasFreeVars DetSearch where
+  freeVarsList DetSearch{args} = args
 
 instance PP.ToCodeString DetSearch where
   build DetSearch{predicate} = PP.putWord $ printf "@any[%s]" predicate
@@ -64,7 +67,7 @@ instance
   ) =>
   P.UnitaryCostablePrimitive primsT DetSearch sizeT costT
   where
-  unitaryQueryCostPrimitive delta DetSearch{predicate} _ = do
+  unitaryQueryCostPrimitive delta DetSearch{predicate} = do
     P.FunDef{P.param_types} <- view $ P._funCtx . Ctx.at predicate . singular _Just
     P.Fin n <- pure $ last param_types
 
@@ -74,7 +77,7 @@ instance
     -- cost of each predicate call
     cost_pred <-
       P.unitaryQueryCostE delta_per_pred_call $
-        P.FunCallE{P.fun_kind = P.FunctionCall predicate, P.args = undefined}
+        P.FunCallE{P.fname = predicate, P.args = undefined}
 
     return $ fromIntegral n * cost_pred
 
@@ -96,7 +99,7 @@ instance
     -- cost of each predicate call
     cost_pred_call <-
       P.quantumMaxQueryCostE eps_per_pred_call $
-        P.FunCallE{P.fun_kind = P.FunctionCall predicate, P.args = undefined}
+        P.FunCallE{P.fname = predicate, P.args = undefined}
 
     return $ fromIntegral n * cost_pred_call
 
@@ -109,30 +112,32 @@ instance
   ) =>
   P.QuantumCostablePrimitive primsT DetSearch sizeT costT
   where
-  quantumQueryCostPrimitive eps DetSearch{predicate} args = do
+  quantumQueryCostPrimitive eps DetSearch{predicate, args} sigma = do
     P.FunDef{P.param_types} <- view $ P._funCtx . Ctx.at predicate . singular _Just
     ty@(P.Fin n) <- pure $ last param_types
 
     -- fail prob per predicate call
     let eps_per_pred_call = eps / fromIntegral n
 
-    let sigma = Ctx.fromList $ zip ["in" ++ show i | i <- [1 .. length args]] args
+    arg_vals <- runReaderT ?? sigma $ forM args $ \x -> do
+      view $ Ctx.at x . non (error "invalid arg")
+    let sigma_pred = Ctx.fromList $ zip ["in" ++ show i | i <- [1 .. length args]] arg_vals
 
     costs <- forM (P.domain ty) $ \v -> do
-      let sigma' = sigma & Ctx.ins "x_s" .~ v
+      let sigma_pred' = sigma_pred & Ctx.ins "x_s" .~ v
       let pred_call_expr =
             P.FunCallE
-              { P.fun_kind = P.FunctionCall predicate
-              , P.args = Ctx.keys sigma'
+              { P.fname = predicate
+              , P.args = Ctx.keys sigma_pred'
               }
 
       -- cost of predicate on input `v`
-      cost_v <- P.quantumQueryCostE eps_per_pred_call sigma' pred_call_expr
+      cost_v <- P.quantumQueryCostE eps_per_pred_call sigma_pred' pred_call_expr
 
       -- evaluate predicate on `v` to check if it is a solution
       eval_env <- view P._evaluationEnv
       [is_sol_v] <-
-        P.evalExpr @primsT @costT pred_call_expr sigma'
+        P.evalExpr @primsT @costT pred_call_expr sigma_pred'
           & (runReaderT ?? eval_env)
           & Prob.toDeterministicValue
           & lift

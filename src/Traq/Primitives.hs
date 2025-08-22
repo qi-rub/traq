@@ -9,6 +9,7 @@ module Traq.Primitives (
 ) where
 
 import Control.Applicative ((<|>))
+import Lens.Micro.GHC
 import Text.Printf (printf)
 
 import qualified Traq.Compiler.Quantum as CompileQ
@@ -27,23 +28,28 @@ data DefaultPrims
   | DAny DetSearch
   deriving (Eq, Show, Read)
 
-instance HasPrimAny DefaultPrims where
-  mkAny = QAny . mkAny
+_QAny :: Traversal' DefaultPrims QSearchCFNW
+_QAny focus (QAny p) = QAny <$> focus p
+_QAny _ q = pure q
 
-  getPredicateOfAny (QAny q) = getPredicateOfAny q
-  getPredicateOfAny _ = error "invalid primitive"
+instance HasPrimAny DefaultPrims where
+  _PrimAny = _QAny . _PrimAny
+  mkPrimAny a b = QAny $ mkPrimAny a b
 
 instance HasPrimSearch DefaultPrims where
-  mkSearch = QAny . mkSearch
+  _PrimSearch = _QAny . _PrimSearch
+  mkPrimSearch a b = QAny $ mkPrimSearch a b
 
-  getPredicateOfSearch (QAny q) = getPredicateOfSearch q
-  getPredicateOfSearch _ = error "invalid primitive"
+instance P.HasFreeVars DefaultPrims where
+  freeVars (QAny p) = P.freeVars p
+  freeVars (RAny p) = P.freeVars p
+  freeVars (DAny p) = P.freeVars p
 
 -- Printing
 instance PP.ToCodeString DefaultPrims where
   build (QAny prim) = PP.build prim
-  build (RAny RandomSearch{predicate}) = PP.putWord $ printf "@any_rand[%s]" predicate
-  build (DAny DetSearch{predicate}) = PP.putWord $ printf "@any_det[%s]" predicate
+  build (RAny RandomSearch{predicate, args}) = PP.putWord $ printf "@any_rand[%s](%s)" predicate (PP.commaList args)
+  build (DAny DetSearch{predicate, args}) = PP.putWord $ printf "@any_det[%s](%s)" predicate (PP.commaList args)
 
 -- Parsing
 instance P.CanParsePrimitive DefaultPrims where

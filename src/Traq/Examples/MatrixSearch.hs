@@ -16,7 +16,7 @@ matrixExample n m =
     { funCtx = Ctx.fromList [(oracle_name, oracle_decl), (check_entry_name, check_entry), (check_row_name, check_row), (check_matrix_name, check_matrix)]
     , stmt =
         ExprS
-          { expr = FunCallE{fun_kind = FunctionCall check_matrix_name, args = []}
+          { expr = FunCallE{fname = check_matrix_name, args = []}
           , rets = ["result"]
           }
     }
@@ -44,7 +44,7 @@ matrixExample n m =
               { param_names = [i, j]
               , body_stmt =
                   SeqS
-                    [ ExprS{rets = [e], expr = FunCallE{fun_kind = FunctionCall oracle_name, args = [i, j]}}
+                    [ ExprS{rets = [e], expr = FunCallE{fname = oracle_name, args = [i, j]}}
                     , ExprS{rets = [e'], expr = BasicExprE UnOpE{un_op = NotOp, operand = fromString e}}
                     ]
               , ret_names = [e']
@@ -70,7 +70,7 @@ matrixExample n m =
               { param_names = [i]
               , body_stmt =
                   SeqS
-                    [ ExprS{rets = [ok], expr = FunCallE{fun_kind = PrimitiveCall (mkAny check_entry_name), args = [i]}}
+                    [ ExprS{rets = [ok], expr = PrimCallE $ mkPrimAny check_entry_name [i]}
                     , ExprS{rets = [ok'], expr = BasicExprE UnOpE{un_op = NotOp, operand = fromString ok}}
                     ]
               , ret_names = [ok']
@@ -93,7 +93,7 @@ matrixExample n m =
           Just
             FunBody
               { param_names = []
-              , body_stmt = ExprS{rets = [ok], expr = FunCallE{fun_kind = PrimitiveCall (mkAny check_row_name), args = []}}
+              , body_stmt = ExprS{rets = [ok], expr = PrimCallE $ mkPrimAny check_row_name []}
               , ret_names = [ok]
               }
       , ret_types = [tbool]

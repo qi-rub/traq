@@ -26,9 +26,6 @@ module Traq.ProtoLang.Syntax (
   (.+.),
   (.&&.),
 
-  -- ** Calls and Primitives
-  FunctionCallKind (..),
-
   -- ** Expressions and Statements
   Expr (..),
   Stmt (..),
@@ -210,18 +207,6 @@ instance (Show sizeT) => PP.ToCodeString (BasicExpr sizeT) where
 -- Syntax
 -- ================================================================================
 
--- | Either call an existing function, or an existing primitive.
-data FunctionCallKind primT
-  = FunctionCall Ident
-  | PrimitiveCall {prim :: primT}
-  deriving (Eq, Show, Read)
-
-type instance PrimitiveType (FunctionCallKind primT) = primT
-
-instance (PP.ToCodeString primT) => PP.ToCodeString (FunctionCallKind primT) where
-  build (FunctionCall f) = PP.putWord f
-  build (PrimitiveCall prim) = PP.putWord $ PP.toCodeString prim
-
 {- | An expression in the prototype language.
  It appears as the RHS of an assignment statement.
 -}
@@ -229,7 +214,8 @@ data Expr primT sizeT
   = BasicExprE {basic_expr :: BasicExpr sizeT}
   | UniformRandomE {sample_ty :: VarType sizeT}
   | BiasedCoinE {prob_one :: Double}
-  | FunCallE {fun_kind :: FunctionCallKind primT, args :: [Ident]}
+  | FunCallE {fname :: Ident, args :: [Ident]}
+  | PrimCallE {prim :: primT}
   deriving (Eq, Show, Read, Functor)
 
 type instance SizeType (Expr primT sizeT) = sizeT
@@ -239,9 +225,8 @@ instance (Show sizeT, PP.ToCodeString primT) => PP.ToCodeString (Expr primT size
   build BasicExprE{basic_expr} = PP.build basic_expr
   build UniformRandomE{sample_ty} = PP.putLine . printf "$ uniform %s" =<< PP.fromBuild sample_ty
   build BiasedCoinE{prob_one} = PP.putLine $ printf "$ coin[%s]" (show prob_one)
-  build FunCallE{fun_kind, args} = do
-    fun_kind_s <- PP.fromBuild fun_kind
-    PP.putLine $ printf "%s(%s)" fun_kind_s (PP.commaList args)
+  build FunCallE{fname, args} = PP.putLine $ printf "%s(%s)" fname (PP.commaList args)
+  build PrimCallE{prim} = PP.build prim
 
 -- | A statement in the prototype language.
 data Stmt primT sizeT

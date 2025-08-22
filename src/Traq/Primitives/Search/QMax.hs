@@ -13,6 +13,7 @@ module Traq.Primitives.Search.QMax () where
 
 import Control.Monad (forM, when)
 import Control.Monad.Except (throwError)
+import Control.Monad.Reader (ReaderT (runReaderT))
 import Data.Maybe (fromMaybe)
 import Lens.Micro.GHC
 import Lens.Micro.Mtl
@@ -55,22 +56,23 @@ _WUQMax n delta = 2 * _WQMax n eps -- 2x for compute-uncompute
 -- Primitive Class Implementation
 -- ================================================================================
 
-newtype QMax = QMax {predicate :: Ident}
+data QMax = QMax {predicate :: Ident, pred_args :: [Ident]}
   deriving (Eq, Show, Read)
 
 instance PP.ToCodeString QMax where
-  build QMax{predicate} = PP.putWord $ printf "@max[%s]" predicate
+  build QMax{predicate, pred_args} = PP.putWord $ printf "@max[%s](%s)" predicate (PP.commaList pred_args)
 
 -- Parsing
 instance P.CanParsePrimitive QMax where
   primitiveParser tp = do
     symbol tp "@max"
     predicate <- brackets tp $ identifier tp
-    return QMax{predicate}
+    pred_args <- parens tp $ commaSep tp $ identifier tp
+    return QMax{predicate, pred_args}
 
 -- Type check
 instance P.TypeCheckablePrimitive QMax sizeT where
-  typeCheckPrimitive QMax{predicate} args = do
+  typeCheckPrimitive QMax{predicate, pred_args} = do
     P.FunDef{P.param_types, P.ret_types} <-
       view (Ctx.at predicate)
         >>= maybeWithError (printf "cannot find `max` predicate `%s`" predicate)
@@ -79,7 +81,7 @@ instance P.TypeCheckablePrimitive QMax sizeT where
       throwError $
         printf "`max` predicate must return a single value, got %d" (length ret_types)
 
-    arg_tys <- mapM Ctx.lookup args
+    arg_tys <- mapM Ctx.lookup pred_args
     when (init param_types /= arg_tys) $
       throwError "Invalid arguments to bind to predicate"
 
@@ -92,9 +94,12 @@ instance
   (Fractional costT, P.EvaluatablePrimitive primsT primsT costT) =>
   P.EvaluatablePrimitive primsT QMax costT
   where
-  evalPrimitive QMax{predicate} arg_vals = do
+  evalPrimitive QMax{predicate, pred_args} sigma = do
     pred_fun <- view $ P._funCtx . Ctx.at predicate . to (fromMaybe (error "unable to find predicate, please typecheck first!"))
     let search_range = pred_fun ^. to P.param_types . to last . to P.domain
+
+    arg_vals <- runReaderT ?? sigma $ forM pred_args $ \x -> do
+      view $ Ctx.at x . non (error "invalid arg")
 
     vs <- forM search_range $ \val -> do
       res <- P.evalFun (arg_vals ++ [val]) predicate pred_fun
@@ -116,7 +121,7 @@ instance
   ) =>
   P.UnitaryCostablePrimitive primsT QMax sizeT costT
   where
-  unitaryQueryCostPrimitive delta QMax{predicate} _ = do
+  unitaryQueryCostPrimitive delta QMax{predicate} = do
     P.FunDef{P.param_types} <- view $ P._funCtx . Ctx.at predicate . singular _Just
     P.Fin n <- pure $ last param_types
 
@@ -133,7 +138,7 @@ instance
     -- cost of each predicate call
     cost_pred <-
       P.unitaryQueryCostE delta_per_pred_call $
-        P.FunCallE{P.fun_kind = P.FunctionCall predicate, P.args = undefined}
+        P.FunCallE{P.fname = predicate, P.args = undefined}
 
     return $ qry * cost_pred
 
@@ -163,7 +168,7 @@ instance
     cost_unitary_pred <-
       magnify P._unitaryCostEnv $
         P.unitaryQueryCostE delta_per_pred_call $
-          P.FunCallE{P.fun_kind = P.FunctionCall predicate, P.args = undefined}
+          P.FunCallE{P.fname = predicate, P.args = undefined}
 
     return $ qry * cost_unitary_pred
 
@@ -196,6 +201,6 @@ instance
     cost_unitary_pred <-
       magnify P._unitaryCostEnv $
         P.unitaryQueryCostE delta_per_pred_call $
-          P.FunCallE{P.fun_kind = P.FunctionCall predicate, P.args = undefined}
+          P.FunCallE{P.fname = predicate, P.args = undefined}
 
     return $ qry * cost_unitary_pred

@@ -13,7 +13,10 @@ import Data.Traversable (for)
 
 import Traq.Data.Probability.Class
 
-newtype ExpMonad probT a = ExpMonad {runExp :: forall f. (Applicative f) => ContT probT f a}
+newtype ExpMonad probT a = ExpMonad (forall f. (Applicative f) => ContT probT f a)
+
+runExp :: (Applicative f) => ExpMonad probT a -> ContT probT f a
+runExp (ExpMonad c) = c
 
 instance Functor (ExpMonad probT) where
   fmap f (ExpMonad a) = ExpMonad $ fmap f a

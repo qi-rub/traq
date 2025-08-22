@@ -92,6 +92,7 @@ exprP :: forall primT. (CanParsePrimitive primT) => TokenParser () -> Parser (Ex
 exprP tp@TokenParser{..} =
   choice . map try $
     [ parens (exprP tp)
+    , primCallE
     , funCallE
     , unOpE
     , binOpE
@@ -112,17 +113,14 @@ exprP tp@TokenParser{..} =
     (val, ty) <- typedTerm tp integer
     return $ BasicExprE ConstE{val = FinV (fromInteger val), ty}
 
-  funCallKind :: Parser (FunctionCallKind primT)
-  funCallKind = primitiveCall <|> functionCall
-   where
-    primitiveCall = PrimitiveCall <$> primitiveParser tp
-    functionCall = FunctionCall <$> identifier
+  primCallE :: Parser (Expr primT SymbSize)
+  primCallE = PrimCallE <$> primitiveParser tp
 
   funCallE :: Parser (Expr primT SymbSize)
   funCallE = do
-    fun_kind <- funCallKind
+    fname <- identifier
     args <- parens $ commaSep identifier
-    return FunCallE{fun_kind, args}
+    return FunCallE{fname, args}
 
   unOp :: Parser UnOp
   unOp =

@@ -247,7 +247,11 @@ type Executor primsT sizeT costT = StateT (ExecutionState sizeT) (Evaluator prim
  Can evaluate @primT@ under a context of @primsT@.
 -}
 class (Fractional costT) => EvaluatablePrimitive primsT primT costT where
-  evalPrimitive :: (sizeT ~ SizeT) => primT -> [Value sizeT] -> Evaluator primsT sizeT costT [Value sizeT]
+  evalPrimitive ::
+    (sizeT ~ SizeT) =>
+    primT ->
+    ProgramState sizeT ->
+    Evaluator primsT sizeT costT [Value sizeT]
 
 instance (Fractional costT) => EvaluatablePrimitive primsT Void costT where
   evalPrimitive = absurd
@@ -291,15 +295,14 @@ evalExpr BiasedCoinE{prob_one} _ = do
   return [toValue b]
 
 -- function calls
-evalExpr FunCallE{fun_kind = FunctionCall fun, args} sigma = do
+evalExpr FunCallE{fname, args} sigma = do
   arg_vals <- evalStateT ?? sigma $ mapM lookupS args
-  fun_def <- view $ _funCtx . Ctx.at fun . singular _Just
-  evalFun arg_vals fun fun_def
+  fun_def <- view $ _funCtx . Ctx.at fname . singular _Just
+  evalFun arg_vals fname fun_def
 
 -- subroutines
-evalExpr FunCallE{fun_kind = PrimitiveCall prim, args} sigma = do
-  vals <- evalStateT ?? sigma $ mapM lookupS args
-  evalPrimitive prim vals
+evalExpr PrimCallE{prim} sigma = do
+  evalPrimitive prim sigma
 
 execStmt ::
   forall primsT costT m.

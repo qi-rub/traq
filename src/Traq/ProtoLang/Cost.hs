@@ -119,9 +119,9 @@ instance HasNeedsEps Void where
   needsEps = absurd
 
 instance HasNeedsEps (Expr primT sizeT) where
-  needsEps FunCallE{fun_kind = FunctionCall f} =
-    view (_funCtx . Ctx.at f . singular _Just) >>= needsEps
-  needsEps FunCallE{fun_kind = PrimitiveCall _} = return True
+  needsEps FunCallE{fname} =
+    view (_funCtx . Ctx.at fname . singular _Just) >>= needsEps
+  needsEps PrimCallE{} = return True
   needsEps _ = return False
 
 instance HasNeedsEps (Stmt primT sizeT) where
@@ -214,7 +214,6 @@ class
   unitaryQueryCostPrimitive ::
     costT ->
     primT ->
-    [Ident] ->
     UnitaryCostCalculator primsT sizeT costT costT
 
 instance (Show costT) => UnitaryCostablePrimitive primsT Void sizeT costT where
@@ -233,14 +232,13 @@ unitaryQueryCostE ::
   -- | expression @E@
   Expr primsT sizeT ->
   m costT
-unitaryQueryCostE delta FunCallE{fun_kind = FunctionCall fname} = do
+unitaryQueryCostE delta FunCallE{fname} = do
   FunDef{mbody} <- view $ _funCtx . Ctx.at fname . singular _Just
   cost_half <- case mbody of
     Nothing -> view $ _unitaryTicks . at fname . to (fromMaybe 0) -- declaration: use tick value (or 0 if not specified)
     Just FunBody{body_stmt} -> unitaryQueryCostS (delta / 2) body_stmt -- def: compute using body
   return $ 2 * cost_half
-unitaryQueryCostE delta FunCallE{fun_kind = PrimitiveCall prim, args} =
-  unitaryQueryCostPrimitive delta prim args
+unitaryQueryCostE delta PrimCallE{prim} = unitaryQueryCostPrimitive delta prim
 -- zero-cost expressions
 unitaryQueryCostE _ BasicExprE{} = return 0
 unitaryQueryCostE _ UniformRandomE{} = return 0
@@ -362,14 +360,14 @@ quantumMaxQueryCostE ::
   -- | statement @S@
   Expr primsT sizeT ->
   QuantumMaxCostCalculator primsT sizeT costT costT
-quantumMaxQueryCostE eps FunCallE{fun_kind = FunctionCall fname} = do
+quantumMaxQueryCostE eps FunCallE{fname} = do
   FunDef{mbody} <- view $ _funCtx . Ctx.at fname . singular _Just
   case mbody of
     Nothing -> view $ _classicalTicks . at fname . to (fromMaybe 0) -- declaration: use tick value (or 0 if not specified)
     Just FunBody{body_stmt} -> quantumMaxQueryCostS eps body_stmt -- def: compute using body
 
 -- -- known cost formulas
-quantumMaxQueryCostE eps FunCallE{fun_kind = PrimitiveCall prim} =
+quantumMaxQueryCostE eps PrimCallE{prim} =
   quantumMaxQueryCostPrimitive eps prim
 -- -- zero-cost expressions
 quantumMaxQueryCostE _ BasicExprE{} = return 0
@@ -481,7 +479,7 @@ class
   quantumQueryCostPrimitive ::
     costT ->
     primT ->
-    [Value sizeT] ->
+    ProgramState sizeT ->
     QuantumCostCalculator primsT sizeT costT costT
 
 instance (Show costT, Fractional costT) => QuantumCostablePrimitive primsT Void sizeT costT where
@@ -500,9 +498,9 @@ quantumQueryCostE ::
   -- | statement @S@
   Expr primsT SizeT ->
   m costT
-quantumQueryCostE eps sigma FunCallE{fun_kind = FunctionCall f, args} =
-  view (_funCtx . Ctx.at f . singular _Just . to mbody) >>= \case
-    Nothing -> view $ _classicalTicks . at f . to (fromMaybe 0) -- tick value, default to 0
+quantumQueryCostE eps sigma FunCallE{fname, args} =
+  view (_funCtx . Ctx.at fname . singular _Just . to mbody) >>= \case
+    Nothing -> view $ _classicalTicks . at fname . to (fromMaybe 0) -- tick value, default to 0
     Just FunBody{param_names, body_stmt} -> do
       let vs = args & map (\x -> sigma ^. Ctx.at x . singular _Just)
       -- bind the arguments to the parameter names
@@ -510,9 +508,8 @@ quantumQueryCostE eps sigma FunCallE{fun_kind = FunctionCall f, args} =
       quantumQueryCostS eps omega body_stmt
 
 -- -- known cost formulas
-quantumQueryCostE eps sigma FunCallE{fun_kind = PrimitiveCall prim, args} = do
-  let vals = [sigma ^. Ctx.at x . singular _Just | x <- args]
-  quantumQueryCostPrimitive eps prim vals
+quantumQueryCostE eps sigma PrimCallE{prim} = do
+  quantumQueryCostPrimitive eps prim sigma
 -- -- zero-cost expressions
 quantumQueryCostE _ _ BasicExprE{} = return 0
 quantumQueryCostE _ _ UniformRandomE{} = return 0

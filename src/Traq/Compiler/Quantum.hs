@@ -64,8 +64,6 @@ class
     -- | fail prob
     costT ->
     primT ->
-    -- | args
-    [Ident] ->
     -- | rets
     [Ident] ->
     CompilerT primsT holeT sizeT costT (Stmt holeT sizeT)
@@ -171,13 +169,13 @@ lowerExpr _ P.BasicExprE{P.basic_expr} rets = return $ AssignS rets basic_expr
 lowerExpr _ P.UniformRandomE{} _ = error "TODO uniform random sampling operation"
 lowerExpr _ P.BiasedCoinE{} _ = error "TODO biased coin toss"
 -- function call
-lowerExpr eps P.FunCallE{P.fun_kind = P.FunctionCall f, P.args} rets = do
-  proc_name <- lowerFunDefByName eps f
+lowerExpr eps P.FunCallE{P.fname, P.args} rets = do
+  proc_name <- lowerFunDefByName eps fname
   return $ CallS{fun = FunctionCall proc_name, args = args ++ rets, meta_params = []}
 
 -- primitive call
-lowerExpr eps P.FunCallE{P.fun_kind = P.PrimitiveCall prim, P.args} rets =
-  lowerPrimitive eps prim args rets
+lowerExpr eps P.PrimCallE{P.prim} rets =
+  lowerPrimitive eps prim rets
 
 -- | Lower a single statement
 lowerStmt ::
@@ -210,6 +208,7 @@ lowerProgram ::
   , P.TypeCheckable sizeT
   , Show costT
   , Floating costT
+  , P.HasFreeVars primsT
   ) =>
   P.PrecisionSplittingStrategy ->
   -- | input bindings to the source program

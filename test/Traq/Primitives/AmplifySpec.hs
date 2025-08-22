@@ -45,10 +45,8 @@ exampleProgram1 n = P.Program{P.funCtx = fun_ctx, P.stmt = P.SeqS [stmt_x, ampli
     P.ExprS
       { P.rets = ["ok", "result"]
       , P.expr =
-          P.FunCallE
-            { P.fun_kind = P.PrimitiveCall QAmplify{sampler = "sampler", p_min = 0.02}
-            , P.args = ["x"]
-            }
+          P.PrimCallE
+            QAmplify{sampler = "sampler", p_min = 0.02, sampler_args = ["x"]}
       }
 
 exampleProgram2 :: (Num sizeT) => sizeT -> P.Program QAmplify sizeT
@@ -111,10 +109,8 @@ exampleProgram2 n =
     P.ExprS
       { P.rets = ["ok", "result"]
       , P.expr =
-          P.FunCallE
-            { P.fun_kind = P.PrimitiveCall QAmplify{sampler = "f", p_min = 0.6}
-            , P.args = ["y"]
-            }
+          P.PrimCallE
+            QAmplify{sampler = "f", p_min = 0.6, sampler_args = ["y"]}
       }
 
 exampleProgram3 :: (Num sizeT) => sizeT -> P.Program QAmplify sizeT
@@ -205,10 +201,8 @@ exampleProgram3 n =
     P.ExprS
       { P.rets = ["ok", "x"]
       , P.expr =
-          P.FunCallE
-            { P.fun_kind = P.PrimitiveCall QAmplify{sampler = "sampler", p_min = 0.2}
-            , P.args = ["l", "r"]
-            }
+          P.PrimCallE
+            QAmplify{sampler = "sampler", p_min = 0.2, sampler_args = ["l", "r"]}
       }
 
 spec :: Spec
@@ -223,7 +217,7 @@ spec = do
       p `shouldBe` exampleProgram1 (Sym.var "N")
 
     it "round-trips through print/parse" $ do
-      let stmt = "ok, result <- @amplify[f, 0.02]\n(x1, x2);\n"
+      let stmt = "ok, result <- @amplify[f, 0.02](x1, x2);\n"
       let parsed = P.parseStmt @QAmplify stmt
       let printed = PP.toCodeString <$> parsed
       printed `shouldBe` Right stmt

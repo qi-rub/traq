@@ -78,8 +78,6 @@ class
   lowerPrimitive ::
     costT ->
     primT ->
-    -- | args
-    [Ident] ->
     -- | rets
     [Ident] ->
     CompilerT primsT holeT sizeT costT (UStmt holeT sizeT)
@@ -139,7 +137,7 @@ lowerExpr ::
   CompilerT primsT holeT sizeT costT (UStmt holeT sizeT)
 -- basic expressions are lowered to their unitary embedding
 lowerExpr _ P.BasicExprE{P.basic_expr} rets = do
-  let args = toList $ P.freeVarsBE basic_expr
+  let args = toList $ P.freeVars basic_expr
   return $ UnitaryS{qargs = args ++ rets, unitary = RevEmbedU args basic_expr}
 
 -- random sampling expressions
@@ -149,11 +147,9 @@ lowerExpr _ P.BiasedCoinE{} rets = do
   return $ UnitaryS{qargs = rets, unitary = error "TODO: Add Ry gate"}
 
 -- function call
-lowerExpr delta P.FunCallE{P.fun_kind = P.FunctionCall fun_name, P.args} rets = do
-  fun <-
-    view (P._funCtx . Ctx.at fun_name)
-      >>= maybeWithError ("cannot find function " <> fun_name)
-  LoweredProc{lowered_def, inp_tys, out_tys, aux_tys} <- lowerFunDef WithoutControl delta fun_name fun
+lowerExpr delta P.FunCallE{fname, P.args} rets = do
+  fun <- P.lookupFunE fname
+  LoweredProc{lowered_def, inp_tys, out_tys, aux_tys} <- lowerFunDef WithoutControl delta fname fun
 
   when (length inp_tys /= length args) $
     throwError "mismatched number of args"
@@ -168,8 +164,8 @@ lowerExpr delta P.FunCallE{P.fun_kind = P.FunctionCall fun_name, P.args} rets = 
       , dagger = False
       }
 -- primitive call
-lowerExpr delta P.FunCallE{P.fun_kind = P.PrimitiveCall prim, P.args} rets =
-  lowerPrimitive delta prim args rets
+lowerExpr delta P.PrimCallE{prim} rets =
+  lowerPrimitive delta prim rets
 
 -- | Compile a statement (simple or compound)
 lowerStmt ::
@@ -396,6 +392,7 @@ lowerProgram ::
   ( Lowerable primsT primsT holeT SizeT costT
   , Show costT
   , Floating costT
+  , P.HasFreeVars primsT
   ) =>
   P.PrecisionSplittingStrategy ->
   -- | All variable bindings

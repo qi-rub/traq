@@ -1,4 +1,5 @@
 {-# LANGUAGE ConstraintKinds #-}
+{-# LANGUAGE DuplicateRecordFields #-}
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE MultiParamTypeClasses #-}
 
@@ -21,6 +22,9 @@ module Traq.ProtoLang.TypeCheck (
   typeCheckStmt,
   typeCheckFun,
   typeCheckProg,
+
+  -- * Accessors
+  lookupFunE,
 ) where
 
 import Control.Monad (forM_, unless, when, zipWithM_)
@@ -184,16 +188,10 @@ type TypingEnv primT sizeT = FunCtx primT sizeT
 type TypeChecker primT sizeT = ReaderT (TypingEnv primT sizeT) (StateT (TypingCtx sizeT) (Either String))
 
 class TypeCheckablePrimitive primT sizeT where
-  typeCheckPrimitive ::
-    (TypeCheckable sizeT) =>
-    -- | primitive
-    primT ->
-    -- | arguments
-    [Ident] ->
-    TypeChecker primsT sizeT [VarType sizeT]
+  typeCheckPrimitive :: (TypeCheckable sizeT) => primT -> TypeChecker primsT sizeT [VarType sizeT]
 
 instance TypeCheckablePrimitive Void sizeT where
-  typeCheckPrimitive prim _ = absurd prim
+  typeCheckPrimitive = absurd
 
 -- | Typecheck an expression and return the output types
 typeCheckExpr ::
@@ -208,20 +206,20 @@ typeCheckExpr BasicExprE{basic_expr} = do
   lift $ do
     ty <- runReaderT ?? gamma $ typeCheckBasicExpr basic_expr
     return [ty]
+typeCheckExpr UniformRandomE{sample_ty} = pure [sample_ty]
+typeCheckExpr BiasedCoinE{} = pure [tbool]
 -- f(x, ...)
-typeCheckExpr FunCallE{fun_kind = FunctionCall fun, args} = do
-  FunDef{param_types, ret_types} <- lookupFunE fun
+typeCheckExpr FunCallE{fname, args} = do
+  FunDef{param_types, ret_types} <- lookupFunE fname
 
   arg_tys <- mapM Ctx.lookup args
   unless (arg_tys == param_types) $
-    throwError (fun <> " expects " <> show param_types <> ", got " <> show (zip args arg_tys))
+    throwError (fname <> " expects " <> show param_types <> ", got " <> show (zip args arg_tys))
 
   return ret_types
 
 -- `primitive`[...](...)
-typeCheckExpr FunCallE{fun_kind = PrimitiveCall prim, args} = typeCheckPrimitive prim args
-typeCheckExpr UniformRandomE{sample_ty} = pure [sample_ty]
-typeCheckExpr BiasedCoinE{} = pure [tbool]
+typeCheckExpr PrimCallE{prim} = typeCheckPrimitive prim
 
 {- | Typecheck a statement, given the current context and function definitions.
  If successful, the typing context is updated.

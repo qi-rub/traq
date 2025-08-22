@@ -12,7 +12,6 @@ module Traq.Primitives.Search.Symbolic (
 ) where
 
 import Control.Applicative ((<|>))
-import Lens.Micro.GHC
 import Lens.Micro.Mtl
 import Text.Parsec (try)
 import Text.Printf (printf)
@@ -38,25 +37,29 @@ _QryQmax n eps = Sym.var $ printf "QryQmax(%s, %s)" (show n) (show eps)
 -- ================================================================================
 -- Primitive Class Implementation
 -- ================================================================================
-data QSearchSym = QSearchSym Ident | QAnySym Ident
+data QSearchSym = QSearchSym (Ident, [Ident]) | QAnySym (Ident, [Ident])
   deriving (Eq, Show, Read)
 
-_predicate :: Lens' QSearchSym Ident
-_predicate focus (QSearchSym p) = QSearchSym <$> focus p
-_predicate focus (QAnySym p) = QAnySym <$> focus p
+getPred :: QSearchSym -> Ident
+getPred (QSearchSym (p, _)) = p
+getPred (QAnySym (p, _)) = p
 
 instance HasPrimAny QSearchSym where
-  mkAny = QSearchSym
-  getPredicateOfAny = view _predicate
+  _PrimAny focus (QAnySym f) = QAnySym <$> focus f
+  _PrimAny _ q = pure q
+
+  mkPrimAny = curry QSearchSym
 
 instance HasPrimSearch QSearchSym where
-  mkSearch = QSearchSym
-  getPredicateOfSearch = view _predicate
+  _PrimSearch focus (QSearchSym f) = QSearchSym <$> focus f
+  _PrimSearch _ q = pure q
+
+  mkPrimSearch = curry QSearchSym
 
 -- Printing
 instance PP.ToCodeString QSearchSym where
-  build (QAnySym predicate) = PP.putWord $ printf "@any[%s]" predicate
-  build (QSearchSym predicate) = PP.putWord $ printf "@search[%s]" predicate
+  build (QAnySym (predicate, args)) = PP.putWord $ printf "@any[%s](%s)" predicate (PP.commaList args)
+  build (QSearchSym (predicate, args)) = PP.putWord $ printf "@search[%s](%s)" predicate (PP.commaList args)
 
 -- Parsing
 instance P.CanParsePrimitive QSearchSym where
@@ -81,8 +84,8 @@ instance
   ) =>
   P.UnitaryCostablePrimitive primsT QSearchSym (Sym.Sym sizeT) (Sym.Sym costT)
   where
-  unitaryQueryCostPrimitive delta prim _ = do
-    fun_def@P.FunDef{P.param_types} <- view $ P._funCtx . Ctx.at (prim ^. _predicate) . singular _Just
+  unitaryQueryCostPrimitive delta prim = do
+    Just fun_def@P.FunDef{P.param_types} <- view $ P._funCtx . Ctx.at (getPred prim)
 
     P.Fin n <- pure $ last param_types
 
@@ -105,7 +108,7 @@ instance
     -- cost of each predicate call
     cost_pred <-
       P.unitaryQueryCostE delta_per_pred_call $
-        P.FunCallE{P.fun_kind = P.FunctionCall (prim ^. _predicate), P.args = undefined}
+        P.FunCallE{P.fname = getPred prim, P.args = undefined}
 
     return $ qry * cost_pred
 
@@ -121,7 +124,7 @@ instance
   P.QuantumMaxCostablePrimitive primsT QSearchSym (Sym.Sym sizeT) (Sym.Sym costT)
   where
   quantumMaxQueryCostPrimitive eps prim = do
-    fun_def@P.FunDef{P.param_types} <- view $ P._funCtx . Ctx.at (prim ^. _predicate) . singular _Just
+    Just fun_def@P.FunDef{P.param_types} <- view $ P._funCtx . Ctx.at (getPred prim)
     P.Fin n <- pure $ last param_types
 
     -- split the fail prob
@@ -145,6 +148,6 @@ instance
     cost_unitary_pred <-
       magnify P._unitaryCostEnv $
         P.unitaryQueryCostE delta_per_pred_call $
-          P.FunCallE{P.fun_kind = P.FunctionCall (prim ^. _predicate), P.args = undefined}
+          P.FunCallE{P.fname = getPred prim, P.args = undefined}
 
     return $ qry * cost_unitary_pred

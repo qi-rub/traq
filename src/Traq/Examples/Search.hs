@@ -4,7 +4,7 @@ import qualified Traq.Data.Context as Ctx
 
 import Traq.Prelude
 import Traq.Primitives
-import Traq.Primitives.Search.Prelude (mkAny)
+import Traq.Primitives.Search.Prelude (HasPrimSearch (mkPrimSearch), mkPrimAny)
 import Traq.ProtoLang.Syntax
 
 arraySearch :: SizeT -> Program DefaultPrims SizeT
@@ -19,11 +19,7 @@ arraySearch n =
 
   stmt =
     ExprS
-      { expr =
-          FunCallE
-            { fun_kind = PrimitiveCall $ QAny (mkAny "Oracle")
-            , args = []
-            }
+      { expr = PrimCallE $ mkPrimAny "Oracle" []
       , rets = ["result"]
       }
 
@@ -48,11 +44,7 @@ arraySearchIx n =
               , body_stmt =
                   ExprS
                     { rets = ["b"]
-                    , expr =
-                        FunCallE
-                          { fun_kind = FunctionCall "Oracle"
-                          , args = ["i"]
-                          }
+                    , expr = FunCallE{fname = "Oracle", args = ["i"]}
                     }
               , ret_names = ["b"]
               }
@@ -62,9 +54,5 @@ arraySearchIx n =
   stmt =
     ExprS
       { rets = ["result", "solution"]
-      , expr =
-          FunCallE
-            { fun_kind = PrimitiveCall (QAny $ QSearchCFNW{predicate = "check", return_sol = True})
-            , args = []
-            }
+      , expr = PrimCallE $ mkPrimSearch "check" []
       }

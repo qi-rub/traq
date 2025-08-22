@@ -2,4 +2,4 @@ declare child(Fin<N>) -> (Fin<N>, Fin<N>) end
 
 declare check(Fin<N>) -> Bool end
 
-ok <- @treesearch[child, check]();
+ok <- @treesearch[child, check]()();

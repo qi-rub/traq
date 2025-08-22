@@ -191,7 +191,7 @@ typeCheckStmt (CommentS _) = return ()
 typeCheckStmt (HoleS _) = return ()
 -- Simple statements
 typeCheckStmt AssignS{rets, expr} = do
-  let expr_vars = toList $ P.freeVarsBE expr
+  let expr_vars = toList $ P.freeVars expr
   expr_var_tys <- forM expr_vars $ \var -> do
     view (P._typingCtx . Ctx.at var)
       >>= maybeWithError (Err.MessageE $ printf "cannot find %s" var)

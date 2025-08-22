@@ -37,11 +37,7 @@ symbolicEx = do
     let stmt =
           P.ExprS
             { P.rets = undefined
-            , P.expr =
-                P.FunCallE
-                  { P.fun_kind = P.FunctionCall f
-                  , P.args = undefined
-                  }
+            , P.expr = P.FunCallE{P.fname = f, P.args = undefined}
             }
 
     let eps = Sym.var "ε" :: Sym.Sym Double
