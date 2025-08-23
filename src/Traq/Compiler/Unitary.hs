@@ -32,9 +32,9 @@ module Traq.Compiler.Unitary (
 import Control.Monad (forM, unless, when, zipWithM)
 import Control.Monad.Except (throwError)
 import Control.Monad.Reader (ReaderT, runReaderT)
-import Control.Monad.State (StateT, runStateT)
+import Control.Monad.State (StateT, evalStateT)
 import Control.Monad.Trans (lift)
-import Control.Monad.Writer (WriterT, runWriterT)
+import Control.Monad.Writer (WriterT, execWriterT)
 import Data.Foldable (Foldable (toList))
 import Data.List (intersect)
 import Data.Maybe (fromMaybe)
@@ -443,13 +443,13 @@ lowerProgram ::
   costT ->
   P.Program primsT SizeT ->
   Either String (CQPL.Program SizeT costT)
-lowerProgram strat gamma_in oracle_ticks delta prog@P.Program{P.funCtx, P.stmt} = do
+lowerProgram strat gamma_in oracle_ticks delta prog@(P.Program fs) = do
   unless (P.checkVarsUnique prog) $
     throwError "program does not have unique variables!"
 
   let config =
         default_
-          & (P._funCtx .~ funCtx)
+          & (P._funCtx .~ P.namedFunsToFunCtx fs)
           & (P._unitaryTicks .~ oracle_ticks)
           & (P._precSplitStrat .~ strat)
   let ctx =
@@ -457,27 +457,11 @@ lowerProgram strat gamma_in oracle_ticks delta prog@P.Program{P.funCtx, P.stmt} 
           & (P._typingCtx .~ gamma_in)
           & (_uniqNamesCtx .~ P.allNamesP prog)
 
-  ((stmtU, outputU), ctx') <-
-    lowerStmt delta stmt
-      & runWriterT
+  let P.NamedFunDef{P.fun_name = main_name, P.fun_def = main_def} = last fs
+  outputU <-
+    lowerFunDefWithGarbage delta main_name main_def
+      & execWriterT
       & (runReaderT ?? config)
-      & (runStateT ?? ctx)
-
+      & (evalStateT ?? ctx)
   let procs = outputU ^. _loweredProcs . to (Ctx.fromListWith proc_name)
-  let (arg_names, arg_tys) = ctx' ^. P._typingCtx . to Ctx.toList . to unzip
-  let main_proc =
-        ProcDef
-          { info_comment = ""
-          , proc_name = "main"
-          , proc_meta_params = []
-          , proc_param_types = arg_tys
-          , proc_body =
-              ProcBodyU $
-                UProcBody
-                  { uproc_param_names = arg_names
-                  , uproc_param_tags = replicate (length arg_names) ParamUnk
-                  , uproc_body_stmt = stmtU
-                  }
-          }
-
-  return CQPL.Program{CQPL.proc_defs = procs & Ctx.ins "main" .~ main_proc}
+  return CQPL.Program{CQPL.proc_defs = procs}

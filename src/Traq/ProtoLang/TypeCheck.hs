@@ -31,7 +31,7 @@ module Traq.ProtoLang.TypeCheck (
 import Control.Monad (forM_, unless, when, zipWithM_)
 import Control.Monad.Except (MonadError, throwError)
 import Control.Monad.Reader (MonadReader, ReaderT, runReaderT)
-import Control.Monad.State (StateT, execStateT)
+import Control.Monad.State (StateT, evalStateT, execStateT)
 import Control.Monad.Trans (lift)
 import Data.Void (Void, absurd)
 import GHC.Generics
@@ -325,21 +325,11 @@ typeCheckProg ::
   ( TypeCheckablePrimitive primT
   , TypeCheckable sizeT
   ) =>
-  TypingCtx sizeT ->
   Program primT sizeT ->
   Either String ()
-typeCheckProg gamma Program{funCtx, stmt} = do
-  mapM_ (typeCheckFun funCtx) funCtx
-  let main_fun =
-        FunDef
-          { param_types = Ctx.elems gamma
-          , ret_types = []
-          , mbody =
-              Just
-                FunBody
-                  { param_names = Ctx.keys gamma
-                  , ret_names = []
-                  , body_stmt = stmt
-                  }
-          }
-  typeCheckFun funCtx main_fun
+typeCheckProg (Program fs) =
+  evalStateT ?? Ctx.empty $
+    forM_ fs $ \NamedFunDef{fun_name, fun_def} -> do
+      ctx <- use id
+      lift $ typeCheckFun ctx fun_def
+      Ctx.ins fun_name .= fun_def

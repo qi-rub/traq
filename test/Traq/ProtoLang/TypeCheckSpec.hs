@@ -3,8 +3,6 @@ module Traq.ProtoLang.TypeCheckSpec (spec) where
 import Data.Either (isLeft)
 import Data.Void (Void)
 
-import qualified Traq.Data.Context as Ctx
-
 import Traq.Examples.MatrixSearch (matrixExampleS)
 import Traq.ProtoLang.Syntax
 import Traq.ProtoLang.TypeCheck
@@ -27,11 +25,20 @@ spec = do
     it "assign" $ do
       let prog =
             Program
-              { funCtx = Ctx.empty
-              , stmt = ExprS{rets = ["y"], expr = BasicExprE $ VarE "x"}
-              } ::
+              [ NamedFunDef "main" $
+                  FunDef
+                    { param_types = [Fin 2]
+                    , mbody =
+                        Just
+                          FunBody
+                            { param_names = ["x"]
+                            , body_stmt = ExprS{rets = ["y"], expr = BasicExprE $ VarE "x"}
+                            , ret_names = ["y"]
+                            }
+                    , ret_types = [Fin 2]
+                    }
+              ] ::
               Program Void Int
-      let gamma = Ctx.fromList [("x", Fin 2)]
-      assertRight $ typeCheckProg gamma prog
+      assertRight $ typeCheckProg prog
     it "matrix example" $ do
-      assertRight $ typeCheckProg Ctx.empty (matrixExampleS 4 5)
+      assertRight $ typeCheckProg (matrixExampleS 4 5)

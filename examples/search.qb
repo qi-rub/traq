@@ -1,3 +1,6 @@
 declare Oracle(Fin<N>) -> Bool end
 
-result <- @any[Oracle]();
+def main() -> Bool do
+	result <- @any[Oracle]();
+	return result
+end

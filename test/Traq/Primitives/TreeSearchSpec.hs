@@ -15,7 +15,12 @@ import Test.Hspec
 import TestHelpers
 
 exampleProgram :: sizeT -> sizeT -> P.Program TreeSearch sizeT
-exampleProgram n two = P.Program{P.funCtx, P.stmt = P.SeqS [stmt]}
+exampleProgram n two =
+  P.Program
+    [ P.NamedFunDef "child" child
+    , P.NamedFunDef "check" check
+    , P.NamedFunDef "main" mainf
+    ]
  where
   node_ty = P.Fin n
   bool_ty = P.Fin two
@@ -34,18 +39,30 @@ exampleProgram n two = P.Program{P.funCtx, P.stmt = P.SeqS [stmt]}
       , P.mbody = Nothing
       }
 
-  funCtx = Ctx.fromList [("child", child), ("check", check)]
-  stmt =
-    P.ExprS
-      { P.rets = ["ok"]
-      , P.expr =
-          P.PrimCallE $
-            TreeSearch
-              { getChildren = "child"
-              , getChildrenArgs = []
-              , checkNode = "check"
-              , checkNodeArgs = []
+  mainf =
+    P.FunDef
+      { P.param_types = []
+      , P.mbody =
+          Just
+            P.FunBody
+              { P.param_names = []
+              , P.body_stmt =
+                  P.SeqS
+                    [ P.ExprS
+                        { P.rets = ["ok"]
+                        , P.expr =
+                            P.PrimCallE $
+                              TreeSearch
+                                { getChildren = "child"
+                                , getChildrenArgs = []
+                                , checkNode = "check"
+                                , checkNodeArgs = []
+                                }
+                        }
+                    ]
+              , P.ret_names = ["ok"]
               }
+      , P.ret_types = [bool_ty]
       }
 
 spec :: Spec
@@ -61,4 +78,4 @@ spec = do
 
     it "type checks" $ do
       let n = 20 :: Int
-      assertRight $ P.typeCheckProg Ctx.empty (exampleProgram n 2)
+      assertRight $ P.typeCheckProg (exampleProgram n 2)

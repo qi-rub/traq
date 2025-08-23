@@ -15,20 +15,30 @@ import Test.Hspec
 import TestHelpers
 
 exampleProgram1 :: (Num sizeT) => sizeT -> P.Program QAmplify sizeT
-exampleProgram1 n = P.Program{P.funCtx = fun_ctx, P.stmt = P.SeqS [stmt_x, amplify_call]}
+exampleProgram1 n = P.Program [P.NamedFunDef "sampler" sampler, P.NamedFunDef "main" main_fun]
  where
-  bool_ty = P.Fin 2
   node_ty = P.Fin n
 
   -- sampler of type (Fin<N>) -> (Bool, Fin<N>)
   sampler =
     P.FunDef
       { P.param_types = [node_ty]
-      , P.ret_types = [bool_ty, node_ty]
+      , P.ret_types = [P.tbool, node_ty]
       , P.mbody = Nothing
       }
 
-  fun_ctx = Ctx.fromList [("sampler", sampler)]
+  main_fun =
+    P.FunDef
+      { P.param_types = []
+      , P.ret_types = [P.tbool, node_ty]
+      , P.mbody =
+          Just $
+            P.FunBody
+              { P.param_names = []
+              , P.ret_names = ["ok", "result"]
+              , P.body_stmt = P.SeqS [stmt_x, amplify_call]
+              }
+      }
 
   stmt_x =
     P.ExprS
@@ -50,13 +60,8 @@ exampleProgram1 n = P.Program{P.funCtx = fun_ctx, P.stmt = P.SeqS [stmt_x, ampli
       }
 
 exampleProgram2 :: (Num sizeT) => sizeT -> P.Program QAmplify sizeT
-exampleProgram2 n =
-  P.Program
-    { P.funCtx = fun_ctx
-    , P.stmt = P.SeqS [stmt_y, amplify_call]
-    }
+exampleProgram2 n = P.Program [P.NamedFunDef "f" fDef, P.NamedFunDef "main" mainDef]
  where
-  bool_ty = P.Fin 2
   node_ty = P.Fin n
 
   funBody =
@@ -88,11 +93,9 @@ exampleProgram2 n =
   fDef =
     P.FunDef
       { P.param_types = [node_ty]
-      , P.ret_types = [bool_ty, node_ty]
+      , P.ret_types = [P.tbool, node_ty]
       , P.mbody = Just funBody
       }
-
-  fun_ctx = Ctx.fromList [("f", fDef)]
 
   stmt_y =
     P.ExprS
@@ -113,14 +116,22 @@ exampleProgram2 n =
             QAmplify{sampler = "f", p_min = 0.6, sampler_args = ["y"]}
       }
 
+  mainDef =
+    P.FunDef
+      { P.param_types = []
+      , P.ret_types = [P.tbool, node_ty]
+      , P.mbody =
+          Just $
+            P.FunBody
+              { P.param_names = []
+              , P.ret_names = ["ok", "result"]
+              , P.body_stmt = P.SeqS [stmt_y, amplify_call]
+              }
+      }
+
 exampleProgram3 :: (Num sizeT) => sizeT -> P.Program QAmplify sizeT
-exampleProgram3 n =
-  P.Program
-    { P.funCtx = fun_ctx
-    , P.stmt = P.SeqS [stmt_l, stmt_r, amplify_call]
-    }
+exampleProgram3 n = P.Program [P.NamedFunDef "sampler" sampler, P.NamedFunDef "main" mainDef]
  where
-  bool_ty = P.Fin 2
   node_ty = P.Fin n
 
   funBody =
@@ -169,11 +180,9 @@ exampleProgram3 n =
   sampler =
     P.FunDef
       { P.param_types = [node_ty, node_ty]
-      , P.ret_types = [bool_ty, node_ty]
+      , P.ret_types = [P.tbool, node_ty]
       , P.mbody = Just funBody
       }
-
-  fun_ctx = Ctx.fromList [("sampler", sampler)]
 
   stmt_l =
     P.ExprS
@@ -205,8 +214,21 @@ exampleProgram3 n =
             QAmplify{sampler = "sampler", p_min = 0.2, sampler_args = ["l", "r"]}
       }
 
+  mainDef =
+    P.FunDef
+      { P.param_types = []
+      , P.ret_types = [P.tbool, node_ty]
+      , P.mbody =
+          Just $
+            P.FunBody
+              { P.param_names = []
+              , P.ret_names = ["ok", "x"]
+              , P.body_stmt = P.SeqS [stmt_l, stmt_r, amplify_call]
+              }
+      }
+
 spec :: Spec
-spec = do
+spec = describe "amplify" $ do
   describe "amplify example1" $ do
     it "parses" $ do
       p <-
@@ -225,14 +247,13 @@ spec = do
     let program1 = exampleProgram1 20
 
     it "type checks" $ do
-      assertRight $ P.typeCheckProg Ctx.empty program1
+      assertRight $ P.typeCheckProg program1
 
     it "evaluates" $ do
       let funInterpCtx = Ctx.singleton "sampler" (\[P.FinV x1] -> [P.toValue True, P.FinV x1])
-      let initialState = Ctx.empty
-      let result = P.runProgram program1 funInterpCtx initialState
+      let result = P.runProgram program1 funInterpCtx []
 
-      result `shouldBeDistribution` [(Ctx.fromList [("x", P.FinV 1), ("ok", P.FinV 1), ("result", P.FinV 1)], 1 :: Double)]
+      result `shouldBeDistribution` [([P.FinV 1, P.FinV 1], 1 :: Double)]
 
   describe "amplify example2" $ do
     it "parses" $ do
@@ -246,16 +267,15 @@ spec = do
     let program2 = exampleProgram2 3
 
     it "type checks" $ do
-      assertRight $ P.typeCheckProg Ctx.empty program2
+      assertRight $ P.typeCheckProg program2
 
     it "evaluates" $ do
       let funInterpCtx = Ctx.singleton "sampler" (\[P.FinV x1, P.FinV _] -> [P.toValue True, P.FinV x1])
-      let initialState = Ctx.empty
-      let result = P.runProgram program2 funInterpCtx initialState
+      let result = P.runProgram program2 funInterpCtx []
 
       result
-        `shouldBeDistribution` [ (Ctx.fromList [("y", P.FinV 1), ("ok", P.FinV 1), ("result", P.FinV 1)], 0.5 :: Double)
-                               , (Ctx.fromList [("y", P.FinV 1), ("ok", P.FinV 1), ("result", P.FinV 2)], 0.5)
+        `shouldBeDistribution` [ ([P.FinV 1, P.FinV 1], 0.5 :: Double)
+                               , ([P.FinV 1, P.FinV 2], 0.5)
                                ]
 
   describe "amplify example3" $ do
@@ -270,15 +290,14 @@ spec = do
     let program3 = exampleProgram3 3
 
     it "type checks" $ do
-      assertRight $ P.typeCheckProg Ctx.empty program3
+      assertRight $ P.typeCheckProg program3
 
     it "evaluates" $ do
       let funInterpCtx = Ctx.singleton "sampler" (\[P.FinV x1, P.FinV _] -> [P.toValue True, P.FinV x1])
-      let initialState = Ctx.empty
 
-      let result = P.runProgram program3 funInterpCtx initialState
+      let result = P.runProgram program3 funInterpCtx []
 
       result
-        `shouldBeDistribution` [ (Ctx.fromList [("l", P.FinV 1), ("r", P.FinV 4), ("ok", P.FinV 1), ("x", P.FinV 1)], 0.5 :: Double)
-                               , (Ctx.fromList [("l", P.FinV 1), ("r", P.FinV 4), ("ok", P.FinV 1), ("x", P.FinV 2)], 0.5)
+        `shouldBeDistribution` [ ([P.FinV 1, P.FinV 1], 0.5 :: Double)
+                               , ([P.FinV 1, P.FinV 2], 0.5)
                                ]

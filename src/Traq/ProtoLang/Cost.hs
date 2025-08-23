@@ -273,12 +273,7 @@ unitaryQueryCostE ::
   -- | expression @E@
   Expr primsT sizeT ->
   m costT
-unitaryQueryCostE delta FunCallE{fname} = do
-  FunDef{mbody} <- view $ _funCtx . Ctx.at fname . singular _Just
-  cost_half <- case mbody of
-    Nothing -> view $ _unitaryTicks . at fname . to (fromMaybe 0) -- declaration: use tick value (or 0 if not specified)
-    Just FunBody{body_stmt} -> unitaryQueryCostS (delta / 2) body_stmt -- def: compute using body
-  return $ 2 * cost_half
+unitaryQueryCostE delta FunCallE{fname} = (2 *) <$> unitaryQueryCostF (delta / 2) fname
 unitaryQueryCostE delta PrimCallE{prim} = unitaryQueryCostPrimitive delta prim
 -- zero-cost expressions
 unitaryQueryCostE _ BasicExprE{} = return 0
@@ -308,6 +303,26 @@ unitaryQueryCostS delta (SeqS ss) = do
   cs <- zipWithM unitaryQueryCostS delta_each ss
   return $ sum cs
 
+-- Evaluate the query cost of a function
+unitaryQueryCostF ::
+  forall primsT sizeT costT m.
+  ( Num sizeT
+  , Floating costT
+  , UnitaryCostablePrimitive primsT primsT sizeT costT
+  , m ~ UnitaryCostCalculator primsT sizeT costT
+  ) =>
+  -- | precision (l2-norm)
+  costT ->
+  -- | function name
+  Ident ->
+  m costT
+-- declaration: use tick value (or 0 if not specified)
+unitaryQueryCostF delta fname = do
+  FunDef{mbody} <- view $ _funCtx . Ctx.at fname . non' (error "invalid function")
+  case mbody of
+    Nothing -> view $ _unitaryTicks . at fname . non' 0 -- declaration: use tick value (or 0 if not specified)
+    Just FunBody{body_stmt} -> unitaryQueryCostS delta body_stmt -- def: compute using body
+
 unitaryQueryCost ::
   forall primsT sizeT costT.
   ( Num sizeT
@@ -322,13 +337,15 @@ unitaryQueryCost ::
   -- | oracle ticks
   OracleTicks costT ->
   costT
-unitaryQueryCost strat delta Program{funCtx, stmt} ticks =
+unitaryQueryCost strat delta (Program fs) ticks =
   let env =
         default_
-          & (_funCtx .~ funCtx)
+          & (_funCtx .~ namedFunsToFunCtx fs)
           & (_unitaryTicks .~ ticks)
           & (_precSplitStrat .~ strat)
-   in unitaryQueryCostS delta stmt `runReaderT` env ^. singular _Just
+   in unitaryQueryCostF delta (fun_name $ last fs)
+        & (runReaderT ?? env)
+        & (^?! _Just)
 
 -- ================================================================================
 -- Quantum Max Cost
@@ -439,12 +456,7 @@ quantumMaxQueryCostE ::
   -- | statement @S@
   Expr primsT sizeT ->
   QuantumMaxCostCalculator primsT sizeT costT costT
-quantumMaxQueryCostE eps FunCallE{fname} = do
-  FunDef{mbody} <- view $ _funCtx . Ctx.at fname . singular _Just
-  case mbody of
-    Nothing -> view $ _classicalTicks . at fname . to (fromMaybe 0) -- declaration: use tick value (or 0 if not specified)
-    Just FunBody{body_stmt} -> quantumMaxQueryCostS eps body_stmt -- def: compute using body
-
+quantumMaxQueryCostE eps FunCallE{fname} = quantumMaxQueryCostF eps fname
 -- -- known cost formulas
 quantumMaxQueryCostE eps PrimCallE{prim} =
   quantumMaxQueryCostPrimitive eps prim
@@ -473,6 +485,24 @@ quantumMaxQueryCostS eps (SeqS ss) = do
   cs <- zipWithM quantumMaxQueryCostS eps_each ss
   return $ sum cs
 
+quantumMaxQueryCostF ::
+  forall primsT sizeT costT.
+  ( Num sizeT
+  , Ord costT
+  , Floating costT
+  , QuantumMaxCostablePrimitive primsT primsT sizeT costT
+  ) =>
+  -- | failure probability \( \varepsilon \)
+  costT ->
+  -- | function name
+  Ident ->
+  QuantumMaxCostCalculator primsT sizeT costT costT
+quantumMaxQueryCostF eps fname = do
+  FunDef{mbody} <- view $ _funCtx . Ctx.at fname . singular _Just
+  case mbody of
+    Nothing -> view $ _classicalTicks . at fname . to (fromMaybe 0) -- declaration: use tick value (or 0 if not specified)
+    Just FunBody{body_stmt} -> quantumMaxQueryCostS eps body_stmt -- def: compute using body
+
 quantumMaxQueryCost ::
   forall primsT sizeT costT.
   ( Num sizeT
@@ -490,14 +520,16 @@ quantumMaxQueryCost ::
   -- | classical ticks
   OracleTicks costT ->
   costT
-quantumMaxQueryCost strat a_eps Program{funCtx, stmt} uticks cticks =
+quantumMaxQueryCost strat a_eps (Program fs) uticks cticks =
   let env =
         default_
-          & (_funCtx .~ funCtx)
+          & (_funCtx .~ namedFunsToFunCtx fs)
           & (_unitaryTicks .~ uticks)
           & (_classicalTicks .~ cticks)
           & (_precSplitStrat .~ strat)
-   in quantumMaxQueryCostS a_eps stmt `runReaderT` env ^. singular _Just
+   in quantumMaxQueryCostF a_eps (fun_name $ last fs)
+        & (runReaderT ?? env)
+        & (^?! _Just)
 
 -- ================================================================================
 -- Quantum Cost
@@ -617,14 +649,8 @@ quantumQueryCostE ::
   Expr primsT SizeT ->
   m costT
 quantumQueryCostE eps sigma FunCallE{fname, args} =
-  view (_funCtx . Ctx.at fname . singular _Just . to mbody) >>= \case
-    Nothing -> view $ _classicalTicks . at fname . to (fromMaybe 0) -- tick value, default to 0
-    Just FunBody{param_names, body_stmt} -> do
-      let vs = args & map (\x -> sigma ^. Ctx.at x . singular _Just)
-      -- bind the arguments to the parameter names
-      let omega = Ctx.fromList $ zip param_names vs
-      quantumQueryCostS eps omega body_stmt
-
+  let vs = args <&> \x -> sigma ^. Ctx.at x . non' (error "invalid arg")
+   in quantumQueryCostF eps vs fname
 -- -- known cost formulas
 quantumQueryCostE eps sigma PrimCallE{prim} = do
   quantumQueryCostPrimitive eps prim sigma
@@ -651,10 +677,18 @@ quantumQueryCostS eps sigma IfThenElseS{cond, s_true, s_false} =
   let s = if valueToBool (sigma ^?! Ctx.at cond . singular _Just) then s_true else s_false
    in quantumQueryCostS eps sigma s
 quantumQueryCostS eps sigma (SeqS ss) = do
-  funCtx <- view _funCtx
-  interpCtx <- view _funInterpCtx
+  env <- do
+    funCtx <- view _funCtx
+    interpCtx <- view _funInterpCtx
+    return $
+      default_
+        & (_funCtx .~ funCtx)
+        & (_funInterpCtx .~ interpCtx)
 
-  let stepS s = runProgram @primsT @costT Program{funCtx, stmt = s} interpCtx
+  let stepS s sigma_s =
+        execStmt @primsT @costT s
+          & (execStateT ?? sigma_s)
+          & (runReaderT ?? env)
   eps_each <- splitEps eps ss
 
   (_, cs) <- execStateT ?? (pure sigma, 0) $
@@ -667,6 +701,26 @@ quantumQueryCostS eps sigma (SeqS ss) = do
       _1 .= (distr >>= stepS s)
 
   return cs
+
+quantumQueryCostF ::
+  forall primsT costT m.
+  ( Floating costT
+  , QuantumCostablePrimitive primsT primsT SizeT costT
+  , m ~ QuantumCostCalculator primsT SizeT costT
+  ) =>
+  -- | failure probability \( \varepsilon \)
+  costT ->
+  -- | inputs
+  [Value SizeT] ->
+  -- | function name
+  Ident ->
+  m costT
+quantumQueryCostF eps arg_vals fname = do
+  view (_funCtx . Ctx.at fname . non' (error "invalid function") . to mbody) >>= \case
+    Nothing -> view $ _classicalTicks . at fname . non' 0 -- tick value, default to 0
+    Just FunBody{param_names, body_stmt} -> do
+      let omega = Ctx.fromList $ zip param_names arg_vals
+      quantumQueryCostS eps omega body_stmt
 
 quantumQueryCost ::
   forall primsT costT.
@@ -682,18 +736,20 @@ quantumQueryCost ::
   OracleTicks costT ->
   -- | data injections
   FunInterpCtx SizeT ->
-  -- | state \( \sigma \)
-  ProgramState SizeT ->
+  -- | input
+  [Value SizeT] ->
   costT
-quantumQueryCost strat a_eps Program{funCtx, stmt} uticks cticks interpCtx sigma =
+quantumQueryCost strat a_eps (Program fs) uticks cticks interpCtx inp =
   let env =
         default_
-          & (_funCtx .~ funCtx)
+          & (_funCtx .~ namedFunsToFunCtx fs)
           & (_unitaryTicks .~ uticks)
           & (_classicalTicks .~ cticks)
           & (_precSplitStrat .~ strat)
           & (_funInterpCtx .~ interpCtx)
-   in quantumQueryCostS a_eps sigma stmt `runReaderT` env ^. singular _Just
+   in quantumQueryCostF a_eps inp (fun_name $ last fs)
+        & (runReaderT ?? env)
+        & (^?! _Just)
 
 -- | The bound on the true expected runtime which fails with probability <= \eps.
 quantumQueryCostBound ::
@@ -713,9 +769,9 @@ quantumQueryCostBound ::
   OracleTicks costT ->
   -- | data injections
   FunInterpCtx SizeT ->
-  -- | state \( \sigma \)
-  ProgramState SizeT ->
+  -- | input
+  [Value SizeT] ->
   costT
-quantumQueryCostBound strat a_eps p uticks cticks interp_ctx sigma =
-  (1 - a_eps) * quantumQueryCost strat a_eps p uticks cticks interp_ctx sigma
+quantumQueryCostBound strat a_eps p uticks cticks interp_ctx inp =
+  (1 - a_eps) * quantumQueryCost strat a_eps p uticks cticks interp_ctx inp
     + a_eps * quantumMaxQueryCost strat a_eps p uticks cticks

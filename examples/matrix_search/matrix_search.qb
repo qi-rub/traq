@@ -16,5 +16,3 @@ def HasAllOnesRow() -> Bool do
 	ok <- @any[IsRowAllOnes]();
 	return ok
 end
-
-result <- HasAllOnesRow();

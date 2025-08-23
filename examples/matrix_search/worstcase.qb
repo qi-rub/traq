@@ -20,5 +20,3 @@ def HasAllOnesRow() do
 	ok <- @any[IsRowAllOnes]();
 	return ok : Bool
 end
-
-result <- HasAllOnesRow();

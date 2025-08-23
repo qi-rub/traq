@@ -1505,9 +1505,5 @@ proc HasAllOnesRow(ok : Fin<2>) { locals : () } {
   call QAny(ok);
 }
 
-proc main(result : Fin<2>) { locals : () } {
-  call HasAllOnesRow(result);
-}
-
 
 // qubits: 555

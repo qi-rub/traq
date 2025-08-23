@@ -5,5 +5,8 @@ do
   return ok, x
 end
 
-y <- const 1 : Fin<N>;
-ok, result <- @amplify[f, 0.6](y);
+def main() -> (Bool, Fin<N>) do
+  y <- const 1 : Fin<N>;
+  ok, result <- @amplify[f, 0.6](y);
+  return ok, result
+end

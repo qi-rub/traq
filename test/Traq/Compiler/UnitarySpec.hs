@@ -21,7 +21,18 @@ spec = do
   describe "lowerStmt" $ do
     it "assign" $
       do
-        let s = P.ExprS{P.rets = ["y"], P.expr = P.BasicExprE P.VarE{P.var = "x"}} :: P.Stmt Void Int
+        let main_fun =
+              P.FunDef
+                { P.param_types = [P.Fin 10]
+                , P.mbody =
+                    Just
+                      P.FunBody
+                        { P.param_names = ["x"]
+                        , P.body_stmt = P.ExprS{P.rets = ["y"], P.expr = P.BasicExprE P.VarE{P.var = "x"}} :: P.Stmt Void Int
+                        , P.ret_names = ["y"]
+                        }
+                , P.ret_types = [P.Fin 10]
+                }
 
         actual <-
           expectRight $
@@ -30,37 +41,13 @@ spec = do
               (Ctx.singleton "x" (P.Fin 10))
               (Map.singleton "Oracle" 1.0)
               (0 :: Double)
-              P.Program
-                { P.funCtx = Ctx.empty
-                , P.stmt = s
-                }
+              (P.Program [P.NamedFunDef "main" main_fun])
 
-        let expected =
-              CQPL.Program
-                { CQPL.proc_defs =
-                    Ctx.singleton
-                      "main"
-                      CQPL.ProcDef
-                        { CQPL.info_comment = ""
-                        , CQPL.proc_name = "main"
-                        , CQPL.proc_meta_params = []
-                        , CQPL.proc_param_types = [P.Fin 10, P.Fin 10]
-                        , CQPL.proc_body =
-                            CQPL.ProcBodyU $
-                              CQPL.UProcBody
-                                { CQPL.uproc_param_names = ["x", "y"]
-                                , CQPL.uproc_param_tags = [CQPL.ParamUnk, CQPL.ParamUnk]
-                                , CQPL.uproc_body_stmt = U.UnitaryS ["x", "y"] $ U.RevEmbedU ["x"] "x"
-                                }
-                        }
-                } ::
-                CQPL.Program Int Double
-
-        actual `shouldBe` expected
         assertRight $ CQPL.typeCheckProgram actual
         PP.toCodeString actual
           `shouldBe` unlines
-            [ "uproc main(x : Fin<10>, y : Fin<10>) {"
+            [ "// main[0.0]"
+            , "uproc main(x : IN Fin<10>, y : OUT Fin<10>) {"
             , "  x, y *= Embed[(x) => x];"
             , "}"
             , ""

@@ -43,7 +43,7 @@ module Traq.ProtoLang.Eval (
 
 import Control.Monad (replicateM, zipWithM_)
 import Control.Monad.Reader (MonadReader, ReaderT, runReaderT)
-import Control.Monad.State (MonadState, StateT, evalStateT, execStateT)
+import Control.Monad.State (MonadState, StateT, evalStateT)
 import Control.Monad.Trans (lift)
 import Data.Maybe (fromJust)
 import Data.Void (Void, absurd)
@@ -348,7 +348,7 @@ evalExpr BiasedCoinE{prob_one} _ = do
 evalExpr FunCallE{fname, args} sigma = do
   arg_vals <- evalStateT ?? sigma $ mapM lookupS args
   fun_def <- view $ _funCtx . Ctx.at fname . singular _Just
-  evalFun arg_vals fname fun_def
+  evalFun arg_vals (NamedFunDef fname fun_def)
 
 -- subroutines
 evalExpr PrimCallE{prim} sigma = do
@@ -378,17 +378,15 @@ evalFun ::
   ) =>
   -- | arguments
   [Value SizeT] ->
-  -- | function name
-  Ident ->
   -- | function
-  FunDef primsT SizeT ->
+  NamedFunDef primsT SizeT ->
   m [Value SizeT]
-evalFun vals_in _ FunDef{mbody = Just FunBody{param_names, ret_names, body_stmt}} =
+evalFun vals_in NamedFunDef{fun_def = FunDef{mbody = Just FunBody{param_names, ret_names, body_stmt}}} =
   let params = Ctx.fromList $ zip param_names vals_in
    in (evalStateT ?? params) $ do
         execStmt body_stmt
         mapM lookupS ret_names
-evalFun vals_in fun_name FunDef{mbody = Nothing} = do
+evalFun vals_in NamedFunDef{fun_name, fun_def = FunDef{mbody = Nothing}} = do
   fn_interp <- view $ _funInterpCtx . Ctx.at fun_name . singular _Just
   return $ fn_interp vals_in
 
@@ -397,14 +395,12 @@ runProgram ::
   (EvaluatablePrimitive primsT primsT costT) =>
   Program primsT SizeT ->
   FunInterpCtx SizeT ->
-  ProgramState SizeT ->
-  Prob.Distr costT (ProgramState SizeT)
-runProgram Program{funCtx, stmt} funInterpCtx st =
-  execStmt stmt
-    & (execStateT ?? st)
-    & (runReaderT ?? env)
+  [Value SizeT] ->
+  Prob.Distr costT [Value SizeT]
+runProgram (Program fs) funInterpCtx inp =
+  evalFun inp (last fs) & (runReaderT ?? env)
  where
   env =
     default_
-      & (_funCtx .~ funCtx)
+      & (_funCtx .~ namedFunsToFunCtx fs)
       & (_funInterpCtx .~ funInterpCtx)

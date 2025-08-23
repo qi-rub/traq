@@ -15,7 +15,6 @@ module Traq.Data.Probability.Tree (
 import Control.Applicative (Alternative (..))
 import Control.Monad (MonadPlus (..))
 import Data.Bifunctor (second)
-import Data.Foldable (toList)
 
 import Lens.Micro.GHC
 

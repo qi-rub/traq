@@ -14,7 +14,7 @@ module Traq.CQPL.Cost (
 import Control.Monad.Except (throwError)
 import Control.Monad.Reader (ReaderT, runReaderT)
 import Control.Monad.State (StateT, runStateT)
-import Data.Either (fromRight)
+import Data.Foldable (Foldable (toList))
 import qualified Data.Map as Map
 import Text.Printf (printf)
 
@@ -109,7 +109,7 @@ procCost name = get_cached_cost >>= maybe calc_cost return
   calc_cost = do
     ProcDef{proc_body} <-
       view (_procCtx . Ctx.at name)
-        >>= maybeWithError (printf "could not find predicate %s" name)
+        >>= maybeWithError (printf "could not find proc %s" name)
     cost <- case proc_body of
       ProcBodyC cproc_body ->
         case cproc_body of
@@ -130,8 +130,10 @@ programCost ::
   ) =>
   Program sizeT costT ->
   (costT, CostMap costT)
-programCost Program{proc_defs} = fromRight (error "could not compute cost") $ do
-  let env = proc_defs
-  procCost "main"
-    & (runReaderT ?? env)
-    & (runStateT ?? mempty)
+programCost Program{proc_defs} =
+  either (\e -> error $ "could not compute cost: " ++ e) id $ do
+    let env = proc_defs
+    let main_name = proc_name $ last $ toList proc_defs
+    procCost main_name
+      & (runReaderT ?? env)
+      & (runStateT ?? mempty)

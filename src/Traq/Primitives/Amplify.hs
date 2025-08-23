@@ -142,7 +142,10 @@ evaluatePrimAmplify prim sigma = do
   eval_env <- view id -- current environment
   arg_vals <- runReaderT ?? sigma $ forM sampler_args $ \x -> do
     view $ Ctx.at x . non (error "invalid arg")
-  let mu = runReaderT ?? eval_env $ P.evalFun @primsT @costT arg_vals sampler sampler_fundef -- result distribution
+  -- result distribution
+  let mu =
+        P.evalFun @primsT @costT arg_vals (P.NamedFunDef sampler sampler_fundef)
+          & (runReaderT ?? eval_env)
   let p_succ = Prob.probabilityOf predicateBTrue mu
   let p_min' = realToFrac p_min
 

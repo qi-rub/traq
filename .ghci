@@ -16,3 +16,4 @@
 :set -XUndecidableInstances
 :set -XTupleSections
 :set -XTypeApplications
+:set -XRecordWildCards

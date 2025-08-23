@@ -29,7 +29,7 @@ spec = do
     let cticks = mempty & at "Matrix" ?~ 1.0
 
     it "type checks" $ do
-      assertRight $ P.typeCheckProg Ctx.empty ex
+      assertRight $ P.typeCheckProg ex
 
     it "has unique vars" $ do
       P.checkVarsUnique ex `shouldBe` True
@@ -38,8 +38,8 @@ spec = do
     let interpCtx = Ctx.singleton "Matrix" oracleF
 
     it "evaluates" $ do
-      let res = P.runProgram @_ @Double ex interpCtx Ctx.empty
-      res `shouldBe` pure (Ctx.singleton "result" (P.FinV 0))
+      let res = P.runProgram @_ @Double ex interpCtx []
+      res `shouldBe` pure [P.FinV 0]
 
     -- expected, worst, unitary
     let wcF = _EQSearchWorst
@@ -48,13 +48,13 @@ spec = do
     it "unitary cost for delta=0.0001" $ do
       let delta = 0.0001 :: Double
       let cu = P.unitaryQueryCost P.SplitSimple delta ex uticks
-      let nu_outer = ucF n (delta / 4)
-      let nu_inner = 2 * ucF m (delta / 4 / nu_outer / 8)
-      cu `shouldBe` 2 * 2 * nu_outer * 2 * nu_inner
+      let nu_outer = ucF n (delta / 2)
+      let nu_inner = 2 * ucF m (delta / 2 / nu_outer / 8)
+      cu `shouldBe` 2 * nu_outer * 2 * nu_inner
 
     it "quantum cost for eps=0.0001" $ do
       let eps = 0.0001
-      let cq = P.quantumQueryCost P.SplitSimple eps ex cticks uticks interpCtx Ctx.empty
+      let cq = P.quantumQueryCost P.SplitSimple eps ex cticks uticks interpCtx []
       let nq_outer = wcF n (eps / 2)
       let nq_inner = 2 * ucF m (eps / 2 / nq_outer / 16)
       let nq_oracle = 2
@@ -104,18 +104,18 @@ spec = do
     it "unitary cost" $ do
       let delta = Sym.var "δ" :: Sym.Sym Double
       let cu = P.unitaryQueryCost P.SplitSimple delta ex uticks
-      let nu_outer = ucF n (delta / 2 / 2)
-      let nu_inner = 2 * ucF m ((delta / 2 - delta / 2 / 2) / nu_outer / 2 / 2 / 2)
+      let nu_outer = ucF n (delta / 2)
+      let nu_inner = 2 * ucF m ((delta - delta / 2) / nu_outer / 2 / 2 / 2)
       let nu_oracle = 2
-      cu `shouldBe` 4 * nu_outer * nu_inner * nu_oracle
+      cu `shouldBe` 2 * nu_outer * nu_inner * nu_oracle
 
     it "unitary cost (optimized precision splitting)" $ do
       let delta = Sym.var "δ" :: Sym.Sym Double
       let cu = P.unitaryQueryCost P.SplitUsingNeedsEps delta ex uticks
-      let nu_outer = ucF n (delta / 2 / 2)
-      let nu_inner = 2 * ucF m ((delta / 2 - delta / 2 / 2) / nu_outer / 2)
+      let nu_outer = ucF n (delta / 2)
+      let nu_inner = 2 * ucF m ((delta - delta / 2) / nu_outer / 2)
       let nu_oracle = 2
-      cu `shouldBe` 4 * nu_outer * nu_inner * nu_oracle
+      cu `shouldBe` 2 * nu_outer * nu_inner * nu_oracle
 
     it "quantum worst case cost" $ do
       let eps = Sym.var "ε" :: Sym.Sym Double

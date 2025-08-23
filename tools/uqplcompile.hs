@@ -2,6 +2,7 @@ module Main (main) where
 
 import Control.Monad (forM_, guard, when)
 import Control.Monad.Writer (MonadWriter, execWriterT, tell)
+import Data.List (dropWhileEnd)
 import Data.Maybe (fromMaybe)
 import Options.Applicative
 import Text.Printf (printf)
@@ -67,7 +68,7 @@ tellLn :: (MonadWriter String m) => String -> m ()
 tellLn x = tell $ unlines [x]
 
 compile :: forall costT. (RealFloat costT, Show costT) => P.Program DefaultPrims SizeT -> costT -> IO String
-compile prog delta = do
+compile prog@(P.Program fs) delta = do
   let oracle_name = "Matrix"
   let oracle_ticks = mempty & at oracle_name ?~ (fromRational 1.0 :: costT)
   Right cqpl_prog <- return $ CompileU.lowerProgram default_ Ctx.empty oracle_ticks delta prog
@@ -89,15 +90,12 @@ compile prog delta = do
                     guard $ not $ null fdelta_s_suf
                     let fdelta_s = fdelta_s_suf & tail & takeWhile (/= ']')
                     fdelta <- readMaybe fdelta_s :: Maybe Double
-                    P.FunDef{mbody = Just body} <- prog ^. to P.funCtx . Ctx.at fname
+                    let prog' = P.Program $ dropWhileEnd (\f -> P.fun_name f /= fname) fs
                     let cf =
                           P.unitaryQueryCost
                             P.SplitSimple
                             fdelta
-                            P.Program
-                              { stmt = body ^. to P.body_stmt
-                              , funCtx = prog ^. to P.funCtx
-                              }
+                            prog'
                             (mempty & at oracle_name ?~ 1.0)
                     return $ show cf
                 )

@@ -1,34 +1,36 @@
 module Traq.Examples.Search where
 
-import qualified Traq.Data.Context as Ctx
-
 import Traq.Prelude
 import Traq.Primitives
 import Traq.Primitives.Search.Prelude (HasPrimSearch (mkPrimSearch), mkPrimAny)
 import Traq.ProtoLang.Syntax
 
 arraySearch :: SizeT -> Program DefaultPrims SizeT
-arraySearch n =
-  Program
-    { funCtx = Ctx.fromList [("Oracle", oracle_decl)]
-    , stmt
-    }
+arraySearch n = Program [NamedFunDef "Oracle" oracle_decl, NamedFunDef "main" main_def]
  where
   oracle_decl :: FunDef DefaultPrims SizeT
   oracle_decl = FunDef{param_types = [Fin n], ret_types = [Fin 2], mbody = Nothing}
 
-  stmt =
-    ExprS
-      { expr = PrimCallE $ mkPrimAny "Oracle" []
-      , rets = ["result"]
+  main_def :: FunDef DefaultPrims SizeT
+  main_def =
+    FunDef
+      { param_types = []
+      , ret_types = [Fin 2]
+      , mbody =
+          Just
+            FunBody
+              { param_names = []
+              , ret_names = ["result"]
+              , body_stmt =
+                  ExprS
+                    { expr = PrimCallE $ mkPrimAny "Oracle" []
+                    , rets = ["result"]
+                    }
+              }
       }
 
 arraySearchIx :: SizeT -> Program DefaultPrims SizeT
-arraySearchIx n =
-  Program
-    { funCtx = Ctx.fromList [("Oracle", oracle_decl), ("check", check)]
-    , stmt
-    }
+arraySearchIx n = Program [NamedFunDef "Oracle" oracle_decl, NamedFunDef "check" check, NamedFunDef "main" main_def]
  where
   oracle_decl :: FunDef DefaultPrims SizeT
   oracle_decl = FunDef{param_types = [Fin n], ret_types = [Fin 2], mbody = Nothing}
@@ -51,8 +53,20 @@ arraySearchIx n =
       , ret_types = [Fin 2]
       }
 
-  stmt =
-    ExprS
-      { rets = ["result", "solution"]
-      , expr = PrimCallE $ mkPrimSearch "check" []
+  main_def :: FunDef DefaultPrims SizeT
+  main_def =
+    FunDef
+      { param_types = [Fin n]
+      , mbody =
+          Just
+            FunBody
+              { param_names = ["i"]
+              , body_stmt =
+                  ExprS
+                    { rets = ["result", "solution"]
+                    , expr = PrimCallE $ mkPrimSearch "check" []
+                    }
+              , ret_names = ["result", "solution"]
+              }
+      , ret_types = [Fin 2, Fin n]
       }

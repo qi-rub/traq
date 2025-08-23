@@ -26,8 +26,11 @@ spec = do
       let prog =
             unsafeParseProgram . unlines $
               [ "declare Oracle(Fin<100>) -> Bool end"
+              , "def main() -> Bool do"
               , "i <- const 10 : Fin<100>;"
               , "res <- Oracle(i);"
+              , "return res"
+              , "end"
               ]
       let c = unitaryQueryCost SplitSimple 0.001 prog (Map.singleton "Oracle" 1.0)
       c `shouldBe` (2 :: Double)
@@ -40,8 +43,11 @@ spec = do
               , "  b <- Oracle(i);"
               , "  return b"
               , "end"
-              , "i <- const 10 : Fin<100>;"
-              , "res <- f(i);"
+              , "def main() -> Bool do"
+              , "  i <- const 10 : Fin<100>;"
+              , "  res <- f(i);"
+              , "  return res"
+              , "end"
               ]
       let c = unitaryQueryCost SplitSimple 0.001 prog (Map.singleton "Oracle" 1.0)
       c `shouldBe` (4 :: Double)
@@ -54,7 +60,10 @@ spec = do
               , "  b <- const 0 : Fin<2>;"
               , "  return b"
               , "end"
-              , "res <- @any[f]();"
+              , "def main() -> Bool do"
+              , "  res <- @any[f]();"
+              , "  return res"
+              , "end"
               ]
       let c = unitaryQueryCost SplitSimple 0.001 prog (Map.singleton "Oracle" 1.0)
       c `shouldBe` (0 :: Double)
@@ -63,7 +72,10 @@ spec = do
       let prog =
             unsafeParseProgram . unlines $
               [ "declare Oracle(Fin<100>) -> Bool end"
-              , "res <- @any[Oracle]();"
+              , "def main() -> Bool do"
+              , "  res <- @any[Oracle]();"
+              , "  return res"
+              , "end"
               ]
       let c = unitaryQueryCost SplitSimple 0.001 prog (Map.singleton "Oracle" 1.0)
       (c :: Double) `shouldBe` 2 * _QSearchZalka (100 :: Int) (0.001 / 2)
@@ -72,7 +84,10 @@ spec = do
       let prog =
             unsafeParseProgram . unlines $
               [ "declare Oracle(Fin<100>) -> Bool end"
-              , "res1 <-$ uniform Fin<2>;"
+              , "def main() -> Bool do"
+              , "  res1 <-$ uniform Fin<2>;"
+              , "  return res"
+              , "end"
               ]
       let c = quantumQueryCost SplitSimple 0.001 prog default_ default_ default_ default_
       (c :: Double) `shouldBe` 0

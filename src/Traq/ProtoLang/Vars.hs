@@ -16,8 +16,6 @@ import GHC.Generics
 
 import Lens.Micro.GHC
 
-import qualified Traq.Data.Context as Ctx
-
 import Traq.Prelude
 import Traq.ProtoLang.Syntax
 
@@ -97,16 +95,15 @@ allNamesF FunBody{param_names, ret_names, body_stmt} =
 
 -- | Get all the variables of a program
 allNamesP :: (HasFreeVars primT) => Program primT sizeT -> VarSet
-allNamesP Program{funCtx, stmt} =
-  foldr Set.union (allVars stmt) $
-    funCtx & Ctx.elems & mapMaybe mbody & map allNamesF
+allNamesP (Program fs) =
+  foldr (Set.union . allNamesF) mempty $ mapMaybe (mbody . fun_def) fs
 
 -- | Check if a program has unique variable names
 checkVarsUnique :: (HasFreeVars primT) => Program primT sizeT -> Bool
-checkVarsUnique Program{funCtx, stmt} =
-  isJust . foldM combine Set.empty $ allVars stmt : all_fun_names
+checkVarsUnique (Program fs) =
+  isJust . foldM combine Set.empty $ all_fun_names
  where
-  all_fun_names = funCtx & Ctx.elems & mapMaybe mbody & map allNamesF
+  all_fun_names = fs & mapMaybe (mbody . fun_def) & map allNamesF
 
   combine :: VarSet -> VarSet -> Maybe VarSet
   combine u v = do

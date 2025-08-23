@@ -31,14 +31,14 @@ spec = do
     let ex = arraySearch n
 
     it "type checks" $ do
-      assertRight $ P.typeCheckProg Ctx.empty ex
+      assertRight $ P.typeCheckProg ex
 
     let oracleF = const [P.FinV 0]
     let interpCtx = Ctx.singleton "Oracle" oracleF
 
     it "evaluates" $ do
-      let res = P.runProgram @_ @Double ex interpCtx Ctx.empty
-      res `shouldBe` pure (Ctx.singleton "result" (P.FinV 0))
+      let res = P.runProgram @_ @Double ex interpCtx []
+      res `shouldBe` pure [P.FinV 0]
 
     let ecF = _EQSearch
     let ucF = _QSearchZalka
@@ -53,7 +53,7 @@ spec = do
 
     it "quantum cost for eps=0.0001" $ do
       let true_cost = 2 * ecF n 0 (eps / 2)
-      P.quantumQueryCost P.SplitSimple eps ex uticks ticks interpCtx Ctx.empty `shouldBe` true_cost
+      P.quantumQueryCost P.SplitSimple eps ex uticks ticks interpCtx [] `shouldBe` true_cost
 
     it "generate code" $ do
       PP.toCodeString ex `shouldSatisfy` (not . null)
@@ -78,17 +78,16 @@ spec = do
     let ex = arraySearchIx n
 
     it "type checks" $ do
-      assertRight $ P.typeCheckProg Ctx.empty ex
+      assertRight $ P.typeCheckProg ex
 
     let planted_sols = [2, 4, 5] :: [SizeT]
     let oracleF = \[P.FinV i] -> [P.toValue $ i `elem` planted_sols]
     let interpCtx = Ctx.singleton "Oracle" oracleF
 
     it "evaluates" $ do
-      let res = P.runProgram @_ @Double ex interpCtx Ctx.empty
+      let res = P.runProgram @_ @Double ex interpCtx []
 
       Prob.mass res @?~ 1
 
       forM_ planted_sols $ \i ->
-        let sigma = Ctx.fromList [("result", P.FinV 1), ("solution", P.FinV i)]
-         in Prob.probabilityOf (== sigma) res @?~ 1 / 3
+        Prob.probabilityOf (== [P.FinV 1, P.FinV i]) res @?~ 1 / 3

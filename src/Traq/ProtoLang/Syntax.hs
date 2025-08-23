@@ -33,6 +33,7 @@ module Traq.ProtoLang.Syntax (
   FunDef (..),
   NamedFunDef (..),
   FunCtx,
+  namedFunsToFunCtx,
   Program (..),
 
   -- ** Lenses
@@ -40,6 +41,7 @@ module Traq.ProtoLang.Syntax (
 ) where
 
 import Control.Monad (zipWithM)
+import Data.Foldable (toList)
 import Data.String (IsString (..))
 import Text.Printf (printf)
 
@@ -315,14 +317,6 @@ instance (Show sizeT, PP.ToCodeString primT) => PP.ToCodeString (NamedFunDef pri
           <$> (PP.commaList <$> mapM PP.fromBuild param_types)
           <*> (PP.commaList <$> mapM PP.fromBuild ret_types)
 
-instance (Show sizeT, PP.ToCodeString primT) => PP.ToCodeString (Program primT sizeT) where
-  build Program{funCtx, stmt} = do
-    sequence_
-      [ PP.build NamedFunDef{fun_name, fun_def} >> PP.endl
-      | (fun_name, fun_def) <- Ctx.toList funCtx
-      ]
-    PP.build stmt
-
 -- | A function context contains a list of functions
 type FunCtx primT sizeT = Ctx.Context (FunDef primT sizeT)
 
@@ -331,18 +325,18 @@ class HasFunCtx p where
 
 instance HasFunCtx (FunCtx primT sizeT) where _funCtx = id
 
--- | A program is a function context with a statement (which acts like the `main`)
-data Program primT sizeT = Program
-  { funCtx :: FunCtx primT sizeT
-  , stmt :: Stmt primT sizeT
-  }
+-- | A program is a list of named functions, with the last being the entry point.
+newtype Program primT sizeT = Program [NamedFunDef primT sizeT]
   deriving (Eq, Show, Read, Functor)
 
 type instance SizeType (Program primT sizeT) = sizeT
 type instance PrimitiveType (Program primT sizeT) = primT
 
-instance HasFunCtx (Program primT sizeT) where
-  _funCtx focus p@Program{funCtx} = focus funCtx <&> \funCtx' -> p{funCtx = funCtx'}
+namedFunsToFunCtx :: (Foldable f) => f (NamedFunDef primT sizeT) -> FunCtx primT sizeT
+namedFunsToFunCtx fs = Ctx.fromList [(fun_name f, fun_def f) | f <- toList fs]
+
+instance (Show sizeT, PP.ToCodeString primT) => PP.ToCodeString (Program primT sizeT) where
+  build (Program fs) = mapM_ (\f -> PP.build f >> PP.endl) fs
 
 -- ================================================================================
 -- Lenses
@@ -363,5 +357,8 @@ instance HasStmt (FunDef primT sizeT) (Stmt primT sizeT) where
   _stmt focus funDef@FunDef{mbody = Just body} = (\body' -> funDef{mbody = Just body'}) <$> _stmt focus body
   _stmt _ f = pure f
 
+instance HasStmt (NamedFunDef primT sizeT) (Stmt primT sizeT) where
+  _stmt focus f@NamedFunDef{fun_def} = _stmt focus fun_def <&> \fun_def' -> f{fun_def = fun_def'}
+
 instance HasStmt (Program primT sizeT) (Stmt primT sizeT) where
-  _stmt focus (Program funCtx stmt) = Program <$> traverse (_stmt focus) funCtx <*> focus stmt
+  _stmt focus (Program fs) = Program <$> traverse (_stmt focus) fs

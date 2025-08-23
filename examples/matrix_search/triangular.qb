@@ -15,10 +15,7 @@ def IsRowAllOnes(i: Fin<N>) do
 	return okr' : Bool
 end
 
-// def HasAllOnesRow() do
-//	ok <- @any[IsRowAllOnes]();
-//	return ok : Bool
-// end
-
-result <- @any[IsRowAllOnes]();
-// result <- HasAllOnesRow()
+def HasAllOnesRow() do
+	ok <- @any[IsRowAllOnes]();
+	return ok : Bool
+end

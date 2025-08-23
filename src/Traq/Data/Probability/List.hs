@@ -10,7 +10,6 @@ module Traq.Data.Probability.List (
 ) where
 
 import Control.Arrow ((>>>))
-import Data.Foldable (toList)
 import Data.List (sortOn)
 import Data.List.Extra (groupOn)
 

@@ -28,7 +28,7 @@ spec = do
   describe "lower simple programs" $ do
     let eps = 0.001 :: Double -- fail prob
     it "assign" $ do
-      ex_ <- expectRight $ P.parseProgram @Void "x <- const 0 : Fin<10>;"
+      ex_ <- expectRight $ P.parseProgram @Void "def main() -> () do x <- const 0 : Fin<10>; return end"
       let ex = Sym.unSym <$> ex_
       let ticks = Map.singleton "Oracle" 1.0
       (cq :: Program SizeT Double) <- expectRight $ lowerProgram default_ Ctx.empty ticks ticks eps ex

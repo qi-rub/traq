@@ -28,7 +28,6 @@ import Text.Parsec.Token (
   reservedOpNames,
  )
 
-import qualified Traq.Data.Context as Ctx
 import qualified Traq.Data.Symbolic as Sym
 
 import Traq.Prelude
@@ -240,16 +239,10 @@ funDecl tp@TokenParser{..} = do
   let fun_def = FunDef{mbody = Nothing, ..}
   return NamedFunDef{..}
 
-funCtxP :: (CanParsePrimitive primT) => TokenParser () -> Parser (FunCtx primT SymbSize)
-funCtxP tp = do
-  fs <- many (namedFunDef tp <|> funDecl tp)
-  return $ Ctx.fromList [(fun_name f, fun_def f) | f <- fs]
-
 program :: (CanParsePrimitive primT) => TokenParser () -> Parser (Program primT SymbSize)
 program tp = do
-  funCtx <- funCtxP tp
-  stmt <- stmtP tp
-  return Program{..}
+  fs <- many (namedFunDef tp <|> funDecl tp)
+  return $ Program fs
 
 programParser :: (CanParsePrimitive primT) => Parser (Program primT SymbSize)
 programParser = whiteSpace p *> program protoLangTokenParser <* eof

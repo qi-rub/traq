@@ -4,6 +4,7 @@ module Main where
 
 import Control.Exception (assert)
 import Control.Monad (forM_)
+import Data.List (inits)
 import qualified Data.Map as Map
 import Text.Printf (printf)
 
@@ -28,26 +29,20 @@ symbolicEx = do
 
   let n = Sym.var "N" :: Sym.Sym SizeT
   let m = Sym.var "M" :: Sym.Sym SizeT
-  let ex = matrixExample @QSearchSym n m
+  let P.Program ex_fs = matrixExample @QSearchSym n m
   let strat = P.SplitUsingNeedsEps
   let uticks = Map.singleton "Oracle" (Sym.var "c_u")
   let cticks = Map.singleton "Oracle" (Sym.var "c_c")
 
-  forM_ ["HasAllOnesRow", "IsRowAllOnes", "IsEntryZero"] $ \f -> do
-    let stmt =
-          P.ExprS
-            { P.rets = undefined
-            , P.expr = P.FunCallE{P.fname = f, P.args = undefined}
-            }
-
+  forM_ (tail $ inits ex_fs) $ \fs -> do
     let eps = Sym.var "ε" :: Sym.Sym Double
     let delta = Sym.var "δ" :: Sym.Sym Double
 
-    putStrLn $ printf "Worst case cost of %s" f
+    putStrLn $ printf "Worst case cost of %s" (P.fun_name $ last fs)
     putStr "  - Unitary: "
-    print $ P.unitaryQueryCost strat delta ex{P.stmt = stmt} uticks
+    print $ P.unitaryQueryCost strat delta (P.Program fs) uticks
     putStr "  - Quantum: "
-    print $ P.quantumMaxQueryCost strat eps ex{P.stmt = stmt} uticks cticks
+    print $ P.quantumMaxQueryCost strat eps (P.Program fs) uticks cticks
 
 concreteEx :: IO ()
 concreteEx = do

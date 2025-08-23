@@ -99,7 +99,7 @@ qcost _ eps mat = cost
   dataCtx = Ctx.singleton "Oracle" (toValueFun mat)
   ticks = mempty & at "Oracle" ?~ 1.0
 
-  cost = P.quantumQueryCost P.SplitUsingNeedsEps eps ex ticks ticks dataCtx Ctx.empty
+  cost = P.quantumQueryCost P.SplitUsingNeedsEps eps ex ticks ticks dataCtx []
 
 randomMatrix :: SizeT -> SizeT -> IO [[Value]]
 randomMatrix n m = do
@@ -180,7 +180,7 @@ computeStatsForWorstCaseExample = do
     forM_ (10 : [500, 1000 .. 10000]) $ \n -> do
       let ex = getprog n
       let ticks = mempty & at "Oracle" ?~ 1.0
-      let c = P.quantumQueryCost P.SplitSimple eps ex ticks ticks Ctx.empty Ctx.empty
+      let c = P.quantumQueryCost P.SplitSimple eps ex ticks ticks Ctx.empty []
       hPutStrLn h $ printf "%d,%.2f" n c
 
 triangular :: IO ()
@@ -197,7 +197,7 @@ triangular = do
       putStrLn $ printf "running n: %d" n
       let ex = getprog n
       let ticks = mempty & at "Oracle" ?~ 1.0
-      let c = P.quantumQueryCost P.SplitSimple eps ex ticks ticks Ctx.empty Ctx.empty
+      let c = P.quantumQueryCost P.SplitSimple eps ex ticks ticks Ctx.empty []
       hPutStrLn h $ printf "%d,%.2f" n c
       putStrLn $ printf "cost: %.2f, ratio: %f" c (c / fromIntegral (n ^ (2 :: Int)))
 

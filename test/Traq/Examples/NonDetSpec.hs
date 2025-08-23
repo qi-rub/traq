@@ -30,38 +30,38 @@ spec = do
 
     it "typechecks" $ do
       ex <- load'
-      P.typeCheckProg Ctx.empty ex `shouldSatisfy` isRight
+      P.typeCheckProg ex `shouldSatisfy` isRight
 
     it "all solutions" $ do
       ex <- load'
       let oracleF = const [P.FinV 1]
-      let out = P.runProgram ex (Ctx.singleton "Oracle" oracleF) Ctx.empty
+      let out = P.runProgram ex (Ctx.singleton "Oracle" oracleF) []
 
       out
         `shouldBeDistribution` [ (sigma, 0.1 :: Double)
                                | x <- [0 .. 9]
-                               , let sigma = Ctx.fromList [("ok", P.FinV 1), ("x", P.FinV x)]
+                               , let sigma = [P.FinV 1, P.FinV x]
                                ]
 
     it "no solutions" $ do
       ex <- load'
       let oracleF = const [P.FinV 0]
-      let out = P.runProgram ex (Ctx.singleton "Oracle" oracleF) Ctx.empty
+      let out = P.runProgram ex (Ctx.singleton "Oracle" oracleF) []
 
       out
         `shouldBeDistribution` [ (sigma, 0.1 :: Double)
                                | x <- [0 .. 9]
-                               , let sigma = Ctx.fromList [("ok", P.FinV 0), ("x", P.FinV x)]
+                               , let sigma = [P.FinV 0, P.FinV x]
                                ]
 
     it "some solutions" $ do
       ex <- load'
       let sols = [1, 4, 6] :: [SizeT]
       let oracleF = \[P.FinV i] -> [P.toValue $ i `elem` sols]
-      let out = P.runProgram @_ @Double ex (Ctx.singleton "Oracle" oracleF) Ctx.empty
+      let out = P.runProgram @_ @Double ex (Ctx.singleton "Oracle" oracleF) []
 
       out
         `shouldBeDistribution` [ (sigma, 1 / 3 :: Double)
                                | x <- sols
-                               , let sigma = Ctx.fromList [("ok", P.FinV 1), ("x", P.FinV x)]
+                               , let sigma = [P.FinV 1, P.FinV x]
                                ]

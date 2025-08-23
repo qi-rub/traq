@@ -16,10 +16,12 @@ module Traq.Control.Monad (
 
   -- * Helpers
   (??),
+  non',
 ) where
 
 import Control.Monad.Except (MonadError, catchError, throwError)
 import Control.Monad.RWS (MonadState, MonadWriter, tell)
+import Data.Maybe (fromMaybe)
 import Data.Monoid (Endo)
 
 import Lens.Micro.GHC
@@ -82,3 +84,7 @@ maybeWithError = singularM _Just
 (??) :: (Functor f) => f (a -> b) -> a -> f b
 fab ?? a = fmap ($ a) fab
 {-# INLINE (??) #-}
+
+-- | Getter to set @Nothing@ to a default value.
+non' :: a -> SimpleGetter (Maybe a) a
+non' a = to (fromMaybe a)

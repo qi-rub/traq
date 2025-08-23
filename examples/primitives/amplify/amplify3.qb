@@ -7,7 +7,10 @@ do
   return ok, x
 end
 
-l <- const 1 : Fin<N>;
-r <- const 4 : Fin<N>;
+def main() -> (Bool, Fin<N>) do
+  l <- const 1 : Fin<N>;
+  r <- const 4 : Fin<N>;
 
-ok, x <- @amplify[sampler, 0.2](l, r);
+  ok, x <- @amplify[sampler, 0.2](l, r);
+  return ok, x
+end

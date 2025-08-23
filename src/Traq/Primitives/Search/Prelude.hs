@@ -179,7 +179,7 @@ runSearchPredicateOnAllInputs predicate arg_vals = do
   let search_range = mapM P.domain search_tys
 
   forM search_range $ \s_vals -> do
-    rets <- P.evalFun (arg_vals ++ s_vals) predicate pred_fun
+    rets <- P.evalFun (arg_vals ++ s_vals) (P.NamedFunDef predicate pred_fun)
     return (s_vals, P.valueToBool $ head rets)
 
 evaluatePrimAny ::

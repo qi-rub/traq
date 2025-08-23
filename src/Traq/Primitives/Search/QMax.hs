@@ -103,7 +103,7 @@ instance
       view $ Ctx.at x . non (error "invalid arg")
 
     vs <- forM search_range $ \val -> do
-      res <- P.evalFun (arg_vals ++ [val]) predicate pred_fun
+      res <- P.evalFun (arg_vals ++ [val]) (P.NamedFunDef predicate pred_fun)
       [P.FinV v] <- pure res
       return v
 

@@ -2,8 +2,6 @@ module Traq.Examples.MatrixSearch where
 
 import Data.String (fromString)
 
-import qualified Traq.Data.Context as Ctx
-
 import Traq.Prelude
 import Traq.Primitives
 import Traq.Primitives.Search.Prelude (HasPrimAny (..))
@@ -13,13 +11,11 @@ import Traq.ProtoLang.TypeCheck (tbool)
 matrixExample :: forall primsT sizeT. (HasPrimAny primsT, Num sizeT) => sizeT -> sizeT -> Program primsT sizeT
 matrixExample n m =
   Program
-    { funCtx = Ctx.fromList [(oracle_name, oracle_decl), (check_entry_name, check_entry), (check_row_name, check_row), (check_matrix_name, check_matrix)]
-    , stmt =
-        ExprS
-          { expr = FunCallE{fname = check_matrix_name, args = []}
-          , rets = ["result"]
-          }
-    }
+    [ NamedFunDef oracle_name oracle_decl
+    , NamedFunDef check_entry_name check_entry
+    , NamedFunDef check_row_name check_row
+    , NamedFunDef check_matrix_name check_matrix
+    ]
  where
   tyI, tyJ :: VarType sizeT
   tyI = Fin n
