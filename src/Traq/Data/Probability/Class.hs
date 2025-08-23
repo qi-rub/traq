@@ -28,13 +28,17 @@ module Traq.Data.Probability.Class (
   postselect,
 
   -- * Support Monad
-  MonadSupport (..),
+  support,
   toDeterministicValue,
 ) where
 
+import Control.Applicative (Const (..))
 import Control.Monad (guard)
 import Control.Monad.Identity (Identity (..))
 import Control.Monad.Reader (ReaderT (..))
+import Data.Monoid (Endo (..))
+
+import Traq.Control.Monad
 
 -- | A random event: represented as a boolearn predicate function.
 type Event a = a -> Bool
@@ -111,11 +115,11 @@ postselect ev m =
         then zero
         else scale (1 / p) $ conditional ev m
 
--- | A probability monad with support for computing the Support of the distribution.
-class MonadSupport m where
-  support :: m a -> [a]
+-- | Support of a distribution
+support :: (MonadExp p m) => m a -> [a]
+support = (appEndo ?? []) . getConst . expectationA (Const . Endo . (:))
 
-toDeterministicValue :: (MonadSupport m, Eq a) => m a -> Maybe a
+toDeterministicValue :: (MonadExp p m, Eq a) => m a -> Maybe a
 toDeterministicValue m = do
   (x : xs) <- return $ support m
   guard $ all (== x) xs

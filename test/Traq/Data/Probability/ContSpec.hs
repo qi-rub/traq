@@ -1,7 +1,11 @@
 module Traq.Data.Probability.ContSpec (spec) where
 
+import Control.Applicative (Const (..))
+import Data.Monoid (Endo (..))
+
 import Lens.Micro.GHC
 
+import Traq.Control.Monad
 import qualified Traq.Data.Probability as Prob
 
 import Test.Hspec
@@ -11,6 +15,9 @@ ex1 :: Prob.ExpMonad Double Int
 ex1 = do
   x <- Prob.uniform [0, 0, 1, 2]
   if x == 0 then Prob.uniform [1 .. 6] else pure x
+
+getSupport :: (Prob.MonadExp p m) => m a -> [a]
+getSupport = (appEndo ?? []) . getConst . Prob.expectationA (Const . Endo . (:))
 
 spec :: Spec
 spec = describe "ExpMonad" $ do
@@ -40,3 +47,7 @@ spec = describe "ExpMonad" $ do
       Prob.mass (Prob.conditional (<= 2) ex1) `shouldBe` Prob.probabilityOf (<= 2) ex1
       Prob.conditional (<= 2) ex1 `shouldBeDistribution` [(1, 1 / 3), (2, 1 / 3)]
       Prob.postselect (<= 2) ex1 `shouldBeDistribution` [(1, 1 / 2), (2, 1 / 2)]
+
+  describe "expectationA" $ do
+    it "support" $ do
+      getSupport ex1 `shouldBe` [1 .. 6] ++ [1 .. 6] ++ [1, 2]

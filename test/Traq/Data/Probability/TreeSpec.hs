@@ -133,6 +133,8 @@ distrSpec = do
           [ (0.5, uniform [[0, 0], [0, 1]])
           , (0.5, uniform [[1, 0], [1, 1]])
           ]
+  describe "support" $ do
+    prop "support = toList" $ support @_ @Distr' @Int `shouldEqual` toList
 
 -- | Construct a non-deterministic choice
 nondetChoice :: forall a. [Tree a] -> Tree a

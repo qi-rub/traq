@@ -65,9 +65,6 @@ instance (Num probT) => MonadExp probT (Distr probT) where
   expectationA rv (Leaf a) = rv a
   expectationA rv (Branch pts) = sum <$> sequenceA [(p *) <$> expectationA rv t | (p, t) <- pts]
 
-instance MonadSupport (Distr probT) where
-  support = toList
-
 treeToProbList :: (Num probT) => Distr probT a -> ProbList probT a
 treeToProbList = ProbList . go 1
  where

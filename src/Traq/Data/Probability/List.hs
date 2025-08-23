@@ -45,9 +45,6 @@ instance (Num probT) => MonadProb probT (ProbList probT) where
 instance (Num probT) => MonadExp probT (ProbList probT) where
   expectationA rv (ProbList pxs) = sum <$> sequenceA [(p *) <$> rv x | (p, x) <- pxs]
 
-instance MonadSupport (ProbList probT) where
-  support = toList
-
 compress :: (Num probT, Ord a) => ProbList probT a -> ProbList probT a
 compress =
   runProbList

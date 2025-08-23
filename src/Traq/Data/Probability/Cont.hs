@@ -1,3 +1,4 @@
+{-# LANGUAGE DeriveFunctor #-}
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE MultiParamTypeClasses #-}
 
@@ -14,12 +15,13 @@ import Data.Traversable (for)
 import Traq.Data.Probability.Class
 
 newtype ExpMonad probT a = ExpMonad (forall f. (Applicative f) => ContT probT f a)
+  deriving (Functor)
 
 runExp :: (Applicative f) => ExpMonad probT a -> ContT probT f a
 runExp (ExpMonad c) = c
 
-instance Functor (ExpMonad probT) where
-  fmap f (ExpMonad a) = ExpMonad $ fmap f a
+runExpCont :: (Applicative f) => ExpMonad probT a -> (a -> f probT) -> f probT
+runExpCont = runContT . runExp
 
 instance Applicative (ExpMonad probT) where
   pure a = ExpMonad $ pure a
@@ -30,7 +32,7 @@ instance Monad (ExpMonad probT) where
 
 instance (Num probT) => MonadProb probT (ExpMonad probT) where
   choose pxs = ExpMonad $ ContT $ \k ->
-    sum <$> for pxs (\(p, ExpMonad x) -> (p *) <$> runContT x k)
+    sum <$> for pxs (\(p, x) -> (p *) <$> runExpCont x k)
 
 instance (Num probT) => MonadExp probT (ExpMonad probT) where
-  expectationA h (ExpMonad x) = runContT x h
+  expectationA = flip runExpCont
