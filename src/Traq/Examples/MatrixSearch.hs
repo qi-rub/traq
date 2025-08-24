@@ -4,7 +4,7 @@ import Data.String (fromString)
 
 import Traq.Prelude
 import Traq.Primitives
-import Traq.Primitives.Search.Prelude (HasPrimAny (..))
+import Traq.Primitives.Search.Prelude (HasPrimAny (..), PrimAny (..))
 import Traq.ProtoLang.Syntax
 import Traq.ProtoLang.TypeCheck (tbool)
 
@@ -66,7 +66,7 @@ matrixExample n m =
               { param_names = [i]
               , body_stmt =
                   SeqS
-                    [ ExprS{rets = [ok], expr = PrimCallE $ mkPrimAny check_entry_name [i]}
+                    [ ExprS{rets = [ok], expr = PrimCallE $ mkPrimAny PrimAny{predicate = check_entry_name, pred_args = [i]}}
                     , ExprS{rets = [ok'], expr = BasicExprE UnOpE{un_op = NotOp, operand = fromString ok}}
                     ]
               , ret_names = [ok']
@@ -89,7 +89,7 @@ matrixExample n m =
           Just
             FunBody
               { param_names = []
-              , body_stmt = ExprS{rets = [ok], expr = PrimCallE $ mkPrimAny check_row_name []}
+              , body_stmt = ExprS{rets = [ok], expr = PrimCallE $ mkPrimAny PrimAny{predicate = check_row_name, pred_args = []}}
               , ret_names = [ok]
               }
       , ret_types = [tbool]

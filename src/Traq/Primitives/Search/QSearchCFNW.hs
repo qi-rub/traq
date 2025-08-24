@@ -1,3 +1,5 @@
+{-# LANGUAGE DeriveGeneric #-}
+{-# LANGUAGE DuplicateRecordFields #-}
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE MultiParamTypeClasses #-}
 {-# LANGUAGE OverloadedStrings #-}
@@ -35,6 +37,7 @@ import Control.Monad.Reader (runReaderT)
 import Control.Monad.Trans (lift)
 import Control.Monad.Writer (WriterT (..), censor, execWriterT, listen)
 import Data.String (fromString)
+import GHC.Generics (Generic)
 import Text.Parsec (try)
 import Text.Printf (printf)
 
@@ -110,55 +113,55 @@ _QSearchZalka n delta = 2 * nq_simple -- 2x for compute-uncompute
 -- Primitive Class Implementation
 -- ================================================================================
 
-data QSearchCFNW = QSearchCFNW {predicate :: Ident, return_sol :: Bool, pred_args :: [Ident]}
-  deriving (Eq, Show, Read)
+data QSearchCFNW
+  = QSearchCFNW PrimSearch
+  | QAnyCFNW PrimAny
+  deriving (Eq, Show, Read, Generic)
+
+_QSearchCFNW :: Traversal' QSearchCFNW PrimSearch
+_QSearchCFNW focus (QSearchCFNW p) = QSearchCFNW <$> focus p
+_QSearchCFNW _ q = pure q
+
+_QAnyCFNW :: Traversal' QSearchCFNW PrimAny
+_QAnyCFNW focus (QAnyCFNW p) = QAnyCFNW <$> focus p
+_QAnyCFNW _ q = pure q
 
 instance HasPrimAny QSearchCFNW where
-  _PrimAny focus (QSearchCFNW p False args) = focus (p, args) <&> \(p', args') -> (QSearchCFNW p' False args')
-  _PrimAny _ q = pure q
-
-  mkPrimAny predicate pred_args = QSearchCFNW{predicate, return_sol = False, pred_args}
+  _PrimAny = _QAnyCFNW . _PrimAny
+  mkPrimAny = QAnyCFNW . mkPrimAny
 
 instance HasPrimSearch QSearchCFNW where
-  _PrimSearch focus (QSearchCFNW p True args) = focus (p, args) <&> \(p', args') -> (QSearchCFNW p' True args')
-  _PrimSearch _ q = pure q
+  _PrimSearch = _QSearchCFNW . _PrimSearch
+  mkPrimSearch = QSearchCFNW . mkPrimSearch
 
-  mkPrimSearch predicate pred_args = QSearchCFNW{predicate, return_sol = True, pred_args}
+instance IsSearchLike QSearchCFNW where
+  getPredicateName (QSearchCFNW p) = getPredicateName p
+  getPredicateName (QAnyCFNW p) = getPredicateName p
 
-instance P.HasFreeVars QSearchCFNW where
-  freeVarsList QSearchCFNW{pred_args} = pred_args
+  getPredArgs (QSearchCFNW p) = getPredArgs p
+  getPredArgs (QAnyCFNW p) = getPredArgs p
 
 instance PP.ToCodeString QSearchCFNW where
-  build QSearchCFNW{predicate, return_sol = False, pred_args} = PP.putWord $ printf "@any[%s](%s)" predicate (PP.commaList pred_args)
-  build QSearchCFNW{predicate, return_sol = True, pred_args} = PP.putWord $ printf "@search[%s](%s)" predicate (PP.commaList pred_args)
+  build (QAnyCFNW p) = printSearchLikePrim "any" p
+  build (QSearchCFNW p) = printSearchLikePrim "search" p
 
 -- Parsing
 instance P.CanParsePrimitive QSearchCFNW where
   primitiveParser tp = try parseAny <|> try parseSearch
    where
-    parseAny = do
-      [(predicate, pred_args)] <- parsePrimWithPredicates "any" 1 tp
-      return QSearchCFNW{predicate, return_sol = False, pred_args}
-    parseSearch = do
-      [(predicate, pred_args)] <- parsePrimWithPredicates "search" 1 tp
-      return QSearchCFNW{predicate, return_sol = True, pred_args}
+    parseAny = QAnyCFNW <$> parsePrimAnyWithName "any" tp
+    parseSearch = QSearchCFNW <$> parsePrimSearchWithName "search" tp
 
 -- Type check
-instance P.TypeCheckablePrimitive QSearchCFNW where
-  typeCheckPrimitive prim@QSearchCFNW{return_sol = False} = typeCheckPrimAny prim
-  typeCheckPrimitive prim@QSearchCFNW{return_sol = True} = typeCheckPrimSearch prim
+instance P.HasFreeVars QSearchCFNW
+instance P.TypeCheckablePrimitive QSearchCFNW
 
 {- | Evaluate an `any` call by evaluating the predicate on each element of the search space
  and or-ing the results.
 -}
 instance
-  ( Fractional costT
-  , P.EvaluatablePrimitive primsT primsT costT
-  ) =>
+  (Fractional costT, P.EvaluatablePrimitive primsT primsT costT) =>
   P.EvaluatablePrimitive primsT QSearchCFNW costT
-  where
-  evalPrimitive prim@QSearchCFNW{return_sol = False} = evaluatePrimAny prim
-  evalPrimitive prim@QSearchCFNW{return_sol = True} = evaluatePrimSearch prim
 
 -- ================================================================================
 -- Abstract Costs
@@ -173,7 +176,9 @@ instance
   ) =>
   P.UnitaryCostablePrimitive primsT QSearchCFNW sizeT costT
   where
-  unitaryQueryCostPrimitive delta QSearchCFNW{predicate} = do
+  unitaryQueryCostPrimitive delta prim = do
+    let predicate = getPredicateName prim
+
     P.FunDef{P.param_types} <- view $ P._funCtx . Ctx.at predicate . singular _Just
     let n = last param_types ^?! P._Fin
 
@@ -201,7 +206,9 @@ instance
   ) =>
   P.QuantumMaxCostablePrimitive primsT QSearchCFNW sizeT costT
   where
-  quantumMaxQueryCostPrimitive eps QSearchCFNW{predicate} = do
+  quantumMaxQueryCostPrimitive eps prim = do
+    let predicate = getPredicateName prim
+
     P.FunDef{P.param_types} <- view $ P._funCtx . Ctx.at predicate . singular _Just
     let n = last param_types ^?! P._Fin
 
@@ -234,7 +241,9 @@ instance
   ) =>
   P.QuantumCostablePrimitive primsT QSearchCFNW sizeT costT
   where
-  quantumQueryCostPrimitive eps QSearchCFNW{predicate} _ = do
+  quantumQueryCostPrimitive eps prim _ = do
+    let predicate = getPredicateName prim
+
     P.FunDef{P.param_types} <- view $ P._funCtx . Ctx.at predicate . singular _Just
     let typ_x = last param_types
 
@@ -416,7 +425,7 @@ instance
   ) =>
   CompileU.Lowerable primsT QSearchCFNW sizeT costT
   where
-  lowerPrimitive delta QSearchCFNW{predicate, return_sol = False, pred_args = args} [ret] = do
+  lowerPrimitive delta (QAnyCFNW PrimAny{predicate, pred_args = args}) [ret] = do
     -- the predicate
     pred_fun@P.FunDef{P.param_types} <-
       view (P._funCtx . Ctx.at predicate)
@@ -736,7 +745,7 @@ instance
   ) =>
   CompileQ.Lowerable primsT QSearchCFNW sizeT costT
   where
-  lowerPrimitive eps QSearchCFNW{predicate, return_sol = False, pred_args = args} [ret] = do
+  lowerPrimitive eps (QAnyCFNW PrimAny{predicate, pred_args = args}) [ret] = do
     -- the predicate
     pred_fun@P.FunDef{P.param_types} <-
       view (P._funCtx . Ctx.at predicate)

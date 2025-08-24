@@ -2,7 +2,7 @@ module Traq.Examples.Search where
 
 import Traq.Prelude
 import Traq.Primitives
-import Traq.Primitives.Search.Prelude (HasPrimSearch (mkPrimSearch), mkPrimAny)
+import Traq.Primitives.Search.Prelude (PrimAny (..), PrimSearch (..), mkPrimAny, mkPrimSearch)
 import Traq.ProtoLang.Syntax
 
 arraySearch :: SizeT -> Program DefaultPrims SizeT
@@ -23,7 +23,7 @@ arraySearch n = Program [NamedFunDef "Oracle" oracle_decl, NamedFunDef "main" ma
               , ret_names = ["result"]
               , body_stmt =
                   ExprS
-                    { expr = PrimCallE $ mkPrimAny "Oracle" []
+                    { expr = PrimCallE $ mkPrimAny $ PrimAny "Oracle" []
                     , rets = ["result"]
                     }
               }
@@ -64,7 +64,7 @@ arraySearchIx n = Program [NamedFunDef "Oracle" oracle_decl, NamedFunDef "check"
               , body_stmt =
                   ExprS
                     { rets = ["result", "solution"]
-                    , expr = PrimCallE $ mkPrimSearch "check" []
+                    , expr = PrimCallE $ mkPrimSearch $ PrimSearch "check" []
                     }
               , ret_names = ["result", "solution"]
               }

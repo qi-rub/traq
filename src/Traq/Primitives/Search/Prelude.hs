@@ -1,38 +1,45 @@
+{-# LANGUAGE DuplicateRecordFields #-}
+{-# LANGUAGE FlexibleInstances #-}
+{-# LANGUAGE MultiParamTypeClasses #-}
+{-# LANGUAGE UndecidableInstances #-}
+
 module Traq.Primitives.Search.Prelude (
-  -- * Generic Search-like primitives
+  -- * Basic search primitives
+
+  -- ** @any@
+  PrimAny (..),
   HasPrimAny (..),
+  parsePrimAnyWithName,
+
+  -- ** @search@
+  PrimSearch (..),
   HasPrimSearch (..),
-  _predicateOfSearch,
-  _argsOfSearchPred,
+  parsePrimSearchWithName,
 
-  -- * Boilerplate functions
+  -- * Search-like primitives
+  IsSearchLike (..),
 
-  -- ** Parsing
-  parsePrimWithPredicates,
-  parsePrimAny,
-  parsePrimSearch,
+  -- ** print
+  printSearchLikePrim,
 
-  -- ** Typecheck
+  -- ** typecheck
   typeCheckSearchPredicate,
-  typeCheckPrimAny,
-  typeCheckPrimSearch,
 
   -- ** Evaluation
   runSearchPredicateOnAllInputs,
   hasSolution,
   countSolutions,
   getSearchOutputs,
-  evaluatePrimAny,
-  evaluatePrimSearch,
   evaluatePrimCount,
 ) where
 
-import Control.Monad (forM, replicateM, when)
+import Control.Monad (forM, when)
 import Control.Monad.Except (throwError)
 import Control.Monad.Reader (ReaderT (..))
+import Control.Monad.Writer (MonadWriter)
 import Data.Maybe (fromMaybe)
 import Text.Parsec.String (Parser)
-import Text.Parsec.Token (GenTokenParser (..), TokenParser)
+import Text.Parsec.Token (TokenParser)
 import Text.Printf (printf)
 
 import Lens.Micro.GHC
@@ -43,59 +50,24 @@ import qualified Traq.Data.Context as Ctx
 import qualified Traq.Data.Probability as Prob
 
 import Traq.Prelude
+import Traq.Primitives.Prelude
 import qualified Traq.ProtoLang as P
-
--- | Search primitive: (predicate, prefix of arguments to bind)
-type PrimSearchInfo = (Ident, [Ident])
-
--- | Primitive @any@ that returns True if there is a solution to the predicate.
-class HasPrimAny primT where
-  -- | build a call to @any@, given the predicate and args.
-  mkPrimAny :: Ident -> [Ident] -> primT
-
-  -- | Prism to access the primitive.
-  _PrimAny :: Traversal' primT PrimSearchInfo
-
-{- | Primitive @search@ that returns a solution to the predicate if exists, otherwise returns a random value.
- Also returns a bit indicating if a solution was found.
--}
-class HasPrimSearch primT where
-  -- | build a call to @any@, given the predicate and args.
-  mkPrimSearch :: Ident -> [Ident] -> primT
-
-  -- | Prism to access the primitive.
-  _PrimSearch :: Traversal' primT PrimSearchInfo
-
-_predicateOfSearch :: Lens' PrimSearchInfo Ident
-_predicateOfSearch = _1
-
-_argsOfSearchPred :: Lens' PrimSearchInfo [Ident]
-_argsOfSearchPred = _2
+import qualified Traq.Utils.Printing as PP
 
 -- ================================================================================
--- Parsing/Printing
+-- Search-like primitive: has a predicate and a list of arguments to bind to it.
 -- ================================================================================
+class IsSearchLike primT where
+  getPredicateName :: primT -> Ident
+  getPredArgs :: primT -> [Ident]
 
-{- | Parse a primitive with a list of predicate names, each bound to a set of arguments.
- Example: @parsePrimWithPredicates "any" 1@ can be used to implement the parser for @any@.
--}
-parsePrimWithPredicates :: Ident -> Int -> TokenParser () -> Parser [(Ident, [Ident])]
-parsePrimWithPredicates prim_name n_preds tp = do
-  _ <- symbol tp $ "@" ++ prim_name
-  replicateM n_preds $ do
-    predicate <- brackets tp $ identifier tp
-    args <- parens tp $ commaSep tp $ identifier tp
-    pure (predicate, args)
-
-parsePrimAny :: (HasPrimAny primT) => String -> TokenParser () -> Parser primT
-parsePrimAny name tp = do
-  [(predicate, args)] <- parsePrimWithPredicates name 1 tp
-  return $ mkPrimAny predicate args
-
-parsePrimSearch :: (HasPrimSearch primT) => String -> TokenParser () -> Parser primT
-parsePrimSearch name tp = do
-  [(predicate, args)] <- parsePrimWithPredicates name 1 tp
-  return $ mkPrimSearch predicate args
+printSearchLikePrim ::
+  (IsSearchLike primT, MonadWriter [String] m, MonadFail m) =>
+  Ident ->
+  primT ->
+  m ()
+printSearchLikePrim name prim =
+  PP.putWord $ printf "@%s[%s](%s)" name (getPredicateName prim) (PP.commaList $ getPredArgs prim)
 
 -- ================================================================================
 -- Typecheck
@@ -123,32 +95,12 @@ typeCheckSearchPredicate predicate args = do
 
   return $ drop n_args param_types
 
-typeCheckPrimAny ::
-  (HasPrimAny primT, P.TypeCheckable sizeT) =>
-  primT ->
-  P.TypeChecker primsT sizeT [P.VarType sizeT]
-typeCheckPrimAny prim = do
-  let (p, args) = prim ^?! _PrimAny
-  typeCheckSearchPredicate p args
-  return [P.tbool]
-
-typeCheckPrimSearch ::
-  (HasPrimSearch primT, P.TypeCheckable sizeT) =>
-  primT ->
-  P.TypeChecker primsT sizeT [P.VarType sizeT]
-typeCheckPrimSearch prim = do
-  let (p, args) = prim ^?! _PrimSearch
-  s_tys <- typeCheckSearchPredicate p args
-  return $ P.tbool : s_tys
-
 -- ================================================================================
 -- Evaluation
 -- ================================================================================
 
-type SearchResult = ([P.Value SizeT], Bool)
-
-isSolution :: SearchResult -> Bool
-isSolution = (True ==) . snd
+data SearchResult = SearchResult {element :: [P.Value SizeT], isSolution :: Bool}
+  deriving (Eq, Read, Show)
 
 type SearchResults = [SearchResult]
 
@@ -159,8 +111,8 @@ countSolutions :: SearchResults -> Int
 countSolutions = length . filter isSolution
 
 getSearchOutputs :: SearchResults -> [[P.Value SizeT]]
-getSearchOutputs rets | hasSolution rets = rets & filter isSolution & map fst
-getSearchOutputs rets = map fst rets
+getSearchOutputs rets | hasSolution rets = rets & filter isSolution & map element
+getSearchOutputs rets = map element rets
 
 -- | Run the predicate on each input, and return the input along with the result.
 runSearchPredicateOnAllInputs ::
@@ -180,43 +132,7 @@ runSearchPredicateOnAllInputs predicate arg_vals = do
 
   forM search_range $ \s_vals -> do
     rets <- P.evalFun (arg_vals ++ s_vals) (P.NamedFunDef predicate pred_fun)
-    return (s_vals, P.valueToBool $ head rets)
-
-evaluatePrimAny ::
-  ( HasPrimAny primT
-  , P.EvaluatablePrimitive primsT primsT costT
-  , Fractional costT
-  ) =>
-  primT ->
-  P.ProgramState SizeT ->
-  P.Evaluator primsT SizeT costT [P.Value SizeT]
-evaluatePrimAny prim sigma = do
-  let (predicate, args) = prim ^?! _PrimAny
-
-  arg_vals <- runReaderT ?? sigma $ forM args $ \x -> do
-    view $ P._state . Ctx.at x . non (error "invalid argument, please typecheck first.")
-
-  res <- runSearchPredicateOnAllInputs predicate arg_vals
-  return [P.toValue $ hasSolution res]
-
-evaluatePrimSearch ::
-  ( HasPrimSearch primT
-  , P.EvaluatablePrimitive primsT primsT costT
-  , Fractional costT
-  ) =>
-  primT ->
-  P.ProgramState SizeT ->
-  P.Evaluator primsT SizeT costT [P.Value SizeT]
-evaluatePrimSearch prim sigma = do
-  let (predicate, args) = prim ^?! _PrimSearch
-
-  arg_vals <- runReaderT ?? sigma $ forM args $ \x -> do
-    view $ P._state . Ctx.at x . non (error "invalid argument, please typecheck first.")
-
-  res <- runSearchPredicateOnAllInputs predicate arg_vals
-  let ok = P.toValue $ hasSolution res
-  let outs = getSearchOutputs res
-  Prob.uniform [ok : v | v <- outs]
+    return SearchResult{element = s_vals, isSolution = P.valueToBool $ head rets}
 
 evaluatePrimCount ::
   ( P.EvaluatablePrimitive primsT primsT costT
@@ -232,3 +148,104 @@ evaluatePrimCount predicate args sigma = do
 
   res <- runSearchPredicateOnAllInputs predicate arg_vals
   return [P.FinV $ fromIntegral $ countSolutions res]
+
+-- ================================================================================
+-- Primitive: any
+-- ================================================================================
+
+-- | Basic Primitive @any@ which asserts if there is a solution.
+data PrimAny = PrimAny {predicate :: Ident, pred_args :: [Ident]}
+  deriving (Eq, Read, Show)
+
+-- | Primitive @any@ that returns True if there is a solution to the predicate.
+class HasPrimAny primT where
+  -- | build a call to @any@, given the predicate and args.
+  mkPrimAny :: PrimAny -> primT
+
+  -- | Prism to access the primitive.
+  _PrimAny :: Traversal' primT PrimAny
+
+instance HasPrimAny PrimAny where
+  _PrimAny = id
+  mkPrimAny = id
+
+instance IsSearchLike PrimAny where
+  getPredicateName PrimAny{predicate} = predicate
+  getPredArgs PrimAny{pred_args} = pred_args
+
+parsePrimAnyWithName :: String -> TokenParser () -> Parser PrimAny
+parsePrimAnyWithName name tp = do
+  [(predicate, pred_args)] <- parsePrimWithPredicates name 1 tp
+  return PrimAny{predicate, pred_args}
+
+instance P.HasFreeVars PrimAny where
+  freeVarsList PrimAny{pred_args} = pred_args
+
+instance P.TypeCheckablePrimitive PrimAny where
+  typeCheckPrimitive PrimAny{predicate, pred_args} = do
+    typeCheckSearchPredicate predicate pred_args
+    return [P.tbool]
+
+instance
+  (Fractional costT, P.EvaluatablePrimitive primsT primsT costT) =>
+  P.EvaluatablePrimitive primsT PrimAny costT
+  where
+  evalPrimitive PrimAny{predicate, pred_args} sigma = do
+    arg_vals <- runReaderT ?? sigma $
+      forM pred_args $ \x -> do
+        view $ P._state . Ctx.at x . non (error "invalid argument, please typecheck first.")
+
+    res <- runSearchPredicateOnAllInputs predicate arg_vals
+    return [P.toValue $ hasSolution res]
+
+-- ================================================================================
+-- Primitive: search
+-- ================================================================================
+
+-- Primitive @search@ which returns a uniformly random solution
+data PrimSearch = PrimSearch {predicate :: Ident, pred_args :: [Ident]}
+  deriving (Eq, Read, Show)
+
+{- | Primitive @search@ that returns a solution to the predicate if exists, otherwise returns a random value.
+ Also returns a bit indicating if a solution was found.
+-}
+class HasPrimSearch primT where
+  -- | build a call to @any@, given the predicate and args.
+  mkPrimSearch :: PrimSearch -> primT
+
+  -- | Prism to access the primitive.
+  _PrimSearch :: Traversal' primT PrimSearch
+
+instance HasPrimSearch PrimSearch where
+  _PrimSearch = id
+  mkPrimSearch = id
+
+instance IsSearchLike PrimSearch where
+  getPredicateName PrimSearch{predicate} = predicate
+  getPredArgs PrimSearch{pred_args} = pred_args
+
+parsePrimSearchWithName :: String -> TokenParser () -> Parser PrimSearch
+parsePrimSearchWithName name tp = do
+  [(predicate, pred_args)] <- parsePrimWithPredicates name 1 tp
+  return PrimSearch{predicate, pred_args}
+
+instance P.HasFreeVars PrimSearch where
+  freeVarsList PrimSearch{pred_args} = pred_args
+
+instance P.TypeCheckablePrimitive PrimSearch where
+  typeCheckPrimitive PrimSearch{predicate, pred_args} = do
+    s_tys <- typeCheckSearchPredicate predicate pred_args
+    return $ P.tbool : s_tys
+
+instance
+  (Fractional costT, P.EvaluatablePrimitive primsT primsT costT) =>
+  P.EvaluatablePrimitive primsT PrimSearch costT
+  where
+  evalPrimitive PrimSearch{predicate, pred_args} sigma = do
+    arg_vals <- runReaderT ?? sigma $ forM pred_args $ \x -> do
+      view $ P._state . Ctx.at x . non (error "invalid argument, please typecheck first.")
+
+    res <- runSearchPredicateOnAllInputs predicate arg_vals
+    let ok = P.toValue $ hasSolution res
+    let outs = getSearchOutputs res
+    Prob.uniform [ok : v | v <- outs]

@@ -1,3 +1,5 @@
+{-# LANGUAGE DeriveGeneric #-}
+{-# LANGUAGE DuplicateRecordFields #-}
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE MultiParamTypeClasses #-}
 {-# LANGUAGE TypeApplications #-}
@@ -10,7 +12,7 @@ module Traq.Primitives.Search.DetSearch (
 import Control.Monad (forM)
 import Control.Monad.Reader (runReaderT)
 import Control.Monad.Trans (lift)
-import Text.Printf (printf)
+import GHC.Generics (Generic)
 
 import Lens.Micro.GHC
 import Lens.Micro.Mtl
@@ -29,32 +31,29 @@ import qualified Traq.Utils.Printing as PP
 -- ================================================================================
 
 -- | Primitive implementing brute-force classical search.
-data DetSearch = DetSearch {predicate :: Ident, args :: [Ident]}
-  deriving (Eq, Show, Read)
+newtype DetSearch = DetSearch PrimAny
+  deriving (Eq, Show, Read, Generic)
 
 instance HasPrimAny DetSearch where
-  mkPrimAny = DetSearch
-  _PrimAny focus (DetSearch p args) = uncurry DetSearch <$> focus (p, args)
+  mkPrimAny = DetSearch . mkPrimAny
+  _PrimAny focus (DetSearch p) = DetSearch <$> focus p
 
-instance P.HasFreeVars DetSearch where
-  freeVarsList DetSearch{args} = args
+instance IsSearchLike DetSearch where
+  getPredicateName (DetSearch p) = getPredicateName p
+  getPredArgs (DetSearch p) = getPredArgs p
 
 instance PP.ToCodeString DetSearch where
-  build DetSearch{predicate} = PP.putWord $ printf "@any[%s]" predicate
+  build (DetSearch p) = printSearchLikePrim "any" p
 
 instance P.CanParsePrimitive DetSearch where
-  primitiveParser = parsePrimAny "any"
+  primitiveParser = fmap mkPrimAny . parsePrimAnyWithName "any"
 
-instance P.TypeCheckablePrimitive DetSearch where
-  typeCheckPrimitive = typeCheckPrimAny
+instance P.HasFreeVars DetSearch
+instance P.TypeCheckablePrimitive DetSearch
 
 instance
-  ( P.EvaluatablePrimitive primsT primsT costT
-  , Fractional costT
-  ) =>
+  (P.EvaluatablePrimitive primsT primsT costT, Fractional costT) =>
   P.EvaluatablePrimitive primsT DetSearch costT
-  where
-  evalPrimitive = evaluatePrimAny
 
 -- ================================================================================
 -- Abstract Costs
@@ -68,7 +67,9 @@ instance
   ) =>
   P.UnitaryCostablePrimitive primsT DetSearch sizeT costT
   where
-  unitaryQueryCostPrimitive delta DetSearch{predicate} = do
+  unitaryQueryCostPrimitive delta prim = do
+    let predicate = getPredicateName prim
+
     P.FunDef{P.param_types} <- view $ P._funCtx . Ctx.at predicate . singular _Just
     P.Fin n <- pure $ last param_types
 
@@ -90,7 +91,9 @@ instance
   ) =>
   P.QuantumMaxCostablePrimitive primsT DetSearch sizeT costT
   where
-  quantumMaxQueryCostPrimitive eps DetSearch{predicate} = do
+  quantumMaxQueryCostPrimitive eps prim = do
+    let predicate = getPredicateName prim
+
     P.FunDef{P.param_types} <- view $ P._funCtx . Ctx.at predicate . singular _Just
     P.Fin n <- pure $ last param_types
 
@@ -113,7 +116,10 @@ instance
   ) =>
   P.QuantumCostablePrimitive primsT DetSearch sizeT costT
   where
-  quantumQueryCostPrimitive eps DetSearch{predicate, args} sigma = do
+  quantumQueryCostPrimitive eps prim sigma = do
+    let predicate = getPredicateName prim
+    let args = getPredArgs prim
+
     P.FunDef{P.param_types} <- view $ P._funCtx . Ctx.at predicate . singular _Just
     ty@(P.Fin n) <- pure $ last param_types
 

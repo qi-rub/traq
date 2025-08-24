@@ -13,7 +13,7 @@ module Traq.Primitives (
 
 import Control.Applicative ((<|>))
 import GHC.Generics
-import Text.Printf (printf)
+import Text.Parsec (try)
 
 import Lens.Micro.GHC
 
@@ -43,24 +43,27 @@ _QAny _ q = pure q
 
 instance HasPrimAny DefaultPrims where
   _PrimAny = _QAny . _PrimAny
-  mkPrimAny a b = QAny $ mkPrimAny a b
+  mkPrimAny = QAny . mkPrimAny
 
 instance HasPrimSearch DefaultPrims where
   _PrimSearch = _QAny . _PrimSearch
-  mkPrimSearch a b = QAny $ mkPrimSearch a b
+  mkPrimSearch = QAny . mkPrimSearch
 
 -- Printing
 instance PP.ToCodeString DefaultPrims where
-  build (QAny prim) = PP.build prim
-  build (RAny RandomSearch{predicate, args}) = PP.putWord $ printf "@any_rand[%s](%s)" predicate (PP.commaList args)
-  build (DAny DetSearch{predicate, args}) = PP.putWord $ printf "@any_det[%s](%s)" predicate (PP.commaList args)
+  build (QAny (QAnyCFNW p)) = printSearchLikePrim "any" p
+  build (QAny (QSearchCFNW p)) = printSearchLikePrim "search" p
+  build (RAny p) = printSearchLikePrim "any_rand" p
+  build (DAny p) = printSearchLikePrim "any_det" p
 
 -- Parsing
 instance P.CanParsePrimitive DefaultPrims where
-  primitiveParser tp =
-    (QAny <$> P.primitiveParser tp)
-      <|> (RAny <$> parsePrimAny "any_rand" tp)
-      <|> (DAny <$> parsePrimAny "any_det" tp)
+  primitiveParser tp = try qany <|> try qsearch <|> try rany <|> try dany
+   where
+    qany = QAny . QAnyCFNW <$> parsePrimAnyWithName "any" tp
+    qsearch = QAny . QSearchCFNW <$> parsePrimSearchWithName "search" tp
+    rany = RAny . RandomSearch <$> parsePrimAnyWithName "any_rand" tp
+    dany = DAny . DetSearch <$> parsePrimAnyWithName "any_det" tp
 
 -- Evaluation
 instance

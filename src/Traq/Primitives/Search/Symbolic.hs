@@ -1,3 +1,5 @@
+{-# LANGUAGE DeriveGeneric #-}
+{-# LANGUAGE DuplicateRecordFields #-}
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE MultiParamTypeClasses #-}
 {-# LANGUAGE UndecidableInstances #-}
@@ -12,9 +14,11 @@ module Traq.Primitives.Search.Symbolic (
 ) where
 
 import Control.Applicative ((<|>))
+import GHC.Generics (Generic)
 import Text.Parsec (try)
 import Text.Printf (printf)
 
+import Lens.Micro.GHC
 import Lens.Micro.Mtl
 
 import qualified Traq.Data.Context as Ctx
@@ -38,38 +42,42 @@ _QryQmax n eps = Sym.var $ printf "QryQmax(%s, %s)" (show n) (show eps)
 -- ================================================================================
 -- Primitive Class Implementation
 -- ================================================================================
-data QSearchSym = QSearchSym (Ident, [Ident]) | QAnySym (Ident, [Ident])
-  deriving (Eq, Show, Read)
+data QSearchSym = QSearchSym PrimSearch | QAnySym PrimAny
+  deriving (Eq, Show, Read, Generic)
+
+_QSearchSym :: Traversal' QSearchSym PrimSearch
+_QSearchSym focus (QSearchSym p) = QSearchSym <$> focus p
+_QSearchSym _ q = pure q
+
+_QAnySym :: Traversal' QSearchSym PrimAny
+_QAnySym focus (QAnySym p) = QAnySym <$> focus p
+_QAnySym _ q = pure q
 
 getPred :: QSearchSym -> Ident
-getPred (QSearchSym (p, _)) = p
-getPred (QAnySym (p, _)) = p
+getPred (QSearchSym PrimSearch{predicate}) = predicate
+getPred (QAnySym PrimAny{predicate}) = predicate
 
 instance HasPrimAny QSearchSym where
-  _PrimAny focus (QAnySym f) = QAnySym <$> focus f
-  _PrimAny _ q = pure q
-
-  mkPrimAny = curry QSearchSym
+  _PrimAny = _QAnySym . _PrimAny
+  mkPrimAny = QAnySym . mkPrimAny
 
 instance HasPrimSearch QSearchSym where
-  _PrimSearch focus (QSearchSym f) = QSearchSym <$> focus f
-  _PrimSearch _ q = pure q
-
-  mkPrimSearch = curry QSearchSym
+  _PrimSearch = _QSearchSym . _PrimSearch
+  mkPrimSearch = QSearchSym . mkPrimSearch
 
 -- Printing
 instance PP.ToCodeString QSearchSym where
-  build (QAnySym (predicate, args)) = PP.putWord $ printf "@any[%s](%s)" predicate (PP.commaList args)
-  build (QSearchSym (predicate, args)) = PP.putWord $ printf "@search[%s](%s)" predicate (PP.commaList args)
+  build (QAnySym p) = printSearchLikePrim "any" p
+  build (QSearchSym p) = printSearchLikePrim "search" p
 
 -- Parsing
 instance P.CanParsePrimitive QSearchSym where
-  primitiveParser tp = try (parsePrimAny "any" tp) <|> try (parsePrimSearch "search" tp)
+  primitiveParser tp =
+    try (QAnySym <$> parsePrimAnyWithName "any" tp)
+      <|> try (QSearchSym <$> parsePrimSearchWithName "search" tp)
 
 -- Type check
-instance P.TypeCheckablePrimitive QSearchSym where
-  typeCheckPrimitive prim@(QAnySym _) = typeCheckPrimAny prim
-  typeCheckPrimitive prim@(QSearchSym _) = typeCheckPrimSearch prim
+instance P.TypeCheckablePrimitive QSearchSym
 
 -- ================================================================================
 -- Abstract Costs (worst case)

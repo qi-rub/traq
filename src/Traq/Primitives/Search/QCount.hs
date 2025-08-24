@@ -1,3 +1,4 @@
+{-# LANGUAGE DuplicateRecordFields #-}
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE MultiParamTypeClasses #-}
 {-# LANGUAGE UndecidableInstances #-}
@@ -12,6 +13,7 @@ module Traq.Primitives.Search.QCount () where
 import Text.Printf (printf)
 
 import Traq.Prelude
+import Traq.Primitives.Prelude
 import Traq.Primitives.Search.Prelude
 import qualified Traq.ProtoLang as P
 import qualified Traq.Utils.Printing as PP

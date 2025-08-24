@@ -1,3 +1,5 @@
+{-# LANGUAGE DeriveGeneric #-}
+{-# LANGUAGE DuplicateRecordFields #-}
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE MultiParamTypeClasses #-}
 {-# LANGUAGE TypeApplications #-}
@@ -11,7 +13,7 @@ module Traq.Primitives.Search.RandomSearch (
 import Control.Monad (forM)
 import Control.Monad.Reader (runReaderT)
 import Control.Monad.Trans (lift)
-import Text.Printf (printf)
+import GHC.Generics (Generic)
 
 import Lens.Micro.GHC
 import Lens.Micro.Mtl
@@ -50,32 +52,29 @@ _ERandomSearch n k _ = fromIntegral n / fromIntegral k
 {- | Primitive implementing search using classical random sampling.
  The unitary mode does a brute-force loop.
 -}
-data RandomSearch = RandomSearch {predicate :: Ident, args :: [Ident]}
-  deriving (Eq, Show, Read)
+newtype RandomSearch = RandomSearch PrimAny
+  deriving (Eq, Show, Read, Generic)
 
 instance HasPrimAny RandomSearch where
-  _PrimAny focus (RandomSearch p args) = uncurry RandomSearch <$> focus (p, args)
-  mkPrimAny = RandomSearch
+  _PrimAny focus (RandomSearch p) = RandomSearch <$> focus p
+  mkPrimAny = RandomSearch . mkPrimAny
 
-instance P.HasFreeVars RandomSearch where
-  freeVarsList RandomSearch{args} = args
+instance IsSearchLike RandomSearch where
+  getPredicateName (RandomSearch p) = getPredicateName p
+  getPredArgs (RandomSearch p) = getPredArgs p
 
 instance PP.ToCodeString RandomSearch where
-  build RandomSearch{predicate, args} = PP.putWord $ printf "@any[%s](%s)" predicate (PP.commaList args)
+  build (RandomSearch p) = printSearchLikePrim "any" p
 
 instance P.CanParsePrimitive RandomSearch where
-  primitiveParser = parsePrimAny "any"
+  primitiveParser = fmap RandomSearch . parsePrimAnyWithName "any"
 
-instance P.TypeCheckablePrimitive RandomSearch where
-  typeCheckPrimitive = typeCheckPrimAny
+instance P.HasFreeVars RandomSearch
+instance P.TypeCheckablePrimitive RandomSearch
 
 instance
-  ( Fractional costT
-  , P.EvaluatablePrimitive primsT primsT costT
-  ) =>
+  (Fractional costT, P.EvaluatablePrimitive primsT primsT costT) =>
   P.EvaluatablePrimitive primsT RandomSearch costT
-  where
-  evalPrimitive = evaluatePrimAny
 
 -- ================================================================================
 -- Abstract Costs
@@ -89,7 +88,9 @@ instance
   ) =>
   P.UnitaryCostablePrimitive primsT RandomSearch sizeT costT
   where
-  unitaryQueryCostPrimitive delta RandomSearch{predicate} = do
+  unitaryQueryCostPrimitive delta prim = do
+    let predicate = getPredicateName prim
+
     P.FunDef{P.param_types} <- view $ P._funCtx . Ctx.at predicate . singular _Just
     P.Fin n <- pure $ last param_types
 
@@ -114,7 +115,9 @@ instance
   ) =>
   P.QuantumMaxCostablePrimitive primsT RandomSearch sizeT costT
   where
-  quantumMaxQueryCostPrimitive eps RandomSearch{predicate} = do
+  quantumMaxQueryCostPrimitive eps prim = do
+    let predicate = getPredicateName prim
+
     P.FunDef{P.param_types} <- view $ P._funCtx . Ctx.at predicate . singular _Just
     P.Fin n <- pure $ last param_types
 
@@ -148,7 +151,10 @@ instance
   ) =>
   P.QuantumCostablePrimitive primsT RandomSearch sizeT costT
   where
-  quantumQueryCostPrimitive eps RandomSearch{predicate, args} sigma = do
+  quantumQueryCostPrimitive eps prim sigma = do
+    let predicate = getPredicateName prim
+    let args = getPredArgs prim
+
     P.FunDef{P.param_types} <- view $ P._funCtx . Ctx.at predicate . singular _Just
     ty@(P.Fin n) <- pure $ last param_types
 

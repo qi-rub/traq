@@ -45,6 +45,7 @@ library
       Traq.Prelude
       Traq.Primitives
       Traq.Primitives.Amplify
+      Traq.Primitives.Prelude
       Traq.Primitives.Search.DetSearch
       Traq.Primitives.Search.Prelude
       Traq.Primitives.Search.QCount
