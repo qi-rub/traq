@@ -105,8 +105,9 @@ instance
 
     vs <- forM search_range $ \val -> do
       res <- P.evalFun (arg_vals ++ [val]) (P.NamedFunDef predicate pred_fun)
-      [P.FinV v] <- pure res
-      return v
+      case res of
+        [P.FinV v] -> return v
+        _ -> error "fail"
 
     return [P.FinV $ maximum vs]
 

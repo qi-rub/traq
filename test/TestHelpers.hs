@@ -1,5 +1,3 @@
-{-# LANGUAGE ImplicitParams #-}
-
 module TestHelpers where
 
 import Control.Monad (forM_)
@@ -47,7 +45,8 @@ shouldBeDistribution ::
   m a ->
   [(a, probT)] ->
   Expectation
-shouldBeDistribution mu vals =
+shouldBeDistribution mu vals = do
   let epsilon = 1e-6 :: probT
-   in forM_ vals $ \(x, p) ->
-        assertApproxEqual ("Prob[" <> show x <> "]") epsilon p $ Prob.probabilityOf (== x) mu
+  assertApproxEqual "mass" epsilon (sum $ map snd vals) $ Prob.mass mu
+  forM_ vals $ \(x, p) ->
+    assertApproxEqual ("Prob[" <> show x <> "]") epsilon p $ Prob.probabilityOf (== x) mu

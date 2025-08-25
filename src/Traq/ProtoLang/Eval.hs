@@ -26,6 +26,7 @@ module Traq.ProtoLang.Eval (
   domain,
 
   -- * Types and Monad
+  EvaluationMonad,
   EvaluatablePrimitive (..),
 
   -- ** Evaluation
@@ -241,8 +242,11 @@ instance HasFunInterpCtx (EvaluationEnv primsT sizeT) where
 
 type ExecutionState sizeT = ProgramState sizeT
 
+-- | Base probability monad to evaluate the program.
+type EvaluationMonad costT = Prob.ExpMonad costT
+
 -- | Non-deterministic Execution Monad (i.e. no state)
-type Evaluator primsT sizeT costT = ReaderT (EvaluationEnv primsT sizeT) (Prob.Distr costT)
+type Evaluator primsT sizeT costT = ReaderT (EvaluationEnv primsT sizeT) (EvaluationMonad costT)
 
 -- | Non-deterministic Execution Monad
 type Executor primsT sizeT costT = StateT (ExecutionState sizeT) (Evaluator primsT sizeT costT)
@@ -396,7 +400,7 @@ runProgram ::
   Program primsT SizeT ->
   FunInterpCtx SizeT ->
   [Value SizeT] ->
-  Prob.Distr costT [Value SizeT]
+  EvaluationMonad costT [Value SizeT]
 runProgram (Program fs) funInterpCtx inp =
   evalFun inp (last fs) & (runReaderT ?? env)
  where

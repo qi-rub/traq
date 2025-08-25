@@ -38,7 +38,7 @@ spec = do
 
     it "evaluates" $ do
       let res = P.runProgram @_ @Double ex interpCtx []
-      res `shouldBe` pure [P.FinV 0]
+      res `shouldBeDistribution` pure ([P.FinV 0], 1.0)
 
     let ecF = _EQSearch
     let ucF = _QSearchZalka

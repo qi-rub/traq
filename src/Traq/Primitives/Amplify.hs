@@ -153,7 +153,7 @@ evaluatePrimAmplify prim sigma = do
     if
       | p_succ >= p_min' -> Prob.postselect predicateBTrue mu
       | p_succ == 0 -> mu
-      | otherwise -> fail "invalid p_min"
+      | otherwise -> Prob.zero
  where
   predicateBTrue =
     \case
