@@ -42,6 +42,7 @@ protoLangDef =
           "const"
         , "update"
         , "set"
+        , "loop"
         , -- functions
           "def"
         , "declare"
@@ -55,7 +56,7 @@ protoLangDef =
         , -- operators
           "not"
         ]
-    , reservedOpNames = [":", "<-", "->"]
+    , reservedOpNames = [":", "<-", "->", "?"]
     }
 
 protoLangTokenParser :: TokenParser st
@@ -93,6 +94,7 @@ exprP tp@TokenParser{..} =
     [ parens (exprP tp)
     , primCallE
     , funCallE
+    , ternaryE
     , unOpE
     , binOpE
     , binOpFlippedE
@@ -100,6 +102,7 @@ exprP tp@TokenParser{..} =
     , dynIndexE
     , indexE
     , updateArrE
+    , loopE
     , varE
     ]
  where
@@ -139,6 +142,9 @@ exprP tp@TokenParser{..} =
   binOp =
     operator >>= \case
       "+" -> return AddOp
+      "*" -> return MulOp
+      "-" -> return SubOp
+      "^" -> return XorOp
       "<=" -> return LEqOp
       "&&" -> return AndOp
       "<" -> return LtOp
@@ -185,6 +191,22 @@ exprP tp@TokenParser{..} =
     "=" <- operator
     rhs <- VarE <$> identifier
     return $ BasicExprE UpdateArrE{arr_expr, ix_expr, rhs}
+
+  ternaryE :: Parser (Expr primT SymbSize)
+  ternaryE = do
+    branch <- VarE <$> identifier
+    reservedOp "?"
+    lhs <- VarE <$> identifier
+    reservedOp ":"
+    rhs <- VarE <$> identifier
+    return $ BasicExprE $ TernaryE{branch, lhs, rhs}
+
+  loopE :: Parser (Expr primT SymbSize)
+  loopE = do
+    reserved "loop"
+    initial_args <- parens $ commaSep (VarE <$> identifier)
+    loop_body_fun <- identifier
+    return $ LoopE{initial_args, loop_body_fun}
 
 randExprP :: forall primT. (CanParsePrimitive primT) => TokenParser () -> Parser (Expr primT SymbSize)
 randExprP tp@TokenParser{..} = choice $ map try [uniformE, biasedCoinE]

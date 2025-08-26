@@ -29,6 +29,7 @@ module Traq.Data.Probability.Class (
 
   -- * Support Monad
   support,
+  outcomes,
   toDeterministicValue,
 ) where
 
@@ -36,6 +37,7 @@ import Control.Applicative (Const (..))
 import Control.Monad (guard)
 import Control.Monad.Identity (Identity (..))
 import Control.Monad.Reader (ReaderT (..))
+import Data.List (nub)
 import Data.Monoid (Endo (..))
 
 import Traq.Control.Monad
@@ -118,6 +120,12 @@ postselect ev m =
 -- | Support of a distribution
 support :: (MonadExp p m) => m a -> [a]
 support = (appEndo ?? []) . getConst . expectationA (Const . Endo . (:))
+
+-- | outcomes
+outcomes :: (MonadExp p m, Eq a) => m a -> [(a, p)]
+outcomes mu = do
+  a <- nub $ support mu
+  return (a, probabilityOf (== a) mu)
 
 toDeterministicValue :: (MonadExp p m, Eq a) => m a -> Maybe a
 toDeterministicValue m = do

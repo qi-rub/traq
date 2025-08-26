@@ -42,6 +42,7 @@ library
       Traq.Data.Symbolic
       Traq.Examples.MatrixSearch
       Traq.Examples.Search
+      Traq.Examples.TreeGenerator
       Traq.Prelude
       Traq.Primitives
       Traq.Primitives.Amplify
@@ -263,6 +264,7 @@ test-suite spec
       Traq.Examples.MatrixSearchSpec
       Traq.Examples.NonDetSpec
       Traq.Examples.SearchSpec
+      Traq.Examples.TreeGeneratorSpec
       Traq.Primitives.AmplifySpec
       Traq.Primitives.Search.QSearchCFNWSpec
       Traq.Primitives.Search.RandomSearchSpec

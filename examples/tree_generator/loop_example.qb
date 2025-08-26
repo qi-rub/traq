@@ -1,0 +1,11 @@
+def AddWeight(acc: Fin<W>, i: Fin<N>) -> (Fin<W>) do
+    one <- const 1 : Fin<W>;
+    acc' <- acc + one;
+    return acc'
+end
+
+def main () -> (Fin<W>) do
+    acc <- const 0 : Fin<W>;
+    tw <- loop (acc) AddWeight;
+    return tw
+end

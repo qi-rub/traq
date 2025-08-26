@@ -42,13 +42,15 @@ module Traq.ProtoLang.Eval (
   Executor,
 ) where
 
-import Control.Monad (replicateM, zipWithM_)
+import Control.Monad (foldM, replicateM, when, zipWithM_)
 import Control.Monad.Reader (MonadReader, ReaderT, runReaderT)
 import Control.Monad.State (MonadState, StateT, evalStateT)
 import Control.Monad.Trans (lift)
+import Data.Bits (Bits (xor))
 import Data.Maybe (fromJust)
 import Data.Void (Void, absurd)
 import GHC.Generics
+import Text.Printf (printf)
 
 import Lens.Micro.GHC
 import Lens.Micro.Mtl
@@ -132,6 +134,9 @@ evalUnOp NotOp = toValue . not . fromValue
 
 evalBinOp :: (sizeT ~ SizeT) => BinOp -> Value sizeT -> Value sizeT -> Value sizeT
 evalBinOp AddOp (FinV x) (FinV y) = FinV $ x + y
+evalBinOp MulOp (FinV x) (FinV y) = FinV $ x * y
+evalBinOp SubOp (FinV x) (FinV y) = FinV $ x - y
+evalBinOp XorOp (FinV x) (FinV y) = FinV (xor x y)
 evalBinOp LEqOp (FinV x) (FinV y) = toValue $ x <= y
 evalBinOp LtOp (FinV x) (FinV y) = toValue $ x < y
 evalBinOp AndOp v1 v2 = toValue $ fromValue v1 && fromValue v2
@@ -166,7 +171,7 @@ evalBasicExpr ::
   ) =>
   BasicExpr sizeT ->
   m (Value sizeT)
-evalBasicExpr VarE{var} = view $ _state . Ctx.at var . singular _Just
+evalBasicExpr VarE{var} = view $ _state . Ctx.at var . non' (error $ "cannot find variable " <> var)
 evalBasicExpr ConstE{val} = return val
 evalBasicExpr UnOpE{un_op, operand} = do
   arg_val <- evalBasicExpr operand
@@ -358,6 +363,12 @@ evalExpr FunCallE{fname, args} sigma = do
 evalExpr PrimCallE{prim} sigma = do
   evalPrimitive prim sigma
 
+-- loop
+evalExpr LoopE{initial_args, loop_body_fun} sigma = do
+  fun_def <- view $ _funCtx . Ctx.at loop_body_fun . singular _Just
+  init_vals <- concat <$> mapM (\e -> evalExpr (BasicExprE e) sigma) initial_args
+  foldM (\args i -> evalFun (args ++ [i]) (NamedFunDef loop_body_fun fun_def)) init_vals (domain (last (param_types fun_def)))
+
 execStmt ::
   forall primsT costT m.
   ( EvaluatablePrimitive primsT primsT costT
@@ -385,11 +396,12 @@ evalFun ::
   -- | function
   NamedFunDef primsT SizeT ->
   m [Value SizeT]
-evalFun vals_in NamedFunDef{fun_def = FunDef{mbody = Just FunBody{param_names, ret_names, body_stmt}}} =
+evalFun vals_in NamedFunDef{fun_def = FunDef{mbody = Just FunBody{param_names, ret_names, body_stmt}}, fun_name} = do
+  when (length param_names /= length vals_in) $ error (printf "incorrect number of fun `%s` args: expected %s, got %s" fun_name (show param_names) (show vals_in))
   let params = Ctx.fromList $ zip param_names vals_in
-   in (evalStateT ?? params) $ do
-        execStmt body_stmt
-        mapM lookupS ret_names
+  (evalStateT ?? params) $ do
+    execStmt body_stmt
+    mapM lookupS ret_names
 evalFun vals_in NamedFunDef{fun_name, fun_def = FunDef{mbody = Nothing}} = do
   fn_interp <- view $ _funInterpCtx . Ctx.at fun_name . singular _Just
   return $ fn_interp vals_in

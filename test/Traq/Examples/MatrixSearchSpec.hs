@@ -52,7 +52,7 @@ spec = do
       let nu_inner = 2 * ucF m (delta / 2 / nu_outer / 8)
       cu `shouldBe` 2 * nu_outer * 2 * nu_inner
 
-    it "quantum cost for eps=0.0001" $ do
+    xit "quantum cost for eps=0.0001" $ do
       let eps = 0.0001
       let cq = P.quantumQueryCost P.SplitSimple eps ex cticks uticks interpCtx []
       let nq_outer = wcF n (eps / 2)

@@ -63,7 +63,7 @@ instance HasTypingCtx (TypingCtx sizeT) where _typingCtx = id
 -- ================================================================================
 
 -- | Type @sizeT@ that can be type-checked.
-type TypeCheckable sizeT = (Ord sizeT, Show sizeT, Num sizeT)
+type TypeCheckable sizeT = (Eq sizeT, Show sizeT, Num sizeT)
 
 -- | Boolean type in our language.
 tbool :: (Num sizeT) => VarType sizeT
@@ -109,6 +109,21 @@ typeCheckBasicExpr BinOpE{bin_op, lhs, rhs} = do
       unless (ty_lhs == ty_rhs) $
         throwError
           ("`+` requires same type args, got " <> show [ty_lhs, ty_rhs])
+      return ty_lhs
+    MulOp -> do
+      unless (ty_lhs == ty_rhs) $
+        throwError
+          ("`*` requires same type args, got " <> show [ty_lhs, ty_rhs])
+      return ty_lhs
+    SubOp -> do
+      unless (ty_lhs == ty_rhs) $
+        throwError
+          ("`-` requires same type args, got " <> show [ty_lhs, ty_rhs])
+      return ty_lhs
+    XorOp -> do
+      unless (ty_lhs == ty_rhs) $
+        throwError
+          ("`^` requires same type args, got " <> show [ty_lhs, ty_rhs])
       return ty_lhs
 typeCheckBasicExpr TernaryE{branch, lhs, rhs} = do
   ty_branch <- typeCheckBasicExpr branch
@@ -159,7 +174,7 @@ typeCheckBasicExpr UpdateArrE{arr_expr, ix_expr, rhs} = do
   when (rhs_ty /= t) $ do
     throwError (printf "expected array value type %s, got %s" (show t) (show rhs_ty))
 
-  return t
+  typeCheckBasicExpr arr_expr
 typeCheckBasicExpr ProjectE{tup_expr, tup_ix_val} = do
   ts <-
     typeCheckBasicExpr tup_expr >>= \case
@@ -249,8 +264,24 @@ typeCheckExpr FunCallE{fname, args} = do
 
   return ret_types
 
--- `primitive`[...](...)
+-- `primitive`
 typeCheckExpr PrimCallE{prim} = typeCheckPrimitive prim
+-- loop ...
+typeCheckExpr LoopE{initial_args, loop_body_fun} =
+  do
+    -- extract the current context
+    gamma <- use id
+    in_tys <- runReaderT ?? gamma $ mapM typeCheckBasicExpr initial_args
+    FunDef{param_types, ret_types} <- lookupFunE loop_body_fun
+    unless (ret_types == in_tys) $
+      throwError "Initial input argument types should match output types of the loop function."
+    unless (init param_types == ret_types) $
+      throwError "Initial N - 1 input param types should match output types of the loop function."
+    when (null param_types) $
+      throwError "There is should be at least one parameter types."
+    case last param_types of
+      (Fin _) -> return ret_types
+      _ -> throwError "Last type of the loop function should be a Fin type."
 
 {- | Typecheck a statement, given the current context and function definitions.
  If successful, the typing context is updated.

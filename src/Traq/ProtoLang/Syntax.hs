@@ -133,6 +133,9 @@ instance PP.ToCodeString UnOp where
 -- | Binary operations
 data BinOp
   = AddOp
+  | MulOp
+  | SubOp
+  | XorOp
   | LEqOp
   | LtOp
   | AndOp
@@ -140,6 +143,9 @@ data BinOp
 
 instance PP.ToCodeString BinOp where
   build AddOp = PP.putWord "+"
+  build MulOp = PP.putWord "*"
+  build SubOp = PP.putWord "-"
+  build XorOp = PP.putWord "^"
   build LEqOp = PP.putWord "<="
   build LtOp = PP.putWord "<"
   build AndOp = PP.putWord "&&"
@@ -219,6 +225,7 @@ data Expr primT sizeT
   | BiasedCoinE {prob_one :: Double}
   | FunCallE {fname :: Ident, args :: [Ident]}
   | PrimCallE {prim :: primT}
+  | LoopE {initial_args :: [BasicExpr sizeT], loop_body_fun :: Ident}
   deriving (Eq, Show, Read, Functor)
 
 type instance SizeType (Expr primT sizeT) = sizeT
@@ -230,6 +237,11 @@ instance (Show sizeT, PP.ToCodeString primT) => PP.ToCodeString (Expr primT size
   build BiasedCoinE{prob_one} = PP.putLine $ printf "$ coin[%s]" (show prob_one)
   build FunCallE{fname, args} = PP.putLine $ printf "%s(%s)" fname (PP.commaList args)
   build PrimCallE{prim} = PP.build prim
+  build LoopE{initial_args, loop_body_fun} =
+    PP.putWord
+      =<< printf "loop (%s) %s"
+        <$> (PP.commaList <$> mapM PP.fromBuild initial_args)
+        <*> pure loop_body_fun
 
 -- | A statement in the prototype language.
 data Stmt primT sizeT

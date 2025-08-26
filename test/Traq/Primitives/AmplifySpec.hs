@@ -19,7 +19,6 @@ exampleProgram1 n = P.Program [P.NamedFunDef "sampler" sampler, P.NamedFunDef "m
  where
   node_ty = P.Fin n
 
-  -- sampler of type (Fin<N>) -> (Bool, Fin<N>)
   sampler =
     P.FunDef
       { P.param_types = [node_ty]
