@@ -161,6 +161,7 @@ instance PP.ToCodeString NAryOp where
 data BasicExpr sizeT
   = VarE {var :: Ident}
   | ParamE {param :: Ident} -- compile-time constant parameter
+  | DefaultE {ty :: VarType sizeT} -- initialize to default value of `ty`
   | ConstE {val :: Value sizeT, ty :: VarType sizeT}
   | UnOpE {un_op :: UnOp, operand :: BasicExpr sizeT}
   | BinOpE {bin_op :: BinOp, lhs, rhs :: BasicExpr sizeT}
@@ -190,6 +191,7 @@ notE = UnOpE NotOp
 instance (Show sizeT) => PP.ToCodeString (BasicExpr sizeT) where
   build VarE{var} = PP.putWord var
   build ParamE{param} = PP.putWord $ printf "#%s" param
+  build DefaultE{ty} = PP.putWord . printf "default : %s" =<< PP.fromBuild ty
   build ConstE{val, ty} =
     PP.putWord =<< printf "%s:%s" <$> PP.fromBuild val <*> PP.fromBuild ty
   build UnOpE{un_op, operand} =

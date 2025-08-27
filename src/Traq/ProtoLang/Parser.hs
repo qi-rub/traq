@@ -98,6 +98,7 @@ exprP tp@TokenParser{..} =
     , unOpE
     , binOpE
     , binOpFlippedE
+    , defaultE
     , constE
     , dynIndexE
     , indexE
@@ -108,6 +109,13 @@ exprP tp@TokenParser{..} =
  where
   varE :: Parser (Expr primT SymbSize)
   varE = BasicExprE . VarE <$> identifier
+
+  defaultE :: Parser (Expr primT SymbSize)
+  defaultE = do
+    reserved "default"
+    colon
+    ty <- varType tp
+    return $ BasicExprE DefaultE{ty}
 
   constE :: Parser (Expr primT SymbSize)
   constE = do

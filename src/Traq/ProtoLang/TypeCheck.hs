@@ -88,6 +88,7 @@ typeCheckBasicExpr ParamE{param} = do
   -- gamma <- view id
   -- throwError $ printf "UNSUPPORTED #%s : %s" param (show gamma)
   Ctx.lookup' $ '#' : param
+typeCheckBasicExpr DefaultE{ty} = return ty
 typeCheckBasicExpr ConstE{ty} = return ty
 typeCheckBasicExpr UnOpE{un_op, operand} = do
   arg_ty <- typeCheckBasicExpr operand

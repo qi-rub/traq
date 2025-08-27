@@ -140,7 +140,7 @@ evalBinOp XorOp (FinV x) (FinV y) = FinV (xor x y)
 evalBinOp LEqOp (FinV x) (FinV y) = toValue $ x <= y
 evalBinOp LtOp (FinV x) (FinV y) = toValue $ x < y
 evalBinOp AndOp v1 v2 = toValue $ fromValue v1 && fromValue v2
-evalBinOp _ _ _ = error "invalid inputs"
+evalBinOp op lhs rhs = error $ printf "evalBinOp failed: %s (%s) (%s)" (show op) (show lhs) (show rhs)
 
 evalOp :: (sizeT ~ SizeT) => NAryOp -> [Value sizeT] -> Value sizeT
 evalOp MultiOrOp = toValue . any valueToBool
@@ -148,7 +148,7 @@ evalOp MultiOrOp = toValue . any valueToBool
 -- | @elemOfArr i a@ returns a[i]
 elemOfArr :: (sizeT ~ SizeT) => Value sizeT -> Value sizeT -> Value sizeT
 elemOfArr (FinV i) (ArrV xs) = xs !! i
-elemOfArr _ _ = error "invalid inputs"
+elemOfArr ix arr = error $ printf "invalid inputs: elemOfArr[ix: %s, arr: %s]" (show ix) (show arr)
 
 -- | @modifyArr a i v@ sets a[i] to v.
 modifyArr :: (sizeT ~ SizeT) => Value sizeT -> Value sizeT -> Value sizeT -> Value sizeT
@@ -172,6 +172,7 @@ evalBasicExpr ::
   BasicExpr sizeT ->
   m (Value sizeT)
 evalBasicExpr VarE{var} = view $ _state . Ctx.at var . non' (error $ "cannot find variable " <> var)
+evalBasicExpr DefaultE{ty} = return $ defaultV ty
 evalBasicExpr ConstE{val} = return val
 evalBasicExpr UnOpE{un_op, operand} = do
   arg_val <- evalBasicExpr operand

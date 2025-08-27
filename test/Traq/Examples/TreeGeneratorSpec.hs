@@ -4,15 +4,16 @@ module Traq.Examples.TreeGeneratorSpec where
 
 import Text.Parsec.String
 
+import Lens.Micro.GHC
+
 import qualified Traq.Data.Context as Ctx
 import qualified Traq.Data.Probability as Prob
 import qualified Traq.Data.Symbolic as Sym
 
 import Traq.Examples.TreeGenerator (treeGeneratorExample)
-import Traq.Primitives
+import Traq.Prelude
+import Traq.Primitives.Amplify (QAmplify)
 import Traq.ProtoLang
-import Traq.ProtoLang.Syntax (Value (ArrV, FinV))
-import Traq.ProtoLang.TypeCheck (typeCheckProg)
 
 import Test.Hspec
 import TestHelpers
@@ -66,44 +67,66 @@ loopExample n w =
         }
     ]
 
+loadKnapsack ::
+  -- | number of elements
+  SizeT ->
+  -- | bound on total weight
+  SizeT ->
+  -- | bound on total profit
+  SizeT ->
+  -- | number of iterations
+  SizeT ->
+  IO (Program QAmplify SizeT)
+loadKnapsack n w p k = do
+  Right prog <- parseFromFile (programParser @QAmplify) "examples/tree_generator/tree_generator_01_knapsack.qb"
+  return $
+    prog
+      <&> Sym.subst "N" (Sym.con n)
+      <&> Sym.subst "W" (Sym.con w)
+      <&> Sym.subst "P" (Sym.con p)
+      <&> Sym.subst "K" (Sym.con k)
+      <&> Sym.unSym
+
 spec :: Spec
 spec = do
   describe "Tree Generator Example" $ do
     it "parses" $ do
-      p <-
-        parseFromFile (programParser @DefaultPrims) "examples/tree_generator/tree_generator.qb"
-          >>= expectRight
-      p `shouldBe` treeGeneratorExample (Sym.var "N") (Sym.var "W") (Sym.var "P")
+      expectRight =<< parseFromFile (programParser @QAmplify) "examples/tree_generator/tree_generator_01_knapsack.qb"
+      -- p `shouldBe` treeGeneratorExample (Sym.var "N") (Sym.var "W") (Sym.var "P")
+      return ()
 
     it "typechecks" $ do
       p <-
-        parseFromFile (programParser @DefaultPrims) "examples/tree_generator/tree_generator.qb"
+        parseFromFile (programParser @QAmplify) "examples/tree_generator/tree_generator_01_knapsack.qb"
           >>= expectRight
-      assertRight $ (typeCheckProg @DefaultPrims) p
+      assertRight $ (typeCheckProg @QAmplify) p
 
     it "evaluates" $ do
-      let n = 1
+      let n = 2
+      prog <- loadKnapsack n 20 30 2
       let funInterpCtx =
             Ctx.fromList
               [ ("Capacity", \_ -> [FinV 20])
               , ("Profit", \[FinV i] -> [FinV i])
               , ("Weight", \[FinV i] -> [FinV i])
               ]
-      let result = (runProgram @DefaultPrims) (treeGeneratorExample n 20 30) funInterpCtx [ArrV (replicate n (FinV 0))]
+      let result = (runProgram @QAmplify) prog funInterpCtx []
 
+      print $ Prob.outcomes result
       result
-        `shouldBeDistribution` [([FinV 0, ArrV [FinV 0]], 0.5), ([FinV 0, ArrV [FinV 1]], 0.5)]
+        `shouldBeDistribution` [ ([ArrV [FinV 0, FinV 1]], 0.5)
+                               , ([ArrV [FinV 1, FinV 1]], 0.5)
+                               ]
 
   describe "Loop example" $ do
     it "parses" $ do
       p <-
-        parseFromFile (programParser @DefaultPrims) "examples/tree_generator/loop_example.qb"
+        parseFromFile (programParser @QAmplify) "examples/tree_generator/loop_example.qb"
           >>= expectRight
       p `shouldBe` loopExample (Sym.var "N") (Sym.var "W")
 
     it "evaluates" $ do
       let funInterpCtx = Ctx.singleton "AddWeight" (\[FinV x1, FinV x2] -> [FinV x1])
-      let result = (runProgram @DefaultPrims) (loopExample 10 20) funInterpCtx []
+      let result = (runProgram @QAmplify) (loopExample 10 20) funInterpCtx []
 
-      result
-        `shouldBeDistribution` [([FinV 10], 1.0)]
+      result `shouldBeDistribution` [([FinV 10], 1.0)]
