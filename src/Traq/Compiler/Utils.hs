@@ -1,3 +1,5 @@
+{-# LANGUAGE DeriveAnyClass #-}
+{-# LANGUAGE DeriveGeneric #-}
 {-# LANGUAGE FlexibleInstances #-}
 
 module Traq.Compiler.Utils (
@@ -22,6 +24,7 @@ import Control.Monad.Except (MonadError, throwError)
 import Control.Monad.State (MonadState)
 import Control.Monad.Writer (MonadWriter)
 import qualified Data.Set as Set
+import GHC.Generics (Generic)
 
 import Lens.Micro.GHC
 import Lens.Micro.Mtl
@@ -76,8 +79,7 @@ newIdent prefix = do
 - The typing context: mapping all variables in context to their types.
 -}
 data LoweringCtx sizeT = LoweringCtx (Set.Set Ident) (P.TypingCtx sizeT)
-
-instance HasDefault (LoweringCtx sizeT) where default_ = LoweringCtx default_ default_
+  deriving (Generic, HasDefault)
 
 type instance SizeType (LoweringCtx sizeT) = sizeT
 

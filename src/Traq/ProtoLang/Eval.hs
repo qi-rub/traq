@@ -1,4 +1,6 @@
 {-# LANGUAGE DefaultSignatures #-}
+{-# LANGUAGE DeriveAnyClass #-}
+{-# LANGUAGE DeriveGeneric #-}
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE MultiParamTypeClasses #-}
 {-# LANGUAGE UndecidableInstances #-}
@@ -223,6 +225,7 @@ instance HasFunInterpCtx (FunInterpCtx sizeT) where _funInterpCtx = id
 
 -- | Environment for evaluation
 data EvaluationEnv primsT sizeT = EvaluationEnv (FunCtx primsT sizeT) (FunInterpCtx sizeT)
+  deriving (Generic, HasDefault)
 
 type instance SizeType (EvaluationEnv primsT sizeT) = sizeT
 type instance PrimitiveType (EvaluationEnv primsT sizeT) = primsT
@@ -233,8 +236,6 @@ class HasEvaluationEnv p where
     Lens' p (EvaluationEnv primsT sizeT)
 
 instance HasEvaluationEnv (EvaluationEnv primsT sizeT) where _evaluationEnv = id
-
-instance HasDefault (EvaluationEnv primsT sizeT) where default_ = EvaluationEnv default_ default_
 
 instance HasFunCtx (EvaluationEnv primsT sizeT) where
   _funCtx focus (EvaluationEnv f fi) = focus f <&> \f' -> EvaluationEnv f' fi

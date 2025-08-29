@@ -1,3 +1,5 @@
+{-# LANGUAGE DeriveAnyClass #-}
+{-# LANGUAGE DeriveGeneric #-}
 {-# LANGUAGE DuplicateRecordFields #-}
 
 module Traq.CQPL.TypeCheck (
@@ -18,6 +20,7 @@ import Control.Monad.Reader (MonadReader, ReaderT, local, runReaderT)
 import Control.Monad.State (execStateT)
 import Data.Foldable (toList)
 import Data.List (intersect)
+import GHC.Generics (Generic)
 import Text.Printf (printf)
 
 import Lens.Micro.GHC
@@ -90,11 +93,10 @@ verifyArgs args tys = do
 
 -- | Env for type checking
 data CheckingCtx sizeT costT = CheckingCtx (ProcCtx sizeT costT) (P.TypingCtx sizeT)
+  deriving (Generic, HasDefault)
 
 type instance SizeType (CheckingCtx sizeT costT) = sizeT
 type instance CostType (CheckingCtx sizeT costT) = costT
-
-instance HasDefault (CheckingCtx sizeT costT) where default_ = CheckingCtx default_ default_
 
 instance HasProcCtx (CheckingCtx sizeT costT) where
   _procCtx focus (CheckingCtx p t) = focus p <&> \p' -> CheckingCtx p' t

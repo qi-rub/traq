@@ -1,4 +1,6 @@
+{-# LANGUAGE DeriveAnyClass #-}
 {-# LANGUAGE DeriveFunctor #-}
+{-# LANGUAGE DeriveGeneric #-}
 
 module Traq.Data.Context (
   Context,
@@ -40,6 +42,7 @@ import Control.Monad.Reader (MonadReader)
 import Control.Monad.State (MonadState)
 import qualified Data.Foldable as Foldable
 import qualified Data.List as List
+import GHC.Generics (Generic)
 import Text.Printf (printf)
 
 import Lens.Micro.GHC hiding (at, ix)
@@ -63,7 +66,7 @@ _val :: Lens' (Binding a) a
 _val = _binding . _2
 
 newtype Context a = Context [Binding a]
-  deriving (Eq, Show, Read, Functor)
+  deriving (Eq, Show, Read, Functor, Generic, HasDefault)
 
 instance Foldable Context where
   foldr f b (Context m) = foldr (f . view _val) b (reverse m)
@@ -108,9 +111,6 @@ ix k focus = \(Context m) -> Context <$> go m
 
 empty :: Context a
 empty = mempty
-
-instance HasDefault (Context a) where
-  default_ = mempty
 
 null :: Context a -> Bool
 null (Context m) = Prelude.null m

@@ -1,4 +1,6 @@
 {-# LANGUAGE DefaultSignatures #-}
+{-# LANGUAGE DeriveAnyClass #-}
+{-# LANGUAGE DeriveGeneric #-}
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE MultiParamTypeClasses #-}
 {-# LANGUAGE TypeApplications #-}
@@ -175,9 +177,7 @@ splitEps eps ss = do
 
 -- | Environment to compute the unitary cost
 data UnitaryCostEnv primT sizeT costT = UnitaryCostEnv (FunCtx primT sizeT) (OracleTicks costT) PrecisionSplittingStrategy
-
-instance HasDefault (UnitaryCostEnv primT sizeT costT) where
-  default_ = UnitaryCostEnv default_ default_ default_
+  deriving (Generic, HasDefault)
 
 -- Types and instances
 type instance PrimitiveType (UnitaryCostEnv primT sizeT costT) = primT
@@ -356,9 +356,7 @@ data QuantumMaxCostEnv primT sizeT costT
   = QuantumMaxCostEnv
       (UnitaryCostEnv primT sizeT costT) -- unitary enviroment
       (OracleTicks costT) -- classical ticks
-
-instance HasDefault (QuantumMaxCostEnv primT sizeT costT) where
-  default_ = QuantumMaxCostEnv default_ default_
+  deriving (Generic, HasDefault)
 
 -- instances
 type instance PrimitiveType (QuantumMaxCostEnv primT sizeT costT) = primT
@@ -540,9 +538,7 @@ data QuantumCostEnv primsT sizeT costT
   = QuantumCostEnv
       (QuantumMaxCostEnv primsT sizeT costT)
       (FunInterpCtx sizeT)
-
-instance HasDefault (QuantumCostEnv primT sizeT costT) where
-  default_ = QuantumCostEnv default_ default_
+  deriving (Generic, HasDefault)
 
 type instance PrimitiveType (QuantumCostEnv primsT sizeT costT) = primsT
 
