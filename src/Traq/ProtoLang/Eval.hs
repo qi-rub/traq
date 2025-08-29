@@ -337,6 +337,19 @@ putS ::
   m ()
 putS x v = _state . Ctx.ins x .= v
 
+evalRandomSampleExpr ::
+  ( MonadReader env m
+  , HasProgramState env
+  , sizeT ~ SizeType env
+  , sizeT ~ SizeT
+  , Prob.MonadProb costT m
+  , Fractional costT
+  ) =>
+  DistrExpr sizeT ->
+  m (Value sizeT)
+evalRandomSampleExpr UniformE{sample_ty} = Prob.uniform (domain sample_ty)
+evalRandomSampleExpr BernoulliE{prob_one} = toValue <$> Prob.bernoulli (realToFrac prob_one)
+
 evalExpr ::
   forall primsT costT m.
   ( EvaluatablePrimitive primsT primsT costT
@@ -350,10 +363,9 @@ evalExpr BasicExprE{basic_expr} sigma = do
   return [val]
 
 -- probabilistic instructions
-evalExpr UniformRandomE{sample_ty} _ = (: []) <$> Prob.uniform (domain sample_ty)
-evalExpr BiasedCoinE{prob_one} _ = do
-  b <- Prob.bernoulli (realToFrac prob_one)
-  return [toValue b]
+evalExpr RandomSampleE{distr_expr} sigma = do
+  val <- runReaderT ?? sigma $ evalRandomSampleExpr distr_expr
+  return [val]
 
 -- function calls
 evalExpr FunCallE{fname, args} sigma = do

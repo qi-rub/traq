@@ -65,13 +65,16 @@ instance HasFreeVars (BasicExpr sizeT) where
   freeVarsList UpdateArrE{arr_expr, ix_expr, rhs} = concatMap freeVarsList [arr_expr, ix_expr, rhs]
   freeVarsList ProjectE{tup_expr} = freeVarsList tup_expr
 
+instance HasFreeVars (DistrExpr sizeT) where
+  freeVarsList UniformE{} = []
+  freeVarsList BernoulliE{} = []
+
 -- | The set of free (unbound) variables in an expression
 instance (HasFreeVars primT) => HasFreeVars (Expr primT sizeT) where
   freeVarsList BasicExprE{basic_expr} = freeVarsList basic_expr
+  freeVarsList RandomSampleE{distr_expr} = freeVarsList distr_expr
   freeVarsList FunCallE{args} = args
   freeVarsList PrimCallE{prim} = freeVarsList prim
-  freeVarsList UniformRandomE{} = []
-  freeVarsList BiasedCoinE{} = []
 
 -- | The set of free (unbound) variables
 instance (HasFreeVars primT) => HasFreeVars (Stmt primT sizeT) where

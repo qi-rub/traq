@@ -72,8 +72,8 @@ exampleProgram2 n = P.Program [P.NamedFunDef "f" fDef, P.NamedFunDef "main" main
             [ P.ExprS
                 { P.rets = ["x"]
                 , P.expr =
-                    P.UniformRandomE
-                      { P.sample_ty = node_ty
+                    P.RandomSampleE
+                      { P.distr_expr = P.UniformE{P.sample_ty = node_ty}
                       }
                 }
             , P.ExprS
@@ -141,7 +141,7 @@ exampleProgram3 n = P.Program [P.NamedFunDef "sampler" sampler, P.NamedFunDef "m
           P.SeqS
             [ P.ExprS
                 { P.rets = ["x"]
-                , P.expr = P.UniformRandomE{P.sample_ty = node_ty}
+                , P.expr = P.RandomSampleE $ P.UniformE{P.sample_ty = node_ty}
                 }
             , P.ExprS
                 { P.rets = ["ok_l"]

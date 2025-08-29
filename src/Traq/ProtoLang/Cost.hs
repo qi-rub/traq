@@ -277,8 +277,7 @@ unitaryQueryCostE delta FunCallE{fname} = (2 *) <$> unitaryQueryCostF (delta / 2
 unitaryQueryCostE delta PrimCallE{prim} = unitaryQueryCostPrimitive delta prim
 -- zero-cost expressions
 unitaryQueryCostE _ BasicExprE{} = return 0
-unitaryQueryCostE _ UniformRandomE{} = return 0
-unitaryQueryCostE _ BiasedCoinE{} = return 0
+unitaryQueryCostE _ RandomSampleE{} = return 0
 
 -- Evaluate the query cost of a statement
 unitaryQueryCostS ::
@@ -460,8 +459,7 @@ quantumMaxQueryCostE eps PrimCallE{prim} =
   quantumMaxQueryCostPrimitive eps prim
 -- -- zero-cost expressions
 quantumMaxQueryCostE _ BasicExprE{} = return 0
-quantumMaxQueryCostE _ UniformRandomE{} = return 0
-quantumMaxQueryCostE _ BiasedCoinE{} = return 0
+quantumMaxQueryCostE _ RandomSampleE{} = return 0
 
 quantumMaxQueryCostS ::
   forall primsT sizeT costT.
@@ -652,8 +650,7 @@ quantumQueryCostE eps sigma PrimCallE{prim} = do
   quantumQueryCostPrimitive eps prim sigma
 -- -- zero-cost expressions
 quantumQueryCostE _ _ BasicExprE{} = return 0
-quantumQueryCostE _ _ UniformRandomE{} = return 0
-quantumQueryCostE _ _ BiasedCoinE{} = return 0
+quantumQueryCostE _ _ RandomSampleE{} = return 0
 
 quantumQueryCostS ::
   forall primsT costT m.

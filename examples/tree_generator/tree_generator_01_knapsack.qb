@@ -48,7 +48,7 @@ end
 // For the i-th element, flip it with some probability $p$, and pick it only if it can be added within capacity. 
 def TreeGenLoopBody(xs: Arr<N, Bool>, wt: Fin<W>, pr: Fin<P>, i: Fin<N>) -> (Arr<N, Bool>, Fin<W>, Fin<P>) do
     xi <- xs[i]; // old value
-    y <-$ uniform Bool; // should change? (w.p. 1/2)
+    y <-$ bernoulli[0.2]; // should change? (w.p. 0.2)
     try_pick <- xi ^ y; // should pick?
 
     // check the capacity

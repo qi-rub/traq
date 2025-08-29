@@ -27,6 +27,7 @@ module Traq.ProtoLang.Syntax (
   (.&&.),
 
   -- ** Expressions and Statements
+  DistrExpr (..),
   Expr (..),
   Stmt (..),
   FunBody (..),
@@ -63,7 +64,7 @@ instance (Show sizeT) => PP.ToCodeString (MetaParam sizeT) where
   build (MetaValue n) = PP.putWord $ show n
 
 -- ================================================================================
--- Common Syntax
+-- Types and Values
 -- ================================================================================
 
 -- | Types
@@ -122,6 +123,10 @@ instance (Show sizeT) => PP.ToCodeString (Value sizeT) where
   build (FinV v) = PP.putWord $ show v
   build (ArrV vs) = PP.joined (printf "[%s]" . PP.commaList) $ mapM_ PP.build vs
   build (TupV vs) = PP.joined (printf "(%s)" . PP.commaList) $ mapM_ PP.build vs
+
+-- ================================================================================
+-- Basic Expressions
+-- ================================================================================
 
 -- | Unary operations
 data UnOp = NotOp
@@ -218,13 +223,22 @@ instance (Show sizeT) => PP.ToCodeString (BasicExpr sizeT) where
 -- Syntax
 -- ================================================================================
 
+-- | An expression denoting a probablity distribution.
+data DistrExpr sizeT
+  = UniformE {sample_ty :: VarType sizeT}
+  | BernoulliE {prob_one :: Double}
+  deriving (Eq, Show, Read, Functor)
+
+instance (Show sizeT) => PP.ToCodeString (DistrExpr sizeT) where
+  build UniformE{sample_ty} = PP.putWord . printf "uniform : %s" =<< PP.fromBuild sample_ty
+  build BernoulliE{prob_one} = PP.putWord $ printf "bernoulli[%s]" (show prob_one)
+
 {- | An expression in the prototype language.
  It appears as the RHS of an assignment statement.
 -}
 data Expr primT sizeT
   = BasicExprE {basic_expr :: BasicExpr sizeT}
-  | UniformRandomE {sample_ty :: VarType sizeT}
-  | BiasedCoinE {prob_one :: Double}
+  | RandomSampleE {distr_expr :: DistrExpr sizeT}
   | FunCallE {fname :: Ident, args :: [Ident]}
   | PrimCallE {prim :: primT}
   | LoopE {initial_args :: [BasicExpr sizeT], loop_body_fun :: Ident}
@@ -235,15 +249,12 @@ type instance PrimitiveType (Expr primT sizeT) = primT
 
 instance (Show sizeT, PP.ToCodeString primT) => PP.ToCodeString (Expr primT sizeT) where
   build BasicExprE{basic_expr} = PP.build basic_expr
-  build UniformRandomE{sample_ty} = PP.putLine . printf "$ uniform %s" =<< PP.fromBuild sample_ty
-  build BiasedCoinE{prob_one} = PP.putLine $ printf "$ coin[%s]" (show prob_one)
+  build RandomSampleE{distr_expr} = PP.putLine . printf "$ %s" =<< PP.fromBuild distr_expr
   build FunCallE{fname, args} = PP.putLine $ printf "%s(%s)" fname (PP.commaList args)
   build PrimCallE{prim} = PP.build prim
-  build LoopE{initial_args, loop_body_fun} =
-    PP.putWord
-      =<< printf "loop (%s) %s"
-        <$> (PP.commaList <$> mapM PP.fromBuild initial_args)
-        <*> pure loop_body_fun
+  build LoopE{initial_args, loop_body_fun} = do
+    args <- PP.commaList <$> mapM PP.fromBuild initial_args
+    PP.putWord $ printf "loop (%s) %s" args loop_body_fun
 
 -- | A statement in the prototype language.
 data Stmt primT sizeT

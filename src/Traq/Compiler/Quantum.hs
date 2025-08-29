@@ -196,8 +196,11 @@ lowerExpr ::
 -- basic expressions
 lowerExpr _ P.BasicExprE{P.basic_expr} rets = return $ AssignS rets basic_expr
 -- random sampling expressions
-lowerExpr _ P.UniformRandomE{} _ = error "TODO uniform random sampling operation"
-lowerExpr _ P.BiasedCoinE{} _ = error "TODO biased coin toss"
+lowerExpr _ P.RandomSampleE{P.distr_expr = P.UniformE{}} rets = do
+  error "TODO uniform random sampling operation"
+lowerExpr _ P.RandomSampleE{P.distr_expr = P.BernoulliE{P.prob_one}} rets = do
+  error "TODO biased coin toss"
+
 -- function call
 lowerExpr eps P.FunCallE{P.fname, P.args} rets = do
   proc_name <- lowerFunDefByName eps fname

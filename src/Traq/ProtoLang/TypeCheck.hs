@@ -240,6 +240,14 @@ instance (TypeCheckablePrimitive p) => GTypeCheckablePrimitive (K1 i p) where
 -- Core Language
 -- --------------------------------------------------------------------------------
 
+typeCheckDistrExpr ::
+  forall primT sizeT.
+  (TypeCheckable sizeT) =>
+  DistrExpr sizeT ->
+  TypeChecker primT sizeT [VarType sizeT]
+typeCheckDistrExpr UniformE{sample_ty} = pure [sample_ty]
+typeCheckDistrExpr BernoulliE{} = pure [tbool]
+
 -- | Typecheck an expression and return the output types
 typeCheckExpr ::
   forall primT sizeT.
@@ -253,8 +261,7 @@ typeCheckExpr BasicExprE{basic_expr} = do
   lift $ do
     ty <- runReaderT ?? gamma $ typeCheckBasicExpr basic_expr
     return [ty]
-typeCheckExpr UniformRandomE{sample_ty} = pure [sample_ty]
-typeCheckExpr BiasedCoinE{} = pure [tbool]
+typeCheckExpr RandomSampleE{distr_expr} = typeCheckDistrExpr distr_expr
 -- f(x, ...)
 typeCheckExpr FunCallE{fname, args} = do
   FunDef{param_types, ret_types} <- lookupFunE fname

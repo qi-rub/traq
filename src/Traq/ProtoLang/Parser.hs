@@ -28,6 +28,8 @@ import Text.Parsec.Token (
   reservedOpNames,
  )
 
+import Lens.Micro.GHC
+
 import qualified Traq.Data.Symbolic as Sym
 
 import Traq.Prelude
@@ -216,20 +218,21 @@ exprP tp@TokenParser{..} =
     loop_body_fun <- identifier
     return $ LoopE{initial_args, loop_body_fun}
 
-randExprP :: forall primT. (CanParsePrimitive primT) => TokenParser () -> Parser (Expr primT SymbSize)
-randExprP tp@TokenParser{..} = choice $ map try [uniformE, biasedCoinE]
+distrExprP :: TokenParser () -> Parser (DistrExpr SymbSize)
+distrExprP tp@TokenParser{..} = choice $ map try [uniformE, bernoulliE]
  where
-  uniformE :: Parser (Expr primT SymbSize)
+  uniformE :: Parser (DistrExpr SymbSize)
   uniformE = do
     reserved "uniform"
+    colon
     sample_ty <- varType tp
-    return UniformRandomE{..}
+    return UniformE{..}
 
-  biasedCoinE :: Parser (Expr primT SymbSize)
-  biasedCoinE = do
-    reserved "coin"
-    prob_one <- float
-    return BiasedCoinE{..}
+  bernoulliE :: Parser (DistrExpr SymbSize)
+  bernoulliE = do
+    reserved "bernoulli"
+    prob_one <- brackets $ float
+    return BernoulliE{..}
 
 stmtP :: forall primT. (CanParsePrimitive primT) => TokenParser () -> Parser (Stmt primT SymbSize)
 stmtP tp@TokenParser{..} = SeqS <$> many exprS
@@ -237,7 +240,7 @@ stmtP tp@TokenParser{..} = SeqS <$> many exprS
   exprS :: Parser (Stmt primT SymbSize)
   exprS = do
     rets <- commaSep1 identifier
-    expr <- (reserved "<-$" *> randExprP tp) <|> (reserved "<-" *> exprP tp)
+    expr <- (reserved "<-$" *> distrExprP tp <&> RandomSampleE) <|> (reserved "<-" *> exprP tp)
     semi
     return ExprS{rets, expr}
 

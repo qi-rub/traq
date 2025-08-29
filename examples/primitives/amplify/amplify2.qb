@@ -1,6 +1,6 @@
 def f(y : Fin<N>) -> (Bool, Fin<N>) 
 do
-  x <-$ uniform Fin<N>;
+  x <-$ uniform : Fin<N>;
   ok <-  y <= x;
   return ok, x
 end

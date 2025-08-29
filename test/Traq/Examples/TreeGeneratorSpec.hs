@@ -114,8 +114,8 @@ spec = do
 
       print $ Prob.outcomes result
       result
-        `shouldBeDistribution` [ ([ArrV [FinV 0, FinV 1]], 0.5)
-                               , ([ArrV [FinV 1, FinV 1]], 0.5)
+        `shouldBeDistribution` [ ([ArrV [FinV 0, FinV 1]], 0.8)
+                               , ([ArrV [FinV 1, FinV 1]], 0.2)
                                ]
 
   describe "Loop example" $ do

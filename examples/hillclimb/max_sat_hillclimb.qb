@@ -22,7 +22,7 @@ def hillclimb_iter(x: Arr<n, Bool>) -> Arr<n, Bool> do
 end
 
 def hillclimb_3() -> Arr<n, Bool> do
-	x_0 <-$ uniform Arr<n, Bool>;
+	x_0 <-$ uniform : Arr<n, Bool>;
 	x_1 <- hillclimb_iter(x_0);
 	x_2 <- hillclimb_iter(x_1);
 	x_3 <- hillclimb_iter(x_2);

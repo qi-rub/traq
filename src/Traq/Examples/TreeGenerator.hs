@@ -105,7 +105,8 @@ treeGeneratorExample n w p =
                       , body_stmt =
                           SeqS
                             [ ExprS ["y"] $
-                                UniformRandomE (Fin 2)
+                                RandomSampleE $
+                                  UniformE (Fin 2)
                             , ExprS ["bit"] $
                                 BasicExprE $
                                   DynIndexE (VarE "xs") (VarE "i")
