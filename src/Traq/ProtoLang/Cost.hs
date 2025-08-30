@@ -57,12 +57,12 @@ module Traq.ProtoLang.Cost (
   splitEps,
 ) where
 
-import Control.Monad (forM, forM_, zipWithM)
+import Control.Monad (forM, zipWithM)
 import Control.Monad.Reader (MonadReader, ReaderT, runReaderT)
 import Control.Monad.State (execStateT)
-import Control.Monad.Trans (lift)
 import qualified Data.Map as Map
 import Data.Maybe (fromMaybe)
+import Data.Traversable (forAccumM)
 import Data.Void (Void, absurd)
 import GHC.Generics hiding (to)
 
@@ -684,16 +684,11 @@ quantumQueryCostS eps sigma (SeqS ss) = do
           & (runReaderT ?? env)
   eps_each <- splitEps eps ss
 
-  (_, cs) <- execStateT ?? (pure sigma, 0) $
-    forM_ (zip ss eps_each) $ \(s, eps_s) -> do
-      distr <- use _1
+  (_, cs) <- forAccumM (pure sigma) (zip ss eps_each) $ \distr (s, eps_s) -> do
+    c <- Prob.expectationA (\sigma' -> quantumQueryCostS eps_s sigma' s) distr
+    return (distr >>= stepS s, c)
 
-      c <- lift $ Prob.expectationA (\sigma' -> quantumQueryCostS eps_s sigma' s) distr
-      _2 += c
-
-      _1 .= (distr >>= stepS s)
-
-  return cs
+  return $ sum cs
 
 quantumQueryCostF ::
   forall primsT costT m.
