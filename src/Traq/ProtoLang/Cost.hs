@@ -62,7 +62,6 @@ import Control.Monad.Reader (MonadReader, ReaderT, runReaderT)
 import Control.Monad.State (execStateT)
 import qualified Data.Map as Map
 import Data.Maybe (fromMaybe)
-import Data.Traversable (forAccumM)
 import Data.Void (Void, absurd)
 import GHC.Generics hiding (to)
 

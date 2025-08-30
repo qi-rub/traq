@@ -1,4 +1,11 @@
+{-# LANGUAGE CPP #-}
+{-# LANGUAGE TypeApplications #-}
+
 module Traq.Control.Monad (
+  -- * Traversable
+  mapAccumM,
+  forAccumM,
+
   -- * MonadState
   withSandboxOf,
   withSandbox,
@@ -21,8 +28,14 @@ module Traq.Control.Monad (
 
 import Control.Monad.Except (MonadError, catchError, throwError)
 import Control.Monad.RWS (MonadState, MonadWriter, tell)
+import Control.Monad.State (StateT (..), runStateT)
 import Data.Maybe (fromMaybe)
 import Data.Monoid (Endo)
+import Data.Tuple (swap)
+
+#if __GLASGOW_HASKELL__ >= 906
+import Data.Traversable(forAccumM,mapAccumM)
+#endif
 
 import Lens.Micro.GHC
 import Lens.Micro.Mtl
@@ -60,6 +73,32 @@ withSandboxOf part action = do
 -- | Save the current state, run a computation and restore the saved state.
 withSandbox :: (MonadState s m) => m a -> m a
 withSandbox = withSandboxOf id
+
+#if __GLASGOW_HASKELL__ < 906
+
+-- | https://hackage.haskell.org/package/base-4.21.0.0/docs/Data-Traversable.html#v:mapAccumM
+mapAccumM ::
+  forall m t s a b.
+  (Monad m, Traversable t) =>
+  (s -> a -> m (s, b)) ->
+  s ->
+  t a ->
+  m (s, t b)
+mapAccumM f s t = swap <$> runStateT ((mapM @t @(StateT s m) @a @b) f' t) s
+ where
+  f' a = StateT $ fmap swap . flip f a
+
+-- | https://hackage.haskell.org/package/base-4.21.0.0/docs/Data-Traversable.html#v:forAccumM
+forAccumM ::
+  (Monad m, Traversable t) =>
+  s ->
+  t a ->
+  (s -> a -> m (s, b)) ->
+  m (s, t b)
+{-# INLINE forAccumM #-}
+forAccumM s t f = mapAccumM f s t
+
+#endif
 
 -- ================================================================================
 -- MonadError
