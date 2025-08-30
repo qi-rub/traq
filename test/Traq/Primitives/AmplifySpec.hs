@@ -7,14 +7,14 @@ import Text.Parsec.String
 import qualified Traq.Data.Context as Ctx
 import qualified Traq.Data.Symbolic as Sym
 
-import Traq.Primitives.Amplify (QAmplify (..))
+import Traq.Primitives.Amplify.Prelude (Amplify (..))
 import qualified Traq.ProtoLang as P
 import qualified Traq.Utils.Printing as PP
 
 import Test.Hspec
 import TestHelpers
 
-exampleProgram1 :: (Num sizeT) => sizeT -> P.Program QAmplify sizeT
+exampleProgram1 :: (Num sizeT) => sizeT -> P.Program Amplify sizeT
 exampleProgram1 n = P.Program [P.NamedFunDef "sampler" sampler, P.NamedFunDef "main" main_fun]
  where
   node_ty = P.Fin n
@@ -55,10 +55,10 @@ exampleProgram1 n = P.Program [P.NamedFunDef "sampler" sampler, P.NamedFunDef "m
       { P.rets = ["ok", "result"]
       , P.expr =
           P.PrimCallE
-            QAmplify{sampler = "sampler", p_min = 0.02, sampler_args = ["x"]}
+            Amplify{sampler = "sampler", p_min = 0.02, sampler_args = ["x"]}
       }
 
-exampleProgram2 :: (Num sizeT) => sizeT -> P.Program QAmplify sizeT
+exampleProgram2 :: (Num sizeT) => sizeT -> P.Program Amplify sizeT
 exampleProgram2 n = P.Program [P.NamedFunDef "f" fDef, P.NamedFunDef "main" mainDef]
  where
   node_ty = P.Fin n
@@ -112,7 +112,7 @@ exampleProgram2 n = P.Program [P.NamedFunDef "f" fDef, P.NamedFunDef "main" main
       { P.rets = ["ok", "result"]
       , P.expr =
           P.PrimCallE
-            QAmplify{sampler = "f", p_min = 0.6, sampler_args = ["y"]}
+            Amplify{sampler = "f", p_min = 0.6, sampler_args = ["y"]}
       }
 
   mainDef =
@@ -128,7 +128,7 @@ exampleProgram2 n = P.Program [P.NamedFunDef "f" fDef, P.NamedFunDef "main" main
               }
       }
 
-exampleProgram3 :: (Num sizeT) => sizeT -> P.Program QAmplify sizeT
+exampleProgram3 :: (Num sizeT) => sizeT -> P.Program Amplify sizeT
 exampleProgram3 n = P.Program [P.NamedFunDef "sampler" sampler, P.NamedFunDef "main" mainDef]
  where
   node_ty = P.Fin n
@@ -210,7 +210,7 @@ exampleProgram3 n = P.Program [P.NamedFunDef "sampler" sampler, P.NamedFunDef "m
       { P.rets = ["ok", "x"]
       , P.expr =
           P.PrimCallE
-            QAmplify{sampler = "sampler", p_min = 0.2, sampler_args = ["l", "r"]}
+            Amplify{sampler = "sampler", p_min = 0.2, sampler_args = ["l", "r"]}
       }
 
   mainDef =
@@ -239,7 +239,7 @@ spec = describe "amplify" $ do
 
     it "round-trips through print/parse" $ do
       let stmt = "ok, result <- @amplify[f, 0.02](x1, x2);\n"
-      let parsed = P.parseStmt @QAmplify stmt
+      let parsed = P.parseStmt @Amplify stmt
       let printed = PP.toCodeString <$> parsed
       printed `shouldBe` Right stmt
 

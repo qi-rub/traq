@@ -45,7 +45,9 @@ library
       Traq.Examples.TreeGenerator
       Traq.Prelude
       Traq.Primitives
-      Traq.Primitives.Amplify
+      Traq.Primitives.Amplify.CAmplify
+      Traq.Primitives.Amplify.Prelude
+      Traq.Primitives.Amplify.QAmplify
       Traq.Primitives.Prelude
       Traq.Primitives.Search.DetSearch
       Traq.Primitives.Search.Prelude

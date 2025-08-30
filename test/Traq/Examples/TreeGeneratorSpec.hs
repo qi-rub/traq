@@ -12,7 +12,7 @@ import qualified Traq.Data.Symbolic as Sym
 
 import Traq.Examples.TreeGenerator (treeGeneratorExample)
 import Traq.Prelude
-import Traq.Primitives.Amplify (QAmplify)
+import Traq.Primitives.Amplify.Prelude (Amplify)
 import Traq.ProtoLang
 
 import Test.Hspec
@@ -76,9 +76,9 @@ loadKnapsack ::
   SizeT ->
   -- | number of iterations
   SizeT ->
-  IO (Program QAmplify SizeT)
+  IO (Program Amplify SizeT)
 loadKnapsack n w p k = do
-  Right prog <- parseFromFile (programParser @QAmplify) "examples/tree_generator/tree_generator_01_knapsack.qb"
+  Right prog <- parseFromFile (programParser @Amplify) "examples/tree_generator/tree_generator_01_knapsack.qb"
   return $
     prog
       <&> Sym.subst "N" (Sym.con n)
@@ -91,15 +91,15 @@ spec :: Spec
 spec = do
   describe "Tree Generator Example" $ do
     it "parses" $ do
-      expectRight =<< parseFromFile (programParser @QAmplify) "examples/tree_generator/tree_generator_01_knapsack.qb"
+      expectRight =<< parseFromFile (programParser @Amplify) "examples/tree_generator/tree_generator_01_knapsack.qb"
       -- p `shouldBe` treeGeneratorExample (Sym.var "N") (Sym.var "W") (Sym.var "P")
       return ()
 
     it "typechecks" $ do
       p <-
-        parseFromFile (programParser @QAmplify) "examples/tree_generator/tree_generator_01_knapsack.qb"
+        parseFromFile (programParser @Amplify) "examples/tree_generator/tree_generator_01_knapsack.qb"
           >>= expectRight
-      assertRight $ (typeCheckProg @QAmplify) p
+      assertRight $ (typeCheckProg @Amplify) p
 
     it "evaluates" $ do
       let n = 2
@@ -110,9 +110,8 @@ spec = do
               , ("Profit", \[FinV i] -> [FinV i])
               , ("Weight", \[FinV i] -> [FinV i])
               ]
-      let result = (runProgram @QAmplify) prog funInterpCtx []
+      let result = (runProgram @Amplify) prog funInterpCtx []
 
-      print $ Prob.outcomes result
       result
         `shouldBeDistribution` [ ([ArrV [FinV 0, FinV 1]], 0.8)
                                , ([ArrV [FinV 1, FinV 1]], 0.2)
@@ -121,12 +120,12 @@ spec = do
   describe "Loop example" $ do
     it "parses" $ do
       p <-
-        parseFromFile (programParser @QAmplify) "examples/tree_generator/loop_example.qb"
+        parseFromFile (programParser @Amplify) "examples/tree_generator/loop_example.qb"
           >>= expectRight
       p `shouldBe` loopExample (Sym.var "N") (Sym.var "W")
 
     it "evaluates" $ do
       let funInterpCtx = Ctx.singleton "AddWeight" (\[FinV x1, FinV x2] -> [FinV x1])
-      let result = (runProgram @QAmplify) (loopExample 10 20) funInterpCtx []
+      let result = (runProgram @Amplify) (loopExample 10 20) funInterpCtx []
 
       result `shouldBeDistribution` [([FinV 10], 1.0)]

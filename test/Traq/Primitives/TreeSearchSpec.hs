@@ -4,7 +4,6 @@ module Traq.Primitives.TreeSearchSpec (spec) where
 
 import Text.Parsec.String
 
-import qualified Traq.Data.Context as Ctx
 import qualified Traq.Data.Symbolic as Sym
 
 import Traq.Primitives.TreeSearch
