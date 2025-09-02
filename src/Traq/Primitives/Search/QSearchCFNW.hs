@@ -241,26 +241,27 @@ instance
   ) =>
   P.QuantumCostablePrimitive primsT QSearchCFNW sizeT costT
   where
-  quantumQueryCostPrimitive eps prim _ = do
+  quantumQueryCostPrimitive eps prim sigma = do
     let predicate = getPredicateName prim
+    let pred_args = getPredArgs prim
 
-    P.FunDef{P.param_types} <- view $ P._funCtx . Ctx.at predicate . singular _Just
-    let typ_x = last param_types
+    pred_arg_vals <- runReaderT ?? sigma $
+      forM pred_args $ \x -> do
+        view $ P._state . Ctx.at x . non (error "invalid argument, please typecheck first.")
 
     -- split the fail prob
     let eps_search = eps / 2
     let eps_pred = eps - eps_search
 
     -- number of solutions
-    let space = P.domain typ_x
-    let n = length space
-    t <- do
+    search_results <- do
       env <- view P._evaluationEnv
-      runSearchPredicateOnAllInputs @primsT @costT predicate space
+      runSearchPredicateOnAllInputs @primsT @costT predicate pred_arg_vals
         & (runReaderT ?? env)
         & Prob.toDeterministicValue
-        & fmap countSolutions
         & lift
+    let n = length search_results
+    let t = countSolutions search_results
 
     -- number of predicate queries
     let qry = _EQSearch n t eps_search

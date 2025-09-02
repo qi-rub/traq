@@ -56,11 +56,11 @@ arraySearchIx n = Program [NamedFunDef "Oracle" oracle_decl, NamedFunDef "check"
   main_def :: FunDef DefaultPrims SizeT
   main_def =
     FunDef
-      { param_types = [Fin n]
+      { param_types = []
       , mbody =
           Just
             FunBody
-              { param_names = ["i"]
+              { param_names = []
               , body_stmt =
                   ExprS
                     { rets = ["result", "solution"]

@@ -84,10 +84,7 @@ spec = do
     let oracleF = \[P.FinV i] -> [P.toValue $ i `elem` planted_sols]
     let interpCtx = Ctx.singleton "Oracle" oracleF
 
-    xit "evaluates" $ do
+    it "evaluates" $ do
       let res = P.runProgram @_ @Double ex interpCtx []
 
-      Prob.mass res @?~ 1
-
-      forM_ planted_sols $ \i ->
-        Prob.probabilityOf (== [P.FinV 1, P.FinV i]) res @?~ 1 / 3
+      res `shouldBeDistribution` [([P.FinV 1, P.FinV i], 1 / 3) | i <- planted_sols]

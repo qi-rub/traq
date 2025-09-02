@@ -128,7 +128,7 @@ runSearchPredicateOnAllInputs predicate arg_vals = do
   let n_fixed_args = length arg_vals
 
   let search_tys = pred_fun ^. to P.param_types . to (drop n_fixed_args)
-  let search_range = mapM P.domain search_tys
+  let search_range = traverse P.domain search_tys
 
   forM search_range $ \s_vals -> do
     rets <- P.evalFun (arg_vals ++ s_vals) (P.NamedFunDef predicate pred_fun)
