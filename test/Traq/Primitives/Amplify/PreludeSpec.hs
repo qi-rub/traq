@@ -1,6 +1,6 @@
 {-# LANGUAGE TypeApplications #-}
 
-module Traq.Primitives.AmplifySpec (spec) where
+module Traq.Primitives.Amplify.PreludeSpec (spec) where
 
 import Text.Parsec.String
 

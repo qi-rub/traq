@@ -267,7 +267,8 @@ test-suite spec
       Traq.Examples.NonDetSpec
       Traq.Examples.SearchSpec
       Traq.Examples.TreeGeneratorSpec
-      Traq.Primitives.AmplifySpec
+      Traq.Primitives.Amplify.CAmplifySpec
+      Traq.Primitives.Amplify.PreludeSpec
       Traq.Primitives.Search.QSearchCFNWSpec
       Traq.Primitives.Search.RandomSearchSpec
       Traq.Primitives.TreeSearchSpec

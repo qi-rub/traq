@@ -92,7 +92,7 @@ mass :: (Num probT, MonadExp probT m) => m a -> probT
 mass = expectation $ const 1
 
 -- | Probability of a given event.
-probabilityOf :: (Num probT, MonadExp probT m) => Event a -> m a -> probT
+probabilityOf :: forall probT m a. (Num probT, MonadExp probT m) => Event a -> m a -> probT
 probabilityOf ev = expectation $ \a -> if ev a then 1 else 0
 
 -- | Normalize a distribution
