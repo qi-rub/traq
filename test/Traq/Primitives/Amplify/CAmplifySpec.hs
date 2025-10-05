@@ -1,10 +1,9 @@
 module Traq.Primitives.Amplify.CAmplifySpec where
 
-import qualified Data.Map as Map
-
 import qualified Traq.Data.Context as Ctx
 import qualified Traq.Data.Symbolic as Sym
 
+import Traq.CostModel.QueryCost (SimpleQueryCost (..))
 import Traq.Primitives.Amplify.CAmplify (CAmplify (..), _QryClassicalMax, _QryClassicalU)
 import Traq.Primitives.Amplify.Prelude (Amplify (..))
 import qualified Traq.ProtoLang as P
@@ -58,44 +57,37 @@ exampleProgram n = P.Program [P.NamedFunDef "sampler" sampler, P.NamedFunDef "ma
 spec :: Spec
 spec = describe "CAmplify" $ do
   describe "CAmplify cost example1" $ do
-    let samplerUnitaryCost = 100.0 :: Double
-    let samplerClassicalCost = 5.0 :: Double
-    let samplerQuantumCost = 5.0 :: Double
     let p_min = 0.02 :: Double
     let program = exampleProgram 10
 
-    let unitaryTicks = Map.singleton "sampler" (Sym.con samplerUnitaryCost)
-    let classicalTicks = Map.singleton "sampler" (Sym.con samplerClassicalCost)
-
     it "calculates unitary cost correctly" $ do
       let delta = Sym.var "delta" :: Sym.Sym Double
-      let expectedCost = 2 * _QryClassicalU ((delta / 2) / 2) p_min * Sym.con samplerUnitaryCost
-      let actualCost = P.unitaryQueryCost P.SplitSimple delta program unitaryTicks
+      -- let expectedCost = 2 * _QryClassicalU ((delta / 2) / 2) p_min
+      let actualCost = getCost $ P.unitaryQueryCost P.SplitSimple delta program
 
-      actualCost `shouldBe` expectedCost
+      show actualCost `shouldBe` "0.0+((QryU_Amplify(delta/2.0/2.0, 2.0e-2)) .* (((2.0) .* (1.0))))"
 
     it "calculates quantum max cost correctly" $ do
       let eps = 0.2 :: Double
 
-      let expectedCost = _QryClassicalMax (Sym.con eps / 4) p_min * Sym.con samplerQuantumCost
-      let actualCost = P.quantumMaxQueryCost P.SplitSimple (Sym.con eps) program unitaryTicks classicalTicks
+      -- let expectedCost = _QryClassicalMax (Sym.con eps / 4) p_min
+      let actualCost = getCost $ P.quantumMaxQueryCost P.SplitSimple (Sym.con eps) program
 
-      actualCost `shouldBe` expectedCost
+      show actualCost `shouldBe` "0.0+((QMAX_Amplify(5.0e-2, 2.0e-2)) .* (1.0))"
 
     it "calculates quantum query cost correctly - sampler always succeeds" $ do
       let eps = 0.2 :: Double
       let funInterpCtx = Ctx.singleton "sampler" (\[_] -> [P.toValue True, P.FinV 1])
 
-      let expectedCost = Sym.con samplerClassicalCost
-      let actualCost = P.quantumQueryCost P.SplitSimple (Sym.con eps) program unitaryTicks classicalTicks funInterpCtx mempty
+      let actualCost = getCost $ P.quantumQueryCost P.SplitSimple (Sym.con eps) program funInterpCtx mempty
 
-      actualCost `shouldBe` expectedCost
+      show actualCost `shouldBe` "0.0+((1.0) .* (1.0))"
 
     it "calculates quantum query cost correctly - sampler always fails" $ do
       let eps = 0.2 :: Double
       let funInterpCtx = Ctx.singleton "sampler" (\[_] -> [P.toValue False, P.FinV 1])
 
-      let expectedCost = _QryClassicalMax (Sym.con eps / 2) p_min * Sym.con samplerClassicalCost
-      let actualCost = P.quantumQueryCost P.SplitSimple (Sym.con eps) program unitaryTicks classicalTicks funInterpCtx mempty
+      -- let expectedCost = _QryClassicalMax (Sym.con eps / 2) p_min
+      let actualCost = getCost $ P.quantumQueryCost P.SplitSimple (Sym.con eps) program funInterpCtx mempty
 
-      actualCost `shouldBe` expectedCost
+      show actualCost `shouldBe` "0.0+((QMAX_Amplify(0.1, 2.0e-2)) .* (1.0))"

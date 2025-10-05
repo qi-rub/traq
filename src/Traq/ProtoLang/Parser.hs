@@ -35,6 +35,9 @@ import qualified Traq.Data.Symbolic as Sym
 import Traq.Prelude
 import Traq.ProtoLang.Syntax
 
+-- | Basic symbolic type
+type SymbSize = Sym.Sym SizeT
+
 protoLangDef :: LanguageDef st
 protoLangDef =
   emptyDef

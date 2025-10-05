@@ -16,6 +16,7 @@ import GHC.Generics (Generic)
 
 import Lens.Micro.GHC
 import Lens.Micro.Mtl
+import qualified Numeric.Algebra as Alg
 
 import Traq.Control.Monad
 import qualified Traq.Data.Context as Ctx
@@ -52,8 +53,8 @@ instance P.HasFreeVars DetSearch
 instance P.TypeCheckablePrimitive DetSearch
 
 instance
-  (P.EvaluatablePrimitive primsT primsT costT, Fractional costT) =>
-  P.EvaluatablePrimitive primsT DetSearch costT
+  (P.EvaluatablePrimitive primsT primsT precT, Fractional precT, Prob.ProbType precT) =>
+  P.EvaluatablePrimitive primsT DetSearch precT
 
 -- ================================================================================
 -- Abstract Costs
@@ -61,11 +62,11 @@ instance
 
 instance
   ( Integral sizeT
-  , Floating costT
-  , Show costT
-  , P.UnitaryCostablePrimitive primsT primsT sizeT costT
+  , Floating precT
+  , Show precT
+  , P.UnitaryCostablePrimitive primsT primsT sizeT precT
   ) =>
-  P.UnitaryCostablePrimitive primsT DetSearch sizeT costT
+  P.UnitaryCostablePrimitive primsT DetSearch sizeT precT
   where
   unitaryQueryCostPrimitive delta prim = do
     let predicate = getPredicateName prim
@@ -81,15 +82,15 @@ instance
       P.unitaryQueryCostE delta_per_pred_call $
         P.FunCallE{P.fname = predicate, P.args = undefined}
 
-    return $ fromIntegral n * cost_pred
+    return $ (P.sizeToPrec n :: precT) Alg..* cost_pred
 
 instance
   ( Integral sizeT
-  , Floating costT
-  , Ord costT
-  , P.QuantumMaxCostablePrimitive primsT primsT sizeT costT
+  , Floating precT
+  , Ord precT
+  , P.QuantumMaxCostablePrimitive primsT primsT sizeT precT
   ) =>
-  P.QuantumMaxCostablePrimitive primsT DetSearch sizeT costT
+  P.QuantumMaxCostablePrimitive primsT DetSearch sizeT precT
   where
   quantumMaxQueryCostPrimitive eps prim = do
     let predicate = getPredicateName prim
@@ -105,16 +106,17 @@ instance
       P.quantumMaxQueryCostE eps_per_pred_call $
         P.FunCallE{P.fname = predicate, P.args = undefined}
 
-    return $ fromIntegral n * cost_pred_call
+    return $ (P.sizeToPrec n :: precT) Alg..* cost_pred_call
 
 instance
   ( Integral sizeT
-  , Floating costT
-  , Ord costT
-  , P.QuantumCostablePrimitive primsT primsT sizeT costT
+  , Floating precT
+  , Ord precT
+  , Prob.ProbType precT
+  , P.QuantumCostablePrimitive primsT primsT sizeT precT
   , sizeT ~ SizeT
   ) =>
-  P.QuantumCostablePrimitive primsT DetSearch sizeT costT
+  P.QuantumCostablePrimitive primsT DetSearch sizeT precT
   where
   quantumQueryCostPrimitive eps prim sigma = do
     let predicate = getPredicateName prim
@@ -144,7 +146,7 @@ instance
       -- evaluate predicate on `v` to check if it is a solution
       eval_env <- view P._evaluationEnv
       [is_sol_v] <-
-        P.evalExpr @primsT @costT pred_call_expr sigma_pred'
+        P.evalExpr @primsT @precT pred_call_expr sigma_pred'
           & (runReaderT ?? eval_env)
           & Prob.toDeterministicValue
           & lift
@@ -153,6 +155,6 @@ instance
 
     -- average costs of a solution and a non-solution respectively
     let (non_sols, sol_and_rest) = break fst costs & (each %~ map snd)
-    let sol_cost = case sol_and_rest of [] -> 0; (c : _) -> c
+    let sol_cost = case sol_and_rest of [] -> Alg.zero; (c : _) -> c
 
-    return $ sum non_sols + sol_cost
+    return $ Alg.sum non_sols Alg.+ sol_cost

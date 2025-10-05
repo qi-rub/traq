@@ -7,7 +7,7 @@ cabal-version: 1.18
 name:           traq
 version:        0.2.0.0
 synopsis:       Traq - Estimating Quantum Cost of Classical Programs
-description:    A prototype implementation of the `Traq` framework, with concrete and symbolic quantum cost analysis of classical programs, and compilation to a classical-quantum target language (CQPL). Provides the formal underpinnings of the qubrabench benchmarking library.
+description:    The `Traq` framework to perform quantum cost analysis of classical programs. Supports input-dependent cost analysis of a probabilistic source language, and compilation to a classical-quantum target language.
 category:       Math
 author:         Anurudh Peduri <anurudhp97@gmail.com>
 maintainer:     Anurudh Peduri <anurudhp97@gmail.com>
@@ -25,6 +25,8 @@ library
       Traq.Compiler.Unitary
       Traq.Compiler.Utils
       Traq.Control.Monad
+      Traq.CostModel.Class
+      Traq.CostModel.QueryCost
       Traq.CQPL
       Traq.CQPL.Cost
       Traq.CQPL.Memory
@@ -43,6 +45,7 @@ library
       Traq.Examples.MatrixSearch
       Traq.Examples.Search
       Traq.Examples.TreeGenerator
+      Traq.Numeric.Floating
       Traq.Prelude
       Traq.Primitives
       Traq.Primitives.Amplify.CAmplify
@@ -80,16 +83,18 @@ library
       TypeOperators
       MultiWayIf
       Safe
-  ghc-options: -Wall
+  ghc-options: -Wall -fprint-typechecker-elaboration
   build-depends:
-      base >=4.10 && <5
+      algebra ==4.3.*
+    , base >=4.10 && <5
     , containers >=0.6 && <1
     , extra >=1.8 && <2
+    , lens ==5.3.*
     , microlens-ghc ==0.4.*
     , microlens-mtl ==0.2.*
     , mtl >=2.2.2
     , parsec >=3.1.17 && <3.2
-    , transformers >=0.4 && <0.6
+    , transformers >=0.5
   default-language: Haskell2010
 
 executable cqplcompile
@@ -107,11 +112,13 @@ executable cqplcompile
       TypeOperators
       MultiWayIf
       RecordWildCards
-  ghc-options: -Wall
+  ghc-options: -Wall -fprint-typechecker-elaboration
   build-depends:
-      base >=4.10 && <5
+      algebra ==4.3.*
+    , base >=4.10 && <5
     , containers >=0.6 && <1
     , extra >=1.8 && <2
+    , lens ==5.3.*
     , microlens-ghc ==0.4.*
     , microlens-mtl ==0.2.*
     , mtl >=2.2.2
@@ -120,7 +127,7 @@ executable cqplcompile
     , random
     , random-shuffle
     , timeit ==2.0.*
-    , transformers >=0.4 && <0.6
+    , transformers >=0.5
     , traq
   default-language: Haskell2010
 
@@ -139,11 +146,13 @@ executable matrixsearch
       TypeOperators
       MultiWayIf
       RecordWildCards
-  ghc-options: -Wall
+  ghc-options: -Wall -fprint-typechecker-elaboration
   build-depends:
-      base >=4.10 && <5
+      algebra ==4.3.*
+    , base >=4.10 && <5
     , containers >=0.6 && <1
     , extra >=1.8 && <2
+    , lens ==5.3.*
     , microlens-ghc ==0.4.*
     , microlens-mtl ==0.2.*
     , mtl >=2.2.2
@@ -152,7 +161,7 @@ executable matrixsearch
     , random
     , random-shuffle
     , timeit ==2.0.*
-    , transformers >=0.4 && <0.6
+    , transformers >=0.5
     , traq
   default-language: Haskell2010
 
@@ -171,11 +180,13 @@ executable matrixsearchdemo
       TypeOperators
       MultiWayIf
       RecordWildCards
-  ghc-options: -Wall
+  ghc-options: -Wall -fprint-typechecker-elaboration
   build-depends:
-      base >=4.10 && <5
+      algebra ==4.3.*
+    , base >=4.10 && <5
     , containers >=0.6 && <1
     , extra >=1.8 && <2
+    , lens ==5.3.*
     , microlens-ghc ==0.4.*
     , microlens-mtl ==0.2.*
     , mtl >=2.2.2
@@ -184,7 +195,7 @@ executable matrixsearchdemo
     , random
     , random-shuffle
     , timeit ==2.0.*
-    , transformers >=0.4 && <0.6
+    , transformers >=0.5
     , traq
   default-language: Haskell2010
 
@@ -203,11 +214,13 @@ executable matrixsearchqcost
       TypeOperators
       MultiWayIf
       RecordWildCards
-  ghc-options: -Wall
+  ghc-options: -Wall -fprint-typechecker-elaboration
   build-depends:
-      base >=4.10 && <5
+      algebra ==4.3.*
+    , base >=4.10 && <5
     , containers >=0.6 && <1
     , extra >=1.8 && <2
+    , lens ==5.3.*
     , microlens-ghc ==0.4.*
     , microlens-mtl ==0.2.*
     , mtl >=2.2.2
@@ -216,7 +229,7 @@ executable matrixsearchqcost
     , random
     , random-shuffle
     , timeit ==2.0.*
-    , transformers >=0.4 && <0.6
+    , transformers >=0.5
     , traq
   default-language: Haskell2010
 
@@ -235,11 +248,13 @@ executable uqplcompile
       TypeOperators
       MultiWayIf
       RecordWildCards
-  ghc-options: -Wall
+  ghc-options: -Wall -fprint-typechecker-elaboration
   build-depends:
-      base >=4.10 && <5
+      algebra ==4.3.*
+    , base >=4.10 && <5
     , containers >=0.6 && <1
     , extra >=1.8 && <2
+    , lens ==5.3.*
     , microlens-ghc ==0.4.*
     , microlens-mtl ==0.2.*
     , mtl >=2.2.2
@@ -248,7 +263,7 @@ executable uqplcompile
     , random
     , random-shuffle
     , timeit ==2.0.*
-    , transformers >=0.4 && <0.6
+    , transformers >=0.5
     , traq
   default-language: Haskell2010
 
@@ -289,21 +304,23 @@ test-suite spec
       TypeFamilies
       TypeOperators
       MultiWayIf
-  ghc-options: -Wall
+  ghc-options: -Wall -fprint-typechecker-elaboration
   cpp-options: -DTEST
   build-tool-depends:
       hspec-discover:hspec-discover
   build-depends:
       HUnit-approx
     , QuickCheck
+    , algebra ==4.3.*
     , base >=4.10 && <5
     , containers >=0.6 && <1
     , extra >=1.8 && <2
     , hspec >=2.11.0
+    , lens ==5.3.*
     , microlens-ghc ==0.4.*
     , microlens-mtl ==0.2.*
     , mtl >=2.2.2
     , parsec >=3.1.17 && <3.2
-    , transformers >=0.4 && <0.6
+    , transformers >=0.5
     , traq
   default-language: Haskell2010

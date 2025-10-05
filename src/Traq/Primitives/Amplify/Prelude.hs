@@ -20,6 +20,7 @@ import Text.Printf (printf)
 
 import Lens.Micro.GHC
 import Lens.Micro.Mtl
+import qualified Numeric.Algebra as Alg
 
 import Traq.Control.Monad
 import qualified Traq.Data.Context as Ctx
@@ -101,11 +102,12 @@ and get success probability Psucc := P(b=1) conditioned on μ. Finally, returnin
 based on Psucc.
 -}
 instance
-  ( Fractional costT
-  , Ord costT
-  , P.EvaluatablePrimitive primsT primsT costT
+  ( Fractional precT
+  , Ord precT
+  , Prob.RVType precT precT
+  , P.EvaluatablePrimitive primsT primsT precT
   ) =>
-  P.EvaluatablePrimitive primsT Amplify costT
+  P.EvaluatablePrimitive primsT Amplify precT
   where
   evalPrimitive Amplify{sampler, p_min, sampler_args} sigma = do
     sampler_fundef <-
@@ -120,7 +122,7 @@ instance
 
     -- result distribution
     let mu =
-          P.evalFun @primsT @costT arg_vals (P.NamedFunDef sampler sampler_fundef)
+          P.evalFun @primsT @precT arg_vals (P.NamedFunDef sampler sampler_fundef)
             & (runReaderT ?? eval_env)
     let p_succ = Prob.probabilityOf success mu
     let p_min' = realToFrac p_min

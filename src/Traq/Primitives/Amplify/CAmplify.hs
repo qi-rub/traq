@@ -19,6 +19,7 @@ import Text.Printf (printf)
 
 import Lens.Micro.GHC
 import Lens.Micro.Mtl
+import qualified Numeric.Algebra as Alg
 
 import Traq.Control.Monad
 import qualified Traq.Data.Context as Ctx
@@ -49,16 +50,16 @@ instance P.HasFreeVars CAmplify
 instance P.TypeCheckablePrimitive CAmplify
 
 instance
-  (Fractional costT, Ord costT, P.EvaluatablePrimitive primsT primsT costT) =>
-  P.EvaluatablePrimitive primsT CAmplify costT
+  (Fractional precT, Ord precT, Prob.RVType precT precT, P.EvaluatablePrimitive primsT primsT precT) =>
+  P.EvaluatablePrimitive primsT CAmplify precT
 
-_QryClassicalU :: forall costT. (Show costT) => Sym.Sym costT -> Double -> Sym.Sym costT
+_QryClassicalU :: forall precT. (Show precT) => Sym.Sym precT -> Double -> Sym.Sym precT
 _QryClassicalU eps p_min = Sym.var $ printf "QryU_Amplify(%s, %s)" (show eps) (show p_min)
 
-_QryClassicalMax :: forall costT. (Show costT) => Sym.Sym costT -> Double -> Sym.Sym costT
+_QryClassicalMax :: forall precT. (Show precT) => Sym.Sym precT -> Double -> Sym.Sym precT
 _QryClassicalMax eps p_min = Sym.var $ printf "QMAX_Amplify(%s, %s)" (show eps) (show p_min)
 
-_EQ :: forall costT. (Fractional costT, Show costT, Ord costT) => Sym.Sym costT -> Double -> Sym.Sym costT -> Sym.Sym costT
+_EQ :: forall precT. (Fractional precT, Show precT, Ord precT) => Sym.Sym precT -> Double -> Sym.Sym precT -> Sym.Sym precT
 _EQ eps p_min p_good
   | p_good >= realToFrac p_min = 1 / p_good
   | p_good == 0 = _QryClassicalMax eps p_min
@@ -66,14 +67,14 @@ _EQ eps p_min p_good
 
 instance
   ( Integral sizeT
-  , Floating costT
-  , Show costT
-  , Eq costT
-  , Ord costT
-  , costT' ~ Sym.Sym costT
-  , P.UnitaryCostablePrimitive primsT primsT sizeT costT'
+  , Floating precT
+  , Show precT
+  , Eq precT
+  , Ord precT
+  , precT' ~ Sym.Sym precT
+  , P.UnitaryCostablePrimitive primsT primsT sizeT precT'
   ) =>
-  P.UnitaryCostablePrimitive primsT CAmplify sizeT costT'
+  P.UnitaryCostablePrimitive primsT CAmplify sizeT precT'
   where
   unitaryQueryCostPrimitive delta (CAmplify (Amplify{sampler, p_min})) = do
     let delta_a = delta / 2
@@ -84,18 +85,18 @@ instance
       P.unitaryQueryCostE delta_f $
         P.FunCallE{P.fname = sampler, P.args = undefined}
 
-    return $ qry * cost_sampler
+    return $ qry Alg..* cost_sampler
 
 instance
   ( Integral sizeT
-  , Floating costT
-  , Show costT
-  , Eq costT
-  , Ord costT
-  , costT' ~ Sym.Sym costT
-  , P.QuantumMaxCostablePrimitive primsT primsT sizeT costT'
+  , Floating precT
+  , Show precT
+  , Eq precT
+  , Ord precT
+  , precT' ~ Sym.Sym precT
+  , P.QuantumMaxCostablePrimitive primsT primsT sizeT precT'
   ) =>
-  P.QuantumMaxCostablePrimitive primsT CAmplify sizeT costT'
+  P.QuantumMaxCostablePrimitive primsT CAmplify sizeT precT'
   where
   quantumMaxQueryCostPrimitive eps (CAmplify (Amplify{sampler, p_min})) = do
     let eps_a = eps / 2
@@ -107,20 +108,20 @@ instance
       P.quantumMaxQueryCostE eps_f $
         P.FunCallE{P.fname = sampler, P.args = undefined}
 
-    return $ num_repetitions * cost_sampler
+    return $ num_repetitions Alg..* cost_sampler
 
 instance
   ( Integral sizeT
-  , Floating costT
-  , Show costT
-  , Eq costT
-  , Ord costT
-  , costT' ~ Sym.Sym costT
-  , P.EvaluatablePrimitive primsT CAmplify costT'
-  , P.QuantumCostablePrimitive primsT primsT sizeT costT'
+  , Floating precT
+  , Show precT
+  , Eq precT
+  , Ord precT
+  , precT' ~ Sym.Sym precT
+  , P.EvaluatablePrimitive primsT CAmplify precT'
+  , P.QuantumCostablePrimitive primsT primsT sizeT precT'
   , sizeT ~ SizeT
   ) =>
-  P.QuantumCostablePrimitive primsT CAmplify sizeT costT'
+  P.QuantumCostablePrimitive primsT CAmplify sizeT precT'
   where
   quantumQueryCostPrimitive eps (CAmplify (Amplify{sampler, p_min, sampler_args})) sigma = do
     -- get the function identifier
@@ -139,18 +140,18 @@ instance
 
     -- calculate result distribution μ
     let mu =
-          P.evalFun @primsT @costT' arg_vals (P.NamedFunDef sampler sampler_fundef)
+          P.evalFun @primsT @precT' arg_vals (P.NamedFunDef sampler sampler_fundef)
             & (runReaderT ?? eval_env)
 
-    let p_succ = Prob.probabilityOf @costT' success mu
-    let expected = _EQ @costT eps p_min p_succ -- Expected Cost
+    let p_succ = Prob.probabilityOf @precT' success mu
+    let expected = _EQ @precT eps p_min p_succ -- Expected Cost
     let eps_a = eps / 2
     let num_repetitions = _QryClassicalMax eps_a p_min
     let eps_f = (eps - eps_a) / num_repetitions
 
     cost <- P.quantumQueryCostE eps_f sigma P.FunCallE{P.fname = sampler, P.args = sampler_args}
 
-    return $ expected * cost
+    return $ expected Alg..* cost
    where
     success [b_val, _] = P.valueToBool b_val
     success _ = error "invalid predicate output"

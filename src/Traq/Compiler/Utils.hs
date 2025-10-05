@@ -19,8 +19,8 @@ module Traq.Compiler.Utils (
   addProc,
 ) where
 
-import Control.Monad (MonadPlus, msum)
-import Control.Monad.Except (MonadError, throwError)
+import Control.Monad.Except (MonadError)
+import Control.Monad.Extra (loopM)
 import Control.Monad.State (MonadState)
 import Control.Monad.Writer (MonadWriter)
 import qualified Data.Set as Set
@@ -52,23 +52,21 @@ newIdent ::
   ( MonadError String m
   , MonadState s m
   , HasUniqNamesCtx s
-  , MonadPlus m
   ) =>
   Ident ->
   m Ident
 newIdent prefix = do
-  ident <-
-    msum . map checked $
-      prefix : map ((prefix <>) . ("_" <>) . show) [1 :: Int ..]
+  ident <- loopM checked 0
   _uniqNamesCtx . at ident ?= ()
   return ident
  where
-  checked :: Ident -> m Ident
-  checked name = do
+  checked :: Int -> m (Either Int Ident)
+  checked i = do
+    let name = prefix <> (if i > 0 then "_" <> show i else "")
     already_exists <- use (_uniqNamesCtx . at name)
-    case already_exists of
-      Nothing -> return name
-      Just () -> throwError "next ident please!"
+    return $ case already_exists of
+      Nothing -> Right name
+      Just () -> Left $ i + 1
 
 -- ================================================================================
 -- Compiler State
@@ -94,13 +92,10 @@ instance P.HasTypingCtx (LoweringCtx sizeT) where
 -- ================================================================================
 
 -- | The outputs of lowering
-type LoweringOutput sizeT costT = [CQPL.ProcDef sizeT costT]
+type LoweringOutput sizeT = [CQPL.ProcDef sizeT]
 
-_loweredProcs :: Lens' (LoweringOutput sizeT costT) [CQPL.ProcDef sizeT costT]
+_loweredProcs :: Lens' (LoweringOutput sizeT) [CQPL.ProcDef sizeT]
 _loweredProcs = id
 
-addProc ::
-  (MonadWriter (LoweringOutput sizeT costT) m) =>
-  CQPL.ProcDef sizeT costT ->
-  m ()
+addProc :: (MonadWriter (LoweringOutput sizeT) m) => CQPL.ProcDef sizeT -> m ()
 addProc = writeElemAt _loweredProcs

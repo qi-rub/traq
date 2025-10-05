@@ -1,5 +1,7 @@
+{-# LANGUAGE ConstraintKinds #-}
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE FunctionalDependencies #-}
+{-# LANGUAGE TypeApplications #-}
 {-# LANGUAGE UndecidableInstances #-}
 
 module Traq.Data.Probability.Class (
@@ -9,6 +11,8 @@ module Traq.Data.Probability.Class (
 
   -- * Types
   Event,
+  ProbType,
+  RVType,
 
   -- * Special Distributions
   zero,
@@ -40,17 +44,24 @@ import Control.Monad.Reader (ReaderT (..))
 import Data.List (nub)
 import Data.Monoid (Endo (..))
 
+import qualified Numeric.Algebra as Alg
+
 import Traq.Control.Monad
+
+import Traq.Numeric.Floating ()
 
 -- | A random event: represented as a boolearn predicate function.
 type Event a = a -> Bool
 
+-- | Representing a probability (usually double).
+type ProbType probT = (Num probT, Alg.Monoidal probT)
+
 -- | A probability monad, with a zero distribution and a choice operation.
-class (Num probT, Monad m) => MonadProb probT m | m -> probT where
+class (ProbType probT, Monad m) => MonadProb probT m | m -> probT where
   -- | Weighted choice from a given list of distributions.
   choose :: [(probT, m a)] -> m a
 
-instance (Num probT, MonadProb probT m) => MonadProb probT (ReaderT r m) where
+instance (ProbType probT, MonadProb probT m) => MonadProb probT (ReaderT r m) where
   choose ms = ReaderT $ \r -> do
     choose [(p, runReaderT m r) | (p, m) <- ms]
 
@@ -78,25 +89,27 @@ bernoulli p = choose2 p (pure True) (pure False)
 scale :: (MonadProb probT m) => probT -> m a -> m a
 scale p x = choose [(p, x)]
 
+type RVType probT r = (Alg.Monoidal r, Alg.Module probT r)
+
 -- | A probability monad with support for computing expectation of random variables.
 class (MonadProb probT m) => MonadExp probT m where
   -- | compute the expectation of a random variable, by sequencing the outcomes.
-  expectationA :: (Applicative f) => (a -> f probT) -> m a -> f probT
+  expectationA :: forall f r a. (Applicative f, RVType probT r) => (a -> f r) -> m a -> f r
 
 -- | compute the expectation of a random variable.
-expectation :: (MonadExp probT m) => (a -> probT) -> m a -> probT
+expectation :: forall probT r m a. (MonadExp probT m, RVType probT r) => (a -> r) -> m a -> r
 expectation f = runIdentity . expectationA (Identity . f)
 
 -- | Compute the mass or total probability of a given probability distribution.
-mass :: (Num probT, MonadExp probT m) => m a -> probT
+mass :: (Num probT, MonadExp probT m, RVType probT probT) => m a -> probT
 mass = expectation $ const 1
 
 -- | Probability of a given event.
-probabilityOf :: forall probT m a. (Num probT, MonadExp probT m) => Event a -> m a -> probT
+probabilityOf :: forall probT m a. (MonadExp probT m, RVType probT probT) => Event a -> m a -> probT
 probabilityOf ev = expectation $ \a -> if ev a then 1 else 0
 
 -- | Normalize a distribution
-normalize :: (Fractional probT, Eq probT, MonadExp probT m) => m a -> m a
+normalize :: (Fractional probT, Eq probT, MonadExp probT m, RVType probT probT) => m a -> m a
 normalize mu =
   let p = mass mu
    in if p == 0
@@ -104,13 +117,13 @@ normalize mu =
         else scale (1 / p) mu
 
 -- | unnormalized conditional probability distribution
-conditional :: (MonadExp probT m, Fractional probT, Eq probT) => Event a -> m a -> m a
+conditional :: (MonadExp probT m, Fractional probT, Eq probT, RVType probT probT) => Event a -> m a -> m a
 conditional ev m = do
   a <- m
   if ev a then pure a else zero
 
 -- | Normalized conditional probability of an event.
-postselect :: (MonadExp probT m, Fractional probT, Eq probT) => Event a -> m a -> m a
+postselect :: (MonadExp probT m, Fractional probT, Eq probT, RVType probT probT) => Event a -> m a -> m a
 postselect ev m =
   let p = probabilityOf ev m
    in if p == 0
@@ -118,16 +131,16 @@ postselect ev m =
         else scale (1 / p) $ conditional ev m
 
 -- | Support of a distribution
-support :: (MonadExp p m) => m a -> [a]
-support = (appEndo ?? []) . getConst . expectationA (Const . Endo . (:))
+support :: forall p m a. (MonadExp p m, Alg.Module p ()) => m a -> [a]
+support = (appEndo ?? []) . getConst . (expectationA @_ @_ @_ @()) (\a -> Const (Endo (a :)))
 
 -- | outcomes
-outcomes :: (MonadExp p m, Eq a) => m a -> [(a, p)]
+outcomes :: (MonadExp p m, Eq a, RVType p p, Alg.Module p ()) => m a -> [(a, p)]
 outcomes mu = do
   a <- nub $ support mu
   return (a, probabilityOf (== a) mu)
 
-toDeterministicValue :: (MonadExp p m, Eq a) => m a -> Maybe a
+toDeterministicValue :: (MonadExp p m, Eq a, Alg.Module p ()) => m a -> Maybe a
 toDeterministicValue m = do
   (x : xs) <- return $ support m
   guard $ all (== x) xs

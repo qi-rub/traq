@@ -2,13 +2,11 @@
 
 module Traq.Compiler.UnitarySpec (spec) where
 
-import qualified Data.Map as Map
 import Data.Void (Void)
 
 import qualified Traq.Data.Context as Ctx
 
 import qualified Traq.CQPL as CQPL
-import qualified Traq.CQPL as U
 import Traq.Compiler.Unitary
 import qualified Traq.ProtoLang as P
 import qualified Traq.Utils.Printing as PP
@@ -39,7 +37,6 @@ spec = do
             lowerProgram
               P.SplitSimple
               (Ctx.singleton "x" (P.Fin 10))
-              (Map.singleton "Oracle" 1.0)
               (0 :: Double)
               (P.Program [P.NamedFunDef "main" main_fun])
 

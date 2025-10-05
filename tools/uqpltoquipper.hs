@@ -82,7 +82,7 @@ stmtToCirc CQPL.UForInRangeS{} = fail "TODO ForInRange"
 
 type ProcConverterT holeT sizeT = MyStateT (Ctx.Context UnitaryCirc) Q.Circ
 
-procDefToCirc :: (Show holeT, Show sizeT, Show costT) => CQPL.ProcDef holeT sizeT costT -> ProcConverterT holeT sizeT UnitaryCirc
+procDefToCirc :: (Show holeT, Show sizeT, Show precT) => CQPL.ProcDef holeT sizeT precT -> ProcConverterT holeT sizeT UnitaryCirc
 procDefToCirc CQPL.UProcDef{proc_name, proc_body_or_tick = Left tick} =
   return $ Q.named_gate $ printf "%s[%s]" proc_name (show tick)
 procDefToCirc CQPL.UProcDef{proc_name, proc_params, proc_body_or_tick = Right body} = do
@@ -94,10 +94,10 @@ procDefToCirc CQPL.UProcDef{proc_name, proc_params, proc_body_or_tick = Right bo
       return qs
 
 programToCirc ::
-  forall holeT sizeT costT.
-  (Show holeT, Show sizeT, Show costT) =>
+  forall holeT sizeT precT.
+  (Show holeT, Show sizeT, Show precT) =>
   Ctx.Context (P.VarType sizeT) ->
-  CQPL.Program holeT sizeT costT ->
+  CQPL.Program holeT sizeT precT ->
   UnitaryCirc
 programToCirc gamma CQPL.Program{CQPL.proc_defs, CQPL.stmt} qins = do
   Q.label qins (Ctx.keys gamma)

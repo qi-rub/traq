@@ -7,12 +7,11 @@ import qualified Data.Map as Map
 import Traq.Data.Default
 import qualified Traq.Data.Symbolic as Sym
 
+import Traq.CostModel.QueryCost
 import Traq.Prelude
 import Traq.Primitives
 import Traq.Primitives.Search.QSearchCFNW (_QSearchZalka)
-import Traq.ProtoLang.Cost
-import Traq.ProtoLang.Parser
-import Traq.ProtoLang.Syntax
+import Traq.ProtoLang
 
 import Test.Hspec
 
@@ -22,6 +21,7 @@ unsafeParseProgram = fmap Sym.unSym . either (error . show) id . parseProgram
 spec :: Spec
 spec = do
   describe "unitary cost of statements" $ do
+    let eps = 0.001 :: Double
     it "call oracle" $ do
       let prog =
             unsafeParseProgram . unlines $
@@ -32,8 +32,8 @@ spec = do
               , "return res"
               , "end"
               ]
-      let c = unitaryQueryCost SplitSimple 0.001 prog (Map.singleton "Oracle" 1.0)
-      c `shouldBe` (2 :: Double)
+      let c = unitaryQueryCost SplitSimple eps prog :: QueryCost Double
+      c `shouldBe` default_{uqueries = Map.singleton "Oracle" 2}
 
     it "fun call of oracle" $ do
       let prog =
@@ -49,8 +49,8 @@ spec = do
               , "  return res"
               , "end"
               ]
-      let c = unitaryQueryCost SplitSimple 0.001 prog (Map.singleton "Oracle" 1.0)
-      c `shouldBe` (4 :: Double)
+      let c = unitaryQueryCost SplitSimple eps prog :: QueryCost Double
+      c `shouldBe` default_{uqueries = Map.singleton "Oracle" 4}
 
     it "search with no oracle" $ do
       let prog =
@@ -65,8 +65,8 @@ spec = do
               , "  return res"
               , "end"
               ]
-      let c = unitaryQueryCost SplitSimple 0.001 prog (Map.singleton "Oracle" 1.0)
-      c `shouldBe` (0 :: Double)
+      let c = unitaryQueryCost SplitSimple eps prog :: QueryCost Double
+      c `shouldBe` default_
 
     it "search with 1x oracle" $ do
       let prog =
@@ -77,8 +77,9 @@ spec = do
               , "  return res"
               , "end"
               ]
-      let c = unitaryQueryCost SplitSimple 0.001 prog (Map.singleton "Oracle" 1.0)
-      (c :: Double) `shouldBe` 2 * _QSearchZalka (100 :: Int) (0.001 / 2)
+      let c = unitaryQueryCost SplitSimple eps prog :: QueryCost Double
+      let qry = 2 * _QSearchZalka (100 :: Int) (eps / 2)
+      c `shouldBe` default_{uqueries = Map.singleton "Oracle" qry}
 
     it "probabilistic outcome" $ do
       let prog =
@@ -89,5 +90,5 @@ spec = do
               , "  return res"
               , "end"
               ]
-      let c = quantumQueryCost SplitSimple 0.001 prog default_ default_ default_ default_
-      (c :: Double) `shouldBe` 0
+      let c = quantumQueryCost SplitSimple eps prog default_ [] :: QueryCost Double
+      c `shouldBe` default_

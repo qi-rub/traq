@@ -116,13 +116,14 @@ getSearchOutputs rets = map element rets
 
 -- | Run the predicate on each input, and return the input along with the result.
 runSearchPredicateOnAllInputs ::
-  forall primsT costT.
-  ( P.EvaluatablePrimitive primsT primsT costT
-  , Fractional costT
+  forall primsT precT.
+  ( P.EvaluatablePrimitive primsT primsT precT
+  , Fractional precT
+  , Prob.ProbType precT
   ) =>
   Ident ->
   [P.Value SizeT] ->
-  P.Evaluator primsT SizeT costT SearchResults
+  P.Evaluator primsT SizeT precT SearchResults
 runSearchPredicateOnAllInputs predicate arg_vals = do
   pred_fun <- view $ P._funCtx . Ctx.at predicate . to (fromMaybe (error "unable to find predicate, please typecheck first!"))
   let n_fixed_args = length arg_vals
@@ -135,13 +136,14 @@ runSearchPredicateOnAllInputs predicate arg_vals = do
     return SearchResult{element = s_vals, isSolution = P.valueToBool $ head rets}
 
 evaluatePrimCount ::
-  ( P.EvaluatablePrimitive primsT primsT costT
-  , Fractional costT
+  ( P.EvaluatablePrimitive primsT primsT precT
+  , Fractional precT
+  , Prob.ProbType precT
   ) =>
   Ident ->
   [Ident] ->
   P.ProgramState SizeT ->
-  P.Evaluator primsT SizeT costT [P.Value SizeT]
+  P.Evaluator primsT SizeT precT [P.Value SizeT]
 evaluatePrimCount predicate args sigma = do
   arg_vals <- runReaderT ?? sigma $ forM args $ \x -> do
     view $ P._state . Ctx.at x . non (error "invalid argument, please typecheck first.")
@@ -187,8 +189,11 @@ instance P.TypeCheckablePrimitive PrimAny where
     return [P.tbool]
 
 instance
-  (Fractional costT, P.EvaluatablePrimitive primsT primsT costT) =>
-  P.EvaluatablePrimitive primsT PrimAny costT
+  ( Fractional precT
+  , Prob.ProbType precT
+  , P.EvaluatablePrimitive primsT primsT precT
+  ) =>
+  P.EvaluatablePrimitive primsT PrimAny precT
   where
   evalPrimitive PrimAny{predicate, pred_args} sigma = do
     arg_vals <- runReaderT ?? sigma $
@@ -238,8 +243,11 @@ instance P.TypeCheckablePrimitive PrimSearch where
     return $ P.tbool : s_tys
 
 instance
-  (Fractional costT, P.EvaluatablePrimitive primsT primsT costT) =>
-  P.EvaluatablePrimitive primsT PrimSearch costT
+  ( Fractional precT
+  , Prob.ProbType precT
+  , P.EvaluatablePrimitive primsT primsT precT
+  ) =>
+  P.EvaluatablePrimitive primsT PrimSearch precT
   where
   evalPrimitive PrimSearch{predicate, pred_args} sigma = do
     arg_vals <- runReaderT ?? sigma $ forM pred_args $ \x -> do

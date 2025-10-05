@@ -12,15 +12,17 @@ module Traq.Data.Probability.Cont (
 import Control.Monad.Cont (ContT (..))
 import Data.Traversable (for)
 
+import qualified Numeric.Algebra as Alg
+
 import Traq.Data.Probability.Class
 
-newtype ExpMonad probT a = ExpMonad (forall f. (Applicative f) => ContT probT f a)
+newtype ExpMonad probT a = ExpMonad (forall f r. (Applicative f, RVType probT r) => ContT r f a)
   deriving (Functor)
 
-runExp :: (Applicative f) => ExpMonad probT a -> ContT probT f a
+runExp :: (Applicative f, RVType probT r) => ExpMonad probT a -> ContT r f a
 runExp (ExpMonad c) = c
 
-runExpCont :: (Applicative f) => ExpMonad probT a -> (a -> f probT) -> f probT
+runExpCont :: (Applicative f, RVType probT r) => ExpMonad probT a -> (a -> f r) -> f r
 runExpCont = runContT . runExp
 
 instance Applicative (ExpMonad probT) where
@@ -30,9 +32,9 @@ instance Applicative (ExpMonad probT) where
 instance Monad (ExpMonad probT) where
   (ExpMonad a) >>= f = ExpMonad $ a >>= (runExp . f)
 
-instance (Num probT) => MonadProb probT (ExpMonad probT) where
+instance (ProbType probT) => MonadProb probT (ExpMonad probT) where
   choose pxs = ExpMonad $ ContT $ \k ->
-    sum <$> for pxs (\(p, x) -> (p *) <$> runExpCont x k)
+    Alg.sum <$> for pxs (\(p, x) -> (p Alg..*) <$> runExpCont x k)
 
-instance (Num probT) => MonadExp probT (ExpMonad probT) where
+instance (ProbType probT) => MonadExp probT (ExpMonad probT) where
   expectationA = flip runExpCont

@@ -14,6 +14,7 @@ import qualified Traq.Data.Context as Ctx
 import Traq.Data.Default
 
 import qualified Traq.CQPL as CQPL
+import Traq.CostModel.QueryCost (SimpleQueryCost (..))
 import Traq.Prelude
 import Traq.Primitives.Search.QSearchCFNW
 import qualified Traq.ProtoLang as P
@@ -44,7 +45,7 @@ spec = do
       let n = 10 :: Int
       let eps = 0.001 :: Float
       let pred_caller c x b = CQPL.UCallS{CQPL.uproc_id = "Oracle", CQPL.dagger = False, CQPL.qargs = [c, x, b]}
-      let lenv = default_ & (P._unitaryTicks . at "Oracle" ?~ 1)
+      let lenv = default_
       let lctx = default_
       circ <-
         expectRight $
@@ -68,7 +69,7 @@ spec = do
     prop "matches cost" $ \params -> do
       let n = space_size params
       let delta = precision params
-      let compile_config = default_ & (P._unitaryTicks . at "Oracle" ?~ 1.0)
+      let compile_config = default_
       (n > 1) ==> do
         (ss, []) <-
           algoQSearchZalka @QSearchCFNW @SizeT delta "result"
@@ -88,7 +89,7 @@ spec = do
                           , CQPL.proc_name = "Oracle"
                           , CQPL.proc_meta_params = []
                           , CQPL.proc_param_types = []
-                          , CQPL.proc_body = CQPL.ProcBodyU $ CQPL.UProcDecl (1.0 :: Double)
+                          , CQPL.proc_body = CQPL.ProcBodyU CQPL.UProcDecl
                           }
                       , CQPL.ProcDef
                           { CQPL.info_comment = ""
@@ -106,6 +107,6 @@ spec = do
                       ]
                 }
 
-        let (actual_cost, _) = CQPL.programCost @_ @Double uprog
+        let actual_cost = getCost . fst $ CQPL.programCost @_ @(SimpleQueryCost Double) uprog
         let formula_cost = _QSearchZalka n delta
         actual_cost `shouldSatisfy` (<= formula_cost)

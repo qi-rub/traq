@@ -250,13 +250,13 @@ instance HasFunInterpCtx (EvaluationEnv primsT sizeT) where
 type ExecutionState sizeT = ProgramState sizeT
 
 -- | Base probability monad to evaluate the program.
-type EvaluationMonad costT = Prob.ExpMonad costT
+type EvaluationMonad precT = Prob.ExpMonad precT
 
 -- | Non-deterministic Execution Monad (i.e. no state)
-type Evaluator primsT sizeT costT = ReaderT (EvaluationEnv primsT sizeT) (EvaluationMonad costT)
+type Evaluator primsT sizeT precT = ReaderT (EvaluationEnv primsT sizeT) (EvaluationMonad precT)
 
 -- | Non-deterministic Execution Monad
-type Executor primsT sizeT costT = StateT (ExecutionState sizeT) (Evaluator primsT sizeT costT)
+type Executor primsT sizeT precT = StateT (ExecutionState sizeT) (Evaluator primsT sizeT precT)
 
 -- --------------------------------------------------------------------------------
 -- Primitives (with generics)
@@ -265,51 +265,51 @@ type Executor primsT sizeT costT = StateT (ExecutionState sizeT) (Evaluator prim
 {- | Primitives that support evaluation:
  Can evaluate @primT@ under a context of @primsT@.
 -}
-class (Fractional costT) => EvaluatablePrimitive primsT primT costT where
+class (Fractional precT) => EvaluatablePrimitive primsT primT precT where
   evalPrimitive ::
     ( sizeT ~ SizeT
-    , m ~ Evaluator primsT sizeT costT
+    , m ~ Evaluator primsT sizeT precT
     ) =>
     primT ->
     ProgramState sizeT ->
     m [Value sizeT]
   default evalPrimitive ::
     ( Generic primT
-    , GEvaluatablePrimitive primsT (Rep primT) costT
+    , GEvaluatablePrimitive primsT (Rep primT) precT
     , sizeT ~ SizeT
-    , m ~ Evaluator primsT sizeT costT
+    , m ~ Evaluator primsT sizeT precT
     ) =>
     primT ->
     ProgramState sizeT ->
     m [Value sizeT]
   evalPrimitive x = gevalPrimitive (from x)
 
-instance (Fractional costT) => EvaluatablePrimitive primsT Void costT where
+instance (Fractional precT) => EvaluatablePrimitive primsT Void precT where
   evalPrimitive = absurd
 
-class GEvaluatablePrimitive primsT f costT where
+class GEvaluatablePrimitive primsT f precT where
   gevalPrimitive ::
     (sizeT ~ SizeT) =>
     f primT ->
     ProgramState sizeT ->
-    Evaluator primsT sizeT costT [Value sizeT]
+    Evaluator primsT sizeT precT [Value sizeT]
 
 instance
-  (GEvaluatablePrimitive primsT f1 costT, GEvaluatablePrimitive primsT f2 costT) =>
-  GEvaluatablePrimitive primsT (f1 :+: f2) costT
+  (GEvaluatablePrimitive primsT f1 precT, GEvaluatablePrimitive primsT f2 precT) =>
+  GEvaluatablePrimitive primsT (f1 :+: f2) precT
   where
   gevalPrimitive (L1 p) = gevalPrimitive p
   gevalPrimitive (R1 p) = gevalPrimitive p
 
 instance
-  (GEvaluatablePrimitive primsT f costT) =>
-  GEvaluatablePrimitive primsT (M1 i c f) costT
+  (GEvaluatablePrimitive primsT f precT) =>
+  GEvaluatablePrimitive primsT (M1 i c f) precT
   where
   gevalPrimitive (M1 x) = gevalPrimitive x
 
 instance
-  (EvaluatablePrimitive primsT f costT) =>
-  GEvaluatablePrimitive primsT (K1 i f) costT
+  (EvaluatablePrimitive primsT f precT) =>
+  GEvaluatablePrimitive primsT (K1 i f) precT
   where
   gevalPrimitive (K1 x) = evalPrimitive x
 
@@ -342,8 +342,8 @@ evalRandomSampleExpr ::
   , HasProgramState env
   , sizeT ~ SizeType env
   , sizeT ~ SizeT
-  , Prob.MonadProb costT m
-  , Fractional costT
+  , Prob.MonadProb precT m
+  , Fractional precT
   ) =>
   DistrExpr sizeT ->
   m (Value sizeT)
@@ -351,9 +351,10 @@ evalRandomSampleExpr UniformE{sample_ty} = Prob.uniform (domain sample_ty)
 evalRandomSampleExpr BernoulliE{prob_one} = toValue <$> Prob.bernoulli (realToFrac prob_one)
 
 evalExpr ::
-  forall primsT costT m.
-  ( EvaluatablePrimitive primsT primsT costT
-  , m ~ Evaluator primsT SizeT costT
+  forall primsT precT m.
+  ( EvaluatablePrimitive primsT primsT precT
+  , m ~ Evaluator primsT SizeT precT
+  , Prob.ProbType precT
   ) =>
   Expr primsT SizeT ->
   ProgramState SizeT ->
@@ -384,9 +385,10 @@ evalExpr LoopE{initial_args, loop_body_fun} sigma = do
   foldM (\args i -> evalFun (args ++ [i]) (NamedFunDef loop_body_fun fun_def)) init_vals (domain (last (param_types fun_def)))
 
 execStmt ::
-  forall primsT costT m.
-  ( EvaluatablePrimitive primsT primsT costT
-  , m ~ Executor primsT SizeT costT
+  forall primsT precT m.
+  ( EvaluatablePrimitive primsT primsT precT
+  , m ~ Executor primsT SizeT precT
+  , Prob.ProbType precT
   ) =>
   Stmt primsT SizeT ->
   m ()
@@ -401,9 +403,10 @@ execStmt IfThenElseS{cond, s_true, s_false} = do
 execStmt (SeqS ss) = mapM_ execStmt ss
 
 evalFun ::
-  forall primsT costT m.
-  ( EvaluatablePrimitive primsT primsT costT
-  , m ~ Evaluator primsT SizeT costT
+  forall primsT precT m.
+  ( EvaluatablePrimitive primsT primsT precT
+  , m ~ Evaluator primsT SizeT precT
+  , Prob.ProbType precT
   ) =>
   -- | arguments
   [Value SizeT] ->
@@ -421,12 +424,14 @@ evalFun vals_in NamedFunDef{fun_name, fun_def = FunDef{mbody = Nothing}} = do
   return $ fn_interp vals_in
 
 runProgram ::
-  forall primsT costT.
-  (EvaluatablePrimitive primsT primsT costT) =>
+  forall primsT precT.
+  ( EvaluatablePrimitive primsT primsT precT
+  , Prob.ProbType precT
+  ) =>
   Program primsT SizeT ->
   FunInterpCtx SizeT ->
   [Value SizeT] ->
-  EvaluationMonad costT [Value SizeT]
+  EvaluationMonad precT [Value SizeT]
 runProgram (Program fs) funInterpCtx inp =
   evalFun inp (last fs) & (runReaderT ?? env)
  where

@@ -43,6 +43,7 @@ import Text.Printf (printf)
 
 import Lens.Micro.GHC
 import Lens.Micro.Mtl
+import qualified Numeric.Algebra as Alg
 
 import Traq.Control.Monad
 import qualified Traq.Data.Context as Ctx
@@ -63,17 +64,17 @@ import qualified Traq.Utils.Printing as PP
 -- ================================================================================
 
 -- Eq. TODO REF
-_EQSearchWorst :: forall sizeT costT. (Integral sizeT, Floating costT) => sizeT -> costT -> costT
+_EQSearchWorst :: forall sizeT precT. (Integral sizeT, Floating precT) => sizeT -> precT -> precT
 _EQSearchWorst n eps = 9.2 * log (1 / eps) * sqrt (fromIntegral n)
 
 -- Eq. TODO REF
-_F :: forall sizeT costT. (Integral sizeT, Floating costT) => sizeT -> sizeT -> costT
+_F :: forall sizeT precT. (Integral sizeT, Floating precT) => sizeT -> sizeT -> precT
 _F n t
   | 4 * t >= n = 2.0344
   | otherwise = 3.1 * sqrt (fromIntegral n / fromIntegral t)
 
 -- Eq. TODO REF
-_EQSearch :: forall sizeT costT. (Integral sizeT, Floating costT) => sizeT -> sizeT -> costT -> costT
+_EQSearch :: forall sizeT precT. (Integral sizeT, Floating precT) => sizeT -> sizeT -> precT -> precT
 _EQSearch n t eps
   | t == 0 = _EQSearchWorst n eps
   | otherwise = _F n t * (1 + 1 / (1 - term))
@@ -81,32 +82,32 @@ _EQSearch n t eps
   term = _F n t / (9.2 * sqrt (fromIntegral n))
 
 -- Eq. TODO REF
-_QSearchZalka :: forall sizeT costT. (Integral sizeT, Floating costT) => sizeT -> costT -> costT
+_QSearchZalka :: forall sizeT precT. (Integral sizeT, Floating precT) => sizeT -> precT -> precT
 _QSearchZalka n delta = 2 * nq_simple -- 2x for compute-uncompute
  where
   -- Section 2.2 Improved Algorithm (i.e. sqrt log(1/eps) instead of log(1/eps))
   -- fail prob
-  eps :: costT
+  eps :: precT
   eps = (delta / 2) ^ (2 :: Int)
 
   -- log_fac = ceiling log_fac
-  -- log_fac :: costT
+  -- log_fac :: precT
   -- log_fac = log (1 / eps) / (2 * log (4 / 3))
 
   -- number of queries of the original algorithm.
-  -- nq :: costT
+  -- nq :: precT
   -- nq = 5 * log_fac + pi * sqrt (fromIntegral n * log_fac)
 
   -- Section 2.1 simple algorithm cost
   max_iter :: sizeT
   max_iter = ceiling $ (pi / 4) * sqrt (fromIntegral n :: Double)
 
-  n_reps :: costT
+  n_reps :: precT
   n_reps = logBase (1 - p) eps
    where
-    p = 0.3914 :: costT
+    p = 0.3914 :: precT
 
-  nq_simple :: costT
+  nq_simple :: precT
   nq_simple = fromIntegral max_iter * n_reps
 
 -- ================================================================================
@@ -160,8 +161,8 @@ instance P.TypeCheckablePrimitive QSearchCFNW
  and or-ing the results.
 -}
 instance
-  (Fractional costT, P.EvaluatablePrimitive primsT primsT costT) =>
-  P.EvaluatablePrimitive primsT QSearchCFNW costT
+  (Fractional precT, Prob.ProbType precT, P.EvaluatablePrimitive primsT primsT precT) =>
+  P.EvaluatablePrimitive primsT QSearchCFNW precT
 
 -- ================================================================================
 -- Abstract Costs
@@ -170,11 +171,11 @@ instance
 -- | Compute the unitary cost using the QSearch_Zalka cost formula.
 instance
   ( Integral sizeT
-  , Floating costT
-  , Show costT
-  , P.UnitaryCostablePrimitive primsT primsT sizeT costT
+  , Floating precT
+  , Show precT
+  , P.UnitaryCostablePrimitive primsT primsT sizeT precT
   ) =>
-  P.UnitaryCostablePrimitive primsT QSearchCFNW sizeT costT
+  P.UnitaryCostablePrimitive primsT QSearchCFNW sizeT precT
   where
   unitaryQueryCostPrimitive delta prim = do
     let predicate = getPredicateName prim
@@ -197,14 +198,14 @@ instance
       P.unitaryQueryCostE delta_per_pred_call $
         P.FunCallE{P.fname = predicate, P.args = undefined}
 
-    return $ qry * cost_pred
+    return $ qry Alg..* cost_pred
 
 instance
   ( Integral sizeT
-  , Floating costT
-  , P.QuantumMaxCostablePrimitive primsT primsT sizeT costT
+  , Floating precT
+  , P.QuantumMaxCostablePrimitive primsT primsT sizeT precT
   ) =>
-  P.QuantumMaxCostablePrimitive primsT QSearchCFNW sizeT costT
+  P.QuantumMaxCostablePrimitive primsT QSearchCFNW sizeT precT
   where
   quantumMaxQueryCostPrimitive eps prim = do
     let predicate = getPredicateName prim
@@ -229,17 +230,17 @@ instance
         P.unitaryQueryCostE delta_per_pred_call $
           P.FunCallE{P.fname = predicate, P.args = undefined}
 
-    return $ qry * cost_unitary_pred
+    return $ qry Alg..* cost_unitary_pred
 
 instance
   ( Integral sizeT
-  , Floating costT
-  , Show costT
-  , P.EvaluatablePrimitive primsT QSearchCFNW costT
-  , P.QuantumCostablePrimitive primsT primsT sizeT costT
+  , Floating precT
+  , Show precT
+  , P.EvaluatablePrimitive primsT QSearchCFNW precT
+  , P.QuantumCostablePrimitive primsT primsT sizeT precT
   , sizeT ~ SizeT
   ) =>
-  P.QuantumCostablePrimitive primsT QSearchCFNW sizeT costT
+  P.QuantumCostablePrimitive primsT QSearchCFNW sizeT precT
   where
   quantumQueryCostPrimitive eps prim sigma = do
     let predicate = getPredicateName prim
@@ -256,7 +257,7 @@ instance
     -- number of solutions
     search_results <- do
       env <- view P._evaluationEnv
-      runSearchPredicateOnAllInputs @primsT @costT predicate pred_arg_vals
+      runSearchPredicateOnAllInputs @primsT @precT predicate pred_arg_vals
         & (runReaderT ?? env)
         & Prob.toDeterministicValue
         & lift
@@ -273,7 +274,7 @@ instance
     pred_unitary_cost <-
       magnify P._unitaryCostEnv $
         P.unitaryQueryCostE delta_per_pred_call P.FunCallE{P.fname = predicate, P.args = undefined}
-    return $ qry * pred_unitary_cost
+    return $ qry Alg..* pred_unitary_cost
 
 -- ================================================================================
 -- Unitary Lowering
@@ -286,24 +287,24 @@ data UQSearchEnv sizeT = UQSearchEnv
   }
 
 -- | A layer on top of the unitary compiler, holding the relevant QSearch context, and storing the produced statements.
-type UQSearchBuilder primsT sizeT costT =
+type UQSearchBuilder primsT sizeT precT =
   RWST
     (UQSearchEnv sizeT)
     [CQPL.UStmt sizeT]
     ()
-    (CompileU.CompilerT primsT sizeT costT)
+    (CompileU.CompilerT primsT sizeT precT)
 
-allocSearchArgReg :: UQSearchBuilder primsT sizeT costT Ident
+allocSearchArgReg :: UQSearchBuilder primsT sizeT precT Ident
 allocSearchArgReg = do
   ty <- view $ to search_arg_type
   lift $ CompileU.allocAncillaWithPref "s_arg" ty
 
-addPredCall :: Ident -> Ident -> Ident -> UQSearchBuilder primsT sizeT costT ()
+addPredCall :: Ident -> Ident -> Ident -> UQSearchBuilder primsT sizeT precT ()
 addPredCall c x b = do
   mk_pred <- view $ to pred_call_builder
   writeElem $ mk_pred c x b
 
-withComputed :: CQPL.UStmt sizeT -> UQSearchBuilder primsT sizeT costT a -> UQSearchBuilder primsT sizeT costT a
+withComputed :: CQPL.UStmt sizeT -> UQSearchBuilder primsT sizeT precT a -> UQSearchBuilder primsT sizeT precT a
 withComputed s m = do
   writeElem s
   a <- m
@@ -311,9 +312,9 @@ withComputed s m = do
   return a
 
 addGroverIteration ::
-  forall primsT sizeT costT.
+  forall primsT sizeT precT.
   ( Integral sizeT
-  , RealFloat costT
+  , RealFloat precT
   , P.TypeCheckable sizeT
   ) =>
   -- | ctrl
@@ -322,7 +323,7 @@ addGroverIteration ::
   Ident ->
   -- | b
   Ident ->
-  UQSearchBuilder primsT sizeT costT ()
+  UQSearchBuilder primsT sizeT precT ()
 addGroverIteration c x b = do
   addPredCall c x b
   writeElem $ CQPL.UnitaryS [x] (CQPL.Adjoint CQPL.Unif)
@@ -330,14 +331,14 @@ addGroverIteration c x b = do
   writeElem $ CQPL.UnitaryS [x] CQPL.Unif
 
 algoQSearchZalkaRandomIterStep ::
-  forall primsT sizeT costT.
+  forall primsT sizeT precT.
   ( Integral sizeT
-  , RealFloat costT
+  , RealFloat precT
   , P.TypeCheckable sizeT
   ) =>
   -- | max num of iteration
   sizeT ->
-  UQSearchBuilder primsT sizeT costT Ident
+  UQSearchBuilder primsT sizeT precT Ident
 algoQSearchZalkaRandomIterStep r = do
   -- time register
   let r_ty = P.Fin r
@@ -376,16 +377,16 @@ algoQSearchZalkaRandomIterStep r = do
   return b_reg
 
 algoQSearchZalka ::
-  forall primsT sizeT costT.
+  forall primsT sizeT precT.
   ( Integral sizeT
-  , RealFloat costT
+  , RealFloat precT
   , P.TypeCheckable sizeT
   ) =>
   -- | max. norm error @\delta@
-  costT ->
+  precT ->
   -- | output bit
   Ident ->
-  UQSearchBuilder primsT sizeT costT ()
+  UQSearchBuilder primsT sizeT precT ()
 algoQSearchZalka delta out_bit = do
   n <- view $ to search_arg_type . singular P._Fin
 
@@ -405,26 +406,26 @@ algoQSearchZalka delta out_bit = do
   max_iter :: sizeT -> sizeT
   max_iter n = ceiling $ (pi / 4) * sqrt (fromIntegral n :: Double)
 
-  eps :: costT
+  eps :: precT
   eps = (delta / 2) ^ (2 :: Int)
 
   n_reps :: Int
   n_reps = ceiling $ logBase (1 - p) eps
    where
-    p = 0.3914 :: costT
+    p = 0.3914 :: precT
 
 shouldUncomputeQSearch :: Bool
 shouldUncomputeQSearch = False
 
 instance
   ( Integral sizeT
-  , RealFloat costT
-  , CompileU.Lowerable primsT primsT sizeT costT
+  , RealFloat precT
+  , CompileU.Lowerable primsT primsT sizeT precT
   , Show sizeT
-  , Show costT
+  , Show precT
   , P.TypeCheckable sizeT
   ) =>
-  CompileU.Lowerable primsT QSearchCFNW sizeT costT
+  CompileU.Lowerable primsT QSearchCFNW sizeT precT
   where
   lowerPrimitive delta (QAnyCFNW PrimAny{predicate, pred_args = args}) [ret] = do
     -- the predicate
@@ -571,13 +572,13 @@ instance
 -- ================================================================================
 
 -- | the generated QSearch procedure: body stmts and local vars
-type QSearchCompilerT primsT sizeT costT =
+type QSearchCompilerT primsT sizeT precT =
   WriterT
     ([CQPL.Stmt sizeT], [(Ident, P.VarType sizeT)])
-    (CompileQ.CompilerT primsT sizeT costT)
+    (CompileQ.CompilerT primsT sizeT precT)
 
 allocReg ::
-  (m ~ QSearchCompilerT primsT sizeT costT) =>
+  (m ~ QSearchCompilerT primsT sizeT precT) =>
   Ident ->
   P.VarType sizeT ->
   m Ident
@@ -626,13 +627,13 @@ groverK k (x, _) b mk_pred =
 
 -- | Implementation of the hybrid quantum search algorithm \( \textbf{QSearch} \).
 algoQSearch ::
-  forall primsT sizeT costT.
+  forall primsT sizeT precT.
   ( Integral sizeT
-  , RealFloat costT
+  , RealFloat precT
   , sizeT ~ SizeT
-  , CompileQ.Lowerable primsT primsT sizeT costT
+  , CompileQ.Lowerable primsT primsT sizeT precT
   , Show sizeT
-  , Show costT
+  , Show precT
   , P.TypeCheckable sizeT
   ) =>
   -- | search elem type
@@ -640,7 +641,7 @@ algoQSearch ::
   -- | number of classical samples
   sizeT ->
   -- | max fail prob
-  costT ->
+  precT ->
   -- | grover_k caller: k, x, b
   (Either (CQPL.MetaParam sizeT) Ident -> Ident -> Ident -> CQPL.Stmt sizeT) ->
   -- | cqpl predicate caller
@@ -648,7 +649,7 @@ algoQSearch ::
   -- | Result register
   Ident ->
   -- | the generated QSearch procedure: body stmts and local vars
-  WriterT ([CQPL.Stmt sizeT], [(Ident, P.VarType sizeT)]) (CompileQ.CompilerT primsT sizeT costT) ()
+  WriterT ([CQPL.Stmt sizeT], [(Ident, P.VarType sizeT)]) (CompileQ.CompilerT primsT sizeT precT) ()
 algoQSearch ty n_samples eps grover_k_caller pred_caller ok = do
   not_done <- allocReg "not_done" P.tbool
   q_sum <- allocReg "Q_sum" j_type
@@ -736,15 +737,15 @@ algoQSearch ty n_samples eps grover_k_caller pred_caller ok = do
 
 instance
   ( Integral sizeT
-  , RealFloat costT
+  , RealFloat precT
   , sizeT ~ SizeT
-  , CompileQ.Lowerable primsT primsT sizeT costT
-  , CompileU.Lowerable primsT primsT sizeT costT
+  , CompileQ.Lowerable primsT primsT sizeT precT
+  , CompileU.Lowerable primsT primsT sizeT precT
   , Show sizeT
-  , Show costT
+  , Show precT
   , P.TypeCheckable sizeT
   ) =>
-  CompileQ.Lowerable primsT QSearchCFNW sizeT costT
+  CompileQ.Lowerable primsT QSearchCFNW sizeT precT
   where
   lowerPrimitive eps (QAnyCFNW PrimAny{predicate, pred_args = args}) [ret] = do
     -- the predicate

@@ -5,7 +5,6 @@ module Main where
 import Control.Exception (assert)
 import Control.Monad (forM_)
 import Data.List (inits)
-import qualified Data.Map as Map
 import Text.Printf (printf)
 
 import qualified Traq.Data.Context as Ctx
@@ -14,6 +13,7 @@ import qualified Traq.Data.Symbolic as Sym
 import qualified Traq.CQPL as CQPL
 import qualified Traq.Compiler.Quantum as CompileQ
 import qualified Traq.Compiler.Unitary as CompileU
+import Traq.CostModel.QueryCost (QueryCost (..))
 import Traq.Examples.MatrixSearch
 import Traq.Prelude
 import Traq.Primitives.Search.Symbolic
@@ -31,8 +31,6 @@ symbolicEx = do
   let m = Sym.var "M" :: Sym.Sym SizeT
   let P.Program ex_fs = matrixExample @QSearchSym n m
   let strat = P.SplitUsingNeedsEps
-  let uticks = Map.singleton "Oracle" (Sym.var "c_u")
-  let cticks = Map.singleton "Oracle" (Sym.var "c_c")
 
   forM_ (tail $ inits ex_fs) $ \fs -> do
     let eps = Sym.var "ε" :: Sym.Sym Double
@@ -40,9 +38,9 @@ symbolicEx = do
 
     putStrLn $ printf "Worst case cost of %s" (P.fun_name $ last fs)
     putStr "  - Unitary: "
-    print $ P.unitaryQueryCost strat delta (P.Program fs) uticks
+    print (P.unitaryQueryCost @_ @(Sym.Sym SizeT) @(Sym.Sym Double) @_ strat delta (P.Program fs) :: QueryCost (Sym.Sym Double))
     putStr "  - Quantum: "
-    print $ P.quantumMaxQueryCost strat eps (P.Program fs) uticks cticks
+    print (P.quantumMaxQueryCost strat eps (P.Program fs) :: QueryCost (Sym.Sym Double))
 
 concreteEx :: IO ()
 concreteEx = do
@@ -55,13 +53,12 @@ concreteEx = do
   putStrLn $ PP.toCodeString ex
 
   let delta = 0.001 :: Double
-  let uticks = Map.singleton "Oracle" 1.0
   let strat = P.SplitUsingNeedsEps
 
-  let u_formula_cost = P.unitaryQueryCost strat delta ex uticks
+  let u_formula_cost = P.unitaryQueryCost strat delta ex :: QueryCost Double
 
   printDivider
-  Right exU <- return $ CompileU.lowerProgram strat Ctx.empty uticks delta ex
+  Right exU <- return $ CompileU.lowerProgram strat Ctx.empty delta ex
   putStrLn $ PP.toCodeString exU
 
   let (u_true_cost, _) = CQPL.programCost exU
@@ -82,12 +79,10 @@ concreteQEx = do
   putStrLn $ PP.toCodeString ex
 
   let delta = 0.001 :: Double
-  let uticks = Map.singleton "Oracle" 1.0
-  let cticks = Map.singleton "Oracle" 1.0
   let strat = P.SplitUsingNeedsEps
 
   printDivider
-  Right exU <- return $ CompileQ.lowerProgram strat Ctx.empty uticks cticks delta ex
+  Right exU <- return $ CompileQ.lowerProgram strat Ctx.empty delta ex
   putStrLn $ PP.toCodeString exU
   return ()
 

@@ -271,26 +271,25 @@ instance PP.ToCodeString ParamTag where
   build ParamUnk = PP.putWord ""
 
 -- | Unitary Procedure body: either a statement (with parameter name bindings) or a tick.
-data UProcBody sizeT costT
+data UProcBody sizeT
   = UProcBody
       { uproc_param_names :: [Ident]
       , uproc_param_tags :: [ParamTag]
       , uproc_body_stmt :: UStmt sizeT
       }
-  | UProcDecl {utick :: costT}
+  | UProcDecl
   deriving (Eq, Show, Read)
 
-type instance SizeType (UProcBody sizeT costT) = sizeT
-type instance CostType (UProcBody sizeT costT) = costT
+type instance SizeType (UProcBody sizeT) = sizeT
 
 buildUProcBody ::
-  (MonadWriter [String] m, MonadFail m, Show sizeT, Show costT) =>
-  UProcBody sizeT costT ->
+  (MonadWriter [String] m, MonadFail m, Show sizeT) =>
+  UProcBody sizeT ->
   String ->
   [String] ->
   m ()
-buildUProcBody UProcDecl{utick} name param_tys = do
-  PP.putLine $ printf "uproc %s(%s) :: tick(%s)" name (PP.commaList param_tys) (show utick)
+buildUProcBody UProcDecl name param_tys = do
+  PP.putLine $ printf "uproc %s(%s);" name (PP.commaList param_tys)
 buildUProcBody UProcBody{uproc_param_names, uproc_param_tags, uproc_body_stmt} name param_tys = do
   arg_list <-
     uproc_param_tags
@@ -301,23 +300,23 @@ buildUProcBody UProcBody{uproc_param_names, uproc_param_tags, uproc_body_stmt} n
   PP.bracedBlockWith header $ PP.build uproc_body_stmt
 
 -- | Classical Procedure body: either a tick, or statement with bindings for parameters names, and optionally using local variables.
-data CProcBody sizeT costT
+data CProcBody sizeT
   = CProcBody
       { cproc_param_names :: [Ident]
       , cproc_local_vars :: [(Ident, VarType sizeT)]
       , cproc_body_stmt :: Stmt sizeT
       }
-  | CProcDecl {ctick :: costT}
+  | CProcDecl
   deriving (Eq, Show, Read)
 
 buildCProcBody ::
-  (MonadWriter [String] m, MonadFail m, Show sizeT, Show costT) =>
-  CProcBody sizeT costT ->
+  (MonadWriter [String] m, MonadFail m, Show sizeT) =>
+  CProcBody sizeT ->
   String ->
   [String] ->
   m ()
-buildCProcBody CProcDecl{ctick} name param_tys = do
-  PP.putLine $ printf "proc %s(%s) :: tick(%s)" name (PP.commaList param_tys) (show ctick)
+buildCProcBody CProcDecl name param_tys = do
+  PP.putLine $ printf "proc %s(%s);" name (PP.commaList param_tys)
 buildCProcBody CProcBody{cproc_param_names, cproc_local_vars, cproc_body_stmt} name param_tys = do
   let arg_list = zipWith (printf "%s : %s") cproc_param_names param_tys
 
@@ -334,55 +333,52 @@ buildCProcBody CProcBody{cproc_param_names, cproc_local_vars, cproc_body_stmt} n
           (PP.commaList local_list)
   PP.bracedBlockWith header $ PP.build cproc_body_stmt
 
-type instance SizeType (CProcBody sizeT costT) = sizeT
-type instance CostType (CProcBody sizeT costT) = costT
+type instance SizeType (CProcBody sizeT) = sizeT
 
-data ProcBody sizeT costT
-  = ProcBodyU (UProcBody sizeT costT)
-  | ProcBodyC (CProcBody sizeT costT)
+data ProcBody sizeT
+  = ProcBodyU (UProcBody sizeT)
+  | ProcBodyC (CProcBody sizeT)
   deriving (Eq, Read, Show)
 
 class ClassifyProc p where
   isUProc :: p -> Bool
   isCProc :: p -> Bool
 
-instance ClassifyProc (ProcBody sizeT costT) where
+instance ClassifyProc (ProcBody sizeT) where
   isUProc (ProcBodyU _) = True
   isUProc _ = False
 
   isCProc (ProcBodyC _) = True
   isCProc _ = False
 
-type instance SizeType (ProcBody sizeT costT) = sizeT
-type instance CostType (ProcBody sizeT costT) = costT
+type instance SizeType (ProcBody sizeT) = sizeT
 
 buildProcBody ::
-  (MonadWriter [String] m, MonadFail m, Show sizeT, Show costT) =>
-  ProcBody sizeT costT ->
+  (MonadWriter [String] m, MonadFail m, Show sizeT) =>
+  ProcBody sizeT ->
   String ->
   [String] ->
   m ()
 buildProcBody (ProcBodyU p) = buildUProcBody p
 buildProcBody (ProcBodyC p) = buildCProcBody p
 
-data ProcDef sizeT costT
+data ProcDef sizeT
   = ProcDef
   { info_comment :: String
   , proc_name :: Ident
   , proc_meta_params :: [Ident]
   , proc_param_types :: [VarType sizeT]
-  , proc_body :: ProcBody sizeT costT
+  , proc_body :: ProcBody sizeT
   }
   deriving (Eq, Read, Show)
 
-instance ClassifyProc (ProcDef sizeT costT) where
+instance ClassifyProc (ProcDef sizeT) where
   isUProc = isUProc . proc_body
   isCProc = isCProc . proc_body
 
-type instance SizeType (ProcDef sizeT costT) = sizeT
-type instance CostType (ProcDef sizeT costT) = costT
+type instance SizeType (ProcDef sizeT) = sizeT
 
-instance (Show sizeT, Show costT) => PP.ToCodeString (ProcDef sizeT costT) where
+instance (Show sizeT) => PP.ToCodeString (ProcDef sizeT) where
   build ProcDef{info_comment, proc_name, proc_meta_params, proc_param_types, proc_body} = do
     PP.putComment info_comment
 
@@ -401,23 +397,22 @@ instance (Show sizeT, Show costT) => PP.ToCodeString (ProcDef sizeT costT) where
 -- ================================================================================
 
 -- | CQ procedures
-type ProcCtx sizeT costT = Ctx.Context (ProcDef sizeT costT)
+type ProcCtx sizeT = Ctx.Context (ProcDef sizeT)
 
 class HasProcCtx s where
-  _procCtx :: (sizeT ~ SizeType s, costT ~ CostType s) => Lens' s (ProcCtx sizeT costT)
+  _procCtx :: (sizeT ~ SizeType s, precT ~ PrecType s) => Lens' s (ProcCtx sizeT)
 
-instance HasProcCtx (ProcCtx sizeT costT) where _procCtx = id
+instance HasProcCtx (ProcCtx sizeT) where _procCtx = id
 
 -- | CQ Program
-newtype Program sizeT costT = Program
-  { proc_defs :: ProcCtx sizeT costT
+newtype Program sizeT = Program
+  { proc_defs :: ProcCtx sizeT
   }
   deriving (Eq, Show, Read)
 
-type instance SizeType (Program sizeT costT) = sizeT
-type instance CostType (Program sizeT costT) = costT
+type instance SizeType (Program sizeT) = sizeT
 
-instance (Show sizeT, Show costT) => PP.ToCodeString (Program sizeT costT) where
+instance (Show sizeT) => PP.ToCodeString (Program sizeT) where
   build Program{proc_defs} = do
     mapM_ (PP.build >=> const PP.endl) $ Ctx.elems proc_defs
 
@@ -434,16 +429,16 @@ instance HasAst (Stmt sizeT) where
 instance HasStmt (Stmt sizeT) (Stmt sizeT) where
   _stmt = id
 
-instance HasStmt (CProcBody sizeT costT) (Stmt sizeT) where
+instance HasStmt (CProcBody sizeT) (Stmt sizeT) where
   _stmt focus b@CProcBody{cproc_body_stmt} = focus cproc_body_stmt <&> \s' -> b{cproc_body_stmt = s'}
   _stmt _ b@CProcDecl{} = pure b
 
-instance HasStmt (ProcDef sizeT costT) (Stmt sizeT) where
+instance HasStmt (ProcDef sizeT) (Stmt sizeT) where
   _stmt focus p@ProcDef{proc_body = ProcBodyC b} =
     _stmt focus b <&> \b' -> p{proc_body = ProcBodyC b'}
   _stmt _ p = pure p
 
-instance HasStmt (Program sizeT costT) (Stmt sizeT) where
+instance HasStmt (Program sizeT) (Stmt sizeT) where
   _stmt focus (Program proc_defs) = Program <$> traverse (_stmt focus) proc_defs
 
 -- ================================================================================

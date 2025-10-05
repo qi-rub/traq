@@ -1,4 +1,4 @@
-uproc Matrix(Fin<20>, Fin<10>, Fin<2>) :: tick(1.0)
+uproc Matrix(Fin<20>, Fin<10>, Fin<2>);
 
 // Clean[Matrix, 6.14927e-11]
 uproc Matrix_1(in_0 : IN Fin<20>, in_1 : IN Fin<10>, out_0 : OUT Fin<2>, aux : AUX Fin<2>) {

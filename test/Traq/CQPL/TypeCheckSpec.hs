@@ -25,7 +25,7 @@ spec = do
     let tb = P.Fin (2 :: Int)
     let checker gamma s =
           runReaderT
-            (CQPL.typeCheckUStmt @Int @Float s)
+            (CQPL.typeCheckUStmt @Int s)
             (default_ & P._typingCtx .~ gamma)
     describe "unitary embed" $ do
       it "AndOp" $

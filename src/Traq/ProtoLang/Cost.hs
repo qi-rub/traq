@@ -24,20 +24,12 @@ module Traq.ProtoLang.Cost (
   quantumMaxQueryCostE,
   quantumMaxQueryCostS,
 
-  -- ** Bound on runtime
-  quantumQueryCostBound,
-
   -- * Types and Monad
   UnitaryCostEnv,
   QuantumMaxCostEnv,
   QuantumCostEnv,
 
-  -- ** Data Types
-  OracleTicks,
-
   -- ** Lenses
-  _classicalTicks,
-  _unitaryTicks,
   _funInterpCtx,
   _unitaryCostEnv,
   _quantumMaxCostEnv,
@@ -55,43 +47,41 @@ module Traq.ProtoLang.Cost (
   HasPrecisionSplittingStrategy (..),
   HasNeedsEps (..),
   splitEps,
+
+  -- * Misc
+  SizeToPrec (..),
 ) where
 
 import Control.Monad (forM, zipWithM)
 import Control.Monad.Reader (MonadReader, ReaderT, runReaderT)
 import Control.Monad.State (execStateT)
-import qualified Data.Map as Map
-import Data.Maybe (fromMaybe)
 import Data.Void (Void, absurd)
 import GHC.Generics hiding (to)
 
 import Lens.Micro.GHC
 import Lens.Micro.Mtl
+import qualified Numeric.Algebra as Alg
 
 import Traq.Control.Monad
 import qualified Traq.Data.Context as Ctx
 import Traq.Data.Default
 import qualified Traq.Data.Probability as Prob
+import qualified Traq.Data.Symbolic as Sym
 
+import qualified Traq.CostModel.Class as C
 import Traq.Prelude
 import Traq.ProtoLang.Eval
 import Traq.ProtoLang.Syntax
 import Traq.ProtoLang.TypeCheck
 
--- ================================================================================
--- Lenses for accessing the "tick" costs and semantics function declarations
--- ================================================================================
+class SizeToPrec sizeT precT where
+  sizeToPrec :: sizeT -> precT
 
--- | Tick constant for each oracle.
-type OracleTicks costT = Map.Map Ident costT
+instance (Floating precT) => SizeToPrec Integer precT where sizeToPrec = fromIntegral
+instance (Floating precT) => SizeToPrec Int precT where sizeToPrec = fromIntegral
 
--- | Lens to access the classical ticks from the context
-class HasClassicalTicks p where
-  _classicalTicks :: (costT ~ CostType p) => Lens' p (OracleTicks costT)
-
--- | Lens to access the unitary ticks from the context
-class HasUnitaryTicks p where
-  _unitaryTicks :: (costT ~ CostType p) => Lens' p (OracleTicks costT)
+instance (Show sizeT) => SizeToPrec (Sym.Sym sizeT) (Sym.Sym precT) where
+  sizeToPrec s = Sym.var (show s)
 
 -- ================================================================================
 -- Strategy for splitting the precison (eps/delta)
@@ -139,8 +129,8 @@ instance HasNeedsEps (FunDef primT sizeT) where
     Just FunBody{body_stmt} -> needsEps body_stmt
 
 splitEps ::
-  forall primT sizeT costT env m.
-  ( Floating costT
+  forall primT sizeT precT env m.
+  ( Floating precT
   , Monad m
   , MonadReader env m
   , HasFunCtx env
@@ -149,9 +139,9 @@ splitEps ::
   , primT ~ PrimitiveType env
   , sizeT ~ SizeType env
   ) =>
-  costT ->
+  precT ->
   [Stmt primT sizeT] ->
-  m [costT]
+  m [precT]
 splitEps _ [] = return []
 splitEps eps [_] = return [eps]
 splitEps eps ss = do
@@ -175,38 +165,35 @@ splitEps eps ss = do
 -- ================================================================================
 
 -- | Environment to compute the unitary cost
-data UnitaryCostEnv primT sizeT costT = UnitaryCostEnv (FunCtx primT sizeT) (OracleTicks costT) PrecisionSplittingStrategy
+data UnitaryCostEnv primT sizeT precT = UnitaryCostEnv (FunCtx primT sizeT) PrecisionSplittingStrategy
   deriving (Generic, HasDefault)
 
 -- Types and instances
-type instance PrimitiveType (UnitaryCostEnv primT sizeT costT) = primT
+type instance PrimitiveType (UnitaryCostEnv primT sizeT precT) = primT
 
-type instance SizeType (UnitaryCostEnv primT sizeT costT) = sizeT
+type instance SizeType (UnitaryCostEnv primT sizeT precT) = sizeT
 
-type instance CostType (UnitaryCostEnv primT sizeT costT) = costT
+type instance PrecType (UnitaryCostEnv primT sizeT precT) = precT
 
-instance HasFunCtx (UnitaryCostEnv primT sizeT costT) where
-  _funCtx focus (UnitaryCostEnv f u s) = focus f <&> \f' -> UnitaryCostEnv f' u s
+instance HasFunCtx (UnitaryCostEnv primT sizeT precT) where
+  _funCtx focus (UnitaryCostEnv f s) = focus f <&> \f' -> UnitaryCostEnv f' s
 
-instance HasUnitaryTicks (UnitaryCostEnv primT sizeT costT) where
-  _unitaryTicks focus (UnitaryCostEnv f u s) = focus u <&> \u' -> UnitaryCostEnv f u' s
-
-instance HasPrecisionSplittingStrategy (UnitaryCostEnv primT sizeT costT) where
-  _precSplitStrat focus (UnitaryCostEnv f u s) = focus s <&> \s' -> UnitaryCostEnv f u s'
+instance HasPrecisionSplittingStrategy (UnitaryCostEnv primT sizeT precT) where
+  _precSplitStrat focus (UnitaryCostEnv f s) = focus s <&> \s' -> UnitaryCostEnv f s'
 
 -- Subtyping Lens
 class HasUnitaryCostEnv p where
   _unitaryCostEnv ::
     ( primT ~ PrimitiveType p
     , sizeT ~ SizeType p
-    , costT ~ CostType p
+    , precT ~ PrecType p
     ) =>
-    Lens' p (UnitaryCostEnv primT sizeT costT)
+    Lens' p (UnitaryCostEnv primT sizeT precT)
 
 instance HasUnitaryCostEnv (UnitaryCostEnv p s c) where _unitaryCostEnv = id
 
 -- | Monad to compute unitary cost.
-type UnitaryCostCalculator primsT sizeT costT = ReaderT (UnitaryCostEnv primsT sizeT costT) Maybe
+type UnitaryCostCalculator primsT sizeT precT = ReaderT (UnitaryCostEnv primsT sizeT precT) Maybe
 
 -- --------------------------------------------------------------------------------
 -- Unitary Cost: Primitives (with generics)
@@ -214,44 +201,61 @@ type UnitaryCostCalculator primsT sizeT costT = ReaderT (UnitaryCostEnv primsT s
 
 -- | Primitives that have a unitary cost
 class
-  (TypeCheckablePrimitive primT, Show costT) =>
-  UnitaryCostablePrimitive primsT primT sizeT costT
+  (TypeCheckablePrimitive primT, Show precT) =>
+  UnitaryCostablePrimitive primsT primT sizeT precT
   where
   unitaryQueryCostPrimitive ::
-    costT ->
-    primT ->
-    UnitaryCostCalculator primsT sizeT costT costT
-  default unitaryQueryCostPrimitive ::
-    ( Generic primT
-    , GUnitaryCostablePrimitive primsT (Rep primT) sizeT costT
+    forall costT m.
+    ( m ~ UnitaryCostCalculator primsT sizeT precT
+    , C.CostModel costT
+    , precT ~ PrecType costT
+    , SizeToPrec sizeT precT
     ) =>
-    costT ->
+    precT ->
     primT ->
-    UnitaryCostCalculator primsT sizeT costT costT
+    m costT
+  default unitaryQueryCostPrimitive ::
+    forall costT m.
+    ( m ~ UnitaryCostCalculator primsT sizeT precT
+    , C.CostModel costT
+    , precT ~ PrecType costT
+    , SizeToPrec sizeT precT
+    , Generic primT
+    , GUnitaryCostablePrimitive primsT (Rep primT) sizeT precT
+    ) =>
+    precT ->
+    primT ->
+    m costT
   unitaryQueryCostPrimitive delta p = gunitaryQueryCostPrimitive delta (from p)
 
-instance (Show costT) => UnitaryCostablePrimitive primsT Void sizeT costT where
+instance (Show precT) => UnitaryCostablePrimitive primsT Void sizeT precT where
   unitaryQueryCostPrimitive _ = absurd
 
-class GUnitaryCostablePrimitive primsT f sizeT costT where
+class GUnitaryCostablePrimitive primsT f sizeT precT where
   gunitaryQueryCostPrimitive ::
-    costT ->
+    forall primT costT m.
+    ( m ~ UnitaryCostCalculator primsT sizeT precT
+    , C.CostModel costT
+    , precT ~ PrecType costT
+    , SizeToPrec sizeT precT
+    ) =>
+    precT ->
     f primT ->
-    UnitaryCostCalculator primsT sizeT costT costT
+    m costT
 
 instance
-  (GUnitaryCostablePrimitive primsT f1 sizeT costT, GUnitaryCostablePrimitive primsT f2 sizeT costT) =>
-  GUnitaryCostablePrimitive primsT (f1 :+: f2) sizeT costT
+  (GUnitaryCostablePrimitive primsT f1 sizeT precT, GUnitaryCostablePrimitive primsT f2 sizeT precT) =>
+  GUnitaryCostablePrimitive primsT (f1 :+: f2) sizeT precT
   where
   gunitaryQueryCostPrimitive delta (L1 p) = gunitaryQueryCostPrimitive delta p
   gunitaryQueryCostPrimitive delta (R1 p) = gunitaryQueryCostPrimitive delta p
 
-instance (GUnitaryCostablePrimitive primsT f sizeT costT) => GUnitaryCostablePrimitive primsT (M1 i c f) sizeT costT where
+instance (GUnitaryCostablePrimitive primsT f sizeT precT) => GUnitaryCostablePrimitive primsT (M1 i c f) sizeT precT where
   gunitaryQueryCostPrimitive delta (M1 x) = gunitaryQueryCostPrimitive delta x
 
 instance
-  (UnitaryCostablePrimitive primsT f sizeT costT) =>
-  GUnitaryCostablePrimitive primsT (K1 i f) sizeT costT
+  (UnitaryCostablePrimitive primsT f sizeT precT) =>
+  GUnitaryCostablePrimitive primsT (K1 i f) sizeT precT
   where
   gunitaryQueryCostPrimitive delta (K1 x) = unitaryQueryCostPrimitive delta x
 
@@ -261,33 +265,40 @@ instance
 
 -- | Evaluate the query cost of an expression
 unitaryQueryCostE ::
-  forall primsT sizeT costT m.
+  forall primsT sizeT precT costT m.
   ( Num sizeT
-  , Floating costT
-  , UnitaryCostablePrimitive primsT primsT sizeT costT
-  , m ~ UnitaryCostCalculator primsT sizeT costT
+  , Floating precT
+  , UnitaryCostablePrimitive primsT primsT sizeT precT
+  , m ~ UnitaryCostCalculator primsT sizeT precT
+  , C.CostModel costT
+  , precT ~ PrecType costT
+  , SizeToPrec sizeT precT
   ) =>
   -- | precision
-  costT ->
+  precT ->
   -- | expression @E@
   Expr primsT sizeT ->
   m costT
-unitaryQueryCostE delta FunCallE{fname} = (2 *) <$> unitaryQueryCostF (delta / 2) fname
+unitaryQueryCostE delta FunCallE{fname} = ((2.0 :: precT) Alg..*) <$> unitaryQueryCostF (delta / 2) fname
 unitaryQueryCostE delta PrimCallE{prim} = unitaryQueryCostPrimitive delta prim
--- zero-cost expressions
-unitaryQueryCostE _ BasicExprE{} = return 0
-unitaryQueryCostE _ RandomSampleE{} = return 0
+-- basic expressions
+unitaryQueryCostE _ BasicExprE{basic_expr} = return $ C.callExpr C.Unitary basic_expr
+unitaryQueryCostE _ RandomSampleE{distr_expr} = return $ C.callDistrExpr C.Unitary distr_expr
+unitaryQueryCostE _ _ = error "TODO"
 
 -- Evaluate the query cost of a statement
 unitaryQueryCostS ::
-  forall primsT sizeT costT m.
+  forall primsT sizeT precT costT m.
   ( Num sizeT
-  , Floating costT
-  , UnitaryCostablePrimitive primsT primsT sizeT costT
-  , m ~ UnitaryCostCalculator primsT sizeT costT
+  , Floating precT
+  , UnitaryCostablePrimitive primsT primsT sizeT precT
+  , m ~ UnitaryCostCalculator primsT sizeT precT
+  , C.CostModel costT
+  , precT ~ PrecType costT
+  , SizeToPrec sizeT precT
   ) =>
   -- | precision (l2-norm)
-  costT ->
+  precT ->
   -- | statement @S@
   Stmt primsT sizeT ->
   m costT
@@ -295,22 +306,25 @@ unitaryQueryCostS delta ExprS{expr} = unitaryQueryCostE delta expr
 unitaryQueryCostS delta IfThenElseS{s_true, s_false} = do
   cost_true <- unitaryQueryCostS delta s_true
   cost_false <- unitaryQueryCostS delta s_false
-  return $ cost_true + cost_false
+  return $ cost_true Alg.+ cost_false
 unitaryQueryCostS delta (SeqS ss) = do
   delta_each <- splitEps delta ss
   cs <- zipWithM unitaryQueryCostS delta_each ss
-  return $ sum cs
+  return $ Alg.sum cs
 
 -- Evaluate the query cost of a function
 unitaryQueryCostF ::
-  forall primsT sizeT costT m.
+  forall primsT sizeT precT costT m.
   ( Num sizeT
-  , Floating costT
-  , UnitaryCostablePrimitive primsT primsT sizeT costT
-  , m ~ UnitaryCostCalculator primsT sizeT costT
+  , Floating precT
+  , UnitaryCostablePrimitive primsT primsT sizeT precT
+  , m ~ UnitaryCostCalculator primsT sizeT precT
+  , C.CostModel costT
+  , precT ~ PrecType costT
+  , SizeToPrec sizeT precT
   ) =>
   -- | precision (l2-norm)
-  costT ->
+  precT ->
   -- | function name
   Ident ->
   m costT
@@ -318,28 +332,28 @@ unitaryQueryCostF ::
 unitaryQueryCostF delta fname = do
   FunDef{mbody} <- view $ _funCtx . Ctx.at fname . non' (error "invalid function")
   case mbody of
-    Nothing -> view $ _unitaryTicks . at fname . non' 0 -- declaration: use tick value (or 0 if not specified)
+    Nothing -> return $ C.query C.Unitary fname -- query an external function
     Just FunBody{body_stmt} -> unitaryQueryCostS delta body_stmt -- def: compute using body
 
 unitaryQueryCost ::
-  forall primsT sizeT costT.
+  forall primsT sizeT precT costT.
   ( Num sizeT
-  , Floating costT
-  , UnitaryCostablePrimitive primsT primsT sizeT costT
+  , Floating precT
+  , UnitaryCostablePrimitive primsT primsT sizeT precT
+  , C.CostModel costT
+  , precT ~ PrecType costT
+  , SizeToPrec sizeT precT
   ) =>
   PrecisionSplittingStrategy ->
   -- | precision (l2-norm)
-  costT ->
+  precT ->
   -- | program @P@
   Program primsT sizeT ->
-  -- | oracle ticks
-  OracleTicks costT ->
   costT
-unitaryQueryCost strat delta (Program fs) ticks =
+unitaryQueryCost strat delta (Program fs) =
   let env =
         default_
           & (_funCtx .~ namedFunsToFunCtx fs)
-          & (_unitaryTicks .~ ticks)
           & (_precSplitStrat .~ strat)
    in unitaryQueryCostF delta (fun_name $ last fs)
         & (runReaderT ?? env)
@@ -350,44 +364,39 @@ unitaryQueryCost strat delta (Program fs) ticks =
 -- ================================================================================
 
 -- | Environment to compute the worst case quantum cost
-data QuantumMaxCostEnv primT sizeT costT
+newtype QuantumMaxCostEnv primT sizeT precT
   = QuantumMaxCostEnv
-      (UnitaryCostEnv primT sizeT costT) -- unitary enviroment
-      (OracleTicks costT) -- classical ticks
+      (UnitaryCostEnv primT sizeT precT) -- unitary enviroment
   deriving (Generic, HasDefault)
+{-# DEPRECATED QuantumMaxCostEnv "directly use UnitaryCostEnv (or rename to sth. like WorstCaseCostEnv" #-}
 
 -- instances
-type instance PrimitiveType (QuantumMaxCostEnv primT sizeT costT) = primT
+type instance PrimitiveType (QuantumMaxCostEnv primT sizeT precT) = primT
 
-type instance SizeType (QuantumMaxCostEnv primT sizeT costT) = sizeT
+type instance SizeType (QuantumMaxCostEnv primT sizeT precT) = sizeT
 
-type instance CostType (QuantumMaxCostEnv primT sizeT costT) = costT
+type instance PrecType (QuantumMaxCostEnv primT sizeT precT) = precT
 
-instance HasUnitaryCostEnv (QuantumMaxCostEnv primT sizeT costT) where
-  _unitaryCostEnv focus (QuantumMaxCostEnv u t) = focus u <&> \u' -> QuantumMaxCostEnv u' t
+instance HasUnitaryCostEnv (QuantumMaxCostEnv primT sizeT precT) where
+  _unitaryCostEnv focus (QuantumMaxCostEnv u) = focus u <&> \u' -> QuantumMaxCostEnv u'
 
-instance HasClassicalTicks (QuantumMaxCostEnv primT sizeT costT) where
-  _classicalTicks focus (QuantumMaxCostEnv u t) = focus t <&> QuantumMaxCostEnv u
+instance HasFunCtx (QuantumMaxCostEnv primT sizeT precT) where _funCtx = _unitaryCostEnv . _funCtx
 
-instance HasFunCtx (QuantumMaxCostEnv primT sizeT costT) where _funCtx = _unitaryCostEnv . _funCtx
-
-instance HasUnitaryTicks (QuantumMaxCostEnv primT sizeT costT) where _unitaryTicks = _unitaryCostEnv . _unitaryTicks
-
-instance HasPrecisionSplittingStrategy (QuantumMaxCostEnv primT sizeT costT) where _precSplitStrat = _unitaryCostEnv . _precSplitStrat
+instance HasPrecisionSplittingStrategy (QuantumMaxCostEnv primT sizeT precT) where _precSplitStrat = _unitaryCostEnv . _precSplitStrat
 
 -- lens
 class HasQuantumMaxCostEnv p where
   _quantumMaxCostEnv ::
     ( primT ~ PrimitiveType p
     , sizeT ~ SizeType p
-    , costT ~ CostType p
+    , precT ~ PrecType p
     ) =>
-    Lens' p (QuantumMaxCostEnv primT sizeT costT)
+    Lens' p (QuantumMaxCostEnv primT sizeT precT)
 
-instance HasQuantumMaxCostEnv (QuantumMaxCostEnv primT sizeT costT) where _quantumMaxCostEnv = id
+instance HasQuantumMaxCostEnv (QuantumMaxCostEnv primT sizeT precT) where _quantumMaxCostEnv = id
 
 -- Environment to compute the max quantum cost (input independent)
-type QuantumMaxCostCalculator primsT sizeT costT = ReaderT (QuantumMaxCostEnv primsT sizeT costT) Maybe
+type QuantumMaxCostCalculator primsT sizeT precT = ReaderT (QuantumMaxCostEnv primsT sizeT precT) Maybe
 
 -- --------------------------------------------------------------------------------
 -- Quantum Max Cost: Primitives (with generics)
@@ -395,44 +404,64 @@ type QuantumMaxCostCalculator primsT sizeT costT = ReaderT (QuantumMaxCostEnv pr
 
 -- | Primitives that have a quantum max cost
 class
-  (UnitaryCostablePrimitive primsT primT sizeT costT) =>
-  QuantumMaxCostablePrimitive primsT primT sizeT costT
+  (UnitaryCostablePrimitive primsT primT sizeT precT) =>
+  QuantumMaxCostablePrimitive primsT primT sizeT precT
   where
   quantumMaxQueryCostPrimitive ::
-    costT ->
-    primT ->
-    QuantumMaxCostCalculator primsT sizeT costT costT
-  default quantumMaxQueryCostPrimitive ::
-    ( Generic primT
-    , GQuantumMaxCostablePrimitive primsT (Rep primT) sizeT costT
+    forall costT m.
+    ( m ~ QuantumMaxCostCalculator primsT sizeT precT
+    , C.CostModel costT
+    , precT ~ PrecType costT
+    , SizeToPrec sizeT precT
+    , Ord costT
     ) =>
-    costT ->
+    precT ->
     primT ->
-    QuantumMaxCostCalculator primsT sizeT costT costT
+    m costT
+  default quantumMaxQueryCostPrimitive ::
+    forall costT m.
+    ( m ~ QuantumMaxCostCalculator primsT sizeT precT
+    , C.CostModel costT
+    , precT ~ PrecType costT
+    , SizeToPrec sizeT precT
+    , Ord costT
+    , Generic primT
+    , GQuantumMaxCostablePrimitive primsT (Rep primT) sizeT precT
+    ) =>
+    precT ->
+    primT ->
+    m costT
   quantumMaxQueryCostPrimitive eps p = gquantumMaxQueryCostPrimitive eps (from p)
 
-instance (Show costT) => QuantumMaxCostablePrimitive primsT Void sizeT costT where
+instance (Show precT) => QuantumMaxCostablePrimitive primsT Void sizeT precT where
   quantumMaxQueryCostPrimitive _ = absurd
 
-class GQuantumMaxCostablePrimitive primsT f sizeT costT where
+class GQuantumMaxCostablePrimitive primsT f sizeT precT where
   gquantumMaxQueryCostPrimitive ::
-    costT ->
+    forall primT costT m.
+    ( m ~ QuantumMaxCostCalculator primsT sizeT precT
+    , C.CostModel costT
+    , precT ~ PrecType costT
+    , SizeToPrec sizeT precT
+    , Ord costT
+    ) =>
+    precT ->
     f primT ->
-    QuantumMaxCostCalculator primsT sizeT costT costT
+    m costT
 
 instance
-  (GQuantumMaxCostablePrimitive primsT f1 sizeT costT, GQuantumMaxCostablePrimitive primsT f2 sizeT costT) =>
-  GQuantumMaxCostablePrimitive primsT (f1 :+: f2) sizeT costT
+  (GQuantumMaxCostablePrimitive primsT f1 sizeT precT, GQuantumMaxCostablePrimitive primsT f2 sizeT precT) =>
+  GQuantumMaxCostablePrimitive primsT (f1 :+: f2) sizeT precT
   where
   gquantumMaxQueryCostPrimitive eps (L1 p) = gquantumMaxQueryCostPrimitive eps p
   gquantumMaxQueryCostPrimitive eps (R1 p) = gquantumMaxQueryCostPrimitive eps p
 
-instance (GQuantumMaxCostablePrimitive primsT f sizeT costT) => GQuantumMaxCostablePrimitive primsT (M1 i c f) sizeT costT where
+instance (GQuantumMaxCostablePrimitive primsT f sizeT precT) => GQuantumMaxCostablePrimitive primsT (M1 i c f) sizeT precT where
   gquantumMaxQueryCostPrimitive eps (M1 x) = gquantumMaxQueryCostPrimitive eps x
 
 instance
-  (QuantumMaxCostablePrimitive primsT f sizeT costT) =>
-  GQuantumMaxCostablePrimitive primsT (K1 i f) sizeT costT
+  (QuantumMaxCostablePrimitive primsT f sizeT precT) =>
+  GQuantumMaxCostablePrimitive primsT (K1 i f) sizeT precT
   where
   gquantumMaxQueryCostPrimitive eps (K1 x) = quantumMaxQueryCostPrimitive eps x
 
@@ -441,86 +470,100 @@ instance
 -- --------------------------------------------------------------------------------
 
 quantumMaxQueryCostE ::
-  forall primsT sizeT costT.
+  forall primsT sizeT precT costT m.
   ( Num sizeT
+  , Ord precT
+  , Floating precT
+  , QuantumMaxCostablePrimitive primsT primsT sizeT precT
+  , m ~ QuantumMaxCostCalculator primsT sizeT precT
+  , C.CostModel costT
+  , precT ~ PrecType costT
+  , SizeToPrec sizeT precT
   , Ord costT
-  , Floating costT
-  , QuantumMaxCostablePrimitive primsT primsT sizeT costT
   ) =>
   -- | failure probability \( \varepsilon \)
-  costT ->
+  precT ->
   -- | statement @S@
   Expr primsT sizeT ->
-  QuantumMaxCostCalculator primsT sizeT costT costT
+  m costT
 quantumMaxQueryCostE eps FunCallE{fname} = quantumMaxQueryCostF eps fname
--- -- known cost formulas
+-- known cost formulas
 quantumMaxQueryCostE eps PrimCallE{prim} =
   quantumMaxQueryCostPrimitive eps prim
--- -- zero-cost expressions
-quantumMaxQueryCostE _ BasicExprE{} = return 0
-quantumMaxQueryCostE _ RandomSampleE{} = return 0
+-- basic expressions
+quantumMaxQueryCostE _ BasicExprE{basic_expr} = return $ C.callExpr C.Classical basic_expr
+quantumMaxQueryCostE _ RandomSampleE{distr_expr} = return $ C.callDistrExpr C.Classical distr_expr
+quantumMaxQueryCostE _ _ = error "TODO"
 
 quantumMaxQueryCostS ::
-  forall primsT sizeT costT.
+  forall primsT sizeT precT costT m.
   ( Num sizeT
+  , Ord precT
+  , Floating precT
+  , QuantumMaxCostablePrimitive primsT primsT sizeT precT
+  , m ~ QuantumMaxCostCalculator primsT sizeT precT
+  , C.CostModel costT
+  , precT ~ PrecType costT
+  , SizeToPrec sizeT precT
   , Ord costT
-  , Floating costT
-  , QuantumMaxCostablePrimitive primsT primsT sizeT costT
   ) =>
   -- | failure probability \( \varepsilon \)
-  costT ->
+  precT ->
   -- | statement @S@
   Stmt primsT sizeT ->
-  QuantumMaxCostCalculator primsT sizeT costT costT
+  m costT
 quantumMaxQueryCostS eps ExprS{expr} = quantumMaxQueryCostE eps expr
 quantumMaxQueryCostS eps IfThenElseS{s_true, s_false} =
   max <$> quantumMaxQueryCostS eps s_true <*> quantumMaxQueryCostS eps s_false
 quantumMaxQueryCostS eps (SeqS ss) = do
   eps_each <- splitEps eps ss
   cs <- zipWithM quantumMaxQueryCostS eps_each ss
-  return $ sum cs
+  return $ Alg.sum cs
 
 quantumMaxQueryCostF ::
-  forall primsT sizeT costT.
+  forall primsT sizeT precT costT m.
   ( Num sizeT
+  , Ord precT
+  , Floating precT
+  , QuantumMaxCostablePrimitive primsT primsT sizeT precT
+  , m ~ QuantumMaxCostCalculator primsT sizeT precT
+  , C.CostModel costT
+  , precT ~ PrecType costT
+  , SizeToPrec sizeT precT
   , Ord costT
-  , Floating costT
-  , QuantumMaxCostablePrimitive primsT primsT sizeT costT
   ) =>
   -- | failure probability \( \varepsilon \)
-  costT ->
+  precT ->
   -- | function name
   Ident ->
-  QuantumMaxCostCalculator primsT sizeT costT costT
+  m costT
 quantumMaxQueryCostF eps fname = do
   FunDef{mbody} <- view $ _funCtx . Ctx.at fname . singular _Just
   case mbody of
-    Nothing -> view $ _classicalTicks . at fname . to (fromMaybe 0) -- declaration: use tick value (or 0 if not specified)
+    Nothing -> return $ C.query C.Classical fname -- query an external function
     Just FunBody{body_stmt} -> quantumMaxQueryCostS eps body_stmt -- def: compute using body
 
 quantumMaxQueryCost ::
-  forall primsT sizeT costT.
+  forall primsT sizeT precT costT.
   ( Num sizeT
+  , Ord precT
+  , Floating precT
+  , QuantumMaxCostablePrimitive primsT primsT sizeT precT
+  , C.CostModel costT
+  , precT ~ PrecType costT
+  , SizeToPrec sizeT precT
   , Ord costT
-  , Floating costT
-  , QuantumMaxCostablePrimitive primsT primsT sizeT costT
   ) =>
   PrecisionSplittingStrategy ->
   -- | failure probability `eps`
-  costT ->
+  precT ->
   -- | program `P`
   Program primsT sizeT ->
-  -- | unitary ticks
-  OracleTicks costT ->
-  -- | classical ticks
-  OracleTicks costT ->
   costT
-quantumMaxQueryCost strat a_eps (Program fs) uticks cticks =
+quantumMaxQueryCost strat a_eps (Program fs) =
   let env =
         default_
           & (_funCtx .~ namedFunsToFunCtx fs)
-          & (_unitaryTicks .~ uticks)
-          & (_classicalTicks .~ cticks)
           & (_precSplitStrat .~ strat)
    in quantumMaxQueryCostF a_eps (fun_name $ last fs)
         & (runReaderT ?? env)
@@ -530,36 +573,34 @@ quantumMaxQueryCost strat a_eps (Program fs) uticks cticks =
 -- Quantum Cost
 -- ================================================================================
 
--- Environment to compute the quantum cost (input dependent)
-data QuantumCostEnv primsT sizeT costT
+{- | Environment to compute the quantum cost (input dependent)
+TODO: rename to something like QuantumExpCostEnv
+-}
+data QuantumCostEnv primsT sizeT precT
   = QuantumCostEnv
-      (QuantumMaxCostEnv primsT sizeT costT)
+      (QuantumMaxCostEnv primsT sizeT precT)
       (FunInterpCtx sizeT)
   deriving (Generic, HasDefault)
 
-type instance PrimitiveType (QuantumCostEnv primsT sizeT costT) = primsT
+type instance PrimitiveType (QuantumCostEnv primsT sizeT precT) = primsT
 
-type instance SizeType (QuantumCostEnv primsT sizeT costT) = sizeT
+type instance SizeType (QuantumCostEnv primsT sizeT precT) = sizeT
 
-type instance CostType (QuantumCostEnv primsT sizeT costT) = costT
+type instance PrecType (QuantumCostEnv primsT sizeT precT) = precT
 
-instance HasQuantumMaxCostEnv (QuantumCostEnv primsT sizeT costT) where
+instance HasQuantumMaxCostEnv (QuantumCostEnv primsT sizeT precT) where
   _quantumMaxCostEnv focus (QuantumCostEnv e f) = focus e <&> \e' -> QuantumCostEnv e' f
 
-instance HasFunInterpCtx (QuantumCostEnv primsT sizeT costT) where
+instance HasFunInterpCtx (QuantumCostEnv primsT sizeT precT) where
   _funInterpCtx focus (QuantumCostEnv e f) = focus f <&> QuantumCostEnv e
 
-instance HasUnitaryCostEnv (QuantumCostEnv primsT sizeT costT) where _unitaryCostEnv = _quantumMaxCostEnv . _unitaryCostEnv
+instance HasUnitaryCostEnv (QuantumCostEnv primsT sizeT precT) where _unitaryCostEnv = _quantumMaxCostEnv . _unitaryCostEnv
 
-instance HasFunCtx (QuantumCostEnv primsT sizeT costT) where _funCtx = _quantumMaxCostEnv . _funCtx
+instance HasFunCtx (QuantumCostEnv primsT sizeT precT) where _funCtx = _quantumMaxCostEnv . _funCtx
 
-instance HasUnitaryTicks (QuantumCostEnv primsT sizeT costT) where _unitaryTicks = _quantumMaxCostEnv . _unitaryTicks
+instance HasPrecisionSplittingStrategy (QuantumCostEnv primsT sizeT precT) where _precSplitStrat = _quantumMaxCostEnv . _precSplitStrat
 
-instance HasClassicalTicks (QuantumCostEnv primsT sizeT costT) where _classicalTicks = _quantumMaxCostEnv . _classicalTicks
-
-instance HasPrecisionSplittingStrategy (QuantumCostEnv primsT sizeT costT) where _precSplitStrat = _quantumMaxCostEnv . _precSplitStrat
-
-instance HasEvaluationEnv (QuantumCostEnv primsT sizeT costT) where
+instance HasEvaluationEnv (QuantumCostEnv primsT sizeT precT) where
   _evaluationEnv = lens _get _set
    where
     _get ce =
@@ -571,7 +612,7 @@ instance HasEvaluationEnv (QuantumCostEnv primsT sizeT costT) where
         & (_funCtx .~ (ee ^. _funCtx))
         & (_funInterpCtx .~ (ee ^. _funInterpCtx))
 
-type QuantumCostCalculator primsT sizeT costT = ReaderT (QuantumCostEnv primsT sizeT costT) Maybe
+type QuantumCostCalculator primsT sizeT precT = ReaderT (QuantumCostEnv primsT sizeT precT) Maybe
 
 -- --------------------------------------------------------------------------------
 -- Quantum Expected Cost: Primitives
@@ -579,49 +620,75 @@ type QuantumCostCalculator primsT sizeT costT = ReaderT (QuantumCostEnv primsT s
 
 -- | Primitives that have a input dependent expected quantum cost
 class
-  ( QuantumMaxCostablePrimitive primsT primT sizeT costT
-  , EvaluatablePrimitive primsT primT costT
+  ( QuantumMaxCostablePrimitive primsT primT sizeT precT
+  , EvaluatablePrimitive primsT primT precT
   ) =>
-  QuantumCostablePrimitive primsT primT sizeT costT
+  QuantumCostablePrimitive primsT primT sizeT precT
   where
   quantumQueryCostPrimitive ::
-    costT ->
-    primT ->
-    ProgramState sizeT ->
-    QuantumCostCalculator primsT sizeT costT costT
-  default quantumQueryCostPrimitive ::
-    ( Generic primT
-    , GQuantumCostablePrimitive primsT (Rep primT) sizeT costT
+    forall costT m.
+    ( m ~ QuantumCostCalculator primsT SizeT precT
+    , C.CostModel costT
+    , precT ~ PrecType costT
+    , Prob.RVType precT costT
+    , Prob.RVType precT precT
+    , SizeToPrec SizeT precT
+    , Ord costT
     ) =>
-    costT ->
+    precT ->
     primT ->
     ProgramState sizeT ->
-    QuantumCostCalculator primsT sizeT costT costT
+    m costT
+  default quantumQueryCostPrimitive ::
+    forall costT m.
+    ( m ~ QuantumCostCalculator primsT SizeT precT
+    , C.CostModel costT
+    , precT ~ PrecType costT
+    , Prob.RVType precT costT
+    , Prob.RVType precT precT
+    , SizeToPrec SizeT precT
+    , Ord costT
+    , Generic primT
+    , GQuantumCostablePrimitive primsT (Rep primT) sizeT precT
+    ) =>
+    precT ->
+    primT ->
+    ProgramState sizeT ->
+    m costT
   quantumQueryCostPrimitive eps p = gquantumQueryCostPrimitive eps (from p)
 
-instance (Show costT, Fractional costT) => QuantumCostablePrimitive primsT Void sizeT costT where
+instance (Show precT, Fractional precT) => QuantumCostablePrimitive primsT Void sizeT precT where
   quantumQueryCostPrimitive _ = absurd
 
-class GQuantumCostablePrimitive primsT f sizeT costT where
+class GQuantumCostablePrimitive primsT f sizeT precT where
   gquantumQueryCostPrimitive ::
-    costT ->
+    forall costT m primT.
+    ( m ~ QuantumCostCalculator primsT SizeT precT
+    , C.CostModel costT
+    , precT ~ PrecType costT
+    , Prob.RVType precT costT
+    , Prob.RVType precT precT
+    , SizeToPrec SizeT precT
+    , Ord costT
+    ) =>
+    precT ->
     f primT ->
     ProgramState sizeT ->
-    QuantumCostCalculator primsT sizeT costT costT
+    m costT
 
 instance
-  (GQuantumCostablePrimitive primsT f1 sizeT costT, GQuantumCostablePrimitive primsT f2 sizeT costT) =>
-  GQuantumCostablePrimitive primsT (f1 :+: f2) sizeT costT
+  (GQuantumCostablePrimitive primsT f1 sizeT precT, GQuantumCostablePrimitive primsT f2 sizeT precT) =>
+  GQuantumCostablePrimitive primsT (f1 :+: f2) sizeT precT
   where
   gquantumQueryCostPrimitive eps (L1 p) = gquantumQueryCostPrimitive eps p
   gquantumQueryCostPrimitive eps (R1 p) = gquantumQueryCostPrimitive eps p
 
-instance (GQuantumCostablePrimitive primsT f sizeT costT) => GQuantumCostablePrimitive primsT (M1 i c f) sizeT costT where
+instance (GQuantumCostablePrimitive primsT f sizeT precT) => GQuantumCostablePrimitive primsT (M1 i c f) sizeT precT where
   gquantumQueryCostPrimitive eps (M1 x) = gquantumQueryCostPrimitive eps x
 
 instance
-  (QuantumCostablePrimitive primsT f sizeT costT) =>
-  GQuantumCostablePrimitive primsT (K1 i f) sizeT costT
+  (QuantumCostablePrimitive primsT f sizeT precT) =>
+  GQuantumCostablePrimitive primsT (K1 i f) sizeT precT
   where
   gquantumQueryCostPrimitive eps (K1 x) = quantumQueryCostPrimitive eps x
 
@@ -629,13 +696,19 @@ instance
 -- Quantum Expected Cost: Core Language
 -- --------------------------------------------------------------------------------
 quantumQueryCostE ::
-  forall primsT costT m.
-  ( Floating costT
-  , QuantumCostablePrimitive primsT primsT SizeT costT
-  , m ~ QuantumCostCalculator primsT SizeT costT
+  forall primsT precT costT m.
+  ( Floating precT
+  , QuantumCostablePrimitive primsT primsT SizeT precT
+  , m ~ QuantumCostCalculator primsT SizeT precT
+  , C.CostModel costT
+  , precT ~ PrecType costT
+  , Prob.RVType precT costT
+  , Prob.RVType precT precT
+  , SizeToPrec SizeT precT
+  , Ord costT
   ) =>
   -- | failure probability \( \varepsilon \)
-  costT ->
+  precT ->
   -- | state \( \sigma \)
   ProgramState SizeT ->
   -- | statement @S@
@@ -644,26 +717,33 @@ quantumQueryCostE ::
 quantumQueryCostE eps sigma FunCallE{fname, args} =
   let vs = args <&> \x -> sigma ^. Ctx.at x . non' (error "invalid arg")
    in quantumQueryCostF eps vs fname
--- -- known cost formulas
+-- known cost formulas
 quantumQueryCostE eps sigma PrimCallE{prim} = do
   quantumQueryCostPrimitive eps prim sigma
--- -- zero-cost expressions
-quantumQueryCostE _ _ BasicExprE{} = return 0
-quantumQueryCostE _ _ RandomSampleE{} = return 0
+-- basic expressions
+quantumQueryCostE _ _ BasicExprE{basic_expr} = return $ C.callExpr C.Classical basic_expr
+quantumQueryCostE _ _ RandomSampleE{distr_expr} = return $ C.callDistrExpr C.Classical distr_expr
+quantumQueryCostE _ _ _ = error "TODO"
 
 quantumQueryCostS ::
-  forall primsT costT m.
-  ( Floating costT
-  , QuantumCostablePrimitive primsT primsT SizeT costT
-  , m ~ QuantumCostCalculator primsT SizeT costT
+  forall primsT precT costT m.
+  ( Floating precT
+  , QuantumCostablePrimitive primsT primsT SizeT precT
+  , m ~ QuantumCostCalculator primsT SizeT precT
+  , C.CostModel costT
+  , precT ~ PrecType costT
+  , Prob.RVType precT costT
+  , Prob.RVType precT precT
+  , SizeToPrec SizeT precT
+  , Ord costT
   ) =>
   -- | failure probability \( \varepsilon \)
-  costT ->
+  precT ->
   -- | state \( \sigma \)
   ProgramState SizeT ->
   -- | statement @S@
   Stmt primsT SizeT ->
-  QuantumCostCalculator primsT SizeT costT costT
+  m costT
 quantumQueryCostS eps sigma ExprS{expr} = quantumQueryCostE eps sigma expr
 quantumQueryCostS eps sigma IfThenElseS{cond, s_true, s_false} =
   let s = if valueToBool (sigma ^?! Ctx.at cond . singular _Just) then s_true else s_false
@@ -678,7 +758,7 @@ quantumQueryCostS eps sigma (SeqS ss) = do
         & (_funInterpCtx .~ interpCtx)
 
   let stepS s sigma_s =
-        execStmt @primsT @costT s
+        execStmt @primsT @precT s
           & (execStateT ?? sigma_s)
           & (runReaderT ?? env)
   eps_each <- splitEps eps ss
@@ -687,16 +767,22 @@ quantumQueryCostS eps sigma (SeqS ss) = do
     c <- Prob.expectationA (\sigma' -> quantumQueryCostS eps_s sigma' s) distr
     return (distr >>= stepS s, c)
 
-  return $ sum cs
+  return $ Alg.sum cs
 
 quantumQueryCostF ::
-  forall primsT costT m.
-  ( Floating costT
-  , QuantumCostablePrimitive primsT primsT SizeT costT
-  , m ~ QuantumCostCalculator primsT SizeT costT
+  forall primsT precT costT m.
+  ( Floating precT
+  , QuantumCostablePrimitive primsT primsT SizeT precT
+  , m ~ QuantumCostCalculator primsT SizeT precT
+  , C.CostModel costT
+  , precT ~ PrecType costT
+  , Prob.RVType precT costT
+  , Prob.RVType precT precT
+  , SizeToPrec SizeT precT
+  , Ord costT
   ) =>
   -- | failure probability \( \varepsilon \)
-  costT ->
+  precT ->
   -- | inputs
   [Value SizeT] ->
   -- | function name
@@ -704,61 +790,38 @@ quantumQueryCostF ::
   m costT
 quantumQueryCostF eps arg_vals fname = do
   view (_funCtx . Ctx.at fname . non' (error "invalid function") . to mbody) >>= \case
-    Nothing -> view $ _classicalTicks . at fname . non' 0 -- tick value, default to 0
+    Nothing -> return $ C.query C.Classical fname -- query an external function
     Just FunBody{param_names, body_stmt} -> do
       let omega = Ctx.fromList $ zip param_names arg_vals
       quantumQueryCostS eps omega body_stmt
 
 quantumQueryCost ::
-  forall primsT costT.
-  (Floating costT, QuantumCostablePrimitive primsT primsT SizeT costT) =>
+  forall primsT precT costT.
+  ( Floating precT
+  , QuantumCostablePrimitive primsT primsT SizeT precT
+  , C.CostModel costT
+  , precT ~ PrecType costT
+  , Prob.RVType precT costT
+  , Prob.RVType precT precT
+  , SizeToPrec SizeT precT
+  , Ord costT
+  ) =>
   PrecisionSplittingStrategy ->
   -- | failure probability \( \varepsilon \)
-  costT ->
+  precT ->
   -- | program @P@
   Program primsT SizeT ->
-  -- | unitary ticks
-  OracleTicks costT ->
-  -- | classical ticks
-  OracleTicks costT ->
   -- | data injections
   FunInterpCtx SizeT ->
   -- | input
   [Value SizeT] ->
   costT
-quantumQueryCost strat a_eps (Program fs) uticks cticks interpCtx inp =
+quantumQueryCost strat a_eps (Program fs) interpCtx inp =
   let env =
         default_
           & (_funCtx .~ namedFunsToFunCtx fs)
-          & (_unitaryTicks .~ uticks)
-          & (_classicalTicks .~ cticks)
           & (_precSplitStrat .~ strat)
           & (_funInterpCtx .~ interpCtx)
    in quantumQueryCostF a_eps inp (fun_name $ last fs)
         & (runReaderT ?? env)
         & (^?! _Just)
-
--- | The bound on the true expected runtime which fails with probability <= \eps.
-quantumQueryCostBound ::
-  forall primsT costT.
-  ( Ord costT
-  , Floating costT
-  , QuantumCostablePrimitive primsT primsT SizeT costT
-  ) =>
-  PrecisionSplittingStrategy ->
-  -- | failure probability \( \varepsilon \)
-  costT ->
-  -- | program @P@
-  Program primsT SizeT ->
-  -- | unitary ticks
-  OracleTicks costT ->
-  -- | classical ticks
-  OracleTicks costT ->
-  -- | data injections
-  FunInterpCtx SizeT ->
-  -- | input
-  [Value SizeT] ->
-  costT
-quantumQueryCostBound strat a_eps p uticks cticks interp_ctx inp =
-  (1 - a_eps) * quantumQueryCost strat a_eps p uticks cticks interp_ctx inp
-    + a_eps * quantumMaxQueryCost strat a_eps p uticks cticks

@@ -1,4 +1,6 @@
-uproc Matrix(Fin<20>, Fin<10>, Fin<2>) :: tick(1.0)
+// Cost         : 1.0
+// Formula Cost : ()
+uproc Matrix(Fin<20>, Fin<10>, Fin<2>);
 
 // Cost         : 2.0
 // Formula Cost : ()

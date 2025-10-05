@@ -17,6 +17,7 @@ import Control.Monad (MonadPlus (..))
 import Data.Bifunctor (second)
 
 import Lens.Micro.GHC
+import qualified Numeric.Algebra as Alg
 
 import Traq.Data.Probability.Class
 import Traq.Data.Probability.List
@@ -57,12 +58,12 @@ instance Monad (Distr probT) where
 instance MonadFail (Distr probT) where
   fail _ = Branch []
 
-instance (Num probT) => MonadProb probT (Distr probT) where
+instance (ProbType probT) => MonadProb probT (Distr probT) where
   choose = Branch
 
-instance (Num probT) => MonadExp probT (Distr probT) where
+instance (ProbType probT) => MonadExp probT (Distr probT) where
   expectationA rv (Leaf a) = rv a
-  expectationA rv (Branch pts) = sum <$> sequenceA [(p *) <$> expectationA rv t | (p, t) <- pts]
+  expectationA rv (Branch pts) = Alg.sum <$> sequenceA [(p Alg..*) <$> expectationA rv t | (p, t) <- pts]
 
 treeToProbList :: (Num probT) => Distr probT a -> ProbList probT a
 treeToProbList = ProbList . go 1

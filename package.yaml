@@ -16,27 +16,30 @@ author: Anurudh Peduri <anurudhp97@gmail.com>
 maintainer: Anurudh Peduri <anurudhp97@gmail.com>
 synopsis: Traq - Estimating Quantum Cost of Classical Programs
 description:
-  A prototype implementation of the `Traq` framework,
-  with concrete and symbolic quantum cost analysis of classical programs,
-  and compilation to a classical-quantum target language (CQPL).
-  Provides the formal underpinnings of the qubrabench benchmarking library.
+  The `Traq` framework to perform quantum cost analysis of classical programs.
+  Supports input-dependent cost analysis of a probabilistic source language,
+  and compilation to a classical-quantum target language.
 category: Math
 
 extra-doc-files:
   - CHANGELOG.md
   - Readme.md
 
-ghc-options: -Wall
+ghc-options:
+  - -Wall
+  - -fprint-typechecker-elaboration
 
 dependencies:
   - base >= 4.10 && < 5
   - containers >= 0.6 && < 1
   - extra >= 1.8 && < 2
-  - transformers >= 0.4 && < 0.6
+  - transformers >= 0.5
   - mtl >= 2.2.2
   - microlens-ghc ^>= 0.4 
   - microlens-mtl ^>= 0.2
+  - lens ^>= 5.3
   - parsec ^>= 3.1.17
+  - algebra ^>= 4.3
 
 default-extensions:
   - LambdaCase

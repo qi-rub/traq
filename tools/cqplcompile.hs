@@ -1,6 +1,5 @@
 module Main (main) where
 
-import qualified Data.Map as Map
 import Options.Applicative
 import Text.Printf (printf)
 import Text.Read (readMaybe)
@@ -15,6 +14,8 @@ import Traq.Prelude
 import Traq.Primitives (DefaultPrims)
 import qualified Traq.ProtoLang as P
 import qualified Traq.Utils.Printing as PP
+
+type SymbSize = Sym.Sym Int
 
 data Options = Options
   { in_file :: FilePath
@@ -59,11 +60,9 @@ subsNM params s = Sym.unSym $ foldr subsOnce s params
   subsOnce :: (Ident, SizeT) -> SymbSize -> SymbSize
   subsOnce (k, v) = Sym.subst k (Sym.con v)
 
-compile :: (RealFloat costT, Show costT) => P.Program DefaultPrims SizeT -> costT -> IO String
+compile :: (RealFloat precT, Show precT) => P.Program DefaultPrims SizeT -> precT -> IO String
 compile prog eps = do
-  let oracle_name = "Matrix"
-  let oracle_ticks = Map.singleton oracle_name 1.0
-  Right cqpl_prog <- return $ CompileQ.lowerProgram default_ Ctx.empty oracle_ticks oracle_ticks eps prog
+  Right cqpl_prog <- return $ CompileQ.lowerProgram default_ Ctx.empty eps prog
   let nqubits = CQPL.numQubits cqpl_prog
 
   return $ PP.toCodeString cqpl_prog ++ printf "\n// qubits: %d\n" nqubits

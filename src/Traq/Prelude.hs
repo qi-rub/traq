@@ -1,28 +1,26 @@
+{-# LANGUAGE MultiParamTypeClasses #-}
+
 module Traq.Prelude where
 
 import qualified Traq.Data.Context as Ctx
-import qualified Traq.Data.Symbolic as Sym
 
 type Ident = String
 
 type SizeT = Int
 
--- | Basic symbolic type
-type SymbSize = Sym.Sym SizeT
-
 -- | The size type (usually some Integral) of a given type.
 type family SizeType p
 
--- | The cost type (usually some Floating) of a given type
-type family CostType p
+-- | The precision type (usually some Floating) of a given type.
+type family PrecType p
 
 -- | The bag of primitives used by a given type
 type family PrimitiveType p
 
 type instance SizeType (Ctx.Context e) = SizeType e
-type instance CostType (Ctx.Context e) = CostType e
+type instance PrecType (Ctx.Context e) = PrecType e
 type instance PrimitiveType (Ctx.Context e) = PrimitiveType e
 
 type instance SizeType [e] = SizeType e
-type instance CostType [e] = CostType e
+type instance PrecType [e] = PrecType e
 type instance PrimitiveType [e] = PrimitiveType e

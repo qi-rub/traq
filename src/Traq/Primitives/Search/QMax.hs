@@ -21,9 +21,11 @@ import Text.Printf (printf)
 
 import Lens.Micro.GHC
 import Lens.Micro.Mtl
+import qualified Numeric.Algebra as Alg
 
 import Traq.Control.Monad
 import qualified Traq.Data.Context as Ctx
+import qualified Traq.Data.Probability as Prob
 
 import Traq.Prelude
 import qualified Traq.ProtoLang as P
@@ -34,24 +36,24 @@ import qualified Traq.Utils.Printing as PP
 -- ================================================================================
 
 -- [1], Page 16, below Eq. 11
-_EQMax :: forall sizeT costT. (Integral sizeT, Floating costT) => sizeT -> costT
+_EQMax :: forall sizeT precT. (Floating precT, P.SizeToPrec sizeT precT) => sizeT -> precT
 _EQMax n = 6.3505 * sqrt_n + 2.8203
  where
-  sqrt_n :: costT
-  sqrt_n = sqrt $ fromIntegral n
+  sqrt_n :: precT
+  sqrt_n = sqrt $ P.sizeToPrec n
 
 -- [1], Corollary 1.
-_WQMax :: forall sizeT costT. (Integral sizeT, Floating costT) => sizeT -> costT -> costT
+_WQMax :: forall sizeT precT. (Floating precT, P.SizeToPrec sizeT precT) => sizeT -> precT -> precT
 _WQMax n eps = 3 * _EQMax n * log_eps
  where
-  log_eps :: costT
+  log_eps :: precT
   log_eps = log (1 / eps)
 
 -- Worst case cost of unitary QMax.
-_WUQMax :: forall sizeT costT. (Integral sizeT, Floating costT) => sizeT -> costT -> costT
+_WUQMax :: forall sizeT precT. (Floating precT, P.SizeToPrec sizeT precT) => sizeT -> precT -> precT
 _WUQMax n delta = 2 * _WQMax n eps -- 2x for compute-uncompute
  where
-  eps :: costT
+  eps :: precT
   eps = (delta / 2) ^ (2 :: Int)
 
 -- ================================================================================
@@ -93,8 +95,8 @@ instance P.TypeCheckablePrimitive QMax where
  and or-ing the results.
 -}
 instance
-  (Fractional costT, P.EvaluatablePrimitive primsT primsT costT) =>
-  P.EvaluatablePrimitive primsT QMax costT
+  (Fractional precT, Prob.ProbType precT, P.EvaluatablePrimitive primsT primsT precT) =>
+  P.EvaluatablePrimitive primsT QMax precT
   where
   evalPrimitive QMax{predicate, pred_args} sigma = do
     pred_fun <- view $ P._funCtx . Ctx.at predicate . to (fromMaybe (error "unable to find predicate, please typecheck first!"))
@@ -118,11 +120,11 @@ instance
 -- | Compute the unitary cost using the QSearch_Zalka cost formula.
 instance
   ( Integral sizeT
-  , Floating costT
-  , Show costT
-  , P.UnitaryCostablePrimitive primsT primsT sizeT costT
+  , Floating precT
+  , Show precT
+  , P.UnitaryCostablePrimitive primsT primsT sizeT precT
   ) =>
-  P.UnitaryCostablePrimitive primsT QMax sizeT costT
+  P.UnitaryCostablePrimitive primsT QMax sizeT precT
   where
   unitaryQueryCostPrimitive delta QMax{predicate} = do
     P.FunDef{P.param_types} <- view $ P._funCtx . Ctx.at predicate . singular _Just
@@ -143,14 +145,14 @@ instance
       P.unitaryQueryCostE delta_per_pred_call $
         P.FunCallE{P.fname = predicate, P.args = undefined}
 
-    return $ qry * cost_pred
+    return $ qry Alg..* cost_pred
 
 instance
   ( Integral sizeT
-  , Floating costT
-  , P.QuantumMaxCostablePrimitive primsT primsT sizeT costT
+  , Floating precT
+  , P.QuantumMaxCostablePrimitive primsT primsT sizeT precT
   ) =>
-  P.QuantumMaxCostablePrimitive primsT QMax sizeT costT
+  P.QuantumMaxCostablePrimitive primsT QMax sizeT precT
   where
   quantumMaxQueryCostPrimitive eps QMax{predicate} = do
     P.FunDef{P.param_types} <- view $ P._funCtx . Ctx.at predicate . singular _Just
@@ -173,16 +175,17 @@ instance
         P.unitaryQueryCostE delta_per_pred_call $
           P.FunCallE{P.fname = predicate, P.args = undefined}
 
-    return $ qry * cost_unitary_pred
+    return $ qry Alg..* cost_unitary_pred
 
 instance
   ( Integral sizeT
-  , Floating costT
-  , P.EvaluatablePrimitive primsT QMax costT
-  , P.QuantumCostablePrimitive primsT primsT sizeT costT
+  , Floating precT
+  , P.EvaluatablePrimitive primsT QMax precT
+  , P.QuantumCostablePrimitive primsT primsT sizeT precT
   , sizeT ~ SizeT
+  , P.SizeToPrec SizeT precT
   ) =>
-  P.QuantumCostablePrimitive primsT QMax sizeT costT
+  P.QuantumCostablePrimitive primsT QMax sizeT precT
   where
   quantumQueryCostPrimitive eps QMax{predicate} _ = do
     P.FunDef{P.param_types} <- view $ P._funCtx . Ctx.at predicate . singular _Just
@@ -193,7 +196,7 @@ instance
     let eps_pred = eps - eps_prim
 
     -- number of predicate queries
-    let qry = _EQMax n
+    let qry = _EQMax n :: precT
     let w_qry = _WQMax n eps_prim
 
     -- fail prob per predicate call
@@ -206,4 +209,4 @@ instance
         P.unitaryQueryCostE delta_per_pred_call $
           P.FunCallE{P.fname = predicate, P.args = undefined}
 
-    return $ qry * cost_unitary_pred
+    return $ qry Alg..* cost_unitary_pred

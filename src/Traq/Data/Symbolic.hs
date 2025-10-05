@@ -1,3 +1,5 @@
+{-# LANGUAGE FlexibleInstances #-}
+{-# LANGUAGE MultiParamTypeClasses #-}
 {-# OPTIONS_GHC -Wno-incomplete-uni-patterns #-}
 
 -- | Based on https://hackage.haskell.org/package/numbers-3000.2.0.2
@@ -11,6 +13,9 @@ module Traq.Data.Symbolic (
 
 import Data.Char (isAlpha)
 import Data.Maybe (fromMaybe)
+import Text.Printf (printf)
+
+import qualified Numeric.Algebra as Alg
 
 -- | Symbolic numbers over some base type for the literals.
 data Sym a = Con a | App String ([a] -> a) [Sym a]
@@ -161,3 +166,65 @@ instance (Ord a) => Ord (Sym a) where
 
   max = smax
   min = smin
+
+--------------------------------------------------------------------------------
+-- Numeric.Algebra instances
+--------------------------------------------------------------------------------
+
+-- | Helper to construct an algebraic unary operation
+algUnOp :: String -> (a -> a) -> Sym a -> Sym a
+algUnOp _ f (Con a) = Con (f a)
+algUnOp op f x = App op (\[a] -> f a) [x]
+
+-- | Helper to construct an algebraic binary operation
+algBinOp :: String -> (a -> a -> a) -> Sym a -> Sym a -> Sym a
+algBinOp _ f (Con a) (Con b) = Con (f a b)
+algBinOp op f x y = App op (\[a, b] -> f a b) [x, y]
+
+instance (Alg.Additive a) => Alg.Additive (Sym a) where
+  (+) = algBinOp "+" (Alg.+)
+
+instance (Alg.Abelian a) => Alg.Abelian (Sym a)
+
+instance (Alg.Idempotent a) => Alg.Idempotent (Sym a)
+
+instance (Alg.Multiplicative a) => Alg.Multiplicative (Sym a) where
+  (*) = algBinOp "*" (Alg.*)
+
+instance (Alg.Commutative a) => Alg.Commutative (Sym a)
+
+instance (Alg.Unital a) => Alg.Unital (Sym a) where
+  one = Con Alg.one
+
+instance {-# OVERLAPPABLE #-} (Show r, Alg.LeftModule r a) => Alg.LeftModule r (Sym a) where
+  (.*) r = algUnOp (show r <> "*") (r Alg..*)
+
+instance {-# OVERLAPPABLE #-} (Show r, Alg.RightModule r a) => Alg.RightModule r (Sym a) where
+  (*.) a r = algUnOp (show r <> "*") (Alg.*. r) a
+
+instance {-# OVERLAPPABLE #-} (Show r, Show a, Alg.Semiring r, Alg.Additive a) => Alg.LeftModule (Sym r) (Sym a) where
+  r .* a = var $ printf "((%s) .* (%s))" (show r) (show a)
+
+instance {-# OVERLAPPABLE #-} (Show r, Show a, Alg.Semiring r, Alg.Additive a) => Alg.RightModule (Sym r) (Sym a) where
+  a *. r = var $ printf "((%s) *. (%s))" (show a) (show r)
+
+instance (Alg.Monoidal a) => Alg.Monoidal (Sym a) where
+  zero = Con Alg.zero
+
+instance (Alg.Group a) => Alg.Group (Sym a) where
+  (-) = algBinOp "-" (Alg.-)
+  negate = algUnOp "negate" Alg.negate
+
+instance (Alg.Division a) => Alg.Division (Sym a) where
+  recip = algUnOp "recip" Alg.recip
+  (/) = algBinOp "/" (Alg./)
+  (^) x y = algUnOp op_str (Alg.^ y) x
+   where
+    op_str = "^" <> show (toInteger y)
+
+instance (Alg.Semiring a) => Alg.Semiring (Sym a)
+
+instance (Alg.Rng a) => Alg.Rng (Sym a)
+
+instance (Alg.Rig a) => Alg.Rig (Sym a) where
+  fromNatural = Con . Alg.fromNatural

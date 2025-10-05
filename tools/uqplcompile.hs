@@ -9,17 +9,22 @@ import Text.Printf (printf)
 import Text.Read (readMaybe)
 
 import Lens.Micro.GHC
+import qualified Numeric.Algebra as Alg
 
 import qualified Traq.Data.Context as Ctx
 import Traq.Data.Default
+import qualified Traq.Data.Probability as Prob
 import qualified Traq.Data.Symbolic as Sym
 
 import qualified Traq.CQPL as CQPL
 import qualified Traq.Compiler.Unitary as CompileU
+import Traq.CostModel.QueryCost (SimpleQueryCost (..))
 import Traq.Prelude
 import Traq.Primitives (DefaultPrims)
 import qualified Traq.ProtoLang as P
 import qualified Traq.Utils.Printing as PP
+
+type SymbSize = Sym.Sym Int
 
 data Options = Options
   { in_file :: FilePath
@@ -67,20 +72,18 @@ subsNM params s = Sym.unSym $ foldr subsOnce s params
 tellLn :: (MonadWriter String m) => String -> m ()
 tellLn x = tell $ unlines [x]
 
-compile :: forall costT. (RealFloat costT, Show costT) => P.Program DefaultPrims SizeT -> costT -> IO String
+compile :: forall precT. (RealFloat precT, Show precT, Alg.Rig precT, Prob.ProbType precT, Prob.RVType precT precT) => P.Program DefaultPrims SizeT -> precT -> IO String
 compile prog@(P.Program fs) delta = do
-  let oracle_name = "Matrix"
-  let oracle_ticks = mempty & at oracle_name ?~ (fromRational 1.0 :: costT)
-  Right cqpl_prog <- return $ CompileU.lowerProgram default_ Ctx.empty oracle_ticks delta prog
+  Right cqpl_prog <- return $ CompileU.lowerProgram default_ Ctx.empty delta prog
   -- get costs
-  let (_ :: costT, proc_costs) = CQPL.programCost cqpl_prog
+  let (_ :: SimpleQueryCost precT, proc_costs) = CQPL.programCost cqpl_prog
 
   -- print the program with the costs
   execWriterT $ do
     forM_ (cqpl_prog ^. to CQPL.proc_defs . to Ctx.elems) $ \p -> do
       let pname = p ^. to CQPL.proc_name
 
-      when (pname /= oracle_name) $ do
+      when (pname /= "Oracle") $ do
         let f_cost =
               fromMaybe
                 "()"
@@ -92,16 +95,16 @@ compile prog@(P.Program fs) delta = do
                     fdelta <- readMaybe fdelta_s :: Maybe Double
                     let prog' = P.Program $ dropWhileEnd (\f -> P.fun_name f /= fname) fs
                     let cf =
-                          P.unitaryQueryCost
-                            P.SplitSimple
-                            fdelta
-                            prog'
-                            (mempty & at oracle_name ?~ 1.0)
+                          getCost $
+                            P.unitaryQueryCost
+                              P.SplitSimple
+                              fdelta
+                              prog'
                     return $ show cf
                 )
 
         let t_cost = proc_costs ^. at pname
-        tellLn $ "// Cost         : " <> maybe "()" show t_cost
+        tellLn $ "// Cost         : " <> maybe "()" (show . getCost) t_cost
         tellLn $ "// Formula Cost : " <> f_cost
 
       tellLn $ PP.toCodeString p

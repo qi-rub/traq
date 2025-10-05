@@ -20,6 +20,7 @@ import Text.Printf (printf)
 
 import Lens.Micro.GHC
 import Lens.Micro.Mtl
+import qualified Numeric.Algebra as Alg
 
 import qualified Traq.Data.Context as Ctx
 import qualified Traq.Data.Symbolic as Sym
@@ -33,10 +34,10 @@ import qualified Traq.Utils.Printing as PP
 -- Cost Formulas
 -- ================================================================================
 
-_QryU :: forall sizeT costT. (Show sizeT, Show costT) => Sym.Sym sizeT -> Sym.Sym costT -> Sym.Sym costT
+_QryU :: forall sizeT precT. (Show sizeT, Show precT) => Sym.Sym sizeT -> Sym.Sym precT -> Sym.Sym precT
 _QryU n eps = Sym.var $ printf "QryU(%s, %s)" (show n) (show eps)
 
-_QryQmax :: forall sizeT costT. (Show sizeT, Show costT) => Sym.Sym sizeT -> Sym.Sym costT -> Sym.Sym costT
+_QryQmax :: forall sizeT precT. (Show sizeT, Show precT) => Sym.Sym sizeT -> Sym.Sym precT -> Sym.Sym precT
 _QryQmax n eps = Sym.var $ printf "QryQmax(%s, %s)" (show n) (show eps)
 
 -- ================================================================================
@@ -86,12 +87,12 @@ instance
   ( Show sizeT
   , Num sizeT
   , Eq sizeT
-  , Show costT
-  , Eq costT
-  , Floating costT
-  , P.UnitaryCostablePrimitive primsT primsT (Sym.Sym sizeT) (Sym.Sym costT)
+  , Show precT
+  , Eq precT
+  , Floating precT
+  , P.UnitaryCostablePrimitive primsT primsT (Sym.Sym sizeT) (Sym.Sym precT)
   ) =>
-  P.UnitaryCostablePrimitive primsT QSearchSym (Sym.Sym sizeT) (Sym.Sym costT)
+  P.UnitaryCostablePrimitive primsT QSearchSym (Sym.Sym sizeT) (Sym.Sym precT)
   where
   unitaryQueryCostPrimitive delta prim = do
     Just fun_def@P.FunDef{P.param_types} <- view $ P._funCtx . Ctx.at (getPred prim)
@@ -119,18 +120,18 @@ instance
       P.unitaryQueryCostE delta_per_pred_call $
         P.FunCallE{P.fname = getPred prim, P.args = undefined}
 
-    return $ qry * cost_pred
+    return $ qry Alg..* cost_pred
 
 instance
   ( Show sizeT
   , Num sizeT
   , Eq sizeT
-  , Show costT
-  , Eq costT
-  , Floating costT
-  , P.QuantumMaxCostablePrimitive primsT primsT (Sym.Sym sizeT) (Sym.Sym costT)
+  , Show precT
+  , Eq precT
+  , Floating precT
+  , P.QuantumMaxCostablePrimitive primsT primsT (Sym.Sym sizeT) (Sym.Sym precT)
   ) =>
-  P.QuantumMaxCostablePrimitive primsT QSearchSym (Sym.Sym sizeT) (Sym.Sym costT)
+  P.QuantumMaxCostablePrimitive primsT QSearchSym (Sym.Sym sizeT) (Sym.Sym precT)
   where
   quantumMaxQueryCostPrimitive eps prim = do
     Just fun_def@P.FunDef{P.param_types} <- view $ P._funCtx . Ctx.at (getPred prim)
@@ -159,4 +160,4 @@ instance
         P.unitaryQueryCostE delta_per_pred_call $
           P.FunCallE{P.fname = getPred prim, P.args = undefined}
 
-    return $ qry * cost_unitary_pred
+    return $ qry Alg..* cost_unitary_pred

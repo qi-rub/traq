@@ -36,6 +36,7 @@ shouldBeDistribution ::
   forall probT m a.
   ( HasCallStack
   , Prob.MonadExp probT m
+  , Prob.RVType probT probT
   , Fractional probT
   , Ord probT
   , Show probT

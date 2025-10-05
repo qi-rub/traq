@@ -13,6 +13,8 @@ import Control.Arrow ((>>>))
 import Data.List (sortOn)
 import Data.List.Extra (groupOn)
 
+import qualified Numeric.Algebra as Alg
+
 import Traq.Data.Probability.Class
 
 type Outcomes probT a = [(probT, a)]
@@ -38,11 +40,11 @@ instance (Num probT) => Monad (ProbList probT) where
       , (py, y) <- runProbList (f x)
       ]
 
-instance (Num probT) => MonadProb probT (ProbList probT) where
+instance (ProbType probT) => MonadProb probT (ProbList probT) where
   choose pls = ProbList [(pl * px, x) | (pl, l) <- pls, (px, x) <- runProbList l]
 
-instance (Num probT) => MonadExp probT (ProbList probT) where
-  expectationA rv (ProbList pxs) = sum <$> sequenceA [(p *) <$> rv x | (p, x) <- pxs]
+instance (ProbType probT) => MonadExp probT (ProbList probT) where
+  expectationA rv (ProbList pxs) = Alg.sum <$> sequenceA [(p Alg..*) <$> rv x | (p, x) <- pxs]
 
 compress :: (Num probT, Ord a) => ProbList probT a -> ProbList probT a
 compress =

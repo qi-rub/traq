@@ -39,5 +39,5 @@ type Prob probT = ProbT probT Identity
 runProb :: Prob probT a -> Distr probT a
 runProb = runIdentity . runProbT
 
-instance (Num probT, Monad m) => MonadProb probT (ProbT probT m) where
+instance (ProbType probT, Monad m) => MonadProb probT (ProbT probT m) where
   choose = ProbT . fmap choose . traverse (\(p, x) -> (p,) <$> runProbT x)

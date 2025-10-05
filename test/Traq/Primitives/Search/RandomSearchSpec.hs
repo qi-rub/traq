@@ -7,6 +7,7 @@ import Lens.Micro.GHC
 import qualified Traq.Data.Context as Ctx
 import Traq.Data.Default
 
+import Traq.CostModel.QueryCost (SimpleQueryCost (..))
 import Traq.Examples.MatrixSearch (matrixExample)
 import Traq.Prelude
 import Traq.Primitives.Search.RandomSearch
@@ -21,11 +22,10 @@ diagMatrix _ = error "invalid input"
 spec :: Spec
 spec = do
   describe "RandomSearch" $ do
-    let mat_prog n m = matrixExample @RandomSearch n m
+    let mat_prog = matrixExample @RandomSearch
     it "expected cost" $ do
       let eps = 0.001
       let n = 10
-      let ticks = mempty & at "Matrix" ?~ 1.0
       let fun_interp = Ctx.singleton "Matrix" diagMatrix
-      let c = P.quantumQueryCost default_ eps (mat_prog n n) ticks ticks fun_interp default_
+      let c = getCost $ P.quantumQueryCost default_ eps (mat_prog n n) fun_interp default_ :: Double
       c `shouldSatisfy` (< (292 :: Double))

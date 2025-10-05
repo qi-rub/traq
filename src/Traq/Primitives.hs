@@ -17,6 +17,8 @@ import Text.Parsec (try)
 
 import Lens.Micro.GHC
 
+import qualified Traq.Data.Probability as Prob
+
 import qualified Traq.Compiler.Quantum as CompileQ
 import qualified Traq.Compiler.Unitary as CompileU
 import Traq.Prelude
@@ -67,57 +69,58 @@ instance P.CanParsePrimitive DefaultPrims where
 
 -- Evaluation
 instance
-  (Fractional costT, P.EvaluatablePrimitive primsT primsT costT) =>
-  P.EvaluatablePrimitive primsT DefaultPrims costT
+  (Fractional precT, Prob.ProbType precT, P.EvaluatablePrimitive primsT primsT precT) =>
+  P.EvaluatablePrimitive primsT DefaultPrims precT
 
 -- Costs
 instance
   ( Integral sizeT
-  , Floating costT
-  , Show costT
-  , P.UnitaryCostablePrimitive primsT primsT sizeT costT
+  , Floating precT
+  , Show precT
+  , P.UnitaryCostablePrimitive primsT primsT sizeT precT
   ) =>
-  P.UnitaryCostablePrimitive primsT DefaultPrims sizeT costT
+  P.UnitaryCostablePrimitive primsT DefaultPrims sizeT precT
 
 instance
   ( Integral sizeT
-  , Floating costT
-  , Ord costT
-  , P.QuantumMaxCostablePrimitive primsT primsT sizeT costT
+  , Floating precT
+  , Ord precT
+  , P.QuantumMaxCostablePrimitive primsT primsT sizeT precT
   ) =>
-  P.QuantumMaxCostablePrimitive primsT DefaultPrims sizeT costT
+  P.QuantumMaxCostablePrimitive primsT DefaultPrims sizeT precT
 
 instance
-  ( Floating costT
-  , Ord costT
+  ( Floating precT
+  , Ord precT
+  , Prob.ProbType precT
   , sizeT ~ SizeT
-  , P.QuantumCostablePrimitive primsT primsT sizeT costT
+  , P.QuantumCostablePrimitive primsT primsT sizeT precT
   ) =>
-  P.QuantumCostablePrimitive primsT DefaultPrims sizeT costT
+  P.QuantumCostablePrimitive primsT DefaultPrims sizeT precT
 
 -- Lowering
 instance
   ( Integral sizeT
-  , Floating costT
-  , CompileU.Lowerable primsT primsT sizeT costT
-  , CompileU.Lowerable primsT QSearchCFNW sizeT costT
+  , Floating precT
+  , CompileU.Lowerable primsT primsT sizeT precT
+  , CompileU.Lowerable primsT QSearchCFNW sizeT precT
   , P.TypeCheckable sizeT
-  , Show costT
+  , Show precT
   ) =>
-  CompileU.Lowerable primsT DefaultPrims sizeT costT
+  CompileU.Lowerable primsT DefaultPrims sizeT precT
   where
   lowerPrimitive delta (QAny q) = CompileU.lowerPrimitive delta q
   lowerPrimitive _ _ = error "TODO: lowerPrimitive"
 
 instance
   ( Integral sizeT
-  , Floating costT
-  , CompileQ.Lowerable primsT primsT sizeT costT
-  , CompileQ.Lowerable primsT QSearchCFNW sizeT costT
+  , Floating precT
+  , CompileQ.Lowerable primsT primsT sizeT precT
+  , CompileQ.Lowerable primsT QSearchCFNW sizeT precT
   , P.TypeCheckable sizeT
-  , Show costT
+  , Show precT
   ) =>
-  CompileQ.Lowerable primsT DefaultPrims sizeT costT
+  CompileQ.Lowerable primsT DefaultPrims sizeT precT
   where
   lowerPrimitive eps (QAny q) = CompileQ.lowerPrimitive eps q
   lowerPrimitive _ _ = error "TODO: lowerPrimitive"

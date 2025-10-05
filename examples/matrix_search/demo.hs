@@ -12,6 +12,7 @@ import qualified Traq.Data.Symbolic as Sym
 import Traq.Prelude
 import qualified Traq.ProtoLang as P
 
+import Traq.CostModel.QueryCost (SimpleQueryCost (..))
 import Traq.Primitives.Search.DetSearch (DetSearch (..))
 import Traq.Primitives.Search.QSearchCFNW (QSearchCFNW (..))
 import Traq.Primitives.Search.RandomSearch (RandomSearch (..))
@@ -37,23 +38,17 @@ expectedCost n m matrix eps = do
   Right loaded_program <- parseFromFile (P.programParser @primT) "examples/matrix_search/matrix_search.qb"
   let program = Sym.unSym . Sym.subst "M" (Sym.con m) . Sym.subst "N" (Sym.con n) <$> loaded_program
 
-  -- cost of each _unitary_ call to Matrix
-  let uticks = Map.singleton "Matrix" 1
-  -- cost of each _classical_ call to Matrix
-  let cticks = Map.singleton "Matrix" 1
-
   -- the functionality of Matrix, provided as input data
   let interp = Ctx.singleton "Matrix" (matrixToFun matrix)
 
   return $
-    P.quantumQueryCost @primT
-      P.SplitUsingNeedsEps -- precision splitting strategy
-      eps -- maximum failure probability
-      program
-      uticks
-      cticks
-      interp
-      mempty
+    getCost $
+      P.quantumQueryCost @primT
+        P.SplitUsingNeedsEps -- precision splitting strategy
+        eps -- maximum failure probability
+        program
+        interp
+        mempty
 
 main :: IO ()
 main = do

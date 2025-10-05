@@ -1,3 +1,4 @@
+{-# LANGUAGE AllowAmbiguousTypes #-}
 {-# LANGUAGE DeriveGeneric #-}
 {-# LANGUAGE DuplicateRecordFields #-}
 {-# LANGUAGE FlexibleInstances #-}
@@ -17,6 +18,7 @@ import GHC.Generics (Generic)
 
 import Lens.Micro.GHC
 import Lens.Micro.Mtl
+import qualified Numeric.Algebra as Alg
 
 import Traq.Control.Monad
 import qualified Traq.Data.Context as Ctx
@@ -32,16 +34,16 @@ import qualified Traq.Utils.Printing as PP
 -- ================================================================================
 
 -- | Number of predicate queries to unitarily implement random search.
-_URandomSearch :: forall sizeT costT. (Integral sizeT, Floating costT) => sizeT -> costT
+_URandomSearch :: forall sizeT precT. (Integral sizeT, Floating precT) => sizeT -> precT
 {-# HLINT ignore "Eta reduce" #-}
 _URandomSearch n = fromIntegral n
 
 -- | Worst case number of predicate queries to implement random search.
-_ERandomSearchWorst :: forall sizeT costT. (Integral sizeT, Floating costT) => sizeT -> costT -> costT
+_ERandomSearchWorst :: forall sizeT precT. (Integral sizeT, Floating precT) => sizeT -> precT -> precT
 _ERandomSearchWorst n eps = fromIntegral n * log (1 / eps)
 
 -- | Expected number of predicate queries to implement random search.
-_ERandomSearch :: forall sizeT costT. (Integral sizeT, Floating costT) => sizeT -> sizeT -> costT -> costT
+_ERandomSearch :: forall sizeT precT. (Integral sizeT, Floating precT) => sizeT -> sizeT -> precT -> precT
 _ERandomSearch n 0 eps = _ERandomSearchWorst n eps
 _ERandomSearch n k _ = fromIntegral n / fromIntegral k
 
@@ -73,8 +75,8 @@ instance P.HasFreeVars RandomSearch
 instance P.TypeCheckablePrimitive RandomSearch
 
 instance
-  (Fractional costT, P.EvaluatablePrimitive primsT primsT costT) =>
-  P.EvaluatablePrimitive primsT RandomSearch costT
+  (Fractional precT, Prob.ProbType precT, P.EvaluatablePrimitive primsT primsT precT) =>
+  P.EvaluatablePrimitive primsT RandomSearch precT
 
 -- ================================================================================
 -- Abstract Costs
@@ -82,11 +84,11 @@ instance
 
 instance
   ( Integral sizeT
-  , Floating costT
-  , Show costT
-  , P.UnitaryCostablePrimitive primsT primsT sizeT costT
+  , Floating precT
+  , Show precT
+  , P.UnitaryCostablePrimitive primsT primsT sizeT precT
   ) =>
-  P.UnitaryCostablePrimitive primsT RandomSearch sizeT costT
+  P.UnitaryCostablePrimitive primsT RandomSearch sizeT precT
   where
   unitaryQueryCostPrimitive delta prim = do
     let predicate = getPredicateName prim
@@ -105,15 +107,15 @@ instance
       P.unitaryQueryCostE delta_per_pred_call $
         P.FunCallE{P.fname = predicate, P.args = undefined}
 
-    return $ qry * cost_pred
+    return $ qry Alg..* cost_pred
 
 instance
   ( Integral sizeT
-  , Floating costT
-  , Ord costT
-  , P.QuantumMaxCostablePrimitive primsT primsT sizeT costT
+  , Floating precT
+  , Ord precT
+  , P.QuantumMaxCostablePrimitive primsT primsT sizeT precT
   ) =>
-  P.QuantumMaxCostablePrimitive primsT RandomSearch sizeT costT
+  P.QuantumMaxCostablePrimitive primsT RandomSearch sizeT precT
   where
   quantumMaxQueryCostPrimitive eps prim = do
     let predicate = getPredicateName prim
@@ -136,20 +138,23 @@ instance
       P.quantumMaxQueryCostE eps_per_pred_call $
         P.FunCallE{P.fname = predicate, P.args = undefined}
 
-    return $ max_qry * cost_pred_call
+    return $ max_qry Alg..* cost_pred_call
 
-average :: (Floating a) => [a] -> a
-average [] = 0
-average xs = sum xs / fromIntegral (length xs)
+average :: forall precT a. (Alg.Monoidal a, Alg.Module precT a, Floating precT) => [a] -> a
+average [] = Alg.zero
+average xs =
+  let n = length xs
+   in ((1.0 :: precT) / fromIntegral n) Alg..* Alg.sum xs
 
 instance
   ( Integral sizeT
-  , Floating costT
-  , Ord costT
-  , P.QuantumCostablePrimitive primsT primsT sizeT costT
+  , Floating precT
+  , Ord precT
+  , Prob.ProbType precT
+  , P.QuantumCostablePrimitive primsT primsT sizeT precT
   , sizeT ~ SizeT
   ) =>
-  P.QuantumCostablePrimitive primsT RandomSearch sizeT costT
+  P.QuantumCostablePrimitive primsT RandomSearch sizeT precT
   where
   quantumQueryCostPrimitive eps prim sigma = do
     let predicate = getPredicateName prim
@@ -187,7 +192,7 @@ instance
       eval_env <- view P._evaluationEnv
       [is_sol_v] <-
         lift $
-          P.evalExpr @primsT @costT pred_call_expr sigma_pred'
+          P.evalExpr @primsT @precT pred_call_expr sigma_pred'
             & (runReaderT ?? eval_env)
             & Prob.toDeterministicValue
       return (P.valueToBool is_sol_v, cost_v)
@@ -197,7 +202,7 @@ instance
     let qry = _ERandomSearch n k eps_search
 
     -- average costs of a solution and a non-solution respectively
-    let avg_sol_cost = average . map snd . filter fst $ costs
-    let avg_non_sol_cost = average . map snd . filter (not . fst) $ costs
+    let avg_sol_cost = average @precT . map snd . filter fst $ costs
+    let avg_non_sol_cost = average @precT . map snd . filter (not . fst) $ costs
 
-    return $ qry * avg_non_sol_cost + avg_sol_cost
+    return $ qry Alg..* avg_non_sol_cost Alg.+ avg_sol_cost

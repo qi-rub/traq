@@ -18,6 +18,7 @@ import Lens.Micro.Mtl
 
 import Traq.Control.Monad
 import qualified Traq.Data.Context as Ctx
+import qualified Traq.Data.Probability as Prob
 
 import Traq.Prelude
 import qualified Traq.ProtoLang as P
@@ -112,10 +113,11 @@ runTreeSearch child check u = do
       (||) <$> check l <*> check r
 
 instance
-  ( Fractional costT
-  , P.EvaluatablePrimitive primsT primsT costT
+  ( Fractional precT
+  , Prob.ProbType precT
+  , P.EvaluatablePrimitive primsT primsT precT
   ) =>
-  P.EvaluatablePrimitive primsT TreeSearch costT
+  P.EvaluatablePrimitive primsT TreeSearch precT
   where
   evalPrimitive TreeSearch{getChildren, getChildrenArgs, checkNode, checkNodeArgs} sigma = do
     child_fun <- view $ P._funCtx . Ctx.at getChildren . to (fromMaybe (error "unable to find predicate, please typecheck first!"))

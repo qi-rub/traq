@@ -110,7 +110,7 @@ spec = do
               , ("Profit", \[FinV i] -> [FinV i])
               , ("Weight", \[FinV i] -> [FinV i])
               ]
-      let result = (runProgram @Amplify) prog funInterpCtx []
+      let result = (runProgram @Amplify @Double) prog funInterpCtx []
 
       result
         `shouldBeDistribution` [ ([ArrV [FinV 0, FinV 1]], 0.8)
@@ -126,6 +126,6 @@ spec = do
 
     it "evaluates" $ do
       let funInterpCtx = Ctx.singleton "AddWeight" (\[FinV x1, FinV x2] -> [FinV x1])
-      let result = (runProgram @Amplify) (loopExample 10 20) funInterpCtx []
+      let result = (runProgram @Amplify @Double) (loopExample 10 20) funInterpCtx []
 
       result `shouldBeDistribution` [([FinV 10], 1.0)]
