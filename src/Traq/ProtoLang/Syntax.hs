@@ -241,7 +241,7 @@ data Expr primT sizeT
   | RandomSampleE {distr_expr :: DistrExpr sizeT}
   | FunCallE {fname :: Ident, args :: [Ident]}
   | PrimCallE {prim :: primT}
-  | LoopE {initial_args :: [BasicExpr sizeT], loop_body_fun :: Ident}
+  | LoopE {initial_args :: [Ident], loop_body_fun :: Ident}
   deriving (Eq, Show, Read, Functor)
 
 type instance SizeType (Expr primT sizeT) = sizeT
@@ -253,7 +253,7 @@ instance (Show sizeT, PP.ToCodeString primT) => PP.ToCodeString (Expr primT size
   build FunCallE{fname, args} = PP.putLine $ printf "%s(%s)" fname (PP.commaList args)
   build PrimCallE{prim} = PP.build prim
   build LoopE{initial_args, loop_body_fun} = do
-    args <- PP.commaList <$> mapM PP.fromBuild initial_args
+    let args = PP.commaList initial_args
     PP.putWord $ printf "loop (%s) %s" args loop_body_fun
 
 -- | A statement in the prototype language.

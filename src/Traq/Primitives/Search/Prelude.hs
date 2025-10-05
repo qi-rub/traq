@@ -1,7 +1,6 @@
 {-# LANGUAGE DuplicateRecordFields #-}
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE MultiParamTypeClasses #-}
-{-# LANGUAGE UndecidableInstances #-}
 
 module Traq.Primitives.Search.Prelude (
   -- * Basic search primitives
@@ -117,9 +116,8 @@ getSearchOutputs rets = map element rets
 -- | Run the predicate on each input, and return the input along with the result.
 runSearchPredicateOnAllInputs ::
   forall primsT precT.
-  ( P.EvaluatablePrimitive primsT precT
-  , Fractional precT
-  , Prob.ProbType precT
+  ( P.Evaluatable primsT precT
+  , P.EvalReqs SizeT precT
   ) =>
   Ident ->
   [P.Value SizeT] ->
@@ -136,9 +134,8 @@ runSearchPredicateOnAllInputs predicate arg_vals = do
     return SearchResult{element = s_vals, isSolution = P.valueToBool $ head rets}
 
 evaluatePrimCount ::
-  ( P.EvaluatablePrimitive primsT precT
-  , Fractional precT
-  , Prob.ProbType precT
+  ( P.Evaluatable primsT precT
+  , P.EvalReqs SizeT precT
   ) =>
   Ident ->
   [Ident] ->
@@ -188,13 +185,8 @@ instance P.TypeCheckablePrimitive PrimAny where
     typeCheckSearchPredicate predicate pred_args
     return [P.tbool]
 
-instance
-  ( Fractional precT
-  , Prob.ProbType precT
-  ) =>
-  P.EvaluatablePrimitive PrimAny precT
-  where
-  evalPrimitive PrimAny{predicate, pred_args} sigma = do
+instance P.Evaluatable PrimAny precT where
+  eval PrimAny{predicate, pred_args} sigma = do
     arg_vals <- runReaderT ?? sigma $
       forM pred_args $ \x -> do
         view $ P._state . Ctx.at x . non (error "invalid argument, please typecheck first.")
@@ -241,13 +233,8 @@ instance P.TypeCheckablePrimitive PrimSearch where
     s_tys <- typeCheckSearchPredicate predicate pred_args
     return $ P.tbool : s_tys
 
-instance
-  ( Fractional precT
-  , Prob.ProbType precT
-  ) =>
-  P.EvaluatablePrimitive PrimSearch precT
-  where
-  evalPrimitive PrimSearch{predicate, pred_args} sigma = do
+instance P.Evaluatable PrimSearch precT where
+  eval PrimSearch{predicate, pred_args} sigma = do
     arg_vals <- runReaderT ?? sigma $ forM pred_args $ \x -> do
       view $ P._state . Ctx.at x . non (error "invalid argument, please typecheck first.")
 

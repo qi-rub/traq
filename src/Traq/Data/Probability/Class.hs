@@ -59,7 +59,7 @@ type ProbType probT = (Num probT, Alg.Monoidal probT)
 -- | A probability monad, with a zero distribution and a choice operation.
 class (ProbType probT, Monad m) => MonadProb probT m | m -> probT where
   -- | Weighted choice from a given list of distributions.
-  choose :: [(probT, m a)] -> m a
+  choose :: (ProbType probT) => [(probT, m a)] -> m a
 
 instance (ProbType probT, MonadProb probT m) => MonadProb probT (ReaderT r m) where
   choose ms = ReaderT $ \r -> do

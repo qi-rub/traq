@@ -58,7 +58,7 @@ loopExample n w =
                             [ ExprS ["acc"] $ BasicExprE $ ConstE (FinV 0) (Fin w)
                             , ExprS ["tw"] $
                                 LoopE
-                                  { initial_args = [VarE "acc"]
+                                  { initial_args = ["acc"]
                                   , loop_body_fun = "AddWeight"
                                   }
                             ]

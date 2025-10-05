@@ -67,7 +67,7 @@ instance P.CanParsePrimitive DefaultPrims where
     dany = DAny . DetSearch <$> parsePrimAnyWithName "any_det" tp
 
 -- Evaluation
-instance (Fractional precT, Prob.ProbType precT) => P.EvaluatablePrimitive DefaultPrims precT
+instance P.Evaluatable DefaultPrims precT
 
 -- Costs
 instance

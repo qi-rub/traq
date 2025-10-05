@@ -51,7 +51,7 @@ instance P.CanParsePrimitive DetSearch where
 instance P.HasFreeVars DetSearch
 instance P.TypeCheckablePrimitive DetSearch
 
-instance (Fractional precT, Prob.ProbType precT) => P.EvaluatablePrimitive DetSearch precT
+instance P.Evaluatable DetSearch precT
 
 -- ================================================================================
 -- Abstract Costs
@@ -142,7 +142,7 @@ instance
       -- evaluate predicate on `v` to check if it is a solution
       eval_env <- view P._evaluationEnv
       [is_sol_v] <-
-        P.evalExpr @_ @precT pred_call_expr sigma_pred'
+        P.eval @_ @precT pred_call_expr sigma_pred'
           & (runReaderT ?? eval_env)
           & Prob.toDeterministicValue
           & lift

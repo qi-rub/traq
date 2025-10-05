@@ -24,7 +24,6 @@ import qualified Numeric.Algebra as Alg
 
 import Traq.Control.Monad
 import qualified Traq.Data.Context as Ctx
-import qualified Traq.Data.Probability as Prob
 
 import Traq.Prelude
 import qualified Traq.ProtoLang as P
@@ -93,8 +92,8 @@ instance P.TypeCheckablePrimitive QMax where
 {- | Evaluate an `any` call by evaluating the predicate on each element of the search space
  and or-ing the results.
 -}
-instance (Fractional precT, Prob.ProbType precT) => P.EvaluatablePrimitive QMax precT where
-  evalPrimitive QMax{predicate, pred_args} sigma = do
+instance P.Evaluatable QMax precT where
+  eval QMax{predicate, pred_args} sigma = do
     pred_fun <- view $ P._funCtx . Ctx.at predicate . to (fromMaybe (error "unable to find predicate, please typecheck first!"))
     let search_range = pred_fun ^. to P.param_types . to last . to P.domain
 
@@ -175,7 +174,7 @@ instance
 instance
   ( Integral sizeT
   , Floating precT
-  , P.EvaluatablePrimitive QMax precT
+  , P.Evaluatable QMax precT
   , sizeT ~ SizeT
   , P.SizeToPrec SizeT precT
   , Show precT

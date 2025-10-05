@@ -293,7 +293,7 @@ typeCheckExpr LoopE{initial_args, loop_body_fun} =
   do
     -- extract the current context
     gamma <- use id
-    in_tys <- runReaderT ?? gamma $ mapM typeCheckBasicExpr initial_args
+    in_tys <- runReaderT ?? gamma $ mapM Ctx.lookup' initial_args
     FunDef{param_types, ret_types} <- lookupFunE loop_body_fun
     unless (ret_types == in_tys) $
       throwError "Initial input argument types should match output types of the loop function."

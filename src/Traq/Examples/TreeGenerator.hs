@@ -84,7 +84,7 @@ treeGeneratorExample n w p =
                                   ConstE (FinV 0) (Fin w)
                             , ExprS ["tw", "_xs'"] $
                                 LoopE
-                                  { initial_args = [VarE "acc", VarE "xs"]
+                                  { initial_args = ["acc", "xs"]
                                   , loop_body_fun = "AddWeight"
                                   }
                             ]
@@ -160,7 +160,7 @@ treeGeneratorExample n w p =
                                   ConstE (FinV 0) (Fin w)
                             , ExprS ["total_weight", "xs'"] $
                                 LoopE
-                                  { initial_args = [VarE "acc", VarE "xs"]
+                                  { initial_args = ["acc", "xs"]
                                   , loop_body_fun = "SampleCheckUpdateAdd"
                                   }
                             , ExprS ["prof_prev"] $

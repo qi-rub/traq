@@ -626,7 +626,7 @@ type QuantumCostCalculator primsT sizeT precT = ReaderT (QuantumCostEnv primsT s
 -- | Primitives that have a input dependent expected quantum cost
 class
   ( QuantumMaxCostablePrimitive primT sizeT precT
-  , EvaluatablePrimitive primT precT
+  , Evaluatable primT precT
   ) =>
   QuantumCostablePrimitive primT sizeT precT
   where

@@ -160,7 +160,7 @@ instance P.TypeCheckablePrimitive QSearchCFNW
 {- | Evaluate an `any` call by evaluating the predicate on each element of the search space
  and or-ing the results.
 -}
-instance (Fractional precT, Prob.ProbType precT) => P.EvaluatablePrimitive QSearchCFNW precT
+instance P.Evaluatable QSearchCFNW precT
 
 -- ================================================================================
 -- Abstract Costs
@@ -233,7 +233,7 @@ instance
   ( Integral sizeT
   , Floating precT
   , Show precT
-  , P.EvaluatablePrimitive QSearchCFNW precT
+  , P.Evaluatable QSearchCFNW precT
   , sizeT ~ SizeT
   ) =>
   P.QuantumCostablePrimitive QSearchCFNW sizeT precT

@@ -11,8 +11,6 @@ module Traq.Primitives.Search.QCount () where
 
 import Text.Printf (printf)
 
-import qualified Traq.Data.Probability as Prob
-
 import Traq.Prelude
 import Traq.Primitives.Prelude
 import Traq.Primitives.Search.Prelude
@@ -46,10 +44,5 @@ instance P.TypeCheckablePrimitive QCount where
     let n_items = product $ map P.domainSize s_tys
     return [P.Fin (n_items + 1)]
 
-instance
-  ( Fractional precT
-  , Prob.ProbType precT
-  ) =>
-  P.EvaluatablePrimitive QCount precT
-  where
-  evalPrimitive QCount{predicate, args} = evaluatePrimCount predicate args
+instance P.Evaluatable QCount precT where
+  eval QCount{predicate, args} = evaluatePrimCount predicate args

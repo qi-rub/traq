@@ -2,8 +2,6 @@
 
 module Traq.Primitives.Search.RandomSearchSpec (spec) where
 
-import Lens.Micro.GHC
-
 import qualified Traq.Data.Context as Ctx
 import Traq.Data.Default
 

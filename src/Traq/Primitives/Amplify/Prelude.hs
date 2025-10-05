@@ -3,7 +3,6 @@
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE RecordWildCards #-}
 {-# LANGUAGE TypeApplications #-}
-{-# LANGUAGE UndecidableInstances #-}
 
 module Traq.Primitives.Amplify.Prelude (
   -- * Amplify Primitive
@@ -100,14 +99,8 @@ instance P.TypeCheckablePrimitive Amplify where
 and get success probability Psucc := P(b=1) conditioned on μ. Finally, returning the distribution
 based on Psucc.
 -}
-instance
-  ( Fractional precT
-  , Ord precT
-  , Prob.RVType precT precT
-  ) =>
-  P.EvaluatablePrimitive Amplify precT
-  where
-  evalPrimitive Amplify{sampler, p_min, sampler_args} sigma = do
+instance (Ord precT) => P.Evaluatable Amplify precT where
+  eval Amplify{sampler, p_min, sampler_args} sigma = do
     sampler_fundef <-
       view $
         P._funCtx

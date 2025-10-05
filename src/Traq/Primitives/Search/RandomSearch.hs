@@ -4,7 +4,6 @@
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE MultiParamTypeClasses #-}
 {-# LANGUAGE TypeApplications #-}
-{-# LANGUAGE UndecidableInstances #-}
 {-# OPTIONS_GHC -Wno-unrecognised-pragmas #-}
 
 module Traq.Primitives.Search.RandomSearch (
@@ -74,7 +73,7 @@ instance P.CanParsePrimitive RandomSearch where
 instance P.HasFreeVars RandomSearch
 instance P.TypeCheckablePrimitive RandomSearch
 
-instance (Fractional precT, Prob.ProbType precT) => P.EvaluatablePrimitive RandomSearch precT
+instance P.Evaluatable RandomSearch precT
 
 -- ================================================================================
 -- Abstract Costs
@@ -186,7 +185,7 @@ instance
       eval_env <- view P._evaluationEnv
       [is_sol_v] <-
         lift $
-          P.evalExpr @_ @precT pred_call_expr sigma_pred'
+          P.eval @_ @precT pred_call_expr sigma_pred'
             & (runReaderT ?? eval_env)
             & Prob.toDeterministicValue
       return (P.valueToBool is_sol_v, cost_v)

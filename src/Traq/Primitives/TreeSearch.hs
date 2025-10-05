@@ -111,13 +111,8 @@ runTreeSearch child check u = do
       (l, r) <- child u
       (||) <$> check l <*> check r
 
-instance
-  ( Fractional precT
-  , Prob.ProbType precT
-  ) =>
-  P.EvaluatablePrimitive TreeSearch precT
-  where
-  evalPrimitive TreeSearch{getChildren, getChildrenArgs, checkNode, checkNodeArgs} sigma = do
+instance P.Evaluatable TreeSearch precT where
+  eval TreeSearch{getChildren, getChildrenArgs, checkNode, checkNodeArgs} sigma = do
     child_fun <- view $ P._funCtx . Ctx.at getChildren . to (fromMaybe (error "unable to find predicate, please typecheck first!"))
     check_fun <- view $ P._funCtx . Ctx.at checkNode . to (fromMaybe (error "unable to find predicate, please typecheck first!"))
 

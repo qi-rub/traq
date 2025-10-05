@@ -217,7 +217,7 @@ exprP tp@TokenParser{..} =
   loopE :: Parser (Expr primT SymbSize)
   loopE = do
     reserved "loop"
-    initial_args <- parens $ commaSep (VarE <$> identifier)
+    initial_args <- parens $ commaSep identifier
     loop_body_fun <- identifier
     return $ LoopE{initial_args, loop_body_fun}
 
@@ -234,7 +234,7 @@ distrExprP tp@TokenParser{..} = choice $ map try [uniformE, bernoulliE]
   bernoulliE :: Parser (DistrExpr SymbSize)
   bernoulliE = do
     reserved "bernoulli"
-    prob_one <- brackets $ float
+    prob_one <- brackets float
     return BernoulliE{..}
 
 stmtP :: forall primT. (CanParsePrimitive primT) => TokenParser () -> Parser (Stmt primT SymbSize)

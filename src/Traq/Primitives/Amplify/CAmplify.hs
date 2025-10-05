@@ -49,7 +49,7 @@ instance P.CanParsePrimitive CAmplify where
 instance P.HasFreeVars CAmplify
 instance P.TypeCheckablePrimitive CAmplify
 
-instance (Fractional precT, Ord precT, Prob.RVType precT precT) => P.EvaluatablePrimitive CAmplify precT
+instance (Ord precT) => P.Evaluatable CAmplify precT
 
 _QryClassicalU :: forall precT. (Show precT) => Sym.Sym precT -> Double -> Sym.Sym precT
 _QryClassicalU eps p_min = Sym.var $ printf "QryU_Amplify(%s, %s)" (show eps) (show p_min)
@@ -113,7 +113,7 @@ instance
   , Eq precT
   , Ord precT
   , precT' ~ Sym.Sym precT
-  , P.EvaluatablePrimitive CAmplify precT'
+  , P.Evaluatable CAmplify precT'
   , sizeT ~ SizeT
   ) =>
   P.QuantumCostablePrimitive CAmplify sizeT precT'
