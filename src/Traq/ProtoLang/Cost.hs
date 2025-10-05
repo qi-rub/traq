@@ -4,7 +4,6 @@
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE MultiParamTypeClasses #-}
 {-# LANGUAGE TypeApplications #-}
-{-# LANGUAGE UndecidableInstances #-}
 
 module Traq.ProtoLang.Cost (
   -- * Unitary Cost
@@ -202,11 +201,12 @@ type UnitaryCostCalculator primsT sizeT precT = ReaderT (UnitaryCostEnv primsT s
 -- | Primitives that have a unitary cost
 class
   (TypeCheckablePrimitive primT, Show precT) =>
-  UnitaryCostablePrimitive primsT primT sizeT precT
+  UnitaryCostablePrimitive primT sizeT precT
   where
   unitaryQueryCostPrimitive ::
-    forall costT m.
+    forall primsT costT m.
     ( m ~ UnitaryCostCalculator primsT sizeT precT
+    , UnitaryCostablePrimitive primsT sizeT precT
     , C.CostModel costT
     , precT ~ PrecType costT
     , SizeToPrec sizeT precT
@@ -215,26 +215,28 @@ class
     primT ->
     m costT
   default unitaryQueryCostPrimitive ::
-    forall costT m.
+    forall primsT costT m.
     ( m ~ UnitaryCostCalculator primsT sizeT precT
+    , UnitaryCostablePrimitive primsT sizeT precT
     , C.CostModel costT
     , precT ~ PrecType costT
     , SizeToPrec sizeT precT
     , Generic primT
-    , GUnitaryCostablePrimitive primsT (Rep primT) sizeT precT
+    , GUnitaryCostablePrimitive (Rep primT) sizeT precT
     ) =>
     precT ->
     primT ->
     m costT
   unitaryQueryCostPrimitive delta p = gunitaryQueryCostPrimitive delta (from p)
 
-instance (Show precT) => UnitaryCostablePrimitive primsT Void sizeT precT where
+instance (Show precT) => UnitaryCostablePrimitive Void sizeT precT where
   unitaryQueryCostPrimitive _ = absurd
 
-class GUnitaryCostablePrimitive primsT f sizeT precT where
+class GUnitaryCostablePrimitive f sizeT precT where
   gunitaryQueryCostPrimitive ::
-    forall primT costT m.
+    forall primsT primT costT m.
     ( m ~ UnitaryCostCalculator primsT sizeT precT
+    , UnitaryCostablePrimitive primsT sizeT precT
     , C.CostModel costT
     , precT ~ PrecType costT
     , SizeToPrec sizeT precT
@@ -244,18 +246,18 @@ class GUnitaryCostablePrimitive primsT f sizeT precT where
     m costT
 
 instance
-  (GUnitaryCostablePrimitive primsT f1 sizeT precT, GUnitaryCostablePrimitive primsT f2 sizeT precT) =>
-  GUnitaryCostablePrimitive primsT (f1 :+: f2) sizeT precT
+  (GUnitaryCostablePrimitive f1 sizeT precT, GUnitaryCostablePrimitive f2 sizeT precT) =>
+  GUnitaryCostablePrimitive (f1 :+: f2) sizeT precT
   where
   gunitaryQueryCostPrimitive delta (L1 p) = gunitaryQueryCostPrimitive delta p
   gunitaryQueryCostPrimitive delta (R1 p) = gunitaryQueryCostPrimitive delta p
 
-instance (GUnitaryCostablePrimitive primsT f sizeT precT) => GUnitaryCostablePrimitive primsT (M1 i c f) sizeT precT where
+instance (GUnitaryCostablePrimitive f sizeT precT) => GUnitaryCostablePrimitive (M1 i c f) sizeT precT where
   gunitaryQueryCostPrimitive delta (M1 x) = gunitaryQueryCostPrimitive delta x
 
 instance
-  (UnitaryCostablePrimitive primsT f sizeT precT) =>
-  GUnitaryCostablePrimitive primsT (K1 i f) sizeT precT
+  (UnitaryCostablePrimitive f sizeT precT) =>
+  GUnitaryCostablePrimitive (K1 i f) sizeT precT
   where
   gunitaryQueryCostPrimitive delta (K1 x) = unitaryQueryCostPrimitive delta x
 
@@ -268,7 +270,7 @@ unitaryQueryCostE ::
   forall primsT sizeT precT costT m.
   ( Num sizeT
   , Floating precT
-  , UnitaryCostablePrimitive primsT primsT sizeT precT
+  , UnitaryCostablePrimitive primsT sizeT precT
   , m ~ UnitaryCostCalculator primsT sizeT precT
   , C.CostModel costT
   , precT ~ PrecType costT
@@ -291,7 +293,7 @@ unitaryQueryCostS ::
   forall primsT sizeT precT costT m.
   ( Num sizeT
   , Floating precT
-  , UnitaryCostablePrimitive primsT primsT sizeT precT
+  , UnitaryCostablePrimitive primsT sizeT precT
   , m ~ UnitaryCostCalculator primsT sizeT precT
   , C.CostModel costT
   , precT ~ PrecType costT
@@ -317,7 +319,7 @@ unitaryQueryCostF ::
   forall primsT sizeT precT costT m.
   ( Num sizeT
   , Floating precT
-  , UnitaryCostablePrimitive primsT primsT sizeT precT
+  , UnitaryCostablePrimitive primsT sizeT precT
   , m ~ UnitaryCostCalculator primsT sizeT precT
   , C.CostModel costT
   , precT ~ PrecType costT
@@ -339,7 +341,7 @@ unitaryQueryCost ::
   forall primsT sizeT precT costT.
   ( Num sizeT
   , Floating precT
-  , UnitaryCostablePrimitive primsT primsT sizeT precT
+  , UnitaryCostablePrimitive primsT sizeT precT
   , C.CostModel costT
   , precT ~ PrecType costT
   , SizeToPrec sizeT precT
@@ -404,12 +406,13 @@ type QuantumMaxCostCalculator primsT sizeT precT = ReaderT (QuantumMaxCostEnv pr
 
 -- | Primitives that have a quantum max cost
 class
-  (UnitaryCostablePrimitive primsT primT sizeT precT) =>
-  QuantumMaxCostablePrimitive primsT primT sizeT precT
+  (UnitaryCostablePrimitive primT sizeT precT) =>
+  QuantumMaxCostablePrimitive primT sizeT precT
   where
   quantumMaxQueryCostPrimitive ::
-    forall costT m.
+    forall primsT costT m.
     ( m ~ QuantumMaxCostCalculator primsT sizeT precT
+    , QuantumMaxCostablePrimitive primsT sizeT precT
     , C.CostModel costT
     , precT ~ PrecType costT
     , SizeToPrec sizeT precT
@@ -419,27 +422,29 @@ class
     primT ->
     m costT
   default quantumMaxQueryCostPrimitive ::
-    forall costT m.
+    forall primsT costT m.
     ( m ~ QuantumMaxCostCalculator primsT sizeT precT
+    , QuantumMaxCostablePrimitive primsT sizeT precT
     , C.CostModel costT
     , precT ~ PrecType costT
     , SizeToPrec sizeT precT
     , Ord costT
     , Generic primT
-    , GQuantumMaxCostablePrimitive primsT (Rep primT) sizeT precT
+    , GQuantumMaxCostablePrimitive (Rep primT) sizeT precT
     ) =>
     precT ->
     primT ->
     m costT
   quantumMaxQueryCostPrimitive eps p = gquantumMaxQueryCostPrimitive eps (from p)
 
-instance (Show precT) => QuantumMaxCostablePrimitive primsT Void sizeT precT where
+instance (Show precT) => QuantumMaxCostablePrimitive Void sizeT precT where
   quantumMaxQueryCostPrimitive _ = absurd
 
-class GQuantumMaxCostablePrimitive primsT f sizeT precT where
+class GQuantumMaxCostablePrimitive f sizeT precT where
   gquantumMaxQueryCostPrimitive ::
-    forall primT costT m.
+    forall primT primsT costT m.
     ( m ~ QuantumMaxCostCalculator primsT sizeT precT
+    , QuantumMaxCostablePrimitive primsT sizeT precT
     , C.CostModel costT
     , precT ~ PrecType costT
     , SizeToPrec sizeT precT
@@ -450,18 +455,18 @@ class GQuantumMaxCostablePrimitive primsT f sizeT precT where
     m costT
 
 instance
-  (GQuantumMaxCostablePrimitive primsT f1 sizeT precT, GQuantumMaxCostablePrimitive primsT f2 sizeT precT) =>
-  GQuantumMaxCostablePrimitive primsT (f1 :+: f2) sizeT precT
+  (GQuantumMaxCostablePrimitive f1 sizeT precT, GQuantumMaxCostablePrimitive f2 sizeT precT) =>
+  GQuantumMaxCostablePrimitive (f1 :+: f2) sizeT precT
   where
   gquantumMaxQueryCostPrimitive eps (L1 p) = gquantumMaxQueryCostPrimitive eps p
   gquantumMaxQueryCostPrimitive eps (R1 p) = gquantumMaxQueryCostPrimitive eps p
 
-instance (GQuantumMaxCostablePrimitive primsT f sizeT precT) => GQuantumMaxCostablePrimitive primsT (M1 i c f) sizeT precT where
+instance (GQuantumMaxCostablePrimitive f sizeT precT) => GQuantumMaxCostablePrimitive (M1 i c f) sizeT precT where
   gquantumMaxQueryCostPrimitive eps (M1 x) = gquantumMaxQueryCostPrimitive eps x
 
 instance
-  (QuantumMaxCostablePrimitive primsT f sizeT precT) =>
-  GQuantumMaxCostablePrimitive primsT (K1 i f) sizeT precT
+  (QuantumMaxCostablePrimitive f sizeT precT) =>
+  GQuantumMaxCostablePrimitive (K1 i f) sizeT precT
   where
   gquantumMaxQueryCostPrimitive eps (K1 x) = quantumMaxQueryCostPrimitive eps x
 
@@ -474,7 +479,7 @@ quantumMaxQueryCostE ::
   ( Num sizeT
   , Ord precT
   , Floating precT
-  , QuantumMaxCostablePrimitive primsT primsT sizeT precT
+  , QuantumMaxCostablePrimitive primsT sizeT precT
   , m ~ QuantumMaxCostCalculator primsT sizeT precT
   , C.CostModel costT
   , precT ~ PrecType costT
@@ -500,7 +505,7 @@ quantumMaxQueryCostS ::
   ( Num sizeT
   , Ord precT
   , Floating precT
-  , QuantumMaxCostablePrimitive primsT primsT sizeT precT
+  , QuantumMaxCostablePrimitive primsT sizeT precT
   , m ~ QuantumMaxCostCalculator primsT sizeT precT
   , C.CostModel costT
   , precT ~ PrecType costT
@@ -525,7 +530,7 @@ quantumMaxQueryCostF ::
   ( Num sizeT
   , Ord precT
   , Floating precT
-  , QuantumMaxCostablePrimitive primsT primsT sizeT precT
+  , QuantumMaxCostablePrimitive primsT sizeT precT
   , m ~ QuantumMaxCostCalculator primsT sizeT precT
   , C.CostModel costT
   , precT ~ PrecType costT
@@ -548,7 +553,7 @@ quantumMaxQueryCost ::
   ( Num sizeT
   , Ord precT
   , Floating precT
-  , QuantumMaxCostablePrimitive primsT primsT sizeT precT
+  , QuantumMaxCostablePrimitive primsT sizeT precT
   , C.CostModel costT
   , precT ~ PrecType costT
   , SizeToPrec sizeT precT
@@ -620,14 +625,15 @@ type QuantumCostCalculator primsT sizeT precT = ReaderT (QuantumCostEnv primsT s
 
 -- | Primitives that have a input dependent expected quantum cost
 class
-  ( QuantumMaxCostablePrimitive primsT primT sizeT precT
-  , EvaluatablePrimitive primsT primT precT
+  ( QuantumMaxCostablePrimitive primT sizeT precT
+  , EvaluatablePrimitive primT precT
   ) =>
-  QuantumCostablePrimitive primsT primT sizeT precT
+  QuantumCostablePrimitive primT sizeT precT
   where
   quantumQueryCostPrimitive ::
-    forall costT m.
+    forall primsT costT m.
     ( m ~ QuantumCostCalculator primsT SizeT precT
+    , QuantumCostablePrimitive primsT sizeT precT
     , C.CostModel costT
     , precT ~ PrecType costT
     , Prob.RVType precT costT
@@ -640,8 +646,9 @@ class
     ProgramState sizeT ->
     m costT
   default quantumQueryCostPrimitive ::
-    forall costT m.
+    forall primsT costT m.
     ( m ~ QuantumCostCalculator primsT SizeT precT
+    , QuantumCostablePrimitive primsT sizeT precT
     , C.CostModel costT
     , precT ~ PrecType costT
     , Prob.RVType precT costT
@@ -649,7 +656,7 @@ class
     , SizeToPrec SizeT precT
     , Ord costT
     , Generic primT
-    , GQuantumCostablePrimitive primsT (Rep primT) sizeT precT
+    , GQuantumCostablePrimitive (Rep primT) sizeT precT
     ) =>
     precT ->
     primT ->
@@ -657,13 +664,14 @@ class
     m costT
   quantumQueryCostPrimitive eps p = gquantumQueryCostPrimitive eps (from p)
 
-instance (Show precT, Fractional precT) => QuantumCostablePrimitive primsT Void sizeT precT where
+instance (Show precT, Fractional precT) => QuantumCostablePrimitive Void sizeT precT where
   quantumQueryCostPrimitive _ = absurd
 
-class GQuantumCostablePrimitive primsT f sizeT precT where
+class GQuantumCostablePrimitive f sizeT precT where
   gquantumQueryCostPrimitive ::
-    forall costT m primT.
+    forall primsT costT m primT.
     ( m ~ QuantumCostCalculator primsT SizeT precT
+    , QuantumCostablePrimitive primsT sizeT precT
     , C.CostModel costT
     , precT ~ PrecType costT
     , Prob.RVType precT costT
@@ -677,18 +685,18 @@ class GQuantumCostablePrimitive primsT f sizeT precT where
     m costT
 
 instance
-  (GQuantumCostablePrimitive primsT f1 sizeT precT, GQuantumCostablePrimitive primsT f2 sizeT precT) =>
-  GQuantumCostablePrimitive primsT (f1 :+: f2) sizeT precT
+  (GQuantumCostablePrimitive f1 sizeT precT, GQuantumCostablePrimitive f2 sizeT precT) =>
+  GQuantumCostablePrimitive (f1 :+: f2) sizeT precT
   where
   gquantumQueryCostPrimitive eps (L1 p) = gquantumQueryCostPrimitive eps p
   gquantumQueryCostPrimitive eps (R1 p) = gquantumQueryCostPrimitive eps p
 
-instance (GQuantumCostablePrimitive primsT f sizeT precT) => GQuantumCostablePrimitive primsT (M1 i c f) sizeT precT where
+instance (GQuantumCostablePrimitive f sizeT precT) => GQuantumCostablePrimitive (M1 i c f) sizeT precT where
   gquantumQueryCostPrimitive eps (M1 x) = gquantumQueryCostPrimitive eps x
 
 instance
-  (QuantumCostablePrimitive primsT f sizeT precT) =>
-  GQuantumCostablePrimitive primsT (K1 i f) sizeT precT
+  (QuantumCostablePrimitive f sizeT precT) =>
+  GQuantumCostablePrimitive (K1 i f) sizeT precT
   where
   gquantumQueryCostPrimitive eps (K1 x) = quantumQueryCostPrimitive eps x
 
@@ -698,7 +706,7 @@ instance
 quantumQueryCostE ::
   forall primsT precT costT m.
   ( Floating precT
-  , QuantumCostablePrimitive primsT primsT SizeT precT
+  , QuantumCostablePrimitive primsT SizeT precT
   , m ~ QuantumCostCalculator primsT SizeT precT
   , C.CostModel costT
   , precT ~ PrecType costT
@@ -728,7 +736,7 @@ quantumQueryCostE _ _ _ = error "TODO"
 quantumQueryCostS ::
   forall primsT precT costT m.
   ( Floating precT
-  , QuantumCostablePrimitive primsT primsT SizeT precT
+  , QuantumCostablePrimitive primsT SizeT precT
   , m ~ QuantumCostCalculator primsT SizeT precT
   , C.CostModel costT
   , precT ~ PrecType costT
@@ -772,7 +780,7 @@ quantumQueryCostS eps sigma (SeqS ss) = do
 quantumQueryCostF ::
   forall primsT precT costT m.
   ( Floating precT
-  , QuantumCostablePrimitive primsT primsT SizeT precT
+  , QuantumCostablePrimitive primsT SizeT precT
   , m ~ QuantumCostCalculator primsT SizeT precT
   , C.CostModel costT
   , precT ~ PrecType costT
@@ -798,7 +806,7 @@ quantumQueryCostF eps arg_vals fname = do
 quantumQueryCost ::
   forall primsT precT costT.
   ( Floating precT
-  , QuantumCostablePrimitive primsT primsT SizeT precT
+  , QuantumCostablePrimitive primsT SizeT precT
   , C.CostModel costT
   , precT ~ PrecType costT
   , Prob.RVType precT costT

@@ -3,7 +3,6 @@
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE MultiParamTypeClasses #-}
 {-# LANGUAGE TypeApplications #-}
-{-# LANGUAGE UndecidableInstances #-}
 
 module Traq.Primitives.Search.DetSearch (
   DetSearch (..),
@@ -52,9 +51,7 @@ instance P.CanParsePrimitive DetSearch where
 instance P.HasFreeVars DetSearch
 instance P.TypeCheckablePrimitive DetSearch
 
-instance
-  (P.EvaluatablePrimitive primsT primsT precT, Fractional precT, Prob.ProbType precT) =>
-  P.EvaluatablePrimitive primsT DetSearch precT
+instance (Fractional precT, Prob.ProbType precT) => P.EvaluatablePrimitive DetSearch precT
 
 -- ================================================================================
 -- Abstract Costs
@@ -64,9 +61,8 @@ instance
   ( Integral sizeT
   , Floating precT
   , Show precT
-  , P.UnitaryCostablePrimitive primsT primsT sizeT precT
   ) =>
-  P.UnitaryCostablePrimitive primsT DetSearch sizeT precT
+  P.UnitaryCostablePrimitive DetSearch sizeT precT
   where
   unitaryQueryCostPrimitive delta prim = do
     let predicate = getPredicateName prim
@@ -88,9 +84,9 @@ instance
   ( Integral sizeT
   , Floating precT
   , Ord precT
-  , P.QuantumMaxCostablePrimitive primsT primsT sizeT precT
+  , Show precT
   ) =>
-  P.QuantumMaxCostablePrimitive primsT DetSearch sizeT precT
+  P.QuantumMaxCostablePrimitive DetSearch sizeT precT
   where
   quantumMaxQueryCostPrimitive eps prim = do
     let predicate = getPredicateName prim
@@ -113,10 +109,10 @@ instance
   , Floating precT
   , Ord precT
   , Prob.ProbType precT
-  , P.QuantumCostablePrimitive primsT primsT sizeT precT
   , sizeT ~ SizeT
+  , Show precT
   ) =>
-  P.QuantumCostablePrimitive primsT DetSearch sizeT precT
+  P.QuantumCostablePrimitive DetSearch sizeT precT
   where
   quantumQueryCostPrimitive eps prim sigma = do
     let predicate = getPredicateName prim
@@ -146,7 +142,7 @@ instance
       -- evaluate predicate on `v` to check if it is a solution
       eval_env <- view P._evaluationEnv
       [is_sol_v] <-
-        P.evalExpr @primsT @precT pred_call_expr sigma_pred'
+        P.evalExpr @_ @precT pred_call_expr sigma_pred'
           & (runReaderT ?? eval_env)
           & Prob.toDeterministicValue
           & lift

@@ -117,7 +117,7 @@ getSearchOutputs rets = map element rets
 -- | Run the predicate on each input, and return the input along with the result.
 runSearchPredicateOnAllInputs ::
   forall primsT precT.
-  ( P.EvaluatablePrimitive primsT primsT precT
+  ( P.EvaluatablePrimitive primsT precT
   , Fractional precT
   , Prob.ProbType precT
   ) =>
@@ -136,7 +136,7 @@ runSearchPredicateOnAllInputs predicate arg_vals = do
     return SearchResult{element = s_vals, isSolution = P.valueToBool $ head rets}
 
 evaluatePrimCount ::
-  ( P.EvaluatablePrimitive primsT primsT precT
+  ( P.EvaluatablePrimitive primsT precT
   , Fractional precT
   , Prob.ProbType precT
   ) =>
@@ -191,9 +191,8 @@ instance P.TypeCheckablePrimitive PrimAny where
 instance
   ( Fractional precT
   , Prob.ProbType precT
-  , P.EvaluatablePrimitive primsT primsT precT
   ) =>
-  P.EvaluatablePrimitive primsT PrimAny precT
+  P.EvaluatablePrimitive PrimAny precT
   where
   evalPrimitive PrimAny{predicate, pred_args} sigma = do
     arg_vals <- runReaderT ?? sigma $
@@ -245,9 +244,8 @@ instance P.TypeCheckablePrimitive PrimSearch where
 instance
   ( Fractional precT
   , Prob.ProbType precT
-  , P.EvaluatablePrimitive primsT primsT precT
   ) =>
-  P.EvaluatablePrimitive primsT PrimSearch precT
+  P.EvaluatablePrimitive PrimSearch precT
   where
   evalPrimitive PrimSearch{predicate, pred_args} sigma = do
     arg_vals <- runReaderT ?? sigma $ forM pred_args $ \x -> do

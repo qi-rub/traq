@@ -58,45 +58,53 @@ type CompilerT primT sizeT precT =
 
 -- | Primitives that support a classical-quantum lowering.
 class
-  (CompileU.Lowerable primsT primT sizeT precT) =>
-  Lowerable primsT primT sizeT precT
+  (CompileU.Lowerable primT sizeT precT) =>
+  Lowerable primT sizeT precT
   where
   lowerPrimitive ::
+    forall primsT m.
+    ( Lowerable primsT sizeT precT
+    , m ~ CompilerT primsT sizeT precT
+    ) =>
     -- | fail prob
     precT ->
     primT ->
     -- | rets
     [Ident] ->
-    CompilerT primsT sizeT precT (Stmt sizeT)
+    m (Stmt sizeT)
 
-instance (Show precT) => Lowerable primsT Void sizeT precT where
+instance (Show precT) => Lowerable Void sizeT precT where
   lowerPrimitive _ = absurd
 
 -- | Generic
-class GLowerable primsT f sizeT precT where
+class GLowerable f sizeT precT where
   glowerPrimitive ::
+    forall primsT primT m.
+    ( Lowerable primsT sizeT precT
+    , m ~ CompilerT primsT sizeT precT
+    ) =>
     f primT ->
     precT ->
     -- | rets
     [Ident] ->
-    CompilerT primsT sizeT precT (Stmt sizeT)
+    m (Stmt sizeT)
 
 instance
-  (GLowerable primsT f1 sizeT precT, GLowerable primsT f2 sizeT precT) =>
-  GLowerable primsT (f1 :+: f2) sizeT precT
+  (GLowerable f1 sizeT precT, GLowerable f2 sizeT precT) =>
+  GLowerable (f1 :+: f2) sizeT precT
   where
   glowerPrimitive (L1 p) = glowerPrimitive p
   glowerPrimitive (R1 p) = glowerPrimitive p
 
 instance
-  (GLowerable primsT f sizeT precT) =>
-  GLowerable primsT (M1 i c f) sizeT precT
+  (GLowerable f sizeT precT) =>
+  GLowerable (M1 i c f) sizeT precT
   where
   glowerPrimitive (M1 x) = glowerPrimitive x
 
 instance
-  (Lowerable primsT f sizeT precT) =>
-  GLowerable primsT (K1 i f) sizeT precT
+  (Lowerable f sizeT precT) =>
+  GLowerable (K1 i f) sizeT precT
   where
   glowerPrimitive (K1 x) delta = lowerPrimitive delta x
 
@@ -107,7 +115,7 @@ instance
 -- | Lower a source function to a procedure call.
 lowerFunDef ::
   forall primsT sizeT precT.
-  ( Lowerable primsT primsT sizeT precT
+  ( Lowerable primsT sizeT precT
   , P.TypeCheckable sizeT
   , Show precT
   , Floating precT
@@ -162,7 +170,7 @@ lowerFunDef eps fun_name P.FunDef{P.param_types, P.mbody = Just body} = do
 -- | Lookup a source function by name, and lower it to a procedure call.
 lowerFunDefByName ::
   forall primsT sizeT precT.
-  ( Lowerable primsT primsT sizeT precT
+  ( Lowerable primsT sizeT precT
   , P.TypeCheckable sizeT
   , Show precT
   , Floating precT
@@ -179,7 +187,7 @@ lowerFunDefByName eps f = do
 -- | Lower a source expression to a statement.
 lowerExpr ::
   forall primsT sizeT precT.
-  ( Lowerable primsT primsT sizeT precT
+  ( Lowerable primsT sizeT precT
   , P.TypeCheckable sizeT
   , Show precT
   , Floating precT
@@ -211,7 +219,7 @@ lowerExpr eps P.PrimCallE{P.prim} rets =
 -- | Lower a single statement
 lowerStmt ::
   forall primsT sizeT precT.
-  ( Lowerable primsT primsT sizeT precT
+  ( Lowerable primsT sizeT precT
   , P.TypeCheckable sizeT
   , Show precT
   , Floating precT
@@ -235,7 +243,7 @@ lowerStmt _ _ = throwError "lowering: unsupported"
 -- | Lower a full program into a CQPL program.
 lowerProgram ::
   forall primsT sizeT precT.
-  ( Lowerable primsT primsT sizeT precT
+  ( Lowerable primsT sizeT precT
   , P.TypeCheckable sizeT
   , Show precT
   , Floating precT

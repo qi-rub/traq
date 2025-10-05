@@ -74,54 +74,65 @@ type CompilerT primT sizeT precT =
 
 -- | Primitives that support a unitary lowering.
 class
-  (P.UnitaryCostablePrimitive primsT primT sizeT precT) =>
-  Lowerable primsT primT sizeT precT
+  (P.UnitaryCostablePrimitive primT sizeT precT) =>
+  Lowerable primT sizeT precT
   where
   lowerPrimitive ::
-    precT ->
-    primT ->
-    -- | rets
-    [Ident] ->
-    CompilerT primsT sizeT precT (UStmt sizeT)
-  default lowerPrimitive ::
-    ( Generic primT
-    , GLowerable primsT (Rep primT) sizeT precT
+    forall primsT m.
+    ( Lowerable primsT sizeT precT
+    , m ~ CompilerT primsT sizeT precT
     ) =>
     precT ->
     primT ->
     -- | rets
     [Ident] ->
-    CompilerT primsT sizeT precT (UStmt sizeT)
+    m (UStmt sizeT)
+  default lowerPrimitive ::
+    forall primsT m.
+    ( Lowerable primsT sizeT precT
+    , m ~ CompilerT primsT sizeT precT
+    , Generic primT
+    , GLowerable (Rep primT) sizeT precT
+    ) =>
+    precT ->
+    primT ->
+    -- | rets
+    [Ident] ->
+    m (UStmt sizeT)
   lowerPrimitive delta p = glowerPrimitive (from p) delta
 
-instance (Show precT) => Lowerable primsT Void sizeT precT where
+instance (Show precT) => Lowerable Void sizeT precT where
   lowerPrimitive _ = absurd
 
 -- | Generic
-class GLowerable primsT f sizeT precT where
+class GLowerable f sizeT precT where
   glowerPrimitive ::
+    forall primT primsT m.
+    ( Lowerable primsT sizeT precT
+    , m ~ CompilerT primsT sizeT precT
+    ) =>
     f primT ->
     precT ->
     -- | rets
     [Ident] ->
-    CompilerT primsT sizeT precT (UStmt sizeT)
+    m (UStmt sizeT)
 
 instance
-  (GLowerable primsT f1 sizeT precT, GLowerable primsT f2 sizeT precT) =>
-  GLowerable primsT (f1 :+: f2) sizeT precT
+  (GLowerable f1 sizeT precT, GLowerable f2 sizeT precT) =>
+  GLowerable (f1 :+: f2) sizeT precT
   where
   glowerPrimitive (L1 p) = glowerPrimitive p
   glowerPrimitive (R1 p) = glowerPrimitive p
 
 instance
-  (GLowerable primsT f sizeT precT) =>
-  GLowerable primsT (M1 i c f) sizeT precT
+  (GLowerable f sizeT precT) =>
+  GLowerable (M1 i c f) sizeT precT
   where
   glowerPrimitive (M1 x) = glowerPrimitive x
 
 instance
-  (Lowerable primsT f sizeT precT) =>
-  GLowerable primsT (K1 i f) sizeT precT
+  (Lowerable f sizeT precT) =>
+  GLowerable (K1 i f) sizeT precT
   where
   glowerPrimitive (K1 x) delta = lowerPrimitive delta x
 
@@ -163,7 +174,7 @@ data ControlFlag = WithControl | WithoutControl deriving (Eq, Show, Read, Enum)
 -- | Compile a single expression statement
 lowerExpr ::
   forall primsT sizeT precT.
-  ( Lowerable primsT primsT sizeT precT
+  ( Lowerable primsT sizeT precT
   , P.TypeCheckable sizeT
   , Show precT
   , Floating precT
@@ -208,7 +219,7 @@ lowerExpr delta P.PrimCallE{prim} rets =
 -- | Compile a statement (simple or compound)
 lowerStmt ::
   forall primsT sizeT precT.
-  ( Lowerable primsT primsT sizeT precT
+  ( Lowerable primsT sizeT precT
   , P.TypeCheckable sizeT
   , Show precT
   , Floating precT
@@ -238,7 +249,7 @@ lowerStmt _ _ = error "lowering: unsupported"
 -}
 lowerFunDefWithGarbage ::
   forall primsT sizeT precT m.
-  ( Lowerable primsT primsT sizeT precT
+  ( Lowerable primsT sizeT precT
   , P.TypeCheckable sizeT
   , Show precT
   , Floating precT
@@ -333,7 +344,7 @@ withTag tag = map $ \(x, ty) -> (x, tag, ty)
 -}
 lowerFunDef ::
   forall primsT sizeT precT m.
-  ( Lowerable primsT primsT sizeT precT
+  ( Lowerable primsT sizeT precT
   , P.TypeCheckable sizeT
   , Show precT
   , Floating precT
@@ -427,7 +438,7 @@ lowerFunDef
 -- | Lower a full program into a unitary CQPL program.
 lowerProgram ::
   forall primsT precT.
-  ( Lowerable primsT primsT SizeT precT
+  ( Lowerable primsT SizeT precT
   , Show precT
   , Floating precT
   , P.HasFreeVars primsT

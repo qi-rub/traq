@@ -210,21 +210,35 @@ type TypeChecker primT sizeT = ReaderT (TypingEnv primT sizeT) (StateT (TypingCt
 -- Primitives
 -- --------------------------------------------------------------------------------
 class TypeCheckablePrimitive primT where
-  typeCheckPrimitive :: (TypeCheckable sizeT) => primT -> TypeChecker primsT sizeT [VarType sizeT]
+  typeCheckPrimitive ::
+    forall primsT sizeT m.
+    ( TypeCheckable sizeT
+    , m ~ TypeChecker primsT sizeT
+    ) =>
+    primT ->
+    m [VarType sizeT]
   default typeCheckPrimitive ::
+    forall primsT sizeT m.
     ( Generic primT
     , GTypeCheckablePrimitive (Rep primT)
     , TypeCheckable sizeT
+    , m ~ TypeChecker primsT sizeT
     ) =>
     primT ->
-    TypeChecker primsT sizeT [VarType sizeT]
+    m [VarType sizeT]
   typeCheckPrimitive p = gtypeCheckPrimitive (from p)
 
 instance TypeCheckablePrimitive Void where
   typeCheckPrimitive = absurd
 
 class GTypeCheckablePrimitive f where
-  gtypeCheckPrimitive :: (TypeCheckable sizeT) => f primT -> TypeChecker primsT sizeT [VarType sizeT]
+  gtypeCheckPrimitive ::
+    forall primsT sizeT m primT.
+    ( TypeCheckable sizeT
+    , m ~ TypeChecker primsT sizeT
+    ) =>
+    f primT ->
+    m [VarType sizeT]
 
 instance (GTypeCheckablePrimitive p1, GTypeCheckablePrimitive p2) => GTypeCheckablePrimitive (p1 :+: p2) where
   gtypeCheckPrimitive (L1 p) = gtypeCheckPrimitive p

@@ -1,7 +1,6 @@
 {-# LANGUAGE DuplicateRecordFields #-}
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE MultiParamTypeClasses #-}
-{-# LANGUAGE UndecidableInstances #-}
 
 {- |
 Quantum Max Finding.
@@ -94,10 +93,7 @@ instance P.TypeCheckablePrimitive QMax where
 {- | Evaluate an `any` call by evaluating the predicate on each element of the search space
  and or-ing the results.
 -}
-instance
-  (Fractional precT, Prob.ProbType precT, P.EvaluatablePrimitive primsT primsT precT) =>
-  P.EvaluatablePrimitive primsT QMax precT
-  where
+instance (Fractional precT, Prob.ProbType precT) => P.EvaluatablePrimitive QMax precT where
   evalPrimitive QMax{predicate, pred_args} sigma = do
     pred_fun <- view $ P._funCtx . Ctx.at predicate . to (fromMaybe (error "unable to find predicate, please typecheck first!"))
     let search_range = pred_fun ^. to P.param_types . to last . to P.domain
@@ -122,9 +118,8 @@ instance
   ( Integral sizeT
   , Floating precT
   , Show precT
-  , P.UnitaryCostablePrimitive primsT primsT sizeT precT
   ) =>
-  P.UnitaryCostablePrimitive primsT QMax sizeT precT
+  P.UnitaryCostablePrimitive QMax sizeT precT
   where
   unitaryQueryCostPrimitive delta QMax{predicate} = do
     P.FunDef{P.param_types} <- view $ P._funCtx . Ctx.at predicate . singular _Just
@@ -150,9 +145,9 @@ instance
 instance
   ( Integral sizeT
   , Floating precT
-  , P.QuantumMaxCostablePrimitive primsT primsT sizeT precT
+  , Show precT
   ) =>
-  P.QuantumMaxCostablePrimitive primsT QMax sizeT precT
+  P.QuantumMaxCostablePrimitive QMax sizeT precT
   where
   quantumMaxQueryCostPrimitive eps QMax{predicate} = do
     P.FunDef{P.param_types} <- view $ P._funCtx . Ctx.at predicate . singular _Just
@@ -180,12 +175,12 @@ instance
 instance
   ( Integral sizeT
   , Floating precT
-  , P.EvaluatablePrimitive primsT QMax precT
-  , P.QuantumCostablePrimitive primsT primsT sizeT precT
+  , P.EvaluatablePrimitive QMax precT
   , sizeT ~ SizeT
   , P.SizeToPrec SizeT precT
+  , Show precT
   ) =>
-  P.QuantumCostablePrimitive primsT QMax sizeT precT
+  P.QuantumCostablePrimitive QMax sizeT precT
   where
   quantumQueryCostPrimitive eps QMax{predicate} _ = do
     P.FunDef{P.param_types} <- view $ P._funCtx . Ctx.at predicate . singular _Just

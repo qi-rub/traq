@@ -2,7 +2,6 @@
 {-# LANGUAGE DuplicateRecordFields #-}
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE MultiParamTypeClasses #-}
-{-# LANGUAGE UndecidableInstances #-}
 
 module Traq.Primitives.Search.Symbolic (
   -- * Search Primitive supporting symbolic cost
@@ -90,9 +89,8 @@ instance
   , Show precT
   , Eq precT
   , Floating precT
-  , P.UnitaryCostablePrimitive primsT primsT (Sym.Sym sizeT) (Sym.Sym precT)
   ) =>
-  P.UnitaryCostablePrimitive primsT QSearchSym (Sym.Sym sizeT) (Sym.Sym precT)
+  P.UnitaryCostablePrimitive QSearchSym (Sym.Sym sizeT) (Sym.Sym precT)
   where
   unitaryQueryCostPrimitive delta prim = do
     Just fun_def@P.FunDef{P.param_types} <- view $ P._funCtx . Ctx.at (getPred prim)
@@ -129,9 +127,8 @@ instance
   , Show precT
   , Eq precT
   , Floating precT
-  , P.QuantumMaxCostablePrimitive primsT primsT (Sym.Sym sizeT) (Sym.Sym precT)
   ) =>
-  P.QuantumMaxCostablePrimitive primsT QSearchSym (Sym.Sym sizeT) (Sym.Sym precT)
+  P.QuantumMaxCostablePrimitive QSearchSym (Sym.Sym sizeT) (Sym.Sym precT)
   where
   quantumMaxQueryCostPrimitive eps prim = do
     Just fun_def@P.FunDef{P.param_types} <- view $ P._funCtx . Ctx.at (getPred prim)

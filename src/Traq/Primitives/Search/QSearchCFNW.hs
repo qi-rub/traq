@@ -160,9 +160,7 @@ instance P.TypeCheckablePrimitive QSearchCFNW
 {- | Evaluate an `any` call by evaluating the predicate on each element of the search space
  and or-ing the results.
 -}
-instance
-  (Fractional precT, Prob.ProbType precT, P.EvaluatablePrimitive primsT primsT precT) =>
-  P.EvaluatablePrimitive primsT QSearchCFNW precT
+instance (Fractional precT, Prob.ProbType precT) => P.EvaluatablePrimitive QSearchCFNW precT
 
 -- ================================================================================
 -- Abstract Costs
@@ -173,9 +171,8 @@ instance
   ( Integral sizeT
   , Floating precT
   , Show precT
-  , P.UnitaryCostablePrimitive primsT primsT sizeT precT
   ) =>
-  P.UnitaryCostablePrimitive primsT QSearchCFNW sizeT precT
+  P.UnitaryCostablePrimitive QSearchCFNW sizeT precT
   where
   unitaryQueryCostPrimitive delta prim = do
     let predicate = getPredicateName prim
@@ -203,9 +200,9 @@ instance
 instance
   ( Integral sizeT
   , Floating precT
-  , P.QuantumMaxCostablePrimitive primsT primsT sizeT precT
+  , Show precT
   ) =>
-  P.QuantumMaxCostablePrimitive primsT QSearchCFNW sizeT precT
+  P.QuantumMaxCostablePrimitive QSearchCFNW sizeT precT
   where
   quantumMaxQueryCostPrimitive eps prim = do
     let predicate = getPredicateName prim
@@ -236,11 +233,10 @@ instance
   ( Integral sizeT
   , Floating precT
   , Show precT
-  , P.EvaluatablePrimitive primsT QSearchCFNW precT
-  , P.QuantumCostablePrimitive primsT primsT sizeT precT
+  , P.EvaluatablePrimitive QSearchCFNW precT
   , sizeT ~ SizeT
   ) =>
-  P.QuantumCostablePrimitive primsT QSearchCFNW sizeT precT
+  P.QuantumCostablePrimitive QSearchCFNW sizeT precT
   where
   quantumQueryCostPrimitive eps prim sigma = do
     let predicate = getPredicateName prim
@@ -257,7 +253,7 @@ instance
     -- number of solutions
     search_results <- do
       env <- view P._evaluationEnv
-      runSearchPredicateOnAllInputs @primsT @precT predicate pred_arg_vals
+      runSearchPredicateOnAllInputs @_ @precT predicate pred_arg_vals
         & (runReaderT ?? env)
         & Prob.toDeterministicValue
         & lift
@@ -420,12 +416,11 @@ shouldUncomputeQSearch = False
 instance
   ( Integral sizeT
   , RealFloat precT
-  , CompileU.Lowerable primsT primsT sizeT precT
   , Show sizeT
   , Show precT
   , P.TypeCheckable sizeT
   ) =>
-  CompileU.Lowerable primsT QSearchCFNW sizeT precT
+  CompileU.Lowerable QSearchCFNW sizeT precT
   where
   lowerPrimitive delta (QAnyCFNW PrimAny{predicate, pred_args = args}) [ret] = do
     -- the predicate
@@ -631,7 +626,7 @@ algoQSearch ::
   ( Integral sizeT
   , RealFloat precT
   , sizeT ~ SizeT
-  , CompileQ.Lowerable primsT primsT sizeT precT
+  , CompileQ.Lowerable primsT sizeT precT
   , Show sizeT
   , Show precT
   , P.TypeCheckable sizeT
@@ -739,13 +734,11 @@ instance
   ( Integral sizeT
   , RealFloat precT
   , sizeT ~ SizeT
-  , CompileQ.Lowerable primsT primsT sizeT precT
-  , CompileU.Lowerable primsT primsT sizeT precT
   , Show sizeT
   , Show precT
   , P.TypeCheckable sizeT
   ) =>
-  CompileQ.Lowerable primsT QSearchCFNW sizeT precT
+  CompileQ.Lowerable QSearchCFNW sizeT precT
   where
   lowerPrimitive eps (QAnyCFNW PrimAny{predicate, pred_args = args}) [ret] = do
     -- the predicate

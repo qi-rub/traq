@@ -3,7 +3,6 @@
 {-# LANGUAGE DeriveGeneric #-}
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE MultiParamTypeClasses #-}
-{-# LANGUAGE UndecidableInstances #-}
 
 module Traq.ProtoLang.Eval (
   -- * Evaluating Basic Expressions
@@ -150,7 +149,7 @@ evalOp MultiOrOp = toValue . any valueToBool
 -- | @elemOfArr i a@ returns a[i]
 elemOfArr :: (sizeT ~ SizeT) => Value sizeT -> Value sizeT -> Value sizeT
 elemOfArr (FinV i) (ArrV xs) = xs !! i
-elemOfArr ix arr = error $ printf "invalid inputs: elemOfArr[ix: %s, arr: %s]" (show ix) (show arr)
+elemOfArr i arr = error $ printf "invalid inputs: elemOfArr[ix: %s, arr: %s]" (show i) (show arr)
 
 -- | @modifyArr a i v@ sets a[i] to v.
 modifyArr :: (sizeT ~ SizeT) => Value sizeT -> Value sizeT -> Value sizeT -> Value sizeT
@@ -265,51 +264,56 @@ type Executor primsT sizeT precT = StateT (ExecutionState sizeT) (Evaluator prim
 {- | Primitives that support evaluation:
  Can evaluate @primT@ under a context of @primsT@.
 -}
-class (Fractional precT) => EvaluatablePrimitive primsT primT precT where
+class (Fractional precT) => EvaluatablePrimitive primT precT where
   evalPrimitive ::
     ( sizeT ~ SizeT
     , m ~ Evaluator primsT sizeT precT
+    , EvaluatablePrimitive primsT precT
     ) =>
     primT ->
     ProgramState sizeT ->
     m [Value sizeT]
   default evalPrimitive ::
     ( Generic primT
-    , GEvaluatablePrimitive primsT (Rep primT) precT
+    , GEvaluatablePrimitive (Rep primT) precT
     , sizeT ~ SizeT
     , m ~ Evaluator primsT sizeT precT
+    , EvaluatablePrimitive primsT precT
     ) =>
     primT ->
     ProgramState sizeT ->
     m [Value sizeT]
   evalPrimitive x = gevalPrimitive (from x)
 
-instance (Fractional precT) => EvaluatablePrimitive primsT Void precT where
+instance (Fractional precT) => EvaluatablePrimitive Void precT where
   evalPrimitive = absurd
 
-class GEvaluatablePrimitive primsT f precT where
+class GEvaluatablePrimitive f precT where
   gevalPrimitive ::
-    (sizeT ~ SizeT) =>
+    ( sizeT ~ SizeT
+    , m ~ Evaluator primsT sizeT precT
+    , EvaluatablePrimitive primsT precT
+    ) =>
     f primT ->
     ProgramState sizeT ->
-    Evaluator primsT sizeT precT [Value sizeT]
+    m [Value sizeT]
 
 instance
-  (GEvaluatablePrimitive primsT f1 precT, GEvaluatablePrimitive primsT f2 precT) =>
-  GEvaluatablePrimitive primsT (f1 :+: f2) precT
+  (GEvaluatablePrimitive f1 precT, GEvaluatablePrimitive f2 precT) =>
+  GEvaluatablePrimitive (f1 :+: f2) precT
   where
   gevalPrimitive (L1 p) = gevalPrimitive p
   gevalPrimitive (R1 p) = gevalPrimitive p
 
 instance
-  (GEvaluatablePrimitive primsT f precT) =>
-  GEvaluatablePrimitive primsT (M1 i c f) precT
+  (GEvaluatablePrimitive f precT) =>
+  GEvaluatablePrimitive (M1 i c f) precT
   where
   gevalPrimitive (M1 x) = gevalPrimitive x
 
 instance
-  (EvaluatablePrimitive primsT f precT) =>
-  GEvaluatablePrimitive primsT (K1 i f) precT
+  (EvaluatablePrimitive f precT) =>
+  GEvaluatablePrimitive (K1 i f) precT
   where
   gevalPrimitive (K1 x) = evalPrimitive x
 
@@ -352,7 +356,7 @@ evalRandomSampleExpr BernoulliE{prob_one} = toValue <$> Prob.bernoulli (realToFr
 
 evalExpr ::
   forall primsT precT m.
-  ( EvaluatablePrimitive primsT primsT precT
+  ( EvaluatablePrimitive primsT precT
   , m ~ Evaluator primsT SizeT precT
   , Prob.ProbType precT
   ) =>
@@ -386,7 +390,7 @@ evalExpr LoopE{initial_args, loop_body_fun} sigma = do
 
 execStmt ::
   forall primsT precT m.
-  ( EvaluatablePrimitive primsT primsT precT
+  ( EvaluatablePrimitive primsT precT
   , m ~ Executor primsT SizeT precT
   , Prob.ProbType precT
   ) =>
@@ -404,7 +408,7 @@ execStmt (SeqS ss) = mapM_ execStmt ss
 
 evalFun ::
   forall primsT precT m.
-  ( EvaluatablePrimitive primsT primsT precT
+  ( EvaluatablePrimitive primsT precT
   , m ~ Evaluator primsT SizeT precT
   , Prob.ProbType precT
   ) =>
@@ -425,7 +429,7 @@ evalFun vals_in NamedFunDef{fun_name, fun_def = FunDef{mbody = Nothing}} = do
 
 runProgram ::
   forall primsT precT.
-  ( EvaluatablePrimitive primsT primsT precT
+  ( EvaluatablePrimitive primsT precT
   , Prob.ProbType precT
   ) =>
   Program primsT SizeT ->

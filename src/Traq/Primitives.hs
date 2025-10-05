@@ -4,7 +4,6 @@
 {-# LANGUAGE DuplicateRecordFields #-}
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE MultiParamTypeClasses #-}
-{-# LANGUAGE UndecidableInstances #-}
 
 module Traq.Primitives (
   DefaultPrims (..),
@@ -68,46 +67,42 @@ instance P.CanParsePrimitive DefaultPrims where
     dany = DAny . DetSearch <$> parsePrimAnyWithName "any_det" tp
 
 -- Evaluation
-instance
-  (Fractional precT, Prob.ProbType precT, P.EvaluatablePrimitive primsT primsT precT) =>
-  P.EvaluatablePrimitive primsT DefaultPrims precT
+instance (Fractional precT, Prob.ProbType precT) => P.EvaluatablePrimitive DefaultPrims precT
 
 -- Costs
 instance
   ( Integral sizeT
   , Floating precT
   , Show precT
-  , P.UnitaryCostablePrimitive primsT primsT sizeT precT
   ) =>
-  P.UnitaryCostablePrimitive primsT DefaultPrims sizeT precT
+  P.UnitaryCostablePrimitive DefaultPrims sizeT precT
 
 instance
   ( Integral sizeT
   , Floating precT
   , Ord precT
-  , P.QuantumMaxCostablePrimitive primsT primsT sizeT precT
+  , Show precT
   ) =>
-  P.QuantumMaxCostablePrimitive primsT DefaultPrims sizeT precT
+  P.QuantumMaxCostablePrimitive DefaultPrims sizeT precT
 
 instance
   ( Floating precT
   , Ord precT
   , Prob.ProbType precT
   , sizeT ~ SizeT
-  , P.QuantumCostablePrimitive primsT primsT sizeT precT
+  , Show precT
   ) =>
-  P.QuantumCostablePrimitive primsT DefaultPrims sizeT precT
+  P.QuantumCostablePrimitive DefaultPrims sizeT precT
 
 -- Lowering
 instance
   ( Integral sizeT
   , Floating precT
-  , CompileU.Lowerable primsT primsT sizeT precT
-  , CompileU.Lowerable primsT QSearchCFNW sizeT precT
+  , RealFloat precT
   , P.TypeCheckable sizeT
   , Show precT
   ) =>
-  CompileU.Lowerable primsT DefaultPrims sizeT precT
+  CompileU.Lowerable DefaultPrims sizeT precT
   where
   lowerPrimitive delta (QAny q) = CompileU.lowerPrimitive delta q
   lowerPrimitive _ _ = error "TODO: lowerPrimitive"
@@ -115,12 +110,12 @@ instance
 instance
   ( Integral sizeT
   , Floating precT
-  , CompileQ.Lowerable primsT primsT sizeT precT
-  , CompileQ.Lowerable primsT QSearchCFNW sizeT precT
+  , RealFloat precT
   , P.TypeCheckable sizeT
   , Show precT
+  , sizeT ~ SizeT
   ) =>
-  CompileQ.Lowerable primsT DefaultPrims sizeT precT
+  CompileQ.Lowerable DefaultPrims sizeT precT
   where
   lowerPrimitive eps (QAny q) = CompileQ.lowerPrimitive eps q
   lowerPrimitive _ _ = error "TODO: lowerPrimitive"

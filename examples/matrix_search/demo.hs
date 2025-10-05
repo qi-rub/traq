@@ -4,7 +4,6 @@
 
 module Main where
 
-import qualified Data.Map as Map
 import Text.Parsec.String (parseFromFile)
 import qualified Traq.Data.Context as Ctx
 import qualified Traq.Data.Symbolic as Sym
@@ -26,7 +25,7 @@ matrixToFun _ _ = error "invalid indices"
 expectedCost ::
   forall primT.
   ( P.CanParsePrimitive primT
-  , P.QuantumCostablePrimitive primT primT SizeT Double
+  , P.QuantumCostablePrimitive primT SizeT Double
   ) =>
   Int ->
   Int ->

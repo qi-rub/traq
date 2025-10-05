@@ -1,6 +1,5 @@
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE MultiParamTypeClasses #-}
-{-# LANGUAGE UndecidableInstances #-}
 
 module Traq.Primitives.TreeSearch (
   TreeSearch (..),
@@ -115,9 +114,8 @@ runTreeSearch child check u = do
 instance
   ( Fractional precT
   , Prob.ProbType precT
-  , P.EvaluatablePrimitive primsT primsT precT
   ) =>
-  P.EvaluatablePrimitive primsT TreeSearch precT
+  P.EvaluatablePrimitive TreeSearch precT
   where
   evalPrimitive TreeSearch{getChildren, getChildrenArgs, checkNode, checkNodeArgs} sigma = do
     child_fun <- view $ P._funCtx . Ctx.at getChildren . to (fromMaybe (error "unable to find predicate, please typecheck first!"))

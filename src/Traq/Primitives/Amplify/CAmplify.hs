@@ -49,9 +49,7 @@ instance P.CanParsePrimitive CAmplify where
 instance P.HasFreeVars CAmplify
 instance P.TypeCheckablePrimitive CAmplify
 
-instance
-  (Fractional precT, Ord precT, Prob.RVType precT precT, P.EvaluatablePrimitive primsT primsT precT) =>
-  P.EvaluatablePrimitive primsT CAmplify precT
+instance (Fractional precT, Ord precT, Prob.RVType precT precT) => P.EvaluatablePrimitive CAmplify precT
 
 _QryClassicalU :: forall precT. (Show precT) => Sym.Sym precT -> Double -> Sym.Sym precT
 _QryClassicalU eps p_min = Sym.var $ printf "QryU_Amplify(%s, %s)" (show eps) (show p_min)
@@ -72,9 +70,8 @@ instance
   , Eq precT
   , Ord precT
   , precT' ~ Sym.Sym precT
-  , P.UnitaryCostablePrimitive primsT primsT sizeT precT'
   ) =>
-  P.UnitaryCostablePrimitive primsT CAmplify sizeT precT'
+  P.UnitaryCostablePrimitive CAmplify sizeT precT'
   where
   unitaryQueryCostPrimitive delta (CAmplify (Amplify{sampler, p_min})) = do
     let delta_a = delta / 2
@@ -94,9 +91,8 @@ instance
   , Eq precT
   , Ord precT
   , precT' ~ Sym.Sym precT
-  , P.QuantumMaxCostablePrimitive primsT primsT sizeT precT'
   ) =>
-  P.QuantumMaxCostablePrimitive primsT CAmplify sizeT precT'
+  P.QuantumMaxCostablePrimitive CAmplify sizeT precT'
   where
   quantumMaxQueryCostPrimitive eps (CAmplify (Amplify{sampler, p_min})) = do
     let eps_a = eps / 2
@@ -117,11 +113,10 @@ instance
   , Eq precT
   , Ord precT
   , precT' ~ Sym.Sym precT
-  , P.EvaluatablePrimitive primsT CAmplify precT'
-  , P.QuantumCostablePrimitive primsT primsT sizeT precT'
+  , P.EvaluatablePrimitive CAmplify precT'
   , sizeT ~ SizeT
   ) =>
-  P.QuantumCostablePrimitive primsT CAmplify sizeT precT'
+  P.QuantumCostablePrimitive CAmplify sizeT precT'
   where
   quantumQueryCostPrimitive eps (CAmplify (Amplify{sampler, p_min, sampler_args})) sigma = do
     -- get the function identifier
@@ -140,7 +135,7 @@ instance
 
     -- calculate result distribution μ
     let mu =
-          P.evalFun @primsT @precT' arg_vals (P.NamedFunDef sampler sampler_fundef)
+          P.evalFun @_ @precT' arg_vals (P.NamedFunDef sampler sampler_fundef)
             & (runReaderT ?? eval_env)
 
     let p_succ = Prob.probabilityOf @precT' success mu

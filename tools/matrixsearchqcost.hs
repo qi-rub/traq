@@ -13,8 +13,6 @@ import System.TimeIt (timeIt)
 import Text.Parsec.String (parseFromFile)
 import Text.Printf (printf)
 
-import Lens.Micro.GHC
-
 import qualified Traq.Data.Context as Ctx
 import qualified Traq.Data.Symbolic as Sym
 
@@ -36,7 +34,7 @@ data Phantom p = Phantom
 
 class
   ( P.CanParsePrimitive p
-  , P.QuantumCostablePrimitive p p SizeT Double
+  , P.QuantumCostablePrimitive p SizeT Double
   , HasPrimAny p
   ) =>
   MyPrim p

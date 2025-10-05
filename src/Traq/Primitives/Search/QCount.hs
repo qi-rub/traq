@@ -1,7 +1,6 @@
 {-# LANGUAGE DuplicateRecordFields #-}
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE MultiParamTypeClasses #-}
-{-# LANGUAGE UndecidableInstances #-}
 
 {- |
 Quantum Counting
@@ -50,8 +49,7 @@ instance P.TypeCheckablePrimitive QCount where
 instance
   ( Fractional precT
   , Prob.ProbType precT
-  , P.EvaluatablePrimitive primsT primsT precT
   ) =>
-  P.EvaluatablePrimitive primsT QCount precT
+  P.EvaluatablePrimitive QCount precT
   where
   evalPrimitive QCount{predicate, args} = evaluatePrimCount predicate args

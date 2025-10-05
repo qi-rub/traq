@@ -74,21 +74,15 @@ instance P.CanParsePrimitive RandomSearch where
 instance P.HasFreeVars RandomSearch
 instance P.TypeCheckablePrimitive RandomSearch
 
-instance
-  (Fractional precT, Prob.ProbType precT, P.EvaluatablePrimitive primsT primsT precT) =>
-  P.EvaluatablePrimitive primsT RandomSearch precT
+instance (Fractional precT, Prob.ProbType precT) => P.EvaluatablePrimitive RandomSearch precT
 
 -- ================================================================================
 -- Abstract Costs
 -- ================================================================================
 
 instance
-  ( Integral sizeT
-  , Floating precT
-  , Show precT
-  , P.UnitaryCostablePrimitive primsT primsT sizeT precT
-  ) =>
-  P.UnitaryCostablePrimitive primsT RandomSearch sizeT precT
+  (Integral sizeT, Floating precT, Show precT) =>
+  P.UnitaryCostablePrimitive RandomSearch sizeT precT
   where
   unitaryQueryCostPrimitive delta prim = do
     let predicate = getPredicateName prim
@@ -113,9 +107,9 @@ instance
   ( Integral sizeT
   , Floating precT
   , Ord precT
-  , P.QuantumMaxCostablePrimitive primsT primsT sizeT precT
+  , Show precT
   ) =>
-  P.QuantumMaxCostablePrimitive primsT RandomSearch sizeT precT
+  P.QuantumMaxCostablePrimitive RandomSearch sizeT precT
   where
   quantumMaxQueryCostPrimitive eps prim = do
     let predicate = getPredicateName prim
@@ -151,10 +145,10 @@ instance
   , Floating precT
   , Ord precT
   , Prob.ProbType precT
-  , P.QuantumCostablePrimitive primsT primsT sizeT precT
   , sizeT ~ SizeT
+  , Show precT
   ) =>
-  P.QuantumCostablePrimitive primsT RandomSearch sizeT precT
+  P.QuantumCostablePrimitive RandomSearch sizeT precT
   where
   quantumQueryCostPrimitive eps prim sigma = do
     let predicate = getPredicateName prim
@@ -192,7 +186,7 @@ instance
       eval_env <- view P._evaluationEnv
       [is_sol_v] <-
         lift $
-          P.evalExpr @primsT @precT pred_call_expr sigma_pred'
+          P.evalExpr @_ @precT pred_call_expr sigma_pred'
             & (runReaderT ?? eval_env)
             & Prob.toDeterministicValue
       return (P.valueToBool is_sol_v, cost_v)
