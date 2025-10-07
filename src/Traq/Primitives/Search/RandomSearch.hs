@@ -22,6 +22,7 @@ import qualified Numeric.Algebra as Alg
 import Traq.Control.Monad
 import qualified Traq.Data.Context as Ctx
 import qualified Traq.Data.Probability as Prob
+import Traq.Data.Subtyping
 
 import Traq.Prelude
 import Traq.Primitives.Search.Prelude
@@ -56,13 +57,8 @@ _ERandomSearch n k _ = fromIntegral n / fromIntegral k
 newtype RandomSearch = RandomSearch PrimAny
   deriving (Eq, Show, Read, Generic)
 
-instance HasPrimAny RandomSearch where
-  _PrimAny focus (RandomSearch p) = RandomSearch <$> focus p
-  mkPrimAny = RandomSearch . mkPrimAny
-
-instance IsSearchLike RandomSearch where
-  getPredicateName (RandomSearch p) = getPredicateName p
-  getPredArgs (RandomSearch p) = getPredArgs p
+instance PrimAny :<: RandomSearch
+instance IsA SearchLikePrim RandomSearch
 
 instance PP.ToCodeString RandomSearch where
   build (RandomSearch p) = printSearchLikePrim "any" p
@@ -84,7 +80,7 @@ instance
   P.UnitaryCostablePrimitive RandomSearch sizeT precT
   where
   unitaryQueryCostPrimitive delta prim = do
-    let predicate = getPredicateName prim
+    let SearchLikePrim{predicate} = extract prim
 
     P.FunDef{P.param_types} <- view $ P._funCtx . Ctx.at predicate . singular _Just
     P.Fin n <- pure $ last param_types
@@ -111,7 +107,7 @@ instance
   P.QuantumMaxCostablePrimitive RandomSearch sizeT precT
   where
   quantumMaxQueryCostPrimitive eps prim = do
-    let predicate = getPredicateName prim
+    let SearchLikePrim{predicate} = extract prim
 
     P.FunDef{P.param_types} <- view $ P._funCtx . Ctx.at predicate . singular _Just
     P.Fin n <- pure $ last param_types
@@ -150,8 +146,7 @@ instance
   P.QuantumCostablePrimitive RandomSearch sizeT precT
   where
   quantumQueryCostPrimitive eps prim sigma = do
-    let predicate = getPredicateName prim
-    let args = getPredArgs prim
+    let SearchLikePrim{predicate, pred_args = args} = extract prim
 
     P.FunDef{P.param_types} <- view $ P._funCtx . Ctx.at predicate . singular _Just
     ty@(P.Fin n) <- pure $ last param_types

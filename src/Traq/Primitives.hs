@@ -6,6 +6,7 @@
 {-# LANGUAGE MultiParamTypeClasses #-}
 
 module Traq.Primitives (
+  primCallE,
   DefaultPrims (..),
   QSearchCFNW (..),
 ) where
@@ -14,9 +15,8 @@ import Control.Applicative ((<|>))
 import GHC.Generics
 import Text.Parsec (try)
 
-import Lens.Micro.GHC
-
 import qualified Traq.Data.Probability as Prob
+import Traq.Data.Subtyping
 
 import qualified Traq.Compiler.Quantum as CompileQ
 import qualified Traq.Compiler.Unitary as CompileU
@@ -28,6 +28,10 @@ import Traq.Primitives.Search.RandomSearch
 import qualified Traq.ProtoLang as P
 import qualified Traq.Utils.Printing as PP
 
+-- | Build a primitive call by appropriately injecting an arbitrary primitive into a larger context.
+primCallE :: (primT :<: primsT) => primT -> P.Expr primsT sizeT
+primCallE = P.PrimCallE . inject
+
 data DefaultPrims
   = QAny QSearchCFNW
   | RAny RandomSearch
@@ -38,17 +42,17 @@ data DefaultPrims
     , P.HasFreeVars
     )
 
-_QAny :: Traversal' DefaultPrims QSearchCFNW
-_QAny focus (QAny p) = QAny <$> focus p
-_QAny _ q = pure q
+instance PrimAny :<: DefaultPrims where
+  inject = QAny . inject
 
-instance HasPrimAny DefaultPrims where
-  _PrimAny = _QAny . _PrimAny
-  mkPrimAny = QAny . mkPrimAny
+  project (QAny p) = project p
+  project _ = Nothing
 
-instance HasPrimSearch DefaultPrims where
-  _PrimSearch = _QAny . _PrimSearch
-  mkPrimSearch = QAny . mkPrimSearch
+instance PrimSearch :<: DefaultPrims where
+  inject = QAny . inject
+
+  project (QAny p) = project p
+  project _ = Nothing
 
 -- Printing
 instance PP.ToCodeString DefaultPrims where

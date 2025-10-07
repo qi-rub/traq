@@ -41,6 +41,7 @@ library
       Traq.Data.Probability.List
       Traq.Data.Probability.Trans
       Traq.Data.Probability.Tree
+      Traq.Data.Subtyping
       Traq.Data.Symbolic
       Traq.Examples.MatrixSearch
       Traq.Examples.Search

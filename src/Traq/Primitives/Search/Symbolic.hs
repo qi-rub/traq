@@ -22,6 +22,7 @@ import Lens.Micro.Mtl
 import qualified Numeric.Algebra as Alg
 
 import qualified Traq.Data.Context as Ctx
+import Traq.Data.Subtyping
 import qualified Traq.Data.Symbolic as Sym
 
 import Traq.Prelude
@@ -57,13 +58,19 @@ getPred :: QSearchSym -> Ident
 getPred (QSearchSym PrimSearch{predicate}) = predicate
 getPred (QAnySym PrimAny{predicate}) = predicate
 
-instance HasPrimAny QSearchSym where
-  _PrimAny = _QAnySym . _PrimAny
-  mkPrimAny = QAnySym . mkPrimAny
+instance PrimAny :<: QSearchSym where
+  inject = QAnySym
 
-instance HasPrimSearch QSearchSym where
-  _PrimSearch = _QSearchSym . _PrimSearch
-  mkPrimSearch = QSearchSym . mkPrimSearch
+  project (QAnySym p) = Just p
+  project _ = Nothing
+
+instance PrimSearch :<: QSearchSym where
+  inject = QSearchSym
+
+  project (QSearchSym p) = Just p
+  project _ = Nothing
+
+instance IsA SearchLikePrim QSearchSym
 
 -- Printing
 instance PP.ToCodeString QSearchSym where

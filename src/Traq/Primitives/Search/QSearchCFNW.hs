@@ -48,6 +48,7 @@ import qualified Numeric.Algebra as Alg
 import Traq.Control.Monad
 import qualified Traq.Data.Context as Ctx
 import qualified Traq.Data.Probability as Prob
+import Traq.Data.Subtyping
 
 import qualified Traq.CQPL as CQPL
 import qualified Traq.Compiler as Compiler
@@ -127,20 +128,19 @@ _QAnyCFNW :: Traversal' QSearchCFNW PrimAny
 _QAnyCFNW focus (QAnyCFNW p) = QAnyCFNW <$> focus p
 _QAnyCFNW _ q = pure q
 
-instance HasPrimAny QSearchCFNW where
-  _PrimAny = _QAnyCFNW . _PrimAny
-  mkPrimAny = QAnyCFNW . mkPrimAny
+instance PrimAny :<: QSearchCFNW where
+  inject = QAnyCFNW
 
-instance HasPrimSearch QSearchCFNW where
-  _PrimSearch = _QSearchCFNW . _PrimSearch
-  mkPrimSearch = QSearchCFNW . mkPrimSearch
+  project (QAnyCFNW p) = Just p
+  project _ = Nothing
 
-instance IsSearchLike QSearchCFNW where
-  getPredicateName (QSearchCFNW p) = getPredicateName p
-  getPredicateName (QAnyCFNW p) = getPredicateName p
+instance PrimSearch :<: QSearchCFNW where
+  inject = QSearchCFNW
 
-  getPredArgs (QSearchCFNW p) = getPredArgs p
-  getPredArgs (QAnyCFNW p) = getPredArgs p
+  project (QSearchCFNW p) = Just p
+  project _ = Nothing
+
+instance IsA SearchLikePrim QSearchCFNW
 
 instance PP.ToCodeString QSearchCFNW where
   build (QAnyCFNW p) = printSearchLikePrim "any" p
@@ -175,7 +175,7 @@ instance
   P.UnitaryCostablePrimitive QSearchCFNW sizeT precT
   where
   unitaryQueryCostPrimitive delta prim = do
-    let predicate = getPredicateName prim
+    let SearchLikePrim{predicate} = extract prim
 
     P.FunDef{P.param_types} <- view $ P._funCtx . Ctx.at predicate . singular _Just
     let n = last param_types ^?! P._Fin
@@ -205,7 +205,7 @@ instance
   P.QuantumMaxCostablePrimitive QSearchCFNW sizeT precT
   where
   quantumMaxQueryCostPrimitive eps prim = do
-    let predicate = getPredicateName prim
+    let SearchLikePrim{predicate} = extract prim
 
     P.FunDef{P.param_types} <- view $ P._funCtx . Ctx.at predicate . singular _Just
     let n = last param_types ^?! P._Fin
@@ -239,8 +239,7 @@ instance
   P.QuantumCostablePrimitive QSearchCFNW sizeT precT
   where
   quantumQueryCostPrimitive eps prim sigma = do
-    let predicate = getPredicateName prim
-    let pred_args = getPredArgs prim
+    let SearchLikePrim{predicate, pred_args} = extract prim
 
     pred_arg_vals <- runReaderT ?? sigma $
       forM pred_args $ \x -> do

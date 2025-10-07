@@ -819,7 +819,7 @@ quantumQueryCost ::
   precT ->
   -- | program @P@
   Program primsT SizeT ->
-  -- | data injections
+  -- | data Subtypings
   FunInterpCtx SizeT ->
   -- | input
   [Value SizeT] ->

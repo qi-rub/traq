@@ -14,6 +14,7 @@ import Text.Parsec.String (parseFromFile)
 import Text.Printf (printf)
 
 import qualified Traq.Data.Context as Ctx
+import Traq.Data.Subtyping
 import qualified Traq.Data.Symbolic as Sym
 
 import Traq.CostModel.QueryCost (SimpleQueryCost (..))
@@ -21,7 +22,7 @@ import Traq.Examples.MatrixSearch
 import Traq.Prelude
 import Traq.Primitives (DefaultPrims)
 import Traq.Primitives.Search.DetSearch (DetSearch)
-import Traq.Primitives.Search.Prelude (HasPrimAny)
+import Traq.Primitives.Search.Prelude (PrimAny)
 import Traq.Primitives.Search.QSearchCFNW (QSearchCFNW)
 import Traq.Primitives.Search.RandomSearch (RandomSearch)
 import qualified Traq.ProtoLang as P
@@ -35,7 +36,7 @@ data Phantom p = Phantom
 class
   ( P.CanParsePrimitive p
   , P.QuantumCostablePrimitive p SizeT Double
-  , HasPrimAny p
+  , PrimAny :<: p
   ) =>
   MyPrim p
 

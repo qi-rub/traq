@@ -20,6 +20,7 @@ import qualified Numeric.Algebra as Alg
 import Traq.Control.Monad
 import qualified Traq.Data.Context as Ctx
 import qualified Traq.Data.Probability as Prob
+import Traq.Data.Subtyping
 
 import Traq.Prelude
 import Traq.Primitives.Search.Prelude
@@ -34,19 +35,14 @@ import qualified Traq.Utils.Printing as PP
 newtype DetSearch = DetSearch PrimAny
   deriving (Eq, Show, Read, Generic)
 
-instance HasPrimAny DetSearch where
-  mkPrimAny = DetSearch . mkPrimAny
-  _PrimAny focus (DetSearch p) = DetSearch <$> focus p
-
-instance IsSearchLike DetSearch where
-  getPredicateName (DetSearch p) = getPredicateName p
-  getPredArgs (DetSearch p) = getPredArgs p
+instance PrimAny :<: DetSearch
+instance IsA SearchLikePrim DetSearch
 
 instance PP.ToCodeString DetSearch where
   build (DetSearch p) = printSearchLikePrim "any" p
 
 instance P.CanParsePrimitive DetSearch where
-  primitiveParser = fmap mkPrimAny . parsePrimAnyWithName "any"
+  primitiveParser = fmap inject . parsePrimAnyWithName "any"
 
 instance P.HasFreeVars DetSearch
 instance P.TypeCheckablePrimitive DetSearch
@@ -65,7 +61,7 @@ instance
   P.UnitaryCostablePrimitive DetSearch sizeT precT
   where
   unitaryQueryCostPrimitive delta prim = do
-    let predicate = getPredicateName prim
+    let SearchLikePrim{predicate} = extract prim
 
     P.FunDef{P.param_types} <- view $ P._funCtx . Ctx.at predicate . singular _Just
     P.Fin n <- pure $ last param_types
@@ -89,7 +85,7 @@ instance
   P.QuantumMaxCostablePrimitive DetSearch sizeT precT
   where
   quantumMaxQueryCostPrimitive eps prim = do
-    let predicate = getPredicateName prim
+    let SearchLikePrim{predicate} = extract prim
 
     P.FunDef{P.param_types} <- view $ P._funCtx . Ctx.at predicate . singular _Just
     P.Fin n <- pure $ last param_types
@@ -115,8 +111,7 @@ instance
   P.QuantumCostablePrimitive DetSearch sizeT precT
   where
   quantumQueryCostPrimitive eps prim sigma = do
-    let predicate = getPredicateName prim
-    let args = getPredArgs prim
+    let SearchLikePrim{predicate, pred_args = args} = extract prim
 
     P.FunDef{P.param_types} <- view $ P._funCtx . Ctx.at predicate . singular _Just
     ty@(P.Fin n) <- pure $ last param_types

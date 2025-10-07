@@ -215,7 +215,7 @@ type FunInterp sizeT = [Value sizeT] -> [Value sizeT]
 
 type instance SizeType (FunInterp sizeT) = sizeT
 
--- | A mapping of data injections
+-- | A mapping of data Subtypings
 type FunInterpCtx sizeT = Ctx.Context (FunInterp sizeT)
 
 class HasFunInterpCtx p where

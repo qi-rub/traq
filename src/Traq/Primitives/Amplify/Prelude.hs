@@ -7,7 +7,6 @@
 module Traq.Primitives.Amplify.Prelude (
   -- * Amplify Primitive
   Amplify (..),
-  HasPrimAmplify (..),
 ) where
 
 import Control.Monad (forM, when)
@@ -33,16 +32,6 @@ Also returns a boolean flag indicating whether the sample returned is good.
 -}
 data Amplify = Amplify {sampler :: Ident, p_min :: Double, sampler_args :: [Ident]}
   deriving (Eq, Show, Read)
-
-class HasPrimAmplify primT where
-  _PrimAmplify :: Traversal' primT Amplify
-
-  -- | build a call to @amplify@
-  mkAmplify :: Amplify -> primT
-
-instance HasPrimAmplify Amplify where
-  _PrimAmplify = id
-  mkAmplify = id
 
 -- Pretty Printing
 instance PP.ToCodeString Amplify where

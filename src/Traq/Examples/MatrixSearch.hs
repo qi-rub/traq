@@ -2,13 +2,15 @@ module Traq.Examples.MatrixSearch where
 
 import Data.String (fromString)
 
+import Traq.Data.Subtyping
+
 import Traq.Prelude
 import Traq.Primitives
-import Traq.Primitives.Search.Prelude (HasPrimAny (..), PrimAny (..))
+import Traq.Primitives.Search.Prelude (PrimAny (..))
 import Traq.ProtoLang.Syntax
 import Traq.ProtoLang.TypeCheck (tbool)
 
-matrixExample :: forall primsT sizeT. (HasPrimAny primsT, Num sizeT) => sizeT -> sizeT -> Program primsT sizeT
+matrixExample :: forall primsT sizeT. (PrimAny :<: primsT, Num sizeT) => sizeT -> sizeT -> Program primsT sizeT
 matrixExample n m =
   Program
     [ NamedFunDef oracle_name oracle_decl
@@ -66,7 +68,7 @@ matrixExample n m =
               { param_names = [i]
               , body_stmt =
                   SeqS
-                    [ ExprS{rets = [ok], expr = PrimCallE $ mkPrimAny PrimAny{predicate = check_entry_name, pred_args = [i]}}
+                    [ ExprS{rets = [ok], expr = primCallE PrimAny{predicate = check_entry_name, pred_args = [i]}}
                     , ExprS{rets = [ok'], expr = BasicExprE UnOpE{un_op = NotOp, operand = fromString ok}}
                     ]
               , ret_names = [ok']
@@ -89,7 +91,7 @@ matrixExample n m =
           Just
             FunBody
               { param_names = []
-              , body_stmt = ExprS{rets = [ok], expr = PrimCallE $ mkPrimAny PrimAny{predicate = check_row_name, pred_args = []}}
+              , body_stmt = ExprS{rets = [ok], expr = primCallE PrimAny{predicate = check_row_name, pred_args = []}}
               , ret_names = [ok]
               }
       , ret_types = [tbool]

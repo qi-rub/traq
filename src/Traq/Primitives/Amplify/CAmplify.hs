@@ -24,6 +24,7 @@ import qualified Numeric.Algebra as Alg
 import Traq.Control.Monad
 import qualified Traq.Data.Context as Ctx
 import qualified Traq.Data.Probability as Prob
+import Traq.Data.Subtyping
 import qualified Traq.Data.Symbolic as Sym
 
 import Traq.Prelude (SizeT)
@@ -35,9 +36,7 @@ import qualified Traq.Utils.Printing as PP
 newtype CAmplify = CAmplify Amplify
   deriving (Eq, Show, Read, Generic)
 
-instance HasPrimAmplify CAmplify where
-  _PrimAmplify focus (CAmplify p) = CAmplify <$> focus p
-  mkAmplify = CAmplify
+instance Amplify :<: CAmplify
 
 -- Inherited instances
 instance PP.ToCodeString CAmplify where

@@ -4,19 +4,15 @@
 
 module Traq.Primitives.Search.Prelude (
   -- * Basic search primitives
+  SearchLikePrim (..),
 
   -- ** @any@
   PrimAny (..),
-  HasPrimAny (..),
   parsePrimAnyWithName,
 
   -- ** @search@
   PrimSearch (..),
-  HasPrimSearch (..),
   parsePrimSearchWithName,
-
-  -- * Search-like primitives
-  IsSearchLike (..),
 
   -- ** print
   printSearchLikePrim,
@@ -47,6 +43,7 @@ import Lens.Micro.Mtl
 import Traq.Control.Monad
 import qualified Traq.Data.Context as Ctx
 import qualified Traq.Data.Probability as Prob
+import Traq.Data.Subtyping
 
 import Traq.Prelude
 import Traq.Primitives.Prelude
@@ -56,17 +53,16 @@ import qualified Traq.Utils.Printing as PP
 -- ================================================================================
 -- Search-like primitive: has a predicate and a list of arguments to bind to it.
 -- ================================================================================
-class IsSearchLike primT where
-  getPredicateName :: primT -> Ident
-  getPredArgs :: primT -> [Ident]
+data SearchLikePrim = SearchLikePrim {predicate :: Ident, pred_args :: [Ident]}
 
 printSearchLikePrim ::
-  (IsSearchLike primT, MonadWriter [String] m, MonadFail m) =>
+  (IsA SearchLikePrim primT, MonadWriter [String] m, MonadFail m) =>
   Ident ->
   primT ->
   m ()
 printSearchLikePrim name prim =
-  PP.putWord $ printf "@%s[%s](%s)" name (getPredicateName prim) (PP.commaList $ getPredArgs prim)
+  let SearchLikePrim{predicate, pred_args} = extract prim
+   in PP.putWord $ printf "@%s[%s](%s)" name predicate (PP.commaList pred_args)
 
 -- ================================================================================
 -- Typecheck
@@ -156,21 +152,8 @@ evaluatePrimCount predicate args sigma = do
 data PrimAny = PrimAny {predicate :: Ident, pred_args :: [Ident]}
   deriving (Eq, Read, Show)
 
--- | Primitive @any@ that returns True if there is a solution to the predicate.
-class HasPrimAny primT where
-  -- | build a call to @any@, given the predicate and args.
-  mkPrimAny :: PrimAny -> primT
-
-  -- | Prism to access the primitive.
-  _PrimAny :: Traversal' primT PrimAny
-
-instance HasPrimAny PrimAny where
-  _PrimAny = id
-  mkPrimAny = id
-
-instance IsSearchLike PrimAny where
-  getPredicateName PrimAny{predicate} = predicate
-  getPredArgs PrimAny{pred_args} = pred_args
+instance IsA SearchLikePrim PrimAny where
+  extract PrimAny{predicate, pred_args} = SearchLikePrim{predicate, pred_args}
 
 parsePrimAnyWithName :: String -> TokenParser () -> Parser PrimAny
 parsePrimAnyWithName name tp = do
@@ -202,23 +185,8 @@ instance P.Evaluatable PrimAny precT where
 data PrimSearch = PrimSearch {predicate :: Ident, pred_args :: [Ident]}
   deriving (Eq, Read, Show)
 
-{- | Primitive @search@ that returns a solution to the predicate if exists, otherwise returns a random value.
- Also returns a bit indicating if a solution was found.
--}
-class HasPrimSearch primT where
-  -- | build a call to @any@, given the predicate and args.
-  mkPrimSearch :: PrimSearch -> primT
-
-  -- | Prism to access the primitive.
-  _PrimSearch :: Traversal' primT PrimSearch
-
-instance HasPrimSearch PrimSearch where
-  _PrimSearch = id
-  mkPrimSearch = id
-
-instance IsSearchLike PrimSearch where
-  getPredicateName PrimSearch{predicate} = predicate
-  getPredArgs PrimSearch{pred_args} = pred_args
+instance IsA SearchLikePrim PrimSearch where
+  extract PrimSearch{predicate, pred_args} = SearchLikePrim{predicate, pred_args}
 
 parsePrimSearchWithName :: String -> TokenParser () -> Parser PrimSearch
 parsePrimSearchWithName name tp = do
