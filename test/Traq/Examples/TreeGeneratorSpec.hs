@@ -7,10 +7,8 @@ import Text.Parsec.String
 import Lens.Micro.GHC
 
 import qualified Traq.Data.Context as Ctx
-import qualified Traq.Data.Probability as Prob
 import qualified Traq.Data.Symbolic as Sym
 
-import Traq.Examples.TreeGenerator (treeGeneratorExample)
 import Traq.Prelude
 import Traq.Primitives.Amplify.Prelude (Amplify)
 import Traq.ProtoLang

@@ -1,0 +1,7 @@
+// N = 2^n
+declare f(Fin<N>) -> Fin<N> end
+
+def main() -> Fin<N> do
+	s <- @findXorPeriod[f, 0.01]();
+	return s
+end

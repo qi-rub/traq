@@ -1,0 +1,25 @@
+// N = 2^n
+
+// Public permutation
+declare P(Fin<N>) -> Fin<N> end
+
+// EvanMansour encryption with secret keys (k1, k2):
+// E(x) = P(x ^ k1) ^ k2
+declare E(Fin<N>) -> Fin<N> end
+
+// construct a (almost) 2-1 function
+def f(x : Fin<N>) -> Fin<N> do
+	ex <- E(x);
+	px <- P(x);
+	fx <- ex ^ px;
+	return fx
+end
+
+def BreakEM() -> (Fin<N>, Fin<N>) do
+	ze <- const 0 : Fin<N>;
+	k1 <- @findXorPeriod[f, 0.01]();
+	e_0 <- E(ze);
+	p_k1 <- P(k1);
+	k2 <- e_0 ^ p_k1;
+	return k1, k2
+end

@@ -57,7 +57,6 @@ exampleProgram n = P.Program [P.NamedFunDef "sampler" sampler, P.NamedFunDef "ma
 spec :: Spec
 spec = describe "CAmplify" $ do
   describe "CAmplify cost example1" $ do
-    let p_min = 0.02 :: Double
     let program = exampleProgram 10
 
     it "calculates unitary cost correctly" $ do

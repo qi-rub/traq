@@ -60,6 +60,8 @@ library
       Traq.Primitives.Search.QSearchCFNW
       Traq.Primitives.Search.RandomSearch
       Traq.Primitives.Search.Symbolic
+      Traq.Primitives.Simons.Prelude
+      Traq.Primitives.Simons.Quantum
       Traq.Primitives.TreeSearch
       Traq.ProtoLang
       Traq.ProtoLang.Cost
@@ -279,8 +281,10 @@ test-suite spec
       Traq.Data.Probability.ContSpec
       Traq.Data.Probability.TreeSpec
       Traq.Data.SymbolicSpec
+      Traq.Examples.EvanMansourSpec
       Traq.Examples.MatrixSearchSpec
       Traq.Examples.NonDetSpec
+      Traq.Examples.PeriodFindingSpec
       Traq.Examples.SearchSpec
       Traq.Examples.TreeGeneratorSpec
       Traq.Primitives.Amplify.CAmplifySpec
