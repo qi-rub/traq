@@ -41,18 +41,18 @@ _EQMax n = 6.3505 * sqrt_n + 2.8203
   sqrt_n = sqrt $ P.sizeToPrec n
 
 -- [1], Corollary 1.
-_WQMax :: forall sizeT precT. (Floating precT, P.SizeToPrec sizeT precT) => sizeT -> precT -> precT
+_WQMax :: forall sizeT precT. (Floating precT, P.SizeToPrec sizeT precT) => sizeT -> P.FailProb precT -> precT
 _WQMax n eps = 3 * _EQMax n * log_eps
  where
   log_eps :: precT
-  log_eps = log (1 / eps)
+  log_eps = log (1 / P.getFailProb eps)
 
 -- Worst case cost of unitary QMax.
-_WUQMax :: forall sizeT precT. (Floating precT, P.SizeToPrec sizeT precT) => sizeT -> precT -> precT
+_WUQMax :: forall sizeT precT. (Floating precT, P.SizeToPrec sizeT precT) => sizeT -> P.L2NormError precT -> precT
 _WUQMax n delta = 2 * _WQMax n eps -- 2x for compute-uncompute
  where
-  eps :: precT
-  eps = (delta / 2) ^ (2 :: Int)
+  eps :: P.FailProb precT
+  eps = P.requiredNormErrorToFailProb delta
 
 -- ================================================================================
 -- Primitive Class Implementation
@@ -125,14 +125,14 @@ instance
     P.Fin n <- pure $ last param_types
 
     -- split the precision
-    let delta_search = delta / 2
+    let delta_search = delta `P.divideError` 2
     let delta_pred = delta - delta_search
 
     -- number of predicate queries
     let qry = _WUQMax n delta_search
 
     -- precision per predicate call
-    let delta_per_pred_call = delta_pred / qry
+    let delta_per_pred_call = delta_pred `P.divideError` qry
 
     -- cost of each predicate call
     cost_pred <-
@@ -153,15 +153,15 @@ instance
     P.Fin n <- pure $ last param_types
 
     -- split the fail prob
-    let eps_search = eps / 2
+    let eps_search = eps `P.divideError` 2
     let eps_pred = eps - eps_search
 
     -- number of predicate queries
     let qry = _WQMax n eps_search
 
     -- fail prob per predicate call
-    let eps_per_pred_call = eps_pred / qry
-    let delta_per_pred_call = eps_per_pred_call / 2
+    let eps_per_pred_call = eps_pred `P.divideError` qry
+    let delta_per_pred_call = P.requiredFailProbToNormError eps_per_pred_call
 
     -- cost of each predicate call
     cost_unitary_pred <-
@@ -186,7 +186,7 @@ instance
     P.Fin n <- pure $ last param_types
 
     -- split the fail prob
-    let eps_prim = eps / 2
+    let eps_prim = eps `P.divideError` 2
     let eps_pred = eps - eps_prim
 
     -- number of predicate queries
@@ -194,8 +194,8 @@ instance
     let w_qry = _WQMax n eps_prim
 
     -- fail prob per predicate call
-    let eps_per_pred_call = eps_pred / w_qry
-    let delta_per_pred_call = eps_per_pred_call / 2
+    let eps_per_pred_call = eps_pred `P.divideError` w_qry
+    let delta_per_pred_call = P.requiredFailProbToNormError eps_per_pred_call
 
     -- cost of each predicate call
     cost_unitary_pred <-

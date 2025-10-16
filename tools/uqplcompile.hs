@@ -74,7 +74,7 @@ tellLn x = tell $ unlines [x]
 
 compile :: forall precT. (RealFloat precT, Show precT, Alg.Rig precT, Prob.ProbType precT, Prob.RVType precT precT) => P.Program DefaultPrims SizeT -> precT -> IO String
 compile prog@(P.Program fs) delta = do
-  Right cqpl_prog <- return $ CompileU.lowerProgram default_ Ctx.empty delta prog
+  Right cqpl_prog <- return $ CompileU.lowerProgram default_ Ctx.empty (P.l2NormError delta) prog
   -- get costs
   let (_ :: SimpleQueryCost precT, proc_costs) = CQPL.programCost cqpl_prog
 
@@ -98,7 +98,7 @@ compile prog@(P.Program fs) delta = do
                           getCost $
                             P.unitaryQueryCost
                               P.SplitSimple
-                              fdelta
+                              (P.l2NormError fdelta)
                               prog'
                     return $ show cf
                 )

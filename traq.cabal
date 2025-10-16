@@ -65,6 +65,7 @@ library
       Traq.Primitives.TreeSearch
       Traq.ProtoLang
       Traq.ProtoLang.Cost
+      Traq.ProtoLang.Error
       Traq.ProtoLang.Eval
       Traq.ProtoLang.Parser
       Traq.ProtoLang.Rewrites
@@ -85,7 +86,6 @@ library
       TypeFamilies
       TypeOperators
       MultiWayIf
-      Safe
   ghc-options: -Wall -fprint-typechecker-elaboration
   build-depends:
       algebra ==4.3.*

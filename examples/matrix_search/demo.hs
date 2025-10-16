@@ -44,7 +44,7 @@ expectedCost n m matrix eps = do
     getCost $
       P.quantumQueryCost @primT
         P.SplitUsingNeedsEps -- precision splitting strategy
-        eps -- maximum failure probability
+        (P.failProb eps) -- maximum failure probability
         program
         interp
         mempty

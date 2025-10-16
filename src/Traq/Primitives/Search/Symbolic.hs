@@ -34,11 +34,11 @@ import qualified Traq.Utils.Printing as PP
 -- Cost Formulas
 -- ================================================================================
 
-_QryU :: forall sizeT precT. (Show sizeT, Show precT) => Sym.Sym sizeT -> Sym.Sym precT -> Sym.Sym precT
-_QryU n eps = Sym.var $ printf "QryU(%s, %s)" (show n) (show eps)
+_QryU :: forall sizeT precT. (Show sizeT, Show precT) => Sym.Sym sizeT -> P.L2NormError (Sym.Sym precT) -> Sym.Sym precT
+_QryU n delta = Sym.var $ printf "QryU(%s, %s)" (show n) (show $ P.getL2NormError delta)
 
-_QryQmax :: forall sizeT precT. (Show sizeT, Show precT) => Sym.Sym sizeT -> Sym.Sym precT -> Sym.Sym precT
-_QryQmax n eps = Sym.var $ printf "QryQmax(%s, %s)" (show n) (show eps)
+_QryQmax :: forall sizeT precT. (Show sizeT, Show precT) => Sym.Sym sizeT -> P.FailProb (Sym.Sym precT) -> Sym.Sym precT
+_QryQmax n eps = Sym.var $ printf "QryQmax(%s, %s)" (show n) (show $ P.getFailProb eps)
 
 -- ================================================================================
 -- Primitive Class Implementation
@@ -107,10 +107,10 @@ instance
     -- split the precision
     delta_search <-
       view P._precSplitStrat >>= \case
-        P.SplitSimple -> return $ delta / 2
+        P.SplitSimple -> return $ delta `P.divideError` 2
         P.SplitUsingNeedsEps -> magnify P._funCtx $ do
           P.needsEps fun_def >>= \case
-            True -> return $ delta / 2
+            True -> return $ delta `P.divideError` 2
             False -> return delta
     let delta_pred = delta - delta_search
 
@@ -118,7 +118,7 @@ instance
     let qry = _QryU n delta_search
 
     -- precision per predicate call
-    let delta_per_pred_call = delta_pred / qry
+    let delta_per_pred_call = delta_pred `P.divideError` qry
 
     -- cost of each predicate call
     cost_pred <-
@@ -144,10 +144,10 @@ instance
     -- split the fail prob
     eps_search <-
       view P._precSplitStrat >>= \case
-        P.SplitSimple -> return $ eps / 2
+        P.SplitSimple -> return $ eps `P.divideError` 2
         P.SplitUsingNeedsEps -> magnify P._funCtx $ do
           P.needsEps fun_def >>= \case
-            True -> return $ eps / 2
+            True -> return $ eps `P.divideError` 2
             False -> return eps
     let eps_pred = eps - eps_search
 
@@ -155,8 +155,8 @@ instance
     let qry = _QryQmax n eps_search
 
     -- fail prob per predicate call
-    let eps_per_pred_call = eps_pred / qry
-    let delta_per_pred_call = eps_per_pred_call / 2
+    let eps_per_pred_call = eps_pred `P.divideError` qry
+    let delta_per_pred_call = P.requiredFailProbToNormError eps_per_pred_call
 
     -- cost of each predicate call
     cost_unitary_pred <-

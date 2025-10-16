@@ -29,13 +29,13 @@ import TestHelpers
 execRWT :: (Monad m, Monoid w) => r -> RWST r w () m a -> m w
 execRWT r m = snd <$> evalRWST m r ()
 
-data SearchParams = SearchParams {space_size :: Int, precision :: Double}
+data SearchParams = SearchParams {space_size :: Int, precision :: P.L2NormError Double}
   deriving (Show, Eq, Read)
 
 instance Arbitrary SearchParams where
   arbitrary = sized $ \n -> do
     space_size <- chooseInt (1, n + 1)
-    precision <- genDouble
+    precision <- P.l2NormError <$> genDouble
     return SearchParams{space_size, precision}
 
 spec :: Spec
@@ -43,7 +43,7 @@ spec = do
   describe "Grover circuit" $ do
     it "for simple values" $ do
       let n = 10 :: Int
-      let eps = 0.001 :: Float
+      let eps = P.l2NormError (0.001 :: Float)
       let pred_caller c x b = CQPL.UCallS{CQPL.uproc_id = "Oracle", CQPL.dagger = False, CQPL.qargs = [c, x, b]}
       let lenv = default_
       let lctx = default_

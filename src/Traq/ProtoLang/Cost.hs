@@ -69,6 +69,7 @@ import qualified Traq.Data.Symbolic as Sym
 
 import qualified Traq.CostModel.Class as C
 import Traq.Prelude
+import Traq.ProtoLang.Error
 import Traq.ProtoLang.Eval
 import Traq.ProtoLang.Syntax
 import Traq.ProtoLang.TypeCheck
@@ -128,8 +129,9 @@ instance HasNeedsEps (FunDef primT sizeT) where
     Just FunBody{body_stmt} -> needsEps body_stmt
 
 splitEps ::
-  forall primT sizeT precT env m.
+  forall primT sizeT precT errT env m.
   ( Floating precT
+  , DivideError errT precT
   , Monad m
   , MonadReader env m
   , HasFunCtx env
@@ -138,9 +140,9 @@ splitEps ::
   , primT ~ PrimitiveType env
   , sizeT ~ SizeType env
   ) =>
-  precT ->
+  errT ->
   [Stmt primT sizeT] ->
-  m [precT]
+  m [errT]
 splitEps _ [] = return []
 splitEps eps [_] = return [eps]
 splitEps eps ss = do
@@ -149,14 +151,14 @@ splitEps eps ss = do
     SplitUsingNeedsEps -> split_using_need_eps
  where
   split_simple = do
-    let epss = eps & iterate (/ 2) & tail & take (length ss - 1)
+    let epss = eps & iterate (`divideError` 2) & tail & take (length ss - 1)
     return $ epss ++ [last epss]
 
   split_using_need_eps = do
     flags <- forM ss $ \s -> needsEps s
     let n_fail = length $ filter id flags
 
-    let eps_each = if n_fail == 0 then 0 else eps / fromIntegral n_fail
+    let eps_each = if n_fail == 0 then 0 else eps `divideError` fromIntegral n_fail
     return $ map (\flag -> if flag then eps_each else 0) flags
 
 -- ================================================================================
@@ -211,7 +213,7 @@ class
     , precT ~ PrecType costT
     , SizeToPrec sizeT precT
     ) =>
-    precT ->
+    L2NormError precT ->
     primT ->
     m costT
   default unitaryQueryCostPrimitive ::
@@ -224,7 +226,7 @@ class
     , Generic primT
     , GUnitaryCostablePrimitive (Rep primT) sizeT precT
     ) =>
-    precT ->
+    L2NormError precT ->
     primT ->
     m costT
   unitaryQueryCostPrimitive delta p = gunitaryQueryCostPrimitive delta (from p)
@@ -241,7 +243,7 @@ class GUnitaryCostablePrimitive f sizeT precT where
     , precT ~ PrecType costT
     , SizeToPrec sizeT precT
     ) =>
-    precT ->
+    L2NormError precT ->
     f primT ->
     m costT
 
@@ -277,11 +279,11 @@ unitaryQueryCostE ::
   , SizeToPrec sizeT precT
   ) =>
   -- | precision
-  precT ->
+  L2NormError precT ->
   -- | expression @E@
   Expr primsT sizeT ->
   m costT
-unitaryQueryCostE delta FunCallE{fname} = ((2.0 :: precT) Alg..*) <$> unitaryQueryCostF (delta / 2) fname
+unitaryQueryCostE delta FunCallE{fname} = ((2.0 :: precT) Alg..*) <$> unitaryQueryCostF (delta `divideError` 2) fname
 unitaryQueryCostE delta PrimCallE{prim} = unitaryQueryCostPrimitive delta prim
 -- basic expressions
 unitaryQueryCostE _ BasicExprE{basic_expr} = return $ C.callExpr C.Unitary basic_expr
@@ -300,7 +302,7 @@ unitaryQueryCostS ::
   , SizeToPrec sizeT precT
   ) =>
   -- | precision (l2-norm)
-  precT ->
+  L2NormError precT ->
   -- | statement @S@
   Stmt primsT sizeT ->
   m costT
@@ -326,7 +328,7 @@ unitaryQueryCostF ::
   , SizeToPrec sizeT precT
   ) =>
   -- | precision (l2-norm)
-  precT ->
+  L2NormError precT ->
   -- | function name
   Ident ->
   m costT
@@ -348,7 +350,7 @@ unitaryQueryCost ::
   ) =>
   PrecisionSplittingStrategy ->
   -- | precision (l2-norm)
-  precT ->
+  L2NormError precT ->
   -- | program @P@
   Program primsT sizeT ->
   costT
@@ -418,7 +420,7 @@ class
     , SizeToPrec sizeT precT
     , Ord costT
     ) =>
-    precT ->
+    FailProb precT ->
     primT ->
     m costT
   default quantumMaxQueryCostPrimitive ::
@@ -432,7 +434,7 @@ class
     , Generic primT
     , GQuantumMaxCostablePrimitive (Rep primT) sizeT precT
     ) =>
-    precT ->
+    FailProb precT ->
     primT ->
     m costT
   quantumMaxQueryCostPrimitive eps p = gquantumMaxQueryCostPrimitive eps (from p)
@@ -450,7 +452,7 @@ class GQuantumMaxCostablePrimitive f sizeT precT where
     , SizeToPrec sizeT precT
     , Ord costT
     ) =>
-    precT ->
+    FailProb precT ->
     f primT ->
     m costT
 
@@ -487,7 +489,7 @@ quantumMaxQueryCostE ::
   , Ord costT
   ) =>
   -- | failure probability \( \varepsilon \)
-  precT ->
+  FailProb precT ->
   -- | statement @S@
   Expr primsT sizeT ->
   m costT
@@ -513,7 +515,7 @@ quantumMaxQueryCostS ::
   , Ord costT
   ) =>
   -- | failure probability \( \varepsilon \)
-  precT ->
+  FailProb precT ->
   -- | statement @S@
   Stmt primsT sizeT ->
   m costT
@@ -538,7 +540,7 @@ quantumMaxQueryCostF ::
   , Ord costT
   ) =>
   -- | failure probability \( \varepsilon \)
-  precT ->
+  FailProb precT ->
   -- | function name
   Ident ->
   m costT
@@ -561,7 +563,7 @@ quantumMaxQueryCost ::
   ) =>
   PrecisionSplittingStrategy ->
   -- | failure probability `eps`
-  precT ->
+  FailProb precT ->
   -- | program `P`
   Program primsT sizeT ->
   costT
@@ -641,7 +643,7 @@ class
     , SizeToPrec SizeT precT
     , Ord costT
     ) =>
-    precT ->
+    FailProb precT ->
     primT ->
     ProgramState sizeT ->
     m costT
@@ -658,7 +660,7 @@ class
     , Generic primT
     , GQuantumCostablePrimitive (Rep primT) sizeT precT
     ) =>
-    precT ->
+    FailProb precT ->
     primT ->
     ProgramState sizeT ->
     m costT
@@ -679,7 +681,7 @@ class GQuantumCostablePrimitive f sizeT precT where
     , SizeToPrec SizeT precT
     , Ord costT
     ) =>
-    precT ->
+    FailProb precT ->
     f primT ->
     ProgramState sizeT ->
     m costT
@@ -716,7 +718,7 @@ quantumQueryCostE ::
   , Ord costT
   ) =>
   -- | failure probability \( \varepsilon \)
-  precT ->
+  FailProb precT ->
   -- | state \( \sigma \)
   ProgramState SizeT ->
   -- | statement @S@
@@ -746,7 +748,7 @@ quantumQueryCostS ::
   , Ord costT
   ) =>
   -- | failure probability \( \varepsilon \)
-  precT ->
+  FailProb precT ->
   -- | state \( \sigma \)
   ProgramState SizeT ->
   -- | statement @S@
@@ -790,7 +792,7 @@ quantumQueryCostF ::
   , Ord costT
   ) =>
   -- | failure probability \( \varepsilon \)
-  precT ->
+  FailProb precT ->
   -- | inputs
   [Value SizeT] ->
   -- | function name
@@ -816,7 +818,7 @@ quantumQueryCost ::
   ) =>
   PrecisionSplittingStrategy ->
   -- | failure probability \( \varepsilon \)
-  precT ->
+  FailProb precT ->
   -- | program @P@
   Program primsT SizeT ->
   -- | data Subtypings

@@ -65,8 +65,8 @@ import qualified Traq.Utils.Printing as PP
 -- ================================================================================
 
 -- Eq. TODO REF
-_EQSearchWorst :: forall sizeT precT. (Integral sizeT, Floating precT) => sizeT -> precT -> precT
-_EQSearchWorst n eps = 9.2 * log (1 / eps) * sqrt (fromIntegral n)
+_EQSearchWorst :: forall sizeT precT. (Integral sizeT, Floating precT) => sizeT -> P.FailProb precT -> precT
+_EQSearchWorst n eps = 9.2 * log (1 / P.getFailProb eps) * sqrt (fromIntegral n)
 
 -- Eq. TODO REF
 _F :: forall sizeT precT. (Integral sizeT, Floating precT) => sizeT -> sizeT -> precT
@@ -75,7 +75,7 @@ _F n t
   | otherwise = 3.1 * sqrt (fromIntegral n / fromIntegral t)
 
 -- Eq. TODO REF
-_EQSearch :: forall sizeT precT. (Integral sizeT, Floating precT) => sizeT -> sizeT -> precT -> precT
+_EQSearch :: forall sizeT precT. (Integral sizeT, Floating precT) => sizeT -> sizeT -> P.FailProb precT -> precT
 _EQSearch n t eps
   | t == 0 = _EQSearchWorst n eps
   | otherwise = _F n t * (1 + 1 / (1 - term))
@@ -83,13 +83,13 @@ _EQSearch n t eps
   term = _F n t / (9.2 * sqrt (fromIntegral n))
 
 -- Eq. TODO REF
-_QSearchZalka :: forall sizeT precT. (Integral sizeT, Floating precT) => sizeT -> precT -> precT
+_QSearchZalka :: forall sizeT precT. (Integral sizeT, Floating precT) => sizeT -> P.L2NormError precT -> precT
 _QSearchZalka n delta = 2 * nq_simple -- 2x for compute-uncompute
  where
   -- Section 2.2 Improved Algorithm (i.e. sqrt log(1/eps) instead of log(1/eps))
   -- fail prob
-  eps :: precT
-  eps = (delta / 2) ^ (2 :: Int)
+  eps :: P.FailProb precT
+  eps = P.requiredNormErrorToFailProb delta
 
   -- log_fac = ceiling log_fac
   -- log_fac :: precT
@@ -104,7 +104,7 @@ _QSearchZalka n delta = 2 * nq_simple -- 2x for compute-uncompute
   max_iter = ceiling $ (pi / 4) * sqrt (fromIntegral n :: Double)
 
   n_reps :: precT
-  n_reps = logBase (1 - p) eps
+  n_reps = logBase (1 - p) (P.getFailProb eps)
    where
     p = 0.3914 :: precT
 
@@ -181,14 +181,14 @@ instance
     let n = last param_types ^?! P._Fin
 
     -- split the precision
-    let delta_search = delta / 2
+    let delta_search = delta `P.divideError` 2
     let delta_pred = delta - delta_search
 
     -- number of predicate queries
     let qry = _QSearchZalka n delta_search
 
     -- precision per predicate call
-    let delta_per_pred_call = delta_pred / qry
+    let delta_per_pred_call = delta_pred `P.divideError` qry
 
     -- cost of each predicate call
     cost_pred <-
@@ -211,15 +211,15 @@ instance
     let n = last param_types ^?! P._Fin
 
     -- split the fail prob
-    let eps_search = eps / 2
+    let eps_search = eps `P.divideError` 2
     let eps_pred = eps - eps_search
 
     -- number of predicate queries
     let qry = _EQSearchWorst n eps_search
 
     -- fail prob per predicate call
-    let eps_per_pred_call = eps_pred / qry
-    let delta_per_pred_call = eps_per_pred_call / 2
+    let eps_per_pred_call = eps_pred `P.divideError` qry
+    let delta_per_pred_call = P.requiredFailProbToNormError eps_per_pred_call
 
     -- cost of each predicate call
     cost_unitary_pred <-
@@ -246,7 +246,7 @@ instance
         view $ P._state . Ctx.at x . non (error "invalid argument, please typecheck first.")
 
     -- split the fail prob
-    let eps_search = eps / 2
+    let eps_search = eps `P.divideError` 2
     let eps_pred = eps - eps_search
 
     -- number of solutions
@@ -263,8 +263,8 @@ instance
     let qry = _EQSearch n t eps_search
 
     let q_worst = _EQSearchWorst n eps_search
-    let eps_per_pred_call = eps_pred / q_worst
-    let delta_per_pred_call = eps_per_pred_call / 2
+    let eps_per_pred_call = eps_pred `P.divideError` q_worst
+    let delta_per_pred_call = P.requiredFailProbToNormError eps_per_pred_call
 
     pred_unitary_cost <-
       magnify P._unitaryCostEnv $
@@ -378,7 +378,7 @@ algoQSearchZalka ::
   , P.TypeCheckable sizeT
   ) =>
   -- | max. norm error @\delta@
-  precT ->
+  P.L2NormError precT ->
   -- | output bit
   Ident ->
   UQSearchBuilder primsT sizeT precT ()
@@ -401,11 +401,11 @@ algoQSearchZalka delta out_bit = do
   max_iter :: sizeT -> sizeT
   max_iter n = ceiling $ (pi / 4) * sqrt (fromIntegral n :: Double)
 
-  eps :: precT
-  eps = (delta / 2) ^ (2 :: Int)
+  eps :: P.FailProb precT
+  eps = P.requiredNormErrorToFailProb delta
 
   n_reps :: Int
-  n_reps = ceiling $ logBase (1 - p) eps
+  n_reps = ceiling $ logBase (1 - p) (P.getFailProb eps)
    where
     p = 0.3914 :: precT
 
@@ -432,12 +432,12 @@ instance
     let n = s_ty ^?! P._Fin
 
     -- split the precision
-    let delta_search = delta / 2
+    let delta_search = delta `P.divideError` 2
     let delta_pred = delta - delta_search
     -- number of predicate queries
     let qry = _QSearchZalka n delta_search
     -- precision per predicate call
-    let delta_per_pred_call = delta_pred / qry
+    let delta_per_pred_call = delta_pred `P.divideError` qry
 
     -- compile the predicate
     CompileU.LoweredProc
@@ -477,7 +477,7 @@ instance
           (printf :: String -> String -> String -> String -> String)
             "QSearch[%s, %s, %s]"
             (show n)
-            (show delta_search)
+            (show $ P.getL2NormError delta_search)
             (CQPL.proc_name pred_proc)
     let all_params =
           CompileU.withTag CQPL.ParamInp (zip args (init pred_inp_tys))
@@ -516,7 +516,7 @@ instance
               (printf :: String -> String -> String -> String -> String)
                 "QSearch_clean[%s, %s, %s]"
                 (show n)
-                (show delta_search)
+                (show $ P.getL2NormError delta_search)
                 (CQPL.proc_name pred_proc)
 
         out_bit <- CompileU.allocAncilla P.tbool
@@ -635,7 +635,7 @@ algoQSearch ::
   -- | number of classical samples
   sizeT ->
   -- | max fail prob
-  precT ->
+  P.FailProb precT ->
   -- | grover_k caller: k, x, b
   (Either (CQPL.MetaParam sizeT) Ident -> Ident -> Ident -> CQPL.Stmt sizeT) ->
   -- | cqpl predicate caller
@@ -705,7 +705,7 @@ algoQSearch ty n_samples eps grover_k_caller pred_caller ok = do
   sqrt_n = sqrt (fromIntegral n)
 
   n_runs, q_max :: SizeT
-  n_runs = ceiling $ logBase 3 (1 / eps)
+  n_runs = ceiling $ logBase 3 (1 / P.getFailProb eps)
   q_max = ceiling $ alpha * sqrt_n
 
   -- type for j and Q_sum
@@ -750,13 +750,13 @@ instance
     let n = s_ty ^?! P._Fin
 
     -- fail prob of search
-    let eps_s = eps / 2
+    let eps_s = eps `P.divideError` 2
 
     -- fail prob predicate
     let eps_pred = eps - eps_s
     let n_max_pred_calls = _EQSearchWorst n eps_pred
-    let eps_per_pred_call = eps_pred / n_max_pred_calls
-    let delta_per_pred_call = eps_per_pred_call / 2 -- norm error in unitary predicate
+    let eps_per_pred_call = eps_pred `P.divideError` n_max_pred_calls
+    let delta_per_pred_call = P.requiredFailProbToNormError eps_per_pred_call -- norm error in unitary predicate
 
     -- lower the unitary predicate
     pred_uproc <- WriterT . magnify P._unitaryCostEnv . runWriterT $ do
@@ -830,7 +830,7 @@ instance
     qsearch_proc_name <- Compiler.newIdent "QAny"
     Compiler.addProc $
       CQPL.ProcDef
-        { CQPL.info_comment = printf "QAny[%s]" (show eps_s)
+        { CQPL.info_comment = printf "QAny[%s]" (show $ P.getFailProb eps_s)
         , CQPL.proc_name = qsearch_proc_name
         , CQPL.proc_meta_params = []
         , CQPL.proc_param_types = map snd qsearch_params

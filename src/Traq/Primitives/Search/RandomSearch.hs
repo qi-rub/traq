@@ -39,11 +39,11 @@ _URandomSearch :: forall sizeT precT. (Integral sizeT, Floating precT) => sizeT 
 _URandomSearch n = fromIntegral n
 
 -- | Worst case number of predicate queries to implement random search.
-_ERandomSearchWorst :: forall sizeT precT. (Integral sizeT, Floating precT) => sizeT -> precT -> precT
-_ERandomSearchWorst n eps = fromIntegral n * log (1 / eps)
+_ERandomSearchWorst :: forall sizeT precT. (Integral sizeT, Floating precT) => sizeT -> P.FailProb precT -> precT
+_ERandomSearchWorst n eps = fromIntegral n * log (1 / P.getFailProb eps)
 
 -- | Expected number of predicate queries to implement random search.
-_ERandomSearch :: forall sizeT precT. (Integral sizeT, Floating precT) => sizeT -> sizeT -> precT -> precT
+_ERandomSearch :: forall sizeT precT. (Integral sizeT, Floating precT) => sizeT -> sizeT -> P.FailProb precT -> precT
 _ERandomSearch n 0 eps = _ERandomSearchWorst n eps
 _ERandomSearch n k _ = fromIntegral n / fromIntegral k
 
@@ -89,7 +89,7 @@ instance
     let qry = _URandomSearch n
 
     -- precision per predicate call
-    let delta_per_pred_call = delta / qry
+    let delta_per_pred_call = delta `P.divideError` qry
 
     -- cost of each predicate call
     cost_pred <-
@@ -113,14 +113,14 @@ instance
     P.Fin n <- pure $ last param_types
 
     -- split the fail prob
-    let eps_search = eps / 2
+    let eps_search = eps `P.divideError` 2
     let eps_pred = eps - eps_search
 
     -- number of predicate queries
     let max_qry = _ERandomSearchWorst n eps_search
 
     -- fail prob per predicate call
-    let eps_per_pred_call = eps_pred / max_qry
+    let eps_per_pred_call = eps_pred `P.divideError` max_qry
 
     -- cost of each predicate call
     cost_pred_call <-
@@ -152,14 +152,14 @@ instance
     ty@(P.Fin n) <- pure $ last param_types
 
     -- split the fail prob
-    let eps_search = eps / 2
+    let eps_search = eps `P.divideError` 2
     let eps_pred = eps - eps_search
 
     -- number of predicate queries
     let max_qry = _ERandomSearchWorst n eps_search
 
     -- fail prob per predicate call
-    let eps_per_pred_call = eps_pred / max_qry
+    let eps_per_pred_call = eps_pred `P.divideError` max_qry
 
     arg_vals <- runReaderT ?? sigma $ forM args $ \x -> do
       view $ Ctx.at x . non (error "invalid arg")

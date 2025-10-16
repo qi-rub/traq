@@ -67,7 +67,7 @@ instance
     P.Fin n <- pure $ last param_types
 
     -- precision per predicate call
-    let delta_per_pred_call = delta / fromIntegral n
+    let delta_per_pred_call = delta `P.divideError` fromIntegral n
 
     -- cost of each predicate call
     cost_pred <-
@@ -91,7 +91,7 @@ instance
     P.Fin n <- pure $ last param_types
 
     -- fail prob per predicate call
-    let eps_per_pred_call = eps / fromIntegral n
+    let eps_per_pred_call = eps `P.divideError` fromIntegral n
 
     -- cost of each predicate call
     cost_pred_call <-
@@ -117,7 +117,7 @@ instance
     ty@(P.Fin n) <- pure $ last param_types
 
     -- fail prob per predicate call
-    let eps_per_pred_call = eps / fromIntegral n
+    let eps_per_pred_call = eps `P.divideError` fromIntegral n
 
     arg_vals <- runReaderT ?? sigma $ forM args $ \x -> do
       view $ Ctx.at x . non (error "invalid arg")

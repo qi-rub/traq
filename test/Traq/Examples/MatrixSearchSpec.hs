@@ -2,8 +2,6 @@
 
 module Traq.Examples.MatrixSearchSpec (spec) where
 
-import Lens.Micro.GHC
-
 import qualified Traq.Data.Context as Ctx
 import Traq.Data.Default
 import qualified Traq.Data.Symbolic as Sym
@@ -45,17 +43,17 @@ spec = do
     let ucF = _QSearchZalka
 
     it "unitary cost for delta=0.0001" $ do
-      let delta = 0.0001 :: Double
+      let delta = P.l2NormError (0.001 :: Double)
       let cu = getCost $ P.unitaryQueryCost P.SplitSimple delta ex
-      let nu_outer = ucF n (delta / 2)
-      let nu_inner = 2 * ucF m (delta / 2 / nu_outer / 8)
+      let nu_outer = ucF n (delta `P.divideError` 2)
+      let nu_inner = 2 * ucF m (delta `P.divideError` (2 * nu_outer * 8))
       cu `shouldBe` 2 * nu_outer * 2 * nu_inner
 
     it "quantum cost for eps=0.0001" $ do
-      let eps = 0.0001
+      let eps = P.failProb (0.001 :: Double)
       let cq = getCost $ P.quantumQueryCost P.SplitSimple eps ex interpCtx []
-      let nq_outer = wcF n (eps / 2)
-      let nq_inner = 2 * ucF m (eps / 2 / nq_outer / 16)
+      let nq_outer = wcF n (eps `P.divideError` 2)
+      let nq_inner = 2 * ucF m (P.requiredFailProbToNormError eps `P.divideError` (2 * nq_outer * 8))
       let nq_oracle = 2
       cq `shouldBe` 2 * nq_outer * nq_inner * nq_oracle
 
@@ -63,7 +61,7 @@ spec = do
       PP.toCodeString ex `shouldSatisfy` (not . null)
 
     describe "Unitary Compile" $ do
-      let delta = 0.001 :: Double
+      let delta = P.l2NormError (0.001 :: Double)
       it "lowers" $ do
         assertRight $ CompileU.lowerProgram default_ Ctx.empty delta ex
 
@@ -80,7 +78,7 @@ spec = do
         uqpl_cost `shouldSatisfy` (<= proto_cost)
 
     describe "lower to CQPL" $ do
-      let eps = 0.001 :: Double
+      let eps = P.failProb (0.001 :: Double)
       it "lowers" $ do
         assertRight $ CompileQ.lowerProgram default_ Ctx.empty eps ex
 
@@ -101,40 +99,48 @@ spec = do
     -- TODO: update the tests below once symbolic expressions are upgraded.
 
     it "unitary cost" $ do
-      let delta = Sym.var "δ" :: Sym.Sym Double
+      let delta = P.l2NormError (Sym.var "δ" :: Sym.Sym Double)
       let cu = getCost $ P.unitaryQueryCost P.SplitSimple delta ex
-      let nu_outer = ucF n (delta / 2)
-      let nu_inner = 2 * ucF m ((delta - delta / 2) / nu_outer / 2 / 2 / 2)
+
+      let delta_outer = delta `P.divideError` 2
+      let nu_outer = ucF n delta_outer
+      let nu_inner = 2 * ucF m ((delta - delta_outer) `P.divideError` (nu_outer * 2 * 2 * 2))
       let nu_oracle = 2
       let from_formula = 2 * nu_outer * nu_inner * nu_oracle
       -- cu `shouldBe` from_formula
       show cu `shouldBe` "((QryU(n, δ/2.0)) .* (((2.0) .* (0.0+((QryU(m, (δ-δ/2.0)/QryU(n, δ/2.0)/2.0/2.0/2.0)) .* (((2.0) .* (0.0+((2.0) .* (1.0))+0.0))))+0.0))))"
 
     it "unitary cost (optimized precision splitting)" $ do
-      let delta = Sym.var "δ" :: Sym.Sym Double
+      let delta = P.l2NormError (Sym.var "δ" :: Sym.Sym Double)
       let cu = getCost $ P.unitaryQueryCost P.SplitUsingNeedsEps delta ex
-      let nu_outer = ucF n (delta / 2)
-      let nu_inner = 2 * ucF m ((delta - delta / 2) / nu_outer / 2)
+
+      let delta_outer = delta `P.divideError` 2
+      let nu_outer = ucF n delta_outer
+      let nu_inner = 2 * ucF m ((delta - delta_outer) `P.divideError` (nu_outer * 2))
       let nu_oracle = 2
       let from_formula = 2 * nu_outer * nu_inner * nu_oracle
       -- cu `shouldBe` from_formula
       show cu `shouldBe` "((QryU(n, δ/2.0)) .* (((2.0) .* (0.0+((QryU(m, (δ-δ/2.0)/QryU(n, δ/2.0)/2.0)) .* (((2.0) .* (0.0+((2.0) .* (1.0))+0.0))))+0.0))))"
 
     it "quantum worst case cost" $ do
-      let eps = Sym.var "ε" :: Sym.Sym Double
+      let eps = P.failProb (Sym.var "ε" :: Sym.Sym Double)
       let cq = getCost $ P.quantumMaxQueryCost P.SplitSimple eps ex
-      let nq_outer = wcF n (eps / 2)
-      let nq_inner = 2 * ucF m ((eps - eps / 2) / nq_outer / 2 / 2 / 2 / 2)
+
+      let eps_outer = eps `P.divideError` 2
+      let nq_outer = wcF n eps_outer
+      let nq_inner = 2 * ucF m (P.requiredFailProbToNormError (eps - eps_outer) `P.divideError` (nq_outer * 2 * 2 * 2))
       let nq_oracle = 2
       let from_formula = 2 * nq_outer * nq_inner * nq_oracle
       -- cq `shouldBe` from_formula
       show cq `shouldBe` "((QryQmax(n, ε/2.0)) .* (((2.0) .* (0.0+((QryU(m, (ε-ε/2.0)/QryQmax(n, ε/2.0)/2.0/2.0/2.0/2.0)) .* (((2.0) .* (0.0+((2.0) .* (1.0))+0.0))))+0.0))))"
 
     it "quantum worst case cost (optimized precision splitting)" $ do
-      let eps = Sym.var "ε" :: Sym.Sym Double
+      let eps = P.failProb (Sym.var "ε" :: Sym.Sym Double)
       let cq = getCost $ P.quantumMaxQueryCost P.SplitUsingNeedsEps eps ex
-      let nq_outer = wcF n (eps / 2)
-      let nq_inner = 2 * ucF m ((eps - eps / 2) / nq_outer / 2 / 2)
+
+      let eps_outer = eps `P.divideError` 2
+      let nq_outer = wcF n eps_outer
+      let nq_inner = 2 * ucF m (P.requiredFailProbToNormError (eps - eps_outer) `P.divideError` (nq_outer * 2))
       let nq_oracle = 2
       let from_formula = 2 * nq_outer * nq_inner * nq_oracle
       -- cq `shouldBe` from_formula

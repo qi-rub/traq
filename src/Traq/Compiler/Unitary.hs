@@ -82,7 +82,7 @@ class
     ( Lowerable primsT sizeT precT
     , m ~ CompilerT primsT sizeT precT
     ) =>
-    precT ->
+    P.L2NormError precT ->
     primT ->
     -- | rets
     [Ident] ->
@@ -94,7 +94,7 @@ class
     , Generic primT
     , GLowerable (Rep primT) sizeT precT
     ) =>
-    precT ->
+    P.L2NormError precT ->
     primT ->
     -- | rets
     [Ident] ->
@@ -112,7 +112,7 @@ class GLowerable f sizeT precT where
     , m ~ CompilerT primsT sizeT precT
     ) =>
     f primT ->
-    precT ->
+    P.L2NormError precT ->
     -- | rets
     [Ident] ->
     m (UStmt sizeT)
@@ -179,7 +179,7 @@ lowerExpr ::
   , Show precT
   , Floating precT
   ) =>
-  precT ->
+  P.L2NormError precT ->
   P.Expr primsT sizeT ->
   -- | returns
   [Ident] ->
@@ -224,7 +224,7 @@ lowerStmt ::
   , Show precT
   , Floating precT
   ) =>
-  precT ->
+  P.L2NormError precT ->
   P.Stmt primsT sizeT ->
   CompilerT primsT sizeT precT (UStmt sizeT)
 -- single statement
@@ -256,7 +256,7 @@ lowerFunDefWithGarbage ::
   , m ~ CompilerT primsT sizeT precT
   ) =>
   -- | precision \delta
-  precT ->
+  P.L2NormError precT ->
   -- | source function name
   Ident ->
   -- | function
@@ -294,7 +294,7 @@ lowerFunDefWithGarbage
     } =
     withSandboxOf P._typingCtx $ do
       proc_name <- newIdent fun_name
-      let info_comment = printf "%s[%s]" fun_name (show delta)
+      let info_comment = printf "%s[%s]" fun_name (show $ P.getL2NormError delta)
 
       let param_binds = zip param_names param_types
       let ret_binds = zip ret_names ret_types
@@ -353,7 +353,7 @@ lowerFunDef ::
   -- | Controlled?
   ControlFlag ->
   -- | precision \delta
-  precT ->
+  P.L2NormError precT ->
   -- | function name
   Ident ->
   -- | function
@@ -369,7 +369,7 @@ lowerFunDef
     , P.mbody
     } = withSandboxOf P._typingCtx $ do
     -- get the proc call that computes with garbage
-    LoweredProc{lowered_def, aux_tys = g_aux_tys, out_tys = g_ret_tys} <- lowerFunDefWithGarbage (delta / 2) fun_name fun
+    LoweredProc{lowered_def, aux_tys = g_aux_tys, out_tys = g_ret_tys} <- lowerFunDefWithGarbage (delta `P.divideError` 2) fun_name fun
     let g_dirty_name = lowered_def ^. to proc_name
 
     let param_names = case mbody of
@@ -384,7 +384,7 @@ lowerFunDef
 
     P._typingCtx .= Ctx.fromList (param_binds ++ ret_binds)
     proc_name <- newIdent fun_name
-    let info_comment = printf "%sClean[%s, %s]" (case with_ctrl of WithControl -> "Ctrl_"; _ -> "") fun_name (show delta)
+    let info_comment = printf "%sClean[%s, %s]" (case with_ctrl of WithControl -> "Ctrl_"; _ -> "") fun_name (show $ P.getL2NormError delta)
 
     g_ret_names <- mapM allocAncilla g_ret_tys
 
@@ -447,7 +447,7 @@ lowerProgram ::
   -- | All variable bindings
   P.TypingCtx SizeT ->
   -- | precision \delta
-  precT ->
+  P.L2NormError precT ->
   P.Program primsT SizeT ->
   Either String (CQPL.Program SizeT)
 lowerProgram strat gamma_in delta prog@(P.Program fs) = do

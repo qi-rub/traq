@@ -21,7 +21,9 @@ unsafeParseProgram = fmap Sym.unSym . either (error . show) id . parseProgram
 spec :: Spec
 spec = do
   describe "unitary cost of statements" $ do
-    let eps = 0.001 :: Double
+    let delta = l2NormError 0.001 :: L2NormError Double
+    let eps = failProb 0.001 :: FailProb Double
+
     it "call oracle" $ do
       let prog =
             unsafeParseProgram . unlines $
@@ -32,7 +34,7 @@ spec = do
               , "return res"
               , "end"
               ]
-      let c = unitaryQueryCost SplitSimple eps prog :: QueryCost Double
+      let c = unitaryQueryCost SplitSimple delta prog :: QueryCost Double
       c `shouldBe` default_{uqueries = Map.singleton "Oracle" 2}
 
     it "fun call of oracle" $ do
@@ -49,7 +51,7 @@ spec = do
               , "  return res"
               , "end"
               ]
-      let c = unitaryQueryCost SplitSimple eps prog :: QueryCost Double
+      let c = unitaryQueryCost SplitSimple delta prog :: QueryCost Double
       c `shouldBe` default_{uqueries = Map.singleton "Oracle" 4}
 
     it "search with no oracle" $ do
@@ -65,7 +67,7 @@ spec = do
               , "  return res"
               , "end"
               ]
-      let c = unitaryQueryCost SplitSimple eps prog :: QueryCost Double
+      let c = unitaryQueryCost SplitSimple delta prog :: QueryCost Double
       c `shouldBe` default_
 
     it "search with 1x oracle" $ do
@@ -77,8 +79,8 @@ spec = do
               , "  return res"
               , "end"
               ]
-      let c = unitaryQueryCost SplitSimple eps prog :: QueryCost Double
-      let qry = 2 * _QSearchZalka (100 :: Int) (eps / 2)
+      let c = unitaryQueryCost SplitSimple delta prog :: QueryCost Double
+      let qry = 2 * _QSearchZalka (100 :: Int) (delta `divideError` 2)
       c `shouldBe` default_{uqueries = Map.singleton "Oracle" qry}
 
     it "probabilistic outcome" $ do

@@ -37,7 +37,7 @@ spec = do
             lowerProgram
               P.SplitSimple
               (Ctx.singleton "x" (P.Fin 10))
-              (0 :: Double)
+              (P.l2NormError (0 :: Double))
               (P.Program [P.NamedFunDef "main" main_fun])
 
         assertRight $ CQPL.typeCheckProgram actual

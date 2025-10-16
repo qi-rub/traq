@@ -1,7 +1,6 @@
 {-# LANGUAGE DeriveGeneric #-}
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE MultiParamTypeClasses #-}
-{-# LANGUAGE TypeApplications #-}
 
 module Traq.Primitives.Simons.Quantum (
   -- * Primitive
@@ -47,7 +46,7 @@ _SimonsQueries ::
   -- | p_0: maximum probability of spurious collisions for non-period values.
   precT ->
   -- | maximum allowed failure probability.
-  precT ->
+  P.FailProb precT ->
   precT
 _SimonsQueries n p0 eps = q
  where
@@ -57,7 +56,7 @@ _SimonsQueries n p0 eps = q
   -- define q := cn (i.e. number of queries)
   -- ==> n + log_2 (1/eps) <= q * log_2(2 / (1+p0))
 
-  q_num = n + logBase 2 (1 / eps)
+  q_num = n + logBase 2 (1 / P.getFailProb eps)
   q_den = logBase 2 (2 / (1 + p0))
   q = q_num / q_den
 
@@ -116,18 +115,18 @@ instance
         n_sym = P.sizeToPrec n
 
     -- split
-    let delta_alg = delta / 2
+    let delta_alg = delta `P.divideError` 2
     let delta_f_total = delta - delta_alg
 
     -- compute eps for query cost
-    let eps_alg :: precT
-        eps_alg = (delta_alg / 2) ^ (2 :: Int)
+    let eps_alg :: P.FailProb precT
+        eps_alg = P.requiredNormErrorToFailProb delta_alg
 
     -- worst case number of queries
     let qry = _SimonsQueries n_sym p_0 eps_alg
 
     -- delta per predicate call
-    let delta_f = delta_f_total / qry
+    let delta_f = delta_f_total `P.divideError` qry
 
     cost <-
       magnify P._unitaryCostEnv $
@@ -169,15 +168,15 @@ instance
         n_sym = P.sizeToPrec n
 
     -- split
-    let eps_alg = eps / 2
+    let eps_alg = eps `P.divideError` 2
     let eps_f_total = eps - eps_alg
 
     -- worst case number of queries
     let qry = _SimonsQueries n_sym p_0 eps_alg
 
     -- delta per predicate call
-    let eps_f = eps_f_total / qry
-    let delta_f = eps_f / 2
+    let eps_f = eps_f_total `P.divideError` qry
+    let delta_f = P.requiredFailProbToNormError eps_f
 
     cost <-
       magnify P._unitaryCostEnv $

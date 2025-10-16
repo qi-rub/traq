@@ -85,7 +85,7 @@ qcost ::
   (MatrixType matT, MyPrim primsT) =>
   Phantom primsT ->
   -- | eps (max. fail probability)
-  Double ->
+  P.FailProb Double ->
   -- | matrix
   matT ->
   Double
@@ -123,7 +123,7 @@ randomMatrixWith (n, m) g z = do
   let rows = bad_rows ++ replicate g (replicate m (P.FinV 1))
   shuffleM rows
 
-randomStat :: (MyPrim primsT) => Phantom primsT -> SizeT -> Double -> Int -> IO [Double]
+randomStat :: (MyPrim primsT) => Phantom primsT -> SizeT -> P.FailProb Double -> Int -> IO [Double]
 randomStat phantom nruns eps n =
   replicateM nruns $ do
     mat <- randomMatrix n n
@@ -135,7 +135,7 @@ computeStatsForRandomMatrices phantom =
     hPutStrLn h "eps,n,cost"
     forM_ [0.001, 0.0005, 0.0001] $ \eps -> do
       forM_ [10, 20 .. 100] $ \n -> do
-        cs <- randomStat phantom 20 eps n
+        cs <- randomStat phantom 20 (P.failProb eps) n
         forM cs $ \c -> do
           hPutStrLn h $ printf "%f,%d,%.2f" eps n c
 
@@ -149,7 +149,7 @@ computeStatsForPlantedRandomMatrices phantom =
       forM_ [0 .. n `div` 4 + 1] $ \g -> do
         forM_ [1] $ \z -> do
           mat <- randomMatrixWith (n, m) g z
-          let c = qcost phantom eps mat
+          let c = qcost phantom (P.failProb eps) mat
           hPutStrLn h $ printf "%f,%d,%d,%d,%d,%.2f" eps n m g z c
 
 computeStatsForWorstCaseMatrices :: (MyPrim primsT) => Phantom primsT -> IO ()
@@ -161,7 +161,7 @@ computeStatsForWorstCaseMatrices phantom =
     forM_ ((10 :: Int) : [20, 40, 100]) $ \n -> do
       putStrLn $ ">> n = " <> show n
       let m = n
-      let c = qcost phantom eps (n, m, matfun)
+      let c = qcost phantom (P.failProb eps) (n, m, matfun)
       hPutStrLn h $ printf "%d,%.2f" n c
  where
   matfun :: Value -> Value -> Bool
@@ -175,7 +175,7 @@ computeStatsForWorstCaseExample = do
   withFile "examples/matrix_search/stats/worstcase.csv" WriteMode $ \h -> do
     hPutStrLn h "n,cost"
 
-    let eps = 0.5 :: Double
+    let eps = P.failProb (0.5 :: Double)
     forM_ (10 : [500, 1000 .. 10000]) $ \n -> do
       let ex = getprog n
       let c = getCost $ P.quantumQueryCost P.SplitSimple eps ex Ctx.empty [] :: Double
@@ -189,7 +189,7 @@ triangular = do
   withFile "examples/matrix_search/stats/triangular.csv" WriteMode $ \h -> do
     hPutStrLn h "n,cost"
 
-    let eps = 0.2 :: Double
+    let eps = P.failProb (0.2 :: Double)
     -- forM_ (10 : [500, 1000 .. 5000]) $ \n -> do
     forM_ [5500, 6000] $ \n -> do
       putStrLn $ printf "running n: %d" n

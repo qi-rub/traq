@@ -22,7 +22,7 @@ spec = do
   describe "RandomSearch" $ do
     let mat_prog = matrixExample @RandomSearch
     it "expected cost" $ do
-      let eps = 0.001
+      let eps = P.failProb 0.001
       let n = 10
       let fun_interp = Ctx.singleton "Matrix" diagMatrix
       let c = getCost $ P.quantumQueryCost default_ eps (mat_prog n n) fun_interp default_ :: Double

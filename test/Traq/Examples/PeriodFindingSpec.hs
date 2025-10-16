@@ -50,15 +50,15 @@ spec = describe "FindXorPeriod" $ do
 
   before (loadPeriodFinding n) $ do
     it "calculates unitary cost correctly" $ \program -> do
-      let delta = 0.01 :: Double
+      let delta = P.l2NormError (0.01 :: Double)
       let actualCost = getCost $ P.unitaryQueryCost P.SplitUsingNeedsEps delta program
-      let formulaCost = 2 * _SimonsQueries (fromIntegral n) p0 ((delta / 4) ** 2)
+      let formulaCost = 2 * _SimonsQueries (fromIntegral n) p0 (P.requiredNormErrorToFailProb $ delta `P.divideError` 2)
 
       actualCost `shouldBe` formulaCost
 
     it "calculates quantum max cost correctly" $ \program -> do
-      let eps = 0.1 :: Double
+      let eps = P.failProb (0.1 :: Double)
       let actualCost = getCost $ P.quantumMaxQueryCost P.SplitUsingNeedsEps eps program
-      let formulaCost = 2 * _SimonsQueries (fromIntegral n) p0 (eps / 2)
+      let formulaCost = 2 * _SimonsQueries (fromIntegral n) p0 (eps `P.divideError` 2)
 
       actualCost `shouldBe` formulaCost

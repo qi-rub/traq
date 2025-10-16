@@ -25,7 +25,7 @@ _ProcBodyC _ b = pure b
 spec :: Spec
 spec = do
   describe "lower simple programs" $ do
-    let eps = 0.001 :: Double -- fail prob
+    let eps = P.failProb (0.001 :: Double)
     it "assign" $ do
       ex_ <- expectRight $ P.parseProgram @Void "def main() -> () do x <- const 0 : Fin<10>; return end"
       let ex = Sym.unSym <$> ex_

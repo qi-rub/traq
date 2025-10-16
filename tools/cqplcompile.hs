@@ -62,7 +62,7 @@ subsNM params s = Sym.unSym $ foldr subsOnce s params
 
 compile :: (RealFloat precT, Show precT) => P.Program DefaultPrims SizeT -> precT -> IO String
 compile prog eps = do
-  Right cqpl_prog <- return $ CompileQ.lowerProgram default_ Ctx.empty eps prog
+  Right cqpl_prog <- return $ CompileQ.lowerProgram default_ Ctx.empty (P.failProb eps) prog
   let nqubits = CQPL.numQubits cqpl_prog
 
   return $ PP.toCodeString cqpl_prog ++ printf "\n// qubits: %d\n" nqubits

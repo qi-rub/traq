@@ -54,8 +54,8 @@ default-extensions:
 
 library:
   source-dirs: src
-  default-extensions:
-    - Safe
+  # default-extensions:
+  #   - Safe
 
 _exe_opts: &exe_opts
   source-dirs: tools

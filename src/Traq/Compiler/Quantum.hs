@@ -67,7 +67,7 @@ class
     , m ~ CompilerT primsT sizeT precT
     ) =>
     -- | fail prob
-    precT ->
+    P.FailProb precT ->
     primT ->
     -- | rets
     [Ident] ->
@@ -84,7 +84,7 @@ class GLowerable f sizeT precT where
     , m ~ CompilerT primsT sizeT precT
     ) =>
     f primT ->
-    precT ->
+    P.FailProb precT ->
     -- | rets
     [Ident] ->
     m (Stmt sizeT)
@@ -121,7 +121,7 @@ lowerFunDef ::
   , Floating precT
   ) =>
   -- | fail prob
-  precT ->
+  P.FailProb precT ->
   -- | source function name
   Ident ->
   -- | source function
@@ -140,7 +140,7 @@ lowerFunDef _ fun_name P.FunDef{P.param_types, P.ret_types, P.mbody = Nothing} =
   addProc proc_def
   return fun_name
 lowerFunDef eps fun_name P.FunDef{P.param_types, P.mbody = Just body} = do
-  let info_comment = printf "%s[%s]" fun_name (show eps)
+  let info_comment = printf "%s[%s]" fun_name (show $ P.getFailProb eps)
   proc_name <- newIdent fun_name
 
   let P.FunBody{P.param_names, P.ret_names, P.body_stmt} = body
@@ -176,7 +176,7 @@ lowerFunDefByName ::
   , Floating precT
   ) =>
   -- | fail prob
-  precT ->
+  P.FailProb precT ->
   -- | source function name
   Ident ->
   CompilerT primsT sizeT precT Ident
@@ -193,7 +193,7 @@ lowerExpr ::
   , Floating precT
   ) =>
   -- fail prob
-  precT ->
+  P.FailProb precT ->
   -- source expression
   P.Expr primsT sizeT ->
   -- return variables
@@ -224,7 +224,7 @@ lowerStmt ::
   , Show precT
   , Floating precT
   ) =>
-  precT ->
+  P.FailProb precT ->
   P.Stmt primsT sizeT ->
   CompilerT primsT sizeT precT (Stmt sizeT)
 -- single statement
@@ -253,7 +253,7 @@ lowerProgram ::
   -- | input bindings to the source program
   P.TypingCtx sizeT ->
   -- | fail prob \( \varepsilon \)
-  precT ->
+  P.FailProb precT ->
   -- | source program
   P.Program primsT sizeT ->
   Either String (Program sizeT)

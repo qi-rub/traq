@@ -33,8 +33,8 @@ symbolicEx = do
   let strat = P.SplitUsingNeedsEps
 
   forM_ (tail $ inits ex_fs) $ \fs -> do
-    let eps = Sym.var "ε" :: Sym.Sym Double
-    let delta = Sym.var "δ" :: Sym.Sym Double
+    let eps = P.failProb (Sym.var "ε" :: Sym.Sym Double)
+    let delta = P.l2NormError (Sym.var "δ" :: Sym.Sym Double)
 
     putStrLn $ printf "Worst case cost of %s" (P.fun_name $ last fs)
     putStr "  - Unitary: "
@@ -52,7 +52,7 @@ concreteEx = do
   printDivider
   putStrLn $ PP.toCodeString ex
 
-  let delta = 0.001 :: Double
+  let delta = P.l2NormError (0.001 :: Double)
   let strat = P.SplitUsingNeedsEps
 
   let u_formula_cost = P.unitaryQueryCost strat delta ex :: QueryCost Double
@@ -78,11 +78,11 @@ concreteQEx = do
   printDivider
   putStrLn $ PP.toCodeString ex
 
-  let delta = 0.001 :: Double
+  let eps = P.failProb (0.001 :: Double)
   let strat = P.SplitUsingNeedsEps
 
   printDivider
-  Right exU <- return $ CompileQ.lowerProgram strat Ctx.empty delta ex
+  Right exU <- return $ CompileQ.lowerProgram strat Ctx.empty eps ex
   putStrLn $ PP.toCodeString exU
   return ()
 

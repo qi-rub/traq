@@ -50,13 +50,13 @@ instance P.TypeCheckablePrimitive CAmplify
 
 instance (Ord precT) => P.Evaluatable CAmplify precT
 
-_QryClassicalU :: forall precT. (Show precT) => Sym.Sym precT -> Double -> Sym.Sym precT
-_QryClassicalU eps p_min = Sym.var $ printf "QryU_Amplify(%s, %s)" (show eps) (show p_min)
+_QryClassicalU :: forall precT. (Show precT) => P.L2NormError (Sym.Sym precT) -> Double -> Sym.Sym precT
+_QryClassicalU eps p_min = Sym.var $ printf "QryU_Amplify(%s, %s)" (show $ P.getL2NormError eps) (show p_min)
 
-_QryClassicalMax :: forall precT. (Show precT) => Sym.Sym precT -> Double -> Sym.Sym precT
-_QryClassicalMax eps p_min = Sym.var $ printf "QMAX_Amplify(%s, %s)" (show eps) (show p_min)
+_QryClassicalMax :: forall precT. (Show precT) => P.FailProb (Sym.Sym precT) -> Double -> Sym.Sym precT
+_QryClassicalMax eps p_min = Sym.var $ printf "QMAX_Amplify(%s, %s)" (show $ P.getFailProb eps) (show p_min)
 
-_EQ :: forall precT. (Fractional precT, Show precT, Ord precT) => Sym.Sym precT -> Double -> Sym.Sym precT -> Sym.Sym precT
+_EQ :: forall precT. (Fractional precT, Show precT, Ord precT) => P.FailProb (Sym.Sym precT) -> Double -> Sym.Sym precT -> Sym.Sym precT
 _EQ eps p_min p_good
   | p_good >= realToFrac p_min = 1 / p_good
   | p_good == 0 = _QryClassicalMax eps p_min
@@ -73,9 +73,9 @@ instance
   P.UnitaryCostablePrimitive CAmplify sizeT precT'
   where
   unitaryQueryCostPrimitive delta (CAmplify (Amplify{sampler, p_min})) = do
-    let delta_a = delta / 2
+    let delta_a = delta `P.divideError` 2
     let qry = _QryClassicalU delta_a p_min
-    let delta_f = (delta - delta_a) / qry
+    let delta_f = (delta - delta_a) `P.divideError` qry
 
     cost_sampler <-
       P.unitaryQueryCostE delta_f $
@@ -94,10 +94,10 @@ instance
   P.QuantumMaxCostablePrimitive CAmplify sizeT precT'
   where
   quantumMaxQueryCostPrimitive eps (CAmplify (Amplify{sampler, p_min})) = do
-    let eps_a = eps / 2
+    let eps_a = eps `P.divideError` 2
     let num_repetitions = _QryClassicalMax eps_a p_min
 
-    let eps_f = (eps - eps_a) / num_repetitions
+    let eps_f = (eps - eps_a) `P.divideError` num_repetitions
 
     cost_sampler <-
       P.quantumMaxQueryCostE eps_f $
@@ -139,9 +139,9 @@ instance
 
     let p_succ = Prob.probabilityOf @precT' success mu
     let expected = _EQ @precT eps p_min p_succ -- Expected Cost
-    let eps_a = eps / 2
+    let eps_a = eps `P.divideError` 2
     let num_repetitions = _QryClassicalMax eps_a p_min
-    let eps_f = (eps - eps_a) / num_repetitions
+    let eps_f = (eps - eps_a) `P.divideError` num_repetitions
 
     cost <- P.quantumQueryCostE eps_f sigma P.FunCallE{P.fname = sampler, P.args = sampler_args}
 

@@ -39,15 +39,16 @@ spec = do
     let ecF = _EQSearch
     let ucF = _QSearchZalka
 
-    let eps = 0.0001 :: Double
-
-    it "unitary cost for eps=0.0001" $ do
-      let true_cost = 2 * ucF n (eps / 2) :: Double
-      let computed_cost = getCost (P.unitaryQueryCost P.SplitSimple eps ex)
+    it "unitary cost for delta=0.0001" $ do
+      let delta = P.l2NormError (0.0001 :: Double)
+      let true_cost = 2 * ucF n (delta `P.divideError` 2)
+      let computed_cost = getCost (P.unitaryQueryCost P.SplitSimple delta ex)
       computed_cost `shouldBe` true_cost
 
     it "quantum cost for eps=0.0001" $ do
-      let true_cost = 2 * ecF n 0 (eps / 2)
+      let eps = P.failProb (0.0001 :: Double)
+
+      let true_cost = 2 * ecF n 0 (eps `P.divideError` 2)
       let computed_cost = getCost $ P.quantumQueryCost P.SplitSimple eps ex interpCtx []
       computed_cost `shouldBe` true_cost
 
@@ -55,7 +56,7 @@ spec = do
       PP.toCodeString ex `shouldSatisfy` (not . null)
 
     describe "Unitary Compile" $ do
-      let delta = 0.0001 :: Double
+      let delta = P.l2NormError (0.0001 :: Double)
       it "lowers" $ do
         assertRight $ CompileU.lowerProgram default_ default_ delta ex
 
