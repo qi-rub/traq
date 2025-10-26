@@ -1,8 +1,9 @@
 module Traq.Examples.TreeGenerator where
 
+import Traq.Prelude
 import Traq.ProtoLang.Syntax
 
-treeGeneratorExample :: (Num sizeT) => sizeT -> sizeT -> sizeT -> Program primT sizeT
+treeGeneratorExample :: (Num sizeT, SizeType ext ~ sizeT) => sizeT -> sizeT -> sizeT -> Program ext
 treeGeneratorExample n w p =
   Program
     [ NamedFunDef

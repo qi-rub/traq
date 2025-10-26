@@ -3,7 +3,8 @@
 {-# LANGUAGE DeriveAnyClass #-}
 {-# LANGUAGE DeriveGeneric #-}
 {-# LANGUAGE FlexibleInstances #-}
-{-# LANGUAGE MultiParamTypeClasses #-}
+{-# LANGUAGE FunctionalDependencies #-}
+{-# LANGUAGE UndecidableInstances #-}
 
 module Traq.ProtoLang.Eval (
   -- * Evaluating Basic Expressions
@@ -50,7 +51,6 @@ import Control.Monad.State (MonadState, StateT, evalStateT)
 import Control.Monad.Trans (lift)
 import Data.Bits (Bits (xor))
 import Data.Maybe (fromJust)
-import Data.Void (Void, absurd)
 import GHC.Generics
 import Text.Printf (printf)
 
@@ -224,23 +224,22 @@ class HasFunInterpCtx p where
 instance HasFunInterpCtx (FunInterpCtx sizeT) where _funInterpCtx = id
 
 -- | Environment for evaluation
-data EvaluationEnv primsT sizeT = EvaluationEnv (FunCtx primsT sizeT) (FunInterpCtx sizeT)
+data EvaluationEnv ext = EvaluationEnv (FunCtx ext) (FunInterpCtx (SizeType ext))
   deriving (Generic, HasDefault)
 
-type instance SizeType (EvaluationEnv primsT sizeT) = sizeT
-type instance PrimitiveType (EvaluationEnv primsT sizeT) = primsT
+type instance SizeType (EvaluationEnv ext) = SizeType ext
+type instance PrecType (EvaluationEnv ext) = PrecType ext
+type instance ExtensionType (EvaluationEnv ext) = ext
 
-class HasEvaluationEnv p where
-  _evaluationEnv ::
-    (primsT ~ PrimitiveType p, sizeT ~ SizeType p) =>
-    Lens' p (EvaluationEnv primsT sizeT)
+class HasEvaluationEnv p ext | p -> ext where
+  _evaluationEnv :: Lens' p (EvaluationEnv ext)
 
-instance HasEvaluationEnv (EvaluationEnv primsT sizeT) where _evaluationEnv = id
+instance HasEvaluationEnv (EvaluationEnv ext) ext where _evaluationEnv = id
 
-instance HasFunCtx (EvaluationEnv primsT sizeT) where
+instance HasFunCtx (EvaluationEnv ext) ext where
   _funCtx focus (EvaluationEnv f fi) = focus f <&> \f' -> EvaluationEnv f' fi
 
-instance HasFunInterpCtx (EvaluationEnv primsT sizeT) where
+instance HasFunInterpCtx (EvaluationEnv ext) where
   _funInterpCtx focus (EvaluationEnv f fi) = focus fi <&> EvaluationEnv f
 
 -- ================================================================================
@@ -251,7 +250,7 @@ instance HasFunInterpCtx (EvaluationEnv primsT sizeT) where
 type EvaluationMonad precT = Prob.ExpMonad precT
 
 -- | Non-deterministic Execution Monad (i.e. no state)
-type Evaluator primsT sizeT precT = ReaderT (EvaluationEnv primsT sizeT) (EvaluationMonad precT)
+type Evaluator ext = ReaderT (EvaluationEnv ext) (EvaluationMonad (PrecType ext))
 
 -- --------------------------------------------------------------------------------
 -- Primitives (with generics)
@@ -266,60 +265,56 @@ type EvalReqs sizeT precT =
   )
 
 -- | Primitives that support evaluation.
-class Evaluatable primT precT where
+class
+  (EvalReqs sizeT precT, sizeT ~ SizeType ext, precT ~ PrecType ext) =>
+  Evaluatable ext sizeT precT
+    | ext -> sizeT precT
+  where
   eval ::
-    forall sizeT primsT m.
-    ( m ~ Evaluator primsT sizeT precT
-    , Evaluatable primsT precT
-    , EvalReqs sizeT precT
+    forall ext' m.
+    ( Evaluatable ext' sizeT precT
+    , m ~ Evaluator ext'
+    , SizeType ext' ~ sizeT
+    , PrecType ext' ~ precT
     ) =>
-    primT ->
+    ext ->
     ProgramState sizeT ->
     m [Value sizeT]
   default eval ::
-    forall sizeT primsT m.
-    ( Generic primT
-    , GEvaluatable (Rep primT) precT
-    , m ~ Evaluator primsT sizeT precT
-    , Evaluatable primsT precT
-    , EvalReqs sizeT precT
+    forall ext' m.
+    ( Generic ext
+    , GEvaluatable (Rep ext) sizeT precT
+    , Evaluatable ext' sizeT precT
+    , m ~ Evaluator ext'
+    , SizeType ext' ~ sizeT
+    , PrecType ext' ~ precT
     ) =>
-    primT ->
+    ext ->
     ProgramState sizeT ->
     m [Value sizeT]
   eval x = geval (from x)
 
-instance Evaluatable Void precT where
-  eval = absurd
+instance (EvalReqs SizeT precT) => Evaluatable (Core SizeT precT) SizeT precT where
+  eval p = case p of {}
 
-class GEvaluatable f precT where
+class GEvaluatable f sizeT precT | f -> sizeT precT where
   geval ::
-    forall sizeT primsT m primT.
-    ( m ~ Evaluator primsT sizeT precT
-    , Evaluatable primsT precT
-    , EvalReqs sizeT precT
+    forall ext' m ext.
+    ( m ~ Evaluator ext'
+    , Evaluatable ext' sizeT precT
     ) =>
-    f primT ->
+    f ext ->
     ProgramState sizeT ->
     m [Value sizeT]
 
-instance
-  (GEvaluatable f1 precT, GEvaluatable f2 precT) =>
-  GEvaluatable (f1 :+: f2) precT
-  where
+instance (GEvaluatable f1 sizeT precT, GEvaluatable f2 sizeT precT) => GEvaluatable (f1 :+: f2) sizeT precT where
   geval (L1 p) = geval p
   geval (R1 p) = geval p
 
-instance
-  (GEvaluatable f precT) =>
-  GEvaluatable (M1 i c f) precT
-  where
+instance (GEvaluatable f sizeT precT) => GEvaluatable (M1 i c f) sizeT precT where
   geval (M1 x) = geval x
 
-instance
-  (Evaluatable f precT) =>
-  GEvaluatable (K1 i f) precT
-  where
+instance (Evaluatable f sizeT precT) => GEvaluatable (K1 i f) sizeT precT where
   geval (K1 x) = eval x
 
 -- --------------------------------------------------------------------------------
@@ -348,7 +343,7 @@ evalRandomSampleExpr ::
 evalRandomSampleExpr UniformE{sample_ty} = Prob.uniform (domain sample_ty)
 evalRandomSampleExpr BernoulliE{prob_one} = toValue <$> Prob.bernoulli (realToFrac prob_one)
 
-instance (Evaluatable primsT precT) => Evaluatable (Expr primsT SizeT) precT where
+instance (sizeT ~ SizeType ext, Evaluatable ext sizeT precT) => Evaluatable (Expr ext) sizeT precT where
   -- deterministic expressions
   eval BasicExprE{basic_expr} sigma = do
     val <- runReaderT ?? sigma $ evalBasicExpr basic_expr
@@ -375,15 +370,15 @@ instance (Evaluatable primsT precT) => Evaluatable (Expr primsT SizeT) precT whe
     foldM (\args i -> evalFun (args ++ [i]) (NamedFunDef loop_body_fun fun_def)) init_vals (domain (last (param_types fun_def)))
 
 evalFun ::
-  forall primsT precT m.
-  ( Evaluatable primsT precT
-  , m ~ Evaluator primsT SizeT precT
+  forall ext precT m.
+  ( Evaluatable ext SizeT precT
+  , m ~ Evaluator ext
   , EvalReqs SizeT precT
   ) =>
   -- | arguments
   [Value SizeT] ->
   -- | function
-  NamedFunDef primsT SizeT ->
+  NamedFunDef ext ->
   m [Value SizeT]
 evalFun vals_in NamedFunDef{fun_def = FunDef{mbody = Just FunBody{param_names, ret_names, body_stmt}}, fun_name} = do
   when (length param_names /= length vals_in) $ error (printf "incorrect number of fun `%s` args: expected %s, got %s" fun_name (show param_names) (show vals_in))
@@ -402,16 +397,16 @@ evalFun vals_in NamedFunDef{fun_name, fun_def = FunDef{mbody = Nothing}} = do
 type ExecutionState sizeT = ProgramState sizeT
 
 -- | Non-deterministic Execution Monad
-type Executor primsT sizeT precT = StateT (ExecutionState sizeT) (Evaluator primsT sizeT precT)
+type Executor ext = StateT (ExecutionState (SizeType ext)) (Evaluator ext)
 
 -- | Execute a statement, updating the state.
 execStmt ::
-  forall primsT precT m.
-  ( Evaluatable primsT precT
-  , m ~ Executor primsT SizeT precT
+  forall ext precT m.
+  ( Evaluatable ext SizeT precT
+  , m ~ Executor ext
   , EvalReqs SizeT precT
   ) =>
-  Stmt primsT SizeT ->
+  Stmt ext ->
   m ()
 execStmt ExprS{rets, expr} = do
   sigma <- use _state
@@ -425,12 +420,15 @@ execStmt (SeqS ss) = mapM_ execStmt ss
 
 -- | Entry-point: run the program (i.e. last function)
 runProgram ::
-  forall primsT precT.
-  (Evaluatable primsT precT, EvalReqs SizeT precT) =>
-  Program primsT SizeT ->
+  forall ext precT m.
+  ( Evaluatable ext SizeT precT
+  , EvalReqs SizeT precT
+  , m ~ EvaluationMonad precT
+  ) =>
+  Program ext ->
   FunInterpCtx SizeT ->
   [Value SizeT] ->
-  EvaluationMonad precT [Value SizeT]
+  m [Value SizeT]
 runProgram (Program fs) funInterpCtx inp =
   evalFun inp (last fs) & (runReaderT ?? env)
  where

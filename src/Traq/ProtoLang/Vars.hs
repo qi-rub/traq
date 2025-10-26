@@ -52,6 +52,9 @@ instance HasFreeVars Void where freeVarsList = absurd
 freeVars :: (HasFreeVars t) => t -> VarSet
 freeVars = Set.fromList . freeVarsList
 
+instance HasFreeVars (Core size prec) where
+  freeVarsList = \case {}
+
 instance HasFreeVars (BasicExpr sizeT) where
   freeVarsList VarE{var} = [var]
   freeVarsList ConstE{} = []
@@ -70,39 +73,39 @@ instance HasFreeVars (DistrExpr sizeT) where
   freeVarsList BernoulliE{} = []
 
 -- | The set of free (unbound) variables in an expression
-instance (HasFreeVars primT) => HasFreeVars (Expr primT sizeT) where
+instance (HasFreeVars ext) => HasFreeVars (Expr ext) where
   freeVarsList BasicExprE{basic_expr} = freeVarsList basic_expr
   freeVarsList RandomSampleE{distr_expr} = freeVarsList distr_expr
   freeVarsList FunCallE{args} = args
   freeVarsList PrimCallE{prim} = freeVarsList prim
 
 -- | The set of free (unbound) variables
-instance (HasFreeVars primT) => HasFreeVars (Stmt primT sizeT) where
+instance (HasFreeVars ext) => HasFreeVars (Stmt ext) where
   freeVarsList IfThenElseS{cond, s_true, s_false} = cond : freeVarsList s_true ++ freeVarsList s_false
   freeVarsList (SeqS ss) = Set.elems $ Set.fromList (concatMap freeVarsList ss) Set.\\ outVars (SeqS ss)
   freeVarsList ExprS{expr} = freeVarsList expr
 
 -- | The set of generated output variables
-outVars :: Stmt primT sizeT -> VarSet
+outVars :: Stmt ext -> VarSet
 outVars IfThenElseS{s_true, s_false} = Set.unions [outVars s_true, outVars s_false]
 outVars (SeqS ss) = Set.unions $ map outVars ss
 outVars ExprS{rets} = Set.fromList rets
 
 -- | All variables in a statement
-allVars :: (HasFreeVars primT) => Stmt primT sizeT -> VarSet
+allVars :: (HasFreeVars ext) => Stmt ext -> VarSet
 allVars s = freeVars s `Set.union` outVars s
 
-allNamesF :: (HasFreeVars primT) => FunBody primT sizeT -> VarSet
+allNamesF :: (HasFreeVars ext) => FunBody ext -> VarSet
 allNamesF FunBody{param_names, ret_names, body_stmt} =
   Set.unions [allVars body_stmt, Set.fromList param_names, Set.fromList ret_names]
 
 -- | Get all the variables of a program
-allNamesP :: (HasFreeVars primT) => Program primT sizeT -> VarSet
+allNamesP :: (HasFreeVars ext) => Program ext -> VarSet
 allNamesP (Program fs) =
   foldr (Set.union . allNamesF) mempty $ mapMaybe (mbody . fun_def) fs
 
 -- | Check if a program has unique variable names
-checkVarsUnique :: (HasFreeVars primT) => Program primT sizeT -> Bool
+checkVarsUnique :: (HasFreeVars ext) => Program ext -> Bool
 checkVarsUnique (Program fs) =
   isJust . foldM combine Set.empty $ all_fun_names
  where

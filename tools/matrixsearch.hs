@@ -29,7 +29,7 @@ symbolicEx = do
 
   let n = Sym.var "N" :: Sym.Sym SizeT
   let m = Sym.var "M" :: Sym.Sym SizeT
-  let P.Program ex_fs = matrixExample @QSearchSym n m
+  let P.Program ex_fs = matrixExample @(QSearchSym _ _) n m
   let strat = P.SplitUsingNeedsEps
 
   forM_ (tail $ inits ex_fs) $ \fs -> do

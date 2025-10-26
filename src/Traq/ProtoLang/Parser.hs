@@ -1,8 +1,9 @@
+{-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE RecordWildCards #-}
 
 module Traq.ProtoLang.Parser (
   -- * Parsers
-  CanParsePrimitive (..),
+  Parseable (..),
   programParser,
   parseCode,
   parseProgram,
@@ -15,7 +16,6 @@ module Traq.ProtoLang.Parser (
 
 import Data.Either (isRight)
 import Data.Functor (($>))
-import Data.Void (Void)
 import Text.Parsec (ParseError, choice, eof, many, parse, try, (<|>))
 import Text.Parsec.Language (LanguageDef, emptyDef)
 import Text.Parsec.String (Parser)
@@ -67,12 +67,11 @@ protoLangDef =
 protoLangTokenParser :: TokenParser st
 protoLangTokenParser = makeTokenParser protoLangDef
 
--- | Support for parsing arbitrary primitives.
-class CanParsePrimitive primT where
-  primitiveParser :: TokenParser () -> Parser primT
+class Parseable ext where
+  parseE :: TokenParser () -> Parser ext
 
-instance CanParsePrimitive Void where
-  primitiveParser _ = fail "no parse"
+instance Parseable (Core SymbSize precT) where
+  parseE _ = fail "no parse"
 
 symbSize :: TokenParser () -> Parser SymbSize
 symbSize TokenParser{..} = (Sym.con . fromIntegral <$> integer) <|> (Sym.var <$> identifier)
@@ -93,161 +92,170 @@ varType tp@TokenParser{..} = boolType <|> finType <|> arrType
 typedTerm :: TokenParser () -> Parser a -> Parser (a, VarType SymbSize)
 typedTerm tp@TokenParser{..} pa = (,) <$> pa <*> (reservedOp ":" *> varType tp)
 
-exprP :: forall primT. (CanParsePrimitive primT) => TokenParser () -> Parser (Expr primT SymbSize)
-exprP tp@TokenParser{..} =
-  choice . map try $
-    [ parens (exprP tp)
-    , primCallE
-    , funCallE
-    , ternaryE
-    , unOpE
-    , binOpE
-    , binOpFlippedE
-    , defaultE
-    , constE
-    , dynIndexE
-    , indexE
-    , updateArrE
-    , loopE
-    , varE
-    ]
- where
-  varE :: Parser (Expr primT SymbSize)
-  varE = BasicExprE . VarE <$> identifier
+instance (Parseable ext, SizeType ext ~ SymbSize) => Parseable (Expr ext) where
+  parseE tp@TokenParser{..} =
+    choice . map try $
+      [ parens (exprP tp)
+      , primCallE
+      , funCallE
+      , ternaryE
+      , unOpE
+      , binOpE
+      , binOpFlippedE
+      , defaultE
+      , constE
+      , dynIndexE
+      , indexE
+      , updateArrE
+      , loopE
+      , varE
+      ]
+   where
+    varE :: Parser (Expr ext)
+    varE = BasicExprE . VarE <$> identifier
 
-  defaultE :: Parser (Expr primT SymbSize)
-  defaultE = do
-    reserved "default"
-    colon
-    ty <- varType tp
-    return $ BasicExprE DefaultE{ty}
+    defaultE :: Parser (Expr ext)
+    defaultE = do
+      reserved "default"
+      colon
+      ty <- varType tp
+      return $ BasicExprE DefaultE{ty}
 
-  constE :: Parser (Expr primT SymbSize)
-  constE = do
-    reserved "const"
-    (val, ty) <- typedTerm tp integer
-    return $ BasicExprE ConstE{val = FinV (fromInteger val), ty}
+    constE :: Parser (Expr ext)
+    constE = do
+      reserved "const"
+      (val, ty) <- typedTerm tp integer
+      return $ BasicExprE ConstE{val = FinV (fromInteger val), ty}
 
-  primCallE :: Parser (Expr primT SymbSize)
-  primCallE = PrimCallE <$> primitiveParser tp
+    primCallE :: Parser (Expr ext)
+    primCallE = PrimCallE <$> parseE tp
 
-  funCallE :: Parser (Expr primT SymbSize)
-  funCallE = do
-    fname <- identifier
-    args <- parens $ commaSep identifier
-    return FunCallE{fname, args}
+    funCallE :: Parser (Expr ext)
+    funCallE = do
+      fname <- identifier
+      args <- parens $ commaSep identifier
+      return FunCallE{fname, args}
 
-  unOp :: Parser UnOp
-  unOp =
-    (reserved "not" $> NotOp)
-      <|> ( operator >>= \case
-              "!" -> return NotOp
-              _ -> fail "invalid unary operator"
-          )
+    unOp :: Parser UnOp
+    unOp =
+      (reserved "not" $> NotOp)
+        <|> ( operator >>= \case
+                "!" -> return NotOp
+                _ -> fail "invalid unary operator"
+            )
 
-  unOpE :: Parser (Expr primT SymbSize)
-  unOpE = do
-    un_op <- unOp
-    operand <- VarE <$> identifier
-    return $ BasicExprE UnOpE{un_op, operand}
+    unOpE :: Parser (Expr ext)
+    unOpE = do
+      un_op <- unOp
+      operand <- VarE <$> identifier
+      return $ BasicExprE UnOpE{un_op, operand}
 
-  binOp :: Parser BinOp
-  binOp =
-    operator >>= \case
-      "+" -> return AddOp
-      "*" -> return MulOp
-      "-" -> return SubOp
-      "^" -> return XorOp
-      "<=" -> return LEqOp
-      "&&" -> return AndOp
-      "<" -> return LtOp
-      _ -> fail "invalid binary operator"
+    binOp :: Parser BinOp
+    binOp =
+      operator >>= \case
+        "+" -> return AddOp
+        "*" -> return MulOp
+        "-" -> return SubOp
+        "^" -> return XorOp
+        "<=" -> return LEqOp
+        "&&" -> return AndOp
+        "<" -> return LtOp
+        _ -> fail "invalid binary operator"
 
-  binOpE :: Parser (Expr primT SymbSize)
-  binOpE = do
-    lhs <- VarE <$> identifier
-    bin_op <- binOp
-    rhs <- VarE <$> identifier
-    return $ BasicExprE BinOpE{bin_op, lhs, rhs}
+    binOpE :: Parser (Expr ext)
+    binOpE = do
+      lhs <- VarE <$> identifier
+      bin_op <- binOp
+      rhs <- VarE <$> identifier
+      return $ BasicExprE BinOpE{bin_op, lhs, rhs}
 
-  binOpFlipped :: Parser BinOp
-  binOpFlipped =
-    operator >>= \case
-      ">" -> return LtOp
-      ">=" -> return LEqOp
-      _ -> fail "invalid flipped binary operator"
+    binOpFlipped :: Parser BinOp
+    binOpFlipped =
+      operator >>= \case
+        ">" -> return LtOp
+        ">=" -> return LEqOp
+        _ -> fail "invalid flipped binary operator"
 
-  binOpFlippedE :: Parser (Expr primT SymbSize)
-  binOpFlippedE = do
-    rhs <- VarE <$> identifier
-    bin_op <- binOpFlipped
-    lhs <- VarE <$> identifier
-    return $ BasicExprE BinOpE{bin_op, lhs, rhs}
+    binOpFlippedE :: Parser (Expr ext)
+    binOpFlippedE = do
+      rhs <- VarE <$> identifier
+      bin_op <- binOpFlipped
+      lhs <- VarE <$> identifier
+      return $ BasicExprE BinOpE{bin_op, lhs, rhs}
 
-  indexE :: Parser (Expr primT SymbSize)
-  indexE = do
-    arr_expr <- VarE <$> identifier
-    ix_val <- brackets $ symbSize tp
-    return $ BasicExprE IndexE{arr_expr, ix_val}
+    indexE :: Parser (Expr ext)
+    indexE = do
+      arr_expr <- VarE <$> identifier
+      ix_val <- brackets $ symbSize tp
+      return $ BasicExprE IndexE{arr_expr, ix_val}
 
-  dynIndexE :: Parser (Expr primT SymbSize)
-  dynIndexE = do
-    arr_expr <- VarE <$> identifier
-    ix_expr <- VarE <$> brackets identifier
-    return $ BasicExprE DynIndexE{arr_expr, ix_expr}
+    dynIndexE :: Parser (Expr ext)
+    dynIndexE = do
+      arr_expr <- VarE <$> identifier
+      ix_expr <- VarE <$> brackets identifier
+      return $ BasicExprE DynIndexE{arr_expr, ix_expr}
 
-  updateArrE :: Parser (Expr primT SymbSize)
-  updateArrE = do
-    reserved "update" <|> reserved "set"
-    arr_expr <- VarE <$> identifier
-    ix_expr <- VarE <$> brackets identifier
-    "=" <- operator
-    rhs <- VarE <$> identifier
-    return $ BasicExprE UpdateArrE{arr_expr, ix_expr, rhs}
+    updateArrE :: Parser (Expr ext)
+    updateArrE = do
+      reserved "update" <|> reserved "set"
+      arr_expr <- VarE <$> identifier
+      ix_expr <- VarE <$> brackets identifier
+      "=" <- operator
+      rhs <- VarE <$> identifier
+      return $ BasicExprE UpdateArrE{arr_expr, ix_expr, rhs}
 
-  ternaryE :: Parser (Expr primT SymbSize)
-  ternaryE = do
-    branch <- VarE <$> identifier
-    reservedOp "?"
-    lhs <- VarE <$> identifier
-    reservedOp ":"
-    rhs <- VarE <$> identifier
-    return $ BasicExprE $ TernaryE{branch, lhs, rhs}
+    ternaryE :: Parser (Expr ext)
+    ternaryE = do
+      branch <- VarE <$> identifier
+      reservedOp "?"
+      lhs <- VarE <$> identifier
+      reservedOp ":"
+      rhs <- VarE <$> identifier
+      return $ BasicExprE $ TernaryE{branch, lhs, rhs}
 
-  loopE :: Parser (Expr primT SymbSize)
-  loopE = do
-    reserved "loop"
-    initial_args <- parens $ commaSep identifier
-    loop_body_fun <- identifier
-    return $ LoopE{initial_args, loop_body_fun}
+    loopE :: Parser (Expr ext)
+    loopE = do
+      reserved "loop"
+      initial_args <- parens $ commaSep identifier
+      loop_body_fun <- identifier
+      return $ LoopE{initial_args, loop_body_fun}
+
+exprP :: forall ext. (Parseable ext, SizeType ext ~ SymbSize) => TokenParser () -> Parser (Expr ext)
+exprP = parseE
+
+instance Parseable (DistrExpr SymbSize) where
+  parseE tp@TokenParser{..} = choice $ map try [uniformE, bernoulliE]
+   where
+    uniformE :: Parser (DistrExpr SymbSize)
+    uniformE = do
+      reserved "uniform"
+      colon
+      sample_ty <- varType tp
+      return UniformE{..}
+
+    bernoulliE :: Parser (DistrExpr SymbSize)
+    bernoulliE = do
+      reserved "bernoulli"
+      prob_one <- brackets float
+      return BernoulliE{..}
 
 distrExprP :: TokenParser () -> Parser (DistrExpr SymbSize)
-distrExprP tp@TokenParser{..} = choice $ map try [uniformE, bernoulliE]
- where
-  uniformE :: Parser (DistrExpr SymbSize)
-  uniformE = do
-    reserved "uniform"
-    colon
-    sample_ty <- varType tp
-    return UniformE{..}
+distrExprP = parseE
 
-  bernoulliE :: Parser (DistrExpr SymbSize)
-  bernoulliE = do
-    reserved "bernoulli"
-    prob_one <- brackets float
-    return BernoulliE{..}
+instance (Parseable ext, SizeType ext ~ SymbSize) => Parseable (Stmt ext) where
+  parseE tp@TokenParser{..} = SeqS <$> many exprS
+   where
+    exprS :: Parser (Stmt ext)
+    exprS = do
+      rets <- commaSep1 identifier
+      expr <- (reserved "<-$" *> distrExprP tp <&> RandomSampleE) <|> (reserved "<-" *> exprP tp)
+      semi
+      return ExprS{rets, expr}
 
-stmtP :: forall primT. (CanParsePrimitive primT) => TokenParser () -> Parser (Stmt primT SymbSize)
-stmtP tp@TokenParser{..} = SeqS <$> many exprS
- where
-  exprS :: Parser (Stmt primT SymbSize)
-  exprS = do
-    rets <- commaSep1 identifier
-    expr <- (reserved "<-$" *> distrExprP tp <&> RandomSampleE) <|> (reserved "<-" *> exprP tp)
-    semi
-    return ExprS{rets, expr}
+stmtP :: forall ext. (Parseable ext, SizeType ext ~ SymbSize) => TokenParser () -> Parser (Stmt ext)
+stmtP = parseE
 
-namedFunDef :: (CanParsePrimitive primT) => TokenParser () -> Parser (NamedFunDef primT SymbSize)
+namedFunDef :: (Parseable ext, SizeType ext ~ SymbSize) => TokenParser () -> Parser (NamedFunDef ext)
 namedFunDef tp@TokenParser{..} = do
   reserved "def"
   fun_name <- identifier
@@ -263,7 +271,7 @@ namedFunDef tp@TokenParser{..} = do
   let fun_def = FunDef{..}
   return NamedFunDef{..}
 
-funDecl :: TokenParser () -> Parser (NamedFunDef primT SymbSize)
+funDecl :: (SizeType ext ~ SymbSize) => TokenParser () -> Parser (NamedFunDef ext)
 funDecl tp@TokenParser{..} = do
   reserved "declare"
   fun_name <- identifier
@@ -275,12 +283,12 @@ funDecl tp@TokenParser{..} = do
   let fun_def = FunDef{mbody = Nothing, ..}
   return NamedFunDef{..}
 
-program :: (CanParsePrimitive primT) => TokenParser () -> Parser (Program primT SymbSize)
+program :: (Parseable ext, SizeType ext ~ SymbSize) => TokenParser () -> Parser (Program ext)
 program tp = do
   fs <- many (namedFunDef tp <|> funDecl tp)
   return $ Program fs
 
-programParser :: (CanParsePrimitive primT) => Parser (Program primT SymbSize)
+programParser :: (Parseable ext, SizeType ext ~ SymbSize) => Parser (Program ext)
 programParser = whiteSpace p *> program protoLangTokenParser <* eof
  where
   p = protoLangTokenParser
@@ -290,13 +298,13 @@ parseCode parser = parse (whiteSpace p *> parser p <* eof) ""
  where
   p = protoLangTokenParser
 
-parseProgram :: (CanParsePrimitive primT) => String -> Either ParseError (Program primT SymbSize)
+parseProgram :: (Parseable ext, SizeType ext ~ SymbSize) => String -> Either ParseError (Program ext)
 parseProgram = parseCode program
 
-parseFunDef :: (CanParsePrimitive primT) => String -> Either ParseError (NamedFunDef primT SymbSize)
+parseFunDef :: (Parseable ext, SizeType ext ~ SymbSize) => String -> Either ParseError (NamedFunDef ext)
 parseFunDef = parseCode namedFunDef
 
-parseStmt :: (CanParsePrimitive primT) => String -> Either ParseError (Stmt primT SymbSize)
+parseStmt :: (Parseable ext, SizeType ext ~ SymbSize) => String -> Either ParseError (Stmt ext)
 parseStmt = parseCode stmtP
 
 isValidIdentifier :: String -> Bool

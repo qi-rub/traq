@@ -1,3 +1,5 @@
+{-# LANGUAGE TypeApplications #-}
+
 module Traq.Examples.Search where
 
 import Traq.Prelude
@@ -5,13 +7,13 @@ import Traq.Primitives
 import Traq.Primitives.Search.Prelude (PrimAny (..), PrimSearch (..))
 import Traq.ProtoLang.Syntax
 
-arraySearch :: SizeT -> Program DefaultPrims SizeT
+arraySearch :: forall precT. SizeT -> Program (DefaultPrims SizeT precT)
 arraySearch n = Program [NamedFunDef "Oracle" oracle_decl, NamedFunDef "main" main_def]
  where
-  oracle_decl :: FunDef DefaultPrims SizeT
+  oracle_decl :: FunDef (DefaultPrims SizeT precT)
   oracle_decl = FunDef{param_types = [Fin n], ret_types = [Fin 2], mbody = Nothing}
 
-  main_def :: FunDef DefaultPrims SizeT
+  main_def :: FunDef (DefaultPrims SizeT precT)
   main_def =
     FunDef
       { param_types = []
@@ -23,19 +25,19 @@ arraySearch n = Program [NamedFunDef "Oracle" oracle_decl, NamedFunDef "main" ma
               , ret_names = ["result"]
               , body_stmt =
                   ExprS
-                    { expr = primCallE $ PrimAny "Oracle" []
+                    { expr = primCallE @(PrimAny SizeT precT) $ PrimAny "Oracle" []
                     , rets = ["result"]
                     }
               }
       }
 
-arraySearchIx :: SizeT -> Program DefaultPrims SizeT
+arraySearchIx :: forall precT. SizeT -> Program (DefaultPrims SizeT precT)
 arraySearchIx n = Program [NamedFunDef "Oracle" oracle_decl, NamedFunDef "check" check, NamedFunDef "main" main_def]
  where
-  oracle_decl :: FunDef DefaultPrims SizeT
+  oracle_decl :: FunDef (DefaultPrims SizeT precT)
   oracle_decl = FunDef{param_types = [Fin n], ret_types = [Fin 2], mbody = Nothing}
 
-  check :: FunDef DefaultPrims SizeT
+  check :: FunDef (DefaultPrims SizeT precT)
   check =
     FunDef
       { param_types = [Fin n]
@@ -53,7 +55,7 @@ arraySearchIx n = Program [NamedFunDef "Oracle" oracle_decl, NamedFunDef "check"
       , ret_types = [Fin 2]
       }
 
-  main_def :: FunDef DefaultPrims SizeT
+  main_def :: FunDef (DefaultPrims SizeT precT)
   main_def =
     FunDef
       { param_types = []
@@ -64,7 +66,7 @@ arraySearchIx n = Program [NamedFunDef "Oracle" oracle_decl, NamedFunDef "check"
               , body_stmt =
                   ExprS
                     { rets = ["result", "solution"]
-                    , expr = primCallE $ PrimSearch "check" []
+                    , expr = primCallE @(PrimSearch SizeT precT) $ PrimSearch "check" []
                     }
               , ret_names = ["result", "solution"]
               }

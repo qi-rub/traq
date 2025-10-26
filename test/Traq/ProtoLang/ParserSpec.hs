@@ -3,7 +3,6 @@
 
 module Traq.ProtoLang.ParserSpec (spec) where
 
-import Data.Void (Void)
 import Text.Parsec.String
 
 import Lens.Micro.GHC
@@ -14,6 +13,7 @@ import Traq.Examples.MatrixSearch (matrixExample, matrixExampleS)
 import Traq.Prelude
 import Traq.Primitives
 import Traq.Primitives.Search.Symbolic
+import Traq.ProtoLang.Lenses
 import Traq.ProtoLang.Parser
 import Traq.ProtoLang.Rewrites
 import Traq.ProtoLang.Syntax
@@ -23,21 +23,23 @@ import qualified Traq.Utils.Printing as PP
 import Test.Hspec
 import TestHelpers
 
-roundTrip :: Program DefaultPrims SizeT -> Expectation
+roundTrip :: Program DefaultPrims' -> Expectation
 roundTrip p = do
   code <- PP.toCodeStringM p
-  p'_sym <- expectRight $ parseProgram code
-  let p' = p'_sym & fmap Sym.unSym & rewriteAST flattenSeq
+  p'_sym <- expectRight $ parseProgram @(DefaultPrims (Sym.Sym SizeT) Double) code
+  let p' = p'_sym & mapSize Sym.unSym & rewriteAST flattenSeq
   p' `shouldBe` p
   return ()
+
+type SymCore = Core (Sym.Sym SizeT) Double
 
 spec :: Spec
 spec = do
   describe "parse statement" $ do
     it "parses assign" $ do
-      (parseStmt @Void) "x' <- x;" `shouldBe` Right (SeqS [ExprS{rets = ["x'"], expr = BasicExprE "x"}])
+      (parseStmt @SymCore) "x' <- x;" `shouldBe` Right (SeqS [ExprS{rets = ["x'"], expr = BasicExprE "x"}])
     it "parses seq assign" $ do
-      parseStmt @Void "x' <- x; y' <- const 3 : Fin<4>;"
+      parseStmt @SymCore "x' <- x; y' <- const 3 : Fin<4>;"
         `shouldBe` Right
           ( SeqS
               [ ExprS{rets = ["x'"], expr = BasicExprE "x"}
@@ -45,7 +47,7 @@ spec = do
               ]
           )
     it "parses function call" $ do
-      parseStmt @Void "a, b <- f(x, y, z);"
+      parseStmt @SymCore "a, b <- f(x, y, z);"
         `shouldBe` Right
           ( SeqS
               [ ExprS
@@ -56,7 +58,7 @@ spec = do
           )
   describe "parse function def" $ do
     it "parses function" $ do
-      parseFunDef @Void
+      parseFunDef @SymCore
         ( unlines
             [ "def check_entry(i: Fin<N>, j: Fin<M>) -> Bool do"
             , "  e <- Oracle(i, j);"
@@ -88,7 +90,7 @@ spec = do
 
   describe "parse file" $ do
     it "parses example" $ do
-      e <- parseFromFile (programParser @QSearchSym) "examples/matrix_search/matrix_search.qb" >>= expectRight
+      e <- parseFromFile (programParser @(QSearchSym Int Double)) "examples/matrix_search/matrix_search.qb" >>= expectRight
       let e' = rewriteAST flattenSeq e
       e' `shouldBe` matrixExample (Sym.var "N") (Sym.var "M")
 
@@ -97,11 +99,11 @@ spec = do
       roundTrip (matrixExampleS 4 5)
       roundTrip (matrixExampleS 10 10)
     it "max_sat_hillclimb" $ do
-      e_sym <- expectRight =<< parseFromFile (programParser @DefaultPrims) "examples/hillclimb/max_sat_hillclimb.qb"
+      e_sym <- expectRight =<< parseFromFile (programParser @(DefaultPrims (Sym.Sym SizeT) Double)) "examples/hillclimb/max_sat_hillclimb.qb"
       let e =
             e_sym
-              & fmap (Sym.subst "n" 10)
-              & fmap (Sym.subst "W" 1000)
-              & fmap Sym.unSym
+              & mapSize (Sym.subst "n" 10)
+              & mapSize (Sym.subst "W" 1000)
+              & mapSize Sym.unSym
               & rewriteAST flattenSeq
       roundTrip e

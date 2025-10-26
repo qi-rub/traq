@@ -30,17 +30,24 @@ import qualified Traq.Utils.Printing as PP
 {- | Primitive @amplify@ that returns a sample using the sampling function f.
 Also returns a boolean flag indicating whether the sample returned is good.
 -}
-data Amplify = Amplify {sampler :: Ident, p_min :: Double, sampler_args :: [Ident]}
+data Amplify sizeT precT = Amplify {sampler :: Ident, p_min :: precT, sampler_args :: [Ident]}
   deriving (Eq, Show, Read)
 
+type instance SizeType (Amplify sizeT precT) = sizeT
+type instance PrecType (Amplify sizeT precT) = precT
+
+instance P.MapSize (Amplify size prec) where
+  type MappedSize (Amplify size prec) size' = (Amplify size' prec)
+  mapSize _ Amplify{..} = Amplify{..}
+
 -- Pretty Printing
-instance PP.ToCodeString Amplify where
+instance PP.ToCodeString (Amplify sizeT Double) where
   build Amplify{sampler, p_min, sampler_args} =
     PP.putWord $ printf "@amplify[%s, %.2f](%s)" sampler p_min (PP.commaList sampler_args)
 
 -- Parsing
-instance P.CanParsePrimitive Amplify where
-  primitiveParser TokenParser{..} = parseAmplify
+instance P.Parseable (Amplify sizeT Double) where
+  parseE TokenParser{..} = parseAmplify
    where
     parseAmplify = do
       -- Parse "@amplify" keyword
@@ -55,14 +62,14 @@ instance P.CanParsePrimitive Amplify where
       return Amplify{sampler, p_min, sampler_args}
 
 -- Type check
-instance P.HasFreeVars Amplify where
+instance P.HasFreeVars (Amplify sizeT precT) where
   freeVarsList Amplify{sampler_args} = sampler_args
 
-instance P.TypeCheckablePrimitive Amplify where
+instance (P.TypeCheckable sizeT, Num precT, Ord precT, Show precT) => P.TypeCheckablePrimitive (Amplify sizeT precT) sizeT where
   typeCheckPrimitive Amplify{sampler, p_min, sampler_args} = do
     when (p_min < 0 || p_min > 1) $
       throwError $
-        printf "p_min must be in [0, 1], got %f" p_min
+        printf "p_min must be in [0, 1], got %s" (show p_min)
 
     P.FunDef{P.param_types, P.ret_types} <-
       view (Ctx.at sampler)
@@ -88,7 +95,10 @@ instance P.TypeCheckablePrimitive Amplify where
 and get success probability Psucc := P(b=1) conditioned on μ. Finally, returning the distribution
 based on Psucc.
 -}
-instance (Ord precT) => P.Evaluatable Amplify precT where
+instance
+  (Ord precT, sizeT ~ SizeT, P.EvalReqs sizeT precT) =>
+  P.Evaluatable (Amplify sizeT precT) sizeT precT
+  where
   eval Amplify{sampler, p_min, sampler_args} sigma = do
     sampler_fundef <-
       view $
@@ -105,11 +115,10 @@ instance (Ord precT) => P.Evaluatable Amplify precT where
           P.evalFun @_ @precT arg_vals (P.NamedFunDef sampler sampler_fundef)
             & (runReaderT ?? eval_env)
     let p_succ = Prob.probabilityOf success mu
-    let p_min' = realToFrac p_min
 
     lift $
       if
-        | p_succ >= p_min' -> Prob.postselect success mu
+        | p_succ >= p_min -> Prob.postselect success mu
         | p_succ == 0 -> mu
         | otherwise -> Prob.zero
    where

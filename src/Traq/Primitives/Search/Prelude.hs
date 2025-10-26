@@ -1,6 +1,7 @@
 {-# LANGUAGE DuplicateRecordFields #-}
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE MultiParamTypeClasses #-}
+{-# LANGUAGE RecordWildCards #-}
 
 module Traq.Primitives.Search.Prelude (
   -- * Basic search primitives
@@ -69,12 +70,12 @@ printSearchLikePrim name prim =
 -- ================================================================================
 
 typeCheckSearchPredicate ::
-  (P.TypeCheckable sizeT) =>
+  (sizeT ~ SizeType ext, P.TypeCheckable sizeT) =>
   -- | name of the predicate function
   Ident ->
   -- | arguments
   [Ident] ->
-  P.TypeChecker primsT sizeT [P.VarType sizeT]
+  P.TypeChecker ext [P.VarType sizeT]
 typeCheckSearchPredicate predicate args = do
   P.FunDef{P.param_types, P.ret_types} <-
     view (Ctx.at predicate)
@@ -111,13 +112,13 @@ getSearchOutputs rets = map element rets
 
 -- | Run the predicate on each input, and return the input along with the result.
 runSearchPredicateOnAllInputs ::
-  forall primsT precT.
-  ( P.Evaluatable primsT precT
+  forall ext precT.
+  ( P.Evaluatable ext SizeT precT
   , P.EvalReqs SizeT precT
   ) =>
   Ident ->
   [P.Value SizeT] ->
-  P.Evaluator primsT SizeT precT SearchResults
+  P.Evaluator ext SearchResults
 runSearchPredicateOnAllInputs predicate arg_vals = do
   pred_fun <- view $ P._funCtx . Ctx.at predicate . to (fromMaybe (error "unable to find predicate, please typecheck first!"))
   let n_fixed_args = length arg_vals
@@ -130,13 +131,13 @@ runSearchPredicateOnAllInputs predicate arg_vals = do
     return SearchResult{element = s_vals, isSolution = P.valueToBool $ head rets}
 
 evaluatePrimCount ::
-  ( P.Evaluatable primsT precT
+  ( P.Evaluatable ext SizeT precT
   , P.EvalReqs SizeT precT
   ) =>
   Ident ->
   [Ident] ->
   P.ProgramState SizeT ->
-  P.Evaluator primsT SizeT precT [P.Value SizeT]
+  P.Evaluator ext [P.Value SizeT]
 evaluatePrimCount predicate args sigma = do
   arg_vals <- runReaderT ?? sigma $ forM args $ \x -> do
     view $ P._state . Ctx.at x . non (error "invalid argument, please typecheck first.")
@@ -149,26 +150,33 @@ evaluatePrimCount predicate args sigma = do
 -- ================================================================================
 
 -- | Basic Primitive @any@ which asserts if there is a solution.
-data PrimAny = PrimAny {predicate :: Ident, pred_args :: [Ident]}
+data PrimAny sizeT precT = PrimAny {predicate :: Ident, pred_args :: [Ident]}
   deriving (Eq, Read, Show)
 
-instance IsA SearchLikePrim PrimAny where
+type instance SizeType (PrimAny sizeT precT) = sizeT
+type instance PrecType (PrimAny sizeT precT) = precT
+
+instance P.MapSize (PrimAny size prec) where
+  type MappedSize (PrimAny size prec) size' = PrimAny size' prec
+  mapSize _ PrimAny{..} = PrimAny{..}
+
+instance IsA SearchLikePrim (PrimAny sizeT precT) where
   extract PrimAny{predicate, pred_args} = SearchLikePrim{predicate, pred_args}
 
-parsePrimAnyWithName :: String -> TokenParser () -> Parser PrimAny
+parsePrimAnyWithName :: forall sizeT precT. String -> TokenParser () -> Parser (PrimAny sizeT precT)
 parsePrimAnyWithName name tp = do
   [(predicate, pred_args)] <- parsePrimWithPredicates name 1 tp
   return PrimAny{predicate, pred_args}
 
-instance P.HasFreeVars PrimAny where
+instance P.HasFreeVars (PrimAny sizeT precT) where
   freeVarsList PrimAny{pred_args} = pred_args
 
-instance P.TypeCheckablePrimitive PrimAny where
+instance (P.TypeCheckable sizeT) => P.TypeCheckablePrimitive (PrimAny sizeT precT) sizeT where
   typeCheckPrimitive PrimAny{predicate, pred_args} = do
     typeCheckSearchPredicate predicate pred_args
     return [P.tbool]
 
-instance P.Evaluatable PrimAny precT where
+instance (P.EvalReqs sizeT precT) => P.Evaluatable (PrimAny sizeT precT) sizeT precT where
   eval PrimAny{predicate, pred_args} sigma = do
     arg_vals <- runReaderT ?? sigma $
       forM pred_args $ \x -> do
@@ -182,26 +190,33 @@ instance P.Evaluatable PrimAny precT where
 -- ================================================================================
 
 -- Primitive @search@ which returns a uniformly random solution
-data PrimSearch = PrimSearch {predicate :: Ident, pred_args :: [Ident]}
+data PrimSearch sizeT precT = PrimSearch {predicate :: Ident, pred_args :: [Ident]}
   deriving (Eq, Read, Show)
 
-instance IsA SearchLikePrim PrimSearch where
+type instance SizeType (PrimSearch sizeT precT) = sizeT
+type instance PrecType (PrimSearch sizeT precT) = precT
+
+instance P.MapSize (PrimSearch size prec) where
+  type MappedSize (PrimSearch size prec) size' = PrimSearch size' prec
+  mapSize _ PrimSearch{..} = PrimSearch{..}
+
+instance IsA SearchLikePrim (PrimSearch sizeT precT) where
   extract PrimSearch{predicate, pred_args} = SearchLikePrim{predicate, pred_args}
 
-parsePrimSearchWithName :: String -> TokenParser () -> Parser PrimSearch
+parsePrimSearchWithName :: String -> TokenParser () -> Parser (PrimSearch sizeT precT)
 parsePrimSearchWithName name tp = do
   [(predicate, pred_args)] <- parsePrimWithPredicates name 1 tp
   return PrimSearch{predicate, pred_args}
 
-instance P.HasFreeVars PrimSearch where
+instance P.HasFreeVars (PrimSearch sizeT precT) where
   freeVarsList PrimSearch{pred_args} = pred_args
 
-instance P.TypeCheckablePrimitive PrimSearch where
+instance (P.TypeCheckable sizeT) => P.TypeCheckablePrimitive (PrimSearch sizeT precT) sizeT where
   typeCheckPrimitive PrimSearch{predicate, pred_args} = do
     s_tys <- typeCheckSearchPredicate predicate pred_args
     return $ P.tbool : s_tys
 
-instance P.Evaluatable PrimSearch precT where
+instance (P.EvalReqs sizeT precT) => P.Evaluatable (PrimSearch sizeT precT) sizeT precT where
   eval PrimSearch{predicate, pred_args} sigma = do
     arg_vals <- runReaderT ?? sigma $ forM pred_args $ \x -> do
       view $ P._state . Ctx.at x . non (error "invalid argument, please typecheck first.")

@@ -2,8 +2,6 @@
 
 module Traq.Compiler.QuantumSpec (spec) where
 
-import Data.Void
-
 import Lens.Micro.GHC
 
 import qualified Traq.Data.Context as Ctx
@@ -22,13 +20,15 @@ _ProcBodyC :: Traversal' (ProcBody sizeT) (CProcBody sizeT)
 _ProcBodyC _focus (ProcBodyC cb) = ProcBodyC <$> _focus cb
 _ProcBodyC _ b = pure b
 
+type SymCore = P.Core (Sym.Sym SizeT) Double
+
 spec :: Spec
 spec = do
   describe "lower simple programs" $ do
     let eps = P.failProb (0.001 :: Double)
     it "assign" $ do
-      ex_ <- expectRight $ P.parseProgram @Void "def main() -> () do x <- const 0 : Fin<10>; return end"
-      let ex = Sym.unSym <$> ex_
+      ex_ <- expectRight $ P.parseProgram @SymCore "def main() -> () do x <- const 0 : Fin<10>; return end"
+      let ex = P.mapSize Sym.unSym ex_
       (cq :: Program SizeT) <- expectRight $ lowerProgram default_ Ctx.empty eps ex
       CProcBody{cproc_body_stmt} <-
         return $

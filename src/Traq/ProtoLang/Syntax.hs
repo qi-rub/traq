@@ -1,6 +1,9 @@
 {-# LANGUAGE DeriveFunctor #-}
+{-# LANGUAGE EmptyDataDeriving #-}
 {-# LANGUAGE FlexibleInstances #-}
-{-# LANGUAGE MultiParamTypeClasses #-}
+{-# LANGUAGE FunctionalDependencies #-}
+{-# LANGUAGE StandaloneDeriving #-}
+{-# LANGUAGE UndecidableInstances #-}
 
 module Traq.ProtoLang.Syntax (
   -- * Syntax
@@ -37,6 +40,12 @@ module Traq.ProtoLang.Syntax (
   namedFunsToFunCtx,
   Program (..),
 
+  -- ** Core
+  Core,
+
+  -- ** Core Language with default types.
+  Core',
+
   -- ** Lenses
   HasFunCtx (..),
 ) where
@@ -51,7 +60,6 @@ import Lens.Micro.GHC
 import qualified Traq.Data.Context as Ctx
 
 import Traq.Prelude
-import Traq.Utils.ASTRewriting
 import qualified Traq.Utils.Printing as PP
 
 -- | Compile-time constant parameters
@@ -229,6 +237,8 @@ data DistrExpr sizeT
   | BernoulliE {prob_one :: Double}
   deriving (Eq, Show, Read, Functor)
 
+type instance SizeType (DistrExpr sizeT) = sizeT
+
 instance (Show sizeT) => PP.ToCodeString (DistrExpr sizeT) where
   build UniformE{sample_ty} = PP.putWord . printf "uniform : %s" =<< PP.fromBuild sample_ty
   build BernoulliE{prob_one} = PP.putWord $ printf "bernoulli[%s]" (show prob_one)
@@ -236,18 +246,22 @@ instance (Show sizeT) => PP.ToCodeString (DistrExpr sizeT) where
 {- | An expression in the prototype language.
  It appears as the RHS of an assignment statement.
 -}
-data Expr primT sizeT
-  = BasicExprE {basic_expr :: BasicExpr sizeT}
-  | RandomSampleE {distr_expr :: DistrExpr sizeT}
+data Expr ext
+  = BasicExprE {basic_expr :: BasicExpr (SizeType ext)}
+  | RandomSampleE {distr_expr :: DistrExpr (SizeType ext)}
   | FunCallE {fname :: Ident, args :: [Ident]}
-  | PrimCallE {prim :: primT}
+  | PrimCallE {prim :: ext}
   | LoopE {initial_args :: [Ident], loop_body_fun :: Ident}
-  deriving (Eq, Show, Read, Functor)
 
-type instance SizeType (Expr primT sizeT) = sizeT
-type instance PrimitiveType (Expr primT sizeT) = primT
+deriving instance (Eq ext, Eq (SizeType ext)) => Eq (Expr ext)
+deriving instance (Show ext, Show (SizeType ext)) => Show (Expr ext)
+deriving instance (Read ext, Read (SizeType ext)) => Read (Expr ext)
 
-instance (Show sizeT, PP.ToCodeString primT) => PP.ToCodeString (Expr primT sizeT) where
+type instance SizeType (Expr ext) = SizeType ext
+type instance PrecType (Expr ext) = PrecType ext
+type instance ExtensionType (Expr ext) = ext
+
+instance (Show (SizeType ext), PP.ToCodeString ext) => PP.ToCodeString (Expr ext) where
   build BasicExprE{basic_expr} = PP.build basic_expr
   build RandomSampleE{distr_expr} = PP.putLine . printf "$ %s" =<< PP.fromBuild distr_expr
   build FunCallE{fname, args} = PP.putLine $ printf "%s(%s)" fname (PP.commaList args)
@@ -257,16 +271,20 @@ instance (Show sizeT, PP.ToCodeString primT) => PP.ToCodeString (Expr primT size
     PP.putWord $ printf "loop (%s) %s" args loop_body_fun
 
 -- | A statement in the prototype language.
-data Stmt primT sizeT
-  = ExprS {rets :: [Ident], expr :: Expr primT sizeT}
-  | IfThenElseS {cond :: Ident, s_true, s_false :: Stmt primT sizeT}
-  | SeqS [Stmt primT sizeT]
-  deriving (Eq, Show, Read, Functor)
+data Stmt ext
+  = ExprS {rets :: [Ident], expr :: Expr ext}
+  | IfThenElseS {cond :: Ident, s_true, s_false :: Stmt ext}
+  | SeqS [Stmt ext]
 
-type instance SizeType (Stmt primT sizeT) = sizeT
-type instance PrimitiveType (Stmt primT sizeT) = primT
+deriving instance (Eq ext, Eq (SizeType ext)) => Eq (Stmt ext)
+deriving instance (Show ext, Show (SizeType ext)) => Show (Stmt ext)
+deriving instance (Read ext, Read (SizeType ext)) => Read (Stmt ext)
 
-instance (Show sizeT, PP.ToCodeString primT) => PP.ToCodeString (Stmt primT sizeT) where
+type instance SizeType (Stmt ext) = SizeType ext
+type instance PrecType (Stmt ext) = PrecType ext
+type instance ExtensionType (Stmt ext) = ext
+
+instance (Show (SizeType ext), PP.ToCodeString ext) => PP.ToCodeString (Stmt ext) where
   build ExprS{rets, expr} = do
     expr_s <- PP.fromBuild expr
     PP.putLine $ case expr_s of
@@ -281,33 +299,45 @@ instance (Show sizeT, PP.ToCodeString primT) => PP.ToCodeString (Stmt primT size
   build (SeqS ss) = mapM_ PP.build ss
 
 -- | The body of a function.
-data FunBody primT sizeT = FunBody
+data FunBody ext = FunBody
   { param_names, ret_names :: [Ident]
-  , body_stmt :: Stmt primT sizeT
+  , body_stmt :: Stmt ext
   }
-  deriving (Eq, Show, Read, Functor)
 
-type instance SizeType (FunBody primT sizeT) = sizeT
-type instance PrimitiveType (FunBody primT sizeT) = primT
+deriving instance (Eq ext, Eq (SizeType ext)) => Eq (FunBody ext)
+deriving instance (Show ext, Show (SizeType ext)) => Show (FunBody ext)
+deriving instance (Read ext, Read (SizeType ext)) => Read (FunBody ext)
+
+type instance SizeType (FunBody ext) = SizeType ext
+type instance PrecType (FunBody ext) = PrecType ext
+type instance ExtensionType (FunBody ext) = ext
 
 -- | A function definition or declaration in the prototype language.
-data FunDef primT sizeT = FunDef
-  { param_types, ret_types :: [VarType sizeT]
-  , mbody :: Maybe (FunBody primT sizeT)
+data FunDef ext = FunDef
+  { param_types, ret_types :: [VarType (SizeType ext)]
+  , mbody :: Maybe (FunBody ext)
   }
-  deriving (Eq, Show, Read, Functor)
 
-type instance SizeType (FunDef primT sizeT) = sizeT
-type instance PrimitiveType (FunDef primT sizeT) = primT
+deriving instance (Eq ext, Eq (SizeType ext)) => Eq (FunDef ext)
+deriving instance (Show ext, Show (SizeType ext)) => Show (FunDef ext)
+deriving instance (Read ext, Read (SizeType ext)) => Read (FunDef ext)
+
+type instance SizeType (FunDef ext) = SizeType ext
+type instance PrecType (FunDef ext) = PrecType ext
+type instance ExtensionType (FunDef ext) = ext
 
 -- | A function with a name
-data NamedFunDef primT sizeT = NamedFunDef {fun_name :: Ident, fun_def :: FunDef primT sizeT}
-  deriving (Eq, Show, Read, Functor)
+data NamedFunDef ext = NamedFunDef {fun_name :: Ident, fun_def :: FunDef ext}
 
-type instance SizeType (NamedFunDef primT sizeT) = sizeT
-type instance PrimitiveType (NamedFunDef primT sizeT) = primT
+deriving instance (Eq ext, Eq (SizeType ext)) => Eq (NamedFunDef ext)
+deriving instance (Show ext, Show (SizeType ext)) => Show (NamedFunDef ext)
+deriving instance (Read ext, Read (SizeType ext)) => Read (NamedFunDef ext)
 
-instance (Show sizeT, PP.ToCodeString primT) => PP.ToCodeString (NamedFunDef primT sizeT) where
+type instance SizeType (NamedFunDef ext) = SizeType ext
+type instance PrecType (NamedFunDef ext) = PrecType ext
+type instance ExtensionType (NamedFunDef ext) = ext
+
+instance (Show (SizeType ext), PP.ToCodeString ext) => PP.ToCodeString (NamedFunDef ext) where
   -- def
   build
     NamedFunDef
@@ -343,47 +373,40 @@ instance (Show sizeT, PP.ToCodeString primT) => PP.ToCodeString (NamedFunDef pri
           <*> (PP.commaList <$> mapM PP.fromBuild ret_types)
 
 -- | A function context contains a list of functions
-type FunCtx primT sizeT = Ctx.Context (FunDef primT sizeT)
+type FunCtx ext = Ctx.Context (FunDef ext)
 
-class HasFunCtx p where
-  _funCtx :: (primT ~ PrimitiveType p, sizeT ~ SizeType p) => Lens' p (FunCtx primT sizeT)
+class HasFunCtx p ext | p -> ext where
+  _funCtx :: Lens' p (FunCtx ext)
 
-instance HasFunCtx (FunCtx primT sizeT) where _funCtx = id
+instance HasFunCtx (FunCtx ext) ext where _funCtx = id
 
 -- | A program is a list of named functions, with the last being the entry point.
-newtype Program primT sizeT = Program [NamedFunDef primT sizeT]
-  deriving (Eq, Show, Read, Functor)
+newtype Program ext = Program [NamedFunDef ext]
 
-type instance SizeType (Program primT sizeT) = sizeT
-type instance PrimitiveType (Program primT sizeT) = primT
+deriving instance (Eq ext, Eq (SizeType ext)) => Eq (Program ext)
+deriving instance (Show ext, Show (SizeType ext)) => Show (Program ext)
+deriving instance (Read ext, Read (SizeType ext)) => Read (Program ext)
 
-namedFunsToFunCtx :: (Foldable f) => f (NamedFunDef primT sizeT) -> FunCtx primT sizeT
+type instance SizeType (Program ext) = SizeType ext
+type instance PrecType (Program ext) = PrecType ext
+type instance ExtensionType (Program ext) = PrecType ext
+
+namedFunsToFunCtx :: (Foldable f) => f (NamedFunDef ext) -> FunCtx ext
 namedFunsToFunCtx fs = Ctx.fromList [(fun_name f, fun_def f) | f <- toList fs]
 
-instance (Show sizeT, PP.ToCodeString primT) => PP.ToCodeString (Program primT sizeT) where
+instance (Show (SizeType ext), PP.ToCodeString ext) => PP.ToCodeString (Program ext) where
   build (Program fs) = mapM_ (\f -> PP.build f >> PP.endl) fs
 
--- ================================================================================
--- Lenses
--- ================================================================================
+{- | Void extension (i.e. only use the core language)
+Usage: @p :: Program (Core sizeT precT)@
+-}
+data Core sizeT precT
+  deriving (Eq, Read, Show)
 
-instance HasAst (Stmt primT sizeT) where
-  _ast focus (SeqS ss) = SeqS <$> traverse focus ss
-  _ast focus (IfThenElseS cond s_true s_false) = IfThenElseS cond <$> focus s_true <*> focus s_false
-  _ast _ s = pure s
+type instance SizeType (Core size prec) = size
+type instance PrecType (Core size prec) = prec
 
-instance HasStmt (Stmt primT sizeT) (Stmt primT sizeT) where
-  _stmt = id
-
-instance HasStmt (FunBody primT sizeT) (Stmt primT sizeT) where
-  _stmt focus fbody@FunBody{body_stmt} = (\body_stmt' -> fbody{body_stmt = body_stmt'}) <$> focus body_stmt
-
-instance HasStmt (FunDef primT sizeT) (Stmt primT sizeT) where
-  _stmt focus funDef@FunDef{mbody = Just body} = (\body' -> funDef{mbody = Just body'}) <$> _stmt focus body
-  _stmt _ f = pure f
-
-instance HasStmt (NamedFunDef primT sizeT) (Stmt primT sizeT) where
-  _stmt focus f@NamedFunDef{fun_def} = _stmt focus fun_def <&> \fun_def' -> f{fun_def = fun_def'}
-
-instance HasStmt (Program primT sizeT) (Stmt primT sizeT) where
-  _stmt focus (Program fs) = Program <$> traverse (_stmt focus) fs
+{- | Simple void extension with integer size and double prec.
+Usage: @p :: Program Core'@
+-}
+type Core' = Core SizeT Double

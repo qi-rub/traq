@@ -1,21 +1,19 @@
 {-# LANGUAGE DeriveGeneric #-}
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE MultiParamTypeClasses #-}
-{-# LANGUAGE TypeApplications #-}
-{-# LANGUAGE UndecidableInstances #-}
 
 module Traq.Primitives.Amplify.CAmplify (
   CAmplify (..),
-  -- Symbolic formulas
-  _QryClassicalU,
-  _QryClassicalMax,
+
+  -- * Symbolic formulas
+  _QMax,
+  _EQ,
 )
 where
 
 import Control.Monad (forM)
 import Control.Monad.Reader (ReaderT (..))
 import GHC.Generics (Generic)
-import Text.Printf (printf)
 
 import Lens.Micro.GHC
 import Lens.Micro.Mtl
@@ -25,56 +23,55 @@ import Traq.Control.Monad
 import qualified Traq.Data.Context as Ctx
 import qualified Traq.Data.Probability as Prob
 import Traq.Data.Subtyping
-import qualified Traq.Data.Symbolic as Sym
 
-import Traq.Prelude (SizeT)
+import Traq.Prelude
 import Traq.Primitives.Amplify.Prelude
 import qualified Traq.ProtoLang as P
 import qualified Traq.Utils.Printing as PP
 
 -- | Classical (probabilistic) bounded repetition.
-newtype CAmplify = CAmplify Amplify
+newtype CAmplify sizeT precT = CAmplify (Amplify sizeT precT)
   deriving (Eq, Show, Read, Generic)
 
-instance Amplify :<: CAmplify
+type instance SizeType (CAmplify sizeT precT) = sizeT
+type instance PrecType (CAmplify sizeT precT) = precT
+
+instance Amplify sizeT precT :<: CAmplify sizeT precT
 
 -- Inherited instances
-instance PP.ToCodeString CAmplify where
+instance PP.ToCodeString (CAmplify sizeT Double) where
   build (CAmplify p) = PP.build p
 
-instance P.CanParsePrimitive CAmplify where
-  primitiveParser tp = CAmplify <$> P.primitiveParser tp
+instance P.Parseable (CAmplify sizeT Double) where
+  parseE tp = CAmplify <$> P.parseE tp
 
-instance P.HasFreeVars CAmplify
-instance P.TypeCheckablePrimitive CAmplify
+instance P.HasFreeVars (CAmplify sizeT precT)
+instance (P.TypeCheckable sizeT, Num precT, Ord precT, Show precT) => P.TypeCheckablePrimitive (CAmplify sizeT precT) sizeT
 
-instance (Ord precT) => P.Evaluatable CAmplify precT
+instance (Ord precT, P.EvalReqs sizeT precT) => P.Evaluatable (CAmplify sizeT precT) sizeT precT
 
-_QryClassicalU :: forall precT. (Show precT) => P.L2NormError (Sym.Sym precT) -> Double -> Sym.Sym precT
-_QryClassicalU eps p_min = Sym.var $ printf "QryU_Amplify(%s, %s)" (show $ P.getL2NormError eps) (show p_min)
+_QMax :: forall precT. (Floating precT) => P.FailProb precT -> precT -> precT
+_QMax eps p_min = logBase (1 / (1 - p_min)) (1 / P.getFailProb eps)
 
-_QryClassicalMax :: forall precT. (Show precT) => P.FailProb (Sym.Sym precT) -> Double -> Sym.Sym precT
-_QryClassicalMax eps p_min = Sym.var $ printf "QMAX_Amplify(%s, %s)" (show $ P.getFailProb eps) (show p_min)
-
-_EQ :: forall precT. (Fractional precT, Show precT, Ord precT) => P.FailProb (Sym.Sym precT) -> Double -> Sym.Sym precT -> Sym.Sym precT
+_EQ :: forall precT. (Floating precT, Ord precT) => P.FailProb precT -> precT -> precT -> precT
 _EQ eps p_min p_good
-  | p_good >= realToFrac p_min = 1 / p_good
-  | p_good == 0 = _QryClassicalMax eps p_min
+  | p_good >= p_min = 1 / p_good
+  | p_good == 0 = _QMax eps p_min
   | otherwise = error "invalid case: 0 < p_good < p_min"
 
 instance
   ( Integral sizeT
   , Floating precT
-  , Show precT
   , Eq precT
   , Ord precT
-  , precT' ~ Sym.Sym precT
+  , Show precT
+  , P.TypeCheckable sizeT
   ) =>
-  P.UnitaryCostablePrimitive CAmplify sizeT precT'
+  P.UnitaryCostablePrimitive (CAmplify sizeT precT) sizeT precT
   where
   unitaryQueryCostPrimitive delta (CAmplify (Amplify{sampler, p_min})) = do
     let delta_a = delta `P.divideError` 2
-    let qry = _QryClassicalU delta_a p_min
+    let qry = _QMax (P.requiredNormErrorToFailProb delta_a) p_min
     let delta_f = (delta - delta_a) `P.divideError` qry
 
     cost_sampler <-
@@ -86,16 +83,16 @@ instance
 instance
   ( Integral sizeT
   , Floating precT
-  , Show precT
   , Eq precT
   , Ord precT
-  , precT' ~ Sym.Sym precT
+  , Show precT
+  , P.TypeCheckable sizeT
   ) =>
-  P.QuantumMaxCostablePrimitive CAmplify sizeT precT'
+  P.QuantumMaxCostablePrimitive (CAmplify sizeT precT) sizeT precT
   where
   quantumMaxQueryCostPrimitive eps (CAmplify (Amplify{sampler, p_min})) = do
     let eps_a = eps `P.divideError` 2
-    let num_repetitions = _QryClassicalMax eps_a p_min
+    let num_repetitions = _QMax eps_a p_min
 
     let eps_f = (eps - eps_a) `P.divideError` num_repetitions
 
@@ -111,11 +108,10 @@ instance
   , Show precT
   , Eq precT
   , Ord precT
-  , precT' ~ Sym.Sym precT
-  , P.Evaluatable CAmplify precT'
-  , sizeT ~ SizeT
+  , Show precT
+  , P.EvalReqs sizeT precT
   ) =>
-  P.QuantumCostablePrimitive CAmplify sizeT precT'
+  P.QuantumCostablePrimitive (CAmplify sizeT precT) sizeT precT
   where
   quantumQueryCostPrimitive eps (CAmplify (Amplify{sampler, p_min, sampler_args})) sigma = do
     -- get the function identifier
@@ -134,13 +130,13 @@ instance
 
     -- calculate result distribution μ
     let mu =
-          P.evalFun @_ @precT' arg_vals (P.NamedFunDef sampler sampler_fundef)
+          P.evalFun arg_vals (P.NamedFunDef sampler sampler_fundef)
             & (runReaderT ?? eval_env)
 
-    let p_succ = Prob.probabilityOf @precT' success mu
-    let expected = _EQ @precT eps p_min p_succ -- Expected Cost
+    let p_succ = Prob.probabilityOf success mu
+    let expected = _EQ eps p_min p_succ -- Expected Cost
     let eps_a = eps `P.divideError` 2
-    let num_repetitions = _QryClassicalMax eps_a p_min
+    let num_repetitions = _QMax eps_a p_min
     let eps_f = (eps - eps_a) `P.divideError` num_repetitions
 
     cost <- P.quantumQueryCostE eps_f sigma P.FunCallE{P.fname = sampler, P.args = sampler_args}

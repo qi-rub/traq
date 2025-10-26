@@ -23,9 +23,13 @@ matrixToFun matrix [P.FinV i, P.FinV j] = [P.toValue $ matrix i j]
 matrixToFun _ _ = error "invalid indices"
 
 expectedCost ::
-  forall primT.
-  ( P.CanParsePrimitive primT
+  forall primT primT'.
+  ( P.Parseable primT'
   , P.QuantumCostablePrimitive primT SizeT Double
+  , SizeType primT' ~ Sym.Sym Int
+  , P.MapSize primT'
+  , primT ~ P.MappedSize primT' Int
+  , primT' ~ P.MappedSize primT (Sym.Sym Int)
   ) =>
   Int ->
   Int ->
@@ -34,8 +38,8 @@ expectedCost ::
   IO Double
 expectedCost n m matrix eps = do
   -- load the program
-  Right loaded_program <- parseFromFile (P.programParser @primT) "examples/matrix_search/matrix_search.qb"
-  let program = Sym.unSym . Sym.subst "M" (Sym.con m) . Sym.subst "N" (Sym.con n) <$> loaded_program
+  Right loaded_program <- parseFromFile (P.programParser @primT') "examples/matrix_search/matrix_search.qb"
+  let program = P.mapSize (Sym.unSym . Sym.subst "M" (Sym.con m) . Sym.subst "N" (Sym.con n)) loaded_program
 
   -- the functionality of Matrix, provided as input data
   let interp = Ctx.singleton "Matrix" (matrixToFun matrix)
@@ -60,8 +64,8 @@ main = do
   putStrLn "Costs for sample matrix:"
 
   putStr "  Quantum      : "
-  print =<< expectedCost @QSearchCFNW n m sample_matrix eps
+  print =<< expectedCost @(QSearchCFNW _ _) n m sample_matrix eps
   putStr "  Deterministic: "
-  print =<< expectedCost @DetSearch n m sample_matrix eps
+  print =<< expectedCost @(DetSearch _ _) n m sample_matrix eps
   putStr "  Randomized   : "
-  print =<< expectedCost @RandomSearch n m sample_matrix eps
+  print =<< expectedCost @(RandomSearch _ _) n m sample_matrix eps

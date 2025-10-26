@@ -1,3 +1,5 @@
+{-# LANGUAGE TypeApplications #-}
+
 module Main (main) where
 
 import Control.Monad (forM_, guard, when)
@@ -13,7 +15,6 @@ import qualified Numeric.Algebra as Alg
 
 import qualified Traq.Data.Context as Ctx
 import Traq.Data.Default
-import qualified Traq.Data.Probability as Prob
 import qualified Traq.Data.Symbolic as Sym
 
 import qualified Traq.CQPL as CQPL
@@ -72,7 +73,7 @@ subsNM params s = Sym.unSym $ foldr subsOnce s params
 tellLn :: (MonadWriter String m) => String -> m ()
 tellLn x = tell $ unlines [x]
 
-compile :: forall precT. (RealFloat precT, Show precT, Alg.Rig precT, Prob.ProbType precT, Prob.RVType precT precT) => P.Program DefaultPrims SizeT -> precT -> IO String
+compile :: forall precT. (P.EvalReqs SizeT precT, RealFloat precT, Show precT, Alg.Rig precT) => P.Program (DefaultPrims SizeT precT) -> precT -> IO String
 compile prog@(P.Program fs) delta = do
   Right cqpl_prog <- return $ CompileU.lowerProgram default_ Ctx.empty (P.l2NormError delta) prog
   -- get costs
@@ -98,7 +99,7 @@ compile prog@(P.Program fs) delta = do
                           getCost $
                             P.unitaryQueryCost
                               P.SplitSimple
-                              (P.l2NormError fdelta)
+                              (P.l2NormError (realToFrac fdelta))
                               prog'
                     return $ show cf
                 )
@@ -118,9 +119,9 @@ main = do
   -- parse
   code <- readFile in_file
   prog <-
-    P.parseProgram code
+    P.parseProgram @(DefaultPrims _ _) code
       & either (fail . show) return
-      <&> fmap (subsNM params)
+      <&> P.mapSize (subsNM params)
 
   -- compile
   out_prog <- case delta of

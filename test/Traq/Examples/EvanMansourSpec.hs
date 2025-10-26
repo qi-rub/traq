@@ -22,13 +22,13 @@ examplePath = "examples/cryptoanalysis/evan_mansour.qb"
 loadEvanMansour ::
   -- | bitsize @n@ of the inputs/outputs
   SizeT ->
-  IO (P.Program (SimonsFindXorPeriod Double) SizeT)
+  IO (P.Program (SimonsFindXorPeriod SizeT Double))
 loadEvanMansour n = do
-  Right prog <- parseFromFile (P.programParser @(SimonsFindXorPeriod Double)) examplePath
+  Right prog <- parseFromFile (P.programParser @(SimonsFindXorPeriod (Sym.Sym SizeT) Double)) examplePath
   return $
     prog
-      <&> Sym.subst "N" (Sym.con (2 ^ n))
-      <&> Sym.unSym
+      & P.mapSize (Sym.subst "N" (Sym.con (2 ^ n)))
+      & P.mapSize Sym.unSym
 
 spec :: Spec
 spec = describe "FindXorPeriod" $ do
@@ -39,12 +39,12 @@ spec = describe "FindXorPeriod" $ do
   let p0 = 0.01 :: Double
 
   it "parses" $ do
-    expectRight =<< parseFromFile (P.programParser @(SimonsFindXorPeriod Double)) examplePath
+    expectRight =<< parseFromFile (P.programParser @(SimonsFindXorPeriod (Sym.Sym SizeT) Double)) examplePath
     return ()
 
   it "typechecks" $ do
     p <-
-      parseFromFile (P.programParser @(SimonsFindXorPeriod Double)) examplePath
+      parseFromFile (P.programParser @(SimonsFindXorPeriod (Sym.Sym SizeT) Double)) examplePath
         >>= expectRight
     assertRight $ P.typeCheckProg p
 

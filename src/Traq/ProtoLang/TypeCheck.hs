@@ -2,7 +2,8 @@
 {-# LANGUAGE DefaultSignatures #-}
 {-# LANGUAGE DuplicateRecordFields #-}
 {-# LANGUAGE FlexibleInstances #-}
-{-# LANGUAGE MultiParamTypeClasses #-}
+{-# LANGUAGE FunctionalDependencies #-}
+{-# LANGUAGE UndecidableInstances #-}
 
 module Traq.ProtoLang.TypeCheck (
   -- * Typing Context
@@ -33,7 +34,6 @@ import Control.Monad.Except (MonadError, throwError)
 import Control.Monad.Reader (MonadReader, ReaderT, runReaderT)
 import Control.Monad.State (StateT, evalStateT, execStateT)
 import Control.Monad.Trans (lift)
-import Data.Void (Void, absurd)
 import GHC.Generics
 import Text.Printf (printf)
 
@@ -190,64 +190,63 @@ typeCheckBasicExpr ProjectE{tup_expr, tup_ix_val} = do
 lookupFunE ::
   ( MonadError String m
   , MonadReader r m
-  , HasFunCtx r
+  , HasFunCtx r primT
   , sizeT ~ SizeType r
-  , primT ~ PrimitiveType r
   ) =>
   Ident ->
-  m (FunDef primT sizeT)
+  m (FunDef primT)
 lookupFunE fname =
   view (_funCtx . Ctx.at fname)
     >>= maybeWithError (printf "cannot find function `%s`" fname)
 
 -- | Environment for type checking
-type TypingEnv primT sizeT = FunCtx primT sizeT
+type TypingEnv ext = FunCtx ext
 
 -- | The TypeChecker monad
-type TypeChecker primT sizeT = ReaderT (TypingEnv primT sizeT) (StateT (TypingCtx sizeT) (Either String))
+type TypeChecker ext = ReaderT (TypingEnv ext) (StateT (TypingCtx (SizeType ext)) (Either String))
 
 -- --------------------------------------------------------------------------------
 -- Primitives
 -- --------------------------------------------------------------------------------
-class TypeCheckablePrimitive primT where
+class (TypeCheckable sizeT, sizeT ~ SizeType ext) => TypeCheckablePrimitive ext sizeT | ext -> sizeT where
   typeCheckPrimitive ::
-    forall primsT sizeT m.
-    ( TypeCheckable sizeT
-    , m ~ TypeChecker primsT sizeT
+    forall ext' m.
+    ( m ~ TypeChecker ext'
+    , sizeT ~ SizeType ext'
     ) =>
-    primT ->
+    ext ->
     m [VarType sizeT]
   default typeCheckPrimitive ::
-    forall primsT sizeT m.
-    ( Generic primT
-    , GTypeCheckablePrimitive (Rep primT)
-    , TypeCheckable sizeT
-    , m ~ TypeChecker primsT sizeT
+    forall ext' m.
+    ( Generic ext
+    , GTypeCheckablePrimitive (Rep ext) sizeT
+    , m ~ TypeChecker ext'
+    , sizeT ~ SizeType ext'
     ) =>
-    primT ->
+    ext ->
     m [VarType sizeT]
   typeCheckPrimitive p = gtypeCheckPrimitive (from p)
 
-instance TypeCheckablePrimitive Void where
-  typeCheckPrimitive = absurd
+instance (TypeCheckable sizeT) => TypeCheckablePrimitive (Core sizeT precT) sizeT where
+  typeCheckPrimitive = \case {}
 
-class GTypeCheckablePrimitive f where
+class (TypeCheckable sizeT) => GTypeCheckablePrimitive f sizeT | f -> sizeT where
   gtypeCheckPrimitive ::
-    forall primsT sizeT m primT.
-    ( TypeCheckable sizeT
-    , m ~ TypeChecker primsT sizeT
+    forall ext' m ext.
+    ( m ~ TypeChecker ext'
+    , sizeT ~ SizeType ext'
     ) =>
-    f primT ->
+    f ext ->
     m [VarType sizeT]
 
-instance (GTypeCheckablePrimitive p1, GTypeCheckablePrimitive p2) => GTypeCheckablePrimitive (p1 :+: p2) where
+instance (GTypeCheckablePrimitive p1 sizeT, GTypeCheckablePrimitive p2 sizeT) => GTypeCheckablePrimitive (p1 :+: p2) sizeT where
   gtypeCheckPrimitive (L1 p) = gtypeCheckPrimitive p
   gtypeCheckPrimitive (R1 p) = gtypeCheckPrimitive p
 
-instance (GTypeCheckablePrimitive p) => GTypeCheckablePrimitive (M1 i c p) where
+instance (GTypeCheckablePrimitive p sizeT) => GTypeCheckablePrimitive (M1 i c p) sizeT where
   gtypeCheckPrimitive (M1 x) = gtypeCheckPrimitive x
 
-instance (TypeCheckablePrimitive p) => GTypeCheckablePrimitive (K1 i p) where
+instance (TypeCheckablePrimitive p sizeT, sizeT ~ SizeType p) => GTypeCheckablePrimitive (K1 i p) sizeT where
   gtypeCheckPrimitive (K1 x) = typeCheckPrimitive x
 
 -- --------------------------------------------------------------------------------
@@ -258,18 +257,18 @@ typeCheckDistrExpr ::
   forall primT sizeT.
   (TypeCheckable sizeT) =>
   DistrExpr sizeT ->
-  TypeChecker primT sizeT [VarType sizeT]
+  TypeChecker primT [VarType sizeT]
 typeCheckDistrExpr UniformE{sample_ty} = pure [sample_ty]
 typeCheckDistrExpr BernoulliE{} = pure [tbool]
 
 -- | Typecheck an expression and return the output types
 typeCheckExpr ::
   forall primT sizeT.
-  ( TypeCheckablePrimitive primT
-  , TypeCheckable sizeT
+  ( TypeCheckablePrimitive primT sizeT
+  , sizeT ~ SizeType primT
   ) =>
-  Expr primT sizeT ->
-  TypeChecker primT sizeT [VarType sizeT]
+  Expr primT ->
+  TypeChecker primT [VarType sizeT]
 typeCheckExpr BasicExprE{basic_expr} = do
   gamma <- use id
   lift $ do
@@ -310,11 +309,11 @@ typeCheckExpr LoopE{initial_args, loop_body_fun} =
 -}
 typeCheckStmt ::
   forall primT sizeT.
-  ( TypeCheckablePrimitive primT
-  , TypeCheckable sizeT
+  ( TypeCheckablePrimitive primT sizeT
+  , sizeT ~ SizeType primT
   ) =>
-  Stmt primT sizeT ->
-  TypeChecker primT sizeT ()
+  Stmt primT ->
+  TypeChecker primT ()
 -- single statement
 typeCheckStmt ExprS{rets, expr} = do
   out_tys <- typeCheckExpr expr
@@ -340,11 +339,11 @@ typeCheckStmt IfThenElseS{cond, s_true, s_false} = do
 
 -- | Type check a single function.
 typeCheckFun ::
-  ( TypeCheckablePrimitive primT
-  , TypeCheckable sizeT
+  ( TypeCheckablePrimitive primT sizeT
+  , sizeT ~ SizeType primT
   ) =>
-  FunCtx primT sizeT ->
-  FunDef primT sizeT ->
+  FunCtx primT ->
+  FunDef primT ->
   Either String ()
 typeCheckFun
   funCtx
@@ -375,10 +374,8 @@ typeCheckFun _ FunDef{mbody = Nothing} = return ()
 
 -- | Type check a full program (i.e. list of functions).
 typeCheckProg ::
-  ( TypeCheckablePrimitive primT
-  , TypeCheckable sizeT
-  ) =>
-  Program primT sizeT ->
+  (TypeCheckablePrimitive primT sizeT) =>
+  Program primT ->
   Either String ()
 typeCheckProg (Program fs) =
   evalStateT ?? Ctx.empty $

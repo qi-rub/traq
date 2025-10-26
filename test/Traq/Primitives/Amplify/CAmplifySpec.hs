@@ -10,7 +10,7 @@ import qualified Traq.ProtoLang as P
 
 import Test.Hspec
 
-exampleProgram :: (Num sizeT) => sizeT -> P.Program CAmplify sizeT
+exampleProgram :: (Num sizeT, Fractional precT) => sizeT -> P.Program (CAmplify sizeT precT)
 exampleProgram n = P.Program [P.NamedFunDef "sampler" sampler, P.NamedFunDef "main" main_fun]
  where
   node_ty = P.Fin n
@@ -60,33 +60,33 @@ spec = describe "CAmplify" $ do
     let program = exampleProgram 10
 
     it "calculates unitary cost correctly" $ do
-      let delta = P.l2NormError (Sym.var "delta" :: Sym.Sym Double)
+      let delta = P.l2NormError (0.001 :: Double)
       -- let expectedCost = 2 * _QryClassicalU ((delta / 2) / 2) p_min
       let actualCost = getCost $ P.unitaryQueryCost P.SplitSimple delta program
 
-      show actualCost `shouldBe` "0.0+((QryU_Amplify(delta/2.0/2.0, 2.0e-2)) .* (((2.0) .* (1.0))))"
+      actualCost `shouldBe` 1779.40444900044
 
     it "calculates quantum max cost correctly" $ do
-      let eps = P.failProb $ Sym.con (0.2 :: Double)
+      let eps = P.failProb (0.001 :: Double)
 
       -- let expectedCost = _QryClassicalMax (Sym.con eps / 4) p_min
       let actualCost = getCost $ P.quantumMaxQueryCost P.SplitSimple eps program
 
-      show actualCost `shouldBe` "0.0+((QMAX_Amplify(5.0e-2, 2.0e-2)) .* (1.0))"
+      actualCost `shouldBe` 410.5414937585894
 
     it "calculates quantum query cost correctly - sampler always succeeds" $ do
-      let eps = P.failProb $ Sym.con (0.2 :: Double)
+      let eps = P.failProb (0.001 :: Double)
       let funInterpCtx = Ctx.singleton "sampler" (\[_] -> [P.toValue True, P.FinV 1])
 
       let actualCost = getCost $ P.quantumQueryCost P.SplitSimple eps program funInterpCtx mempty
 
-      show actualCost `shouldBe` "0.0+((1.0) .* (1.0))"
+      actualCost `shouldBe` 1.0
 
     it "calculates quantum query cost correctly - sampler always fails" $ do
-      let eps = P.failProb $ Sym.con (0.2 :: Double)
+      let eps = P.failProb (0.001 :: Double)
       let funInterpCtx = Ctx.singleton "sampler" (\[_] -> [P.toValue False, P.FinV 1])
 
       -- let expectedCost = _QryClassicalMax (Sym.con eps / 2) p_min
       let actualCost = getCost $ P.quantumQueryCost P.SplitSimple eps program funInterpCtx mempty
 
-      show actualCost `shouldBe` "0.0+((QMAX_Amplify(0.1, 2.0e-2)) .* (1.0))"
+      actualCost `shouldBe` 376.23187526706874

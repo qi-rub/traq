@@ -1,7 +1,8 @@
 {-# LANGUAGE DefaultSignatures #-}
 {-# LANGUAGE DuplicateRecordFields #-}
 {-# LANGUAGE FlexibleInstances #-}
-{-# LANGUAGE MultiParamTypeClasses #-}
+{-# LANGUAGE FunctionalDependencies #-}
+{-# LANGUAGE UndecidableInstances #-}
 
 module Traq.Compiler.Unitary (
   -- * Types
@@ -37,7 +38,6 @@ import Control.Monad.Trans (lift)
 import Control.Monad.Writer (WriterT, execWriterT)
 import Data.Foldable (Foldable (toList))
 import Data.List (intersect)
-import Data.Void (Void, absurd)
 import GHC.Generics hiding (to)
 import Text.Printf (printf)
 
@@ -55,61 +55,71 @@ import Traq.Prelude
 import qualified Traq.ProtoLang as P
 
 -- | Configuration for lowering
-type LoweringEnv primT sizeT precT = P.UnitaryCostEnv primT sizeT precT
+type LoweringEnv ext = P.UnitaryCostEnv ext
 
 {- | Monad to compile to Unitary CQPL programs.
 This should contain the _final_ typing context for the input program,
 that is, contains both the inputs and outputs of each statement.
 -}
-type CompilerT primT sizeT precT =
+type CompilerT ext =
   WriterT
-    (LoweringOutput sizeT)
+    (LoweringOutput (SizeType ext))
     ( ReaderT
-        (LoweringEnv primT sizeT precT)
+        (LoweringEnv ext)
         ( StateT
-            (LoweringCtx sizeT)
+            (LoweringCtx (SizeType ext))
             (Either String)
         )
     )
 
 -- | Primitives that support a unitary lowering.
 class
-  (P.UnitaryCostablePrimitive primT sizeT precT) =>
-  Lowerable primT sizeT precT
+  ( P.UnitaryCostablePrimitive ext sizeT precT
+  , sizeT ~ SizeType ext
+  , precT ~ PrecType ext
+  ) =>
+  Lowerable ext sizeT precT
+    | ext -> sizeT precT
   where
   lowerPrimitive ::
-    forall primsT m.
-    ( Lowerable primsT sizeT precT
-    , m ~ CompilerT primsT sizeT precT
+    forall ext' m.
+    ( Lowerable ext' sizeT precT
+    , m ~ CompilerT ext'
+    , SizeType ext' ~ sizeT
+    , PrecType ext' ~ precT
     ) =>
     P.L2NormError precT ->
-    primT ->
+    ext ->
     -- | rets
     [Ident] ->
     m (UStmt sizeT)
   default lowerPrimitive ::
-    forall primsT m.
-    ( Lowerable primsT sizeT precT
-    , m ~ CompilerT primsT sizeT precT
-    , Generic primT
-    , GLowerable (Rep primT) sizeT precT
+    forall ext' m.
+    ( Lowerable ext' sizeT precT
+    , m ~ CompilerT ext'
+    , Generic ext
+    , GLowerable (Rep ext) sizeT precT
+    , SizeType ext' ~ sizeT
+    , PrecType ext' ~ precT
     ) =>
     P.L2NormError precT ->
-    primT ->
+    ext ->
     -- | rets
     [Ident] ->
     m (UStmt sizeT)
   lowerPrimitive delta p = glowerPrimitive (from p) delta
 
-instance (Show precT) => Lowerable Void sizeT precT where
-  lowerPrimitive _ = absurd
+instance (P.TypeCheckable sizeT) => Lowerable (P.Core sizeT precT) sizeT precT where
+  lowerPrimitive _ = \case {}
 
 -- | Generic
-class GLowerable f sizeT precT where
+class GLowerable f sizeT precT | f -> sizeT precT where
   glowerPrimitive ::
-    forall primT primsT m.
-    ( Lowerable primsT sizeT precT
-    , m ~ CompilerT primsT sizeT precT
+    forall primT ext' m.
+    ( Lowerable ext' sizeT precT
+    , m ~ CompilerT ext'
+    , SizeType ext' ~ sizeT
+    , PrecType ext' ~ precT
     ) =>
     f primT ->
     P.L2NormError precT ->
@@ -141,14 +151,14 @@ instance
 -- ================================================================================
 
 -- | Allocate an ancilla register, and update the typing context.
-allocAncillaWithPref :: Ident -> P.VarType sizeT -> CompilerT primT sizeT precT Ident
+allocAncillaWithPref :: (sizeT ~ SizeType ext) => Ident -> P.VarType sizeT -> CompilerT ext Ident
 allocAncillaWithPref pref ty = do
   name <- newIdent pref
   zoom P._typingCtx $ Ctx.put name ty
   return name
 
 -- | Allocate an ancilla register @aux_<<n>>@, and update the typing context.
-allocAncilla :: P.VarType sizeT -> CompilerT primT sizeT precT Ident
+allocAncilla :: (sizeT ~ SizeType ext) => P.VarType sizeT -> CompilerT ext Ident
 allocAncilla = allocAncillaWithPref "aux"
 
 -- ================================================================================
@@ -173,17 +183,17 @@ data ControlFlag = WithControl | WithoutControl deriving (Eq, Show, Read, Enum)
 
 -- | Compile a single expression statement
 lowerExpr ::
-  forall primsT sizeT precT.
-  ( Lowerable primsT sizeT precT
+  forall ext sizeT precT.
+  ( Lowerable ext sizeT precT
   , P.TypeCheckable sizeT
   , Show precT
   , Floating precT
   ) =>
   P.L2NormError precT ->
-  P.Expr primsT sizeT ->
+  P.Expr ext ->
   -- | returns
   [Ident] ->
-  CompilerT primsT sizeT precT (UStmt sizeT)
+  CompilerT ext (UStmt sizeT)
 -- basic expressions are lowered to their unitary embedding
 lowerExpr _ P.BasicExprE{P.basic_expr} rets = do
   let args = toList $ P.freeVars basic_expr
@@ -218,15 +228,15 @@ lowerExpr delta P.PrimCallE{prim} rets =
 
 -- | Compile a statement (simple or compound)
 lowerStmt ::
-  forall primsT sizeT precT.
-  ( Lowerable primsT sizeT precT
+  forall ext sizeT precT.
+  ( Lowerable ext sizeT precT
   , P.TypeCheckable sizeT
   , Show precT
   , Floating precT
   ) =>
   P.L2NormError precT ->
-  P.Stmt primsT sizeT ->
-  CompilerT primsT sizeT precT (UStmt sizeT)
+  P.Stmt ext ->
+  CompilerT ext (UStmt sizeT)
 -- single statement
 lowerStmt delta s@P.ExprS{P.rets, P.expr} = do
   lift $ magnify P._funCtx . zoom P._typingCtx $ P.typeCheckStmt s
@@ -248,19 +258,19 @@ lowerStmt _ _ = error "lowering: unsupported"
  TODO try to cache compiled procs by key (funDefName, Precision).
 -}
 lowerFunDefWithGarbage ::
-  forall primsT sizeT precT m.
-  ( Lowerable primsT sizeT precT
+  forall ext sizeT precT m.
+  ( Lowerable ext sizeT precT
   , P.TypeCheckable sizeT
   , Show precT
   , Floating precT
-  , m ~ CompilerT primsT sizeT precT
+  , m ~ CompilerT ext
   ) =>
   -- | precision \delta
   P.L2NormError precT ->
   -- | source function name
   Ident ->
   -- | function
-  P.FunDef primsT sizeT ->
+  P.FunDef ext ->
   m (LoweredProc sizeT)
 lowerFunDefWithGarbage _ fun_name P.FunDef{P.param_types, P.ret_types, P.mbody = Nothing} = do
   proc_name <- newIdent fun_name
@@ -343,12 +353,12 @@ withTag tag = map $ \(x, ty) -> (x, tag, ty)
  TODO try to cache compiled procs by key (funDefName, Precision).
 -}
 lowerFunDef ::
-  forall primsT sizeT precT m.
-  ( Lowerable primsT sizeT precT
+  forall ext sizeT precT m.
+  ( Lowerable ext sizeT precT
   , P.TypeCheckable sizeT
   , Show precT
   , Floating precT
-  , m ~ CompilerT primsT sizeT precT
+  , m ~ CompilerT ext
   ) =>
   -- | Controlled?
   ControlFlag ->
@@ -357,7 +367,7 @@ lowerFunDef ::
   -- | function name
   Ident ->
   -- | function
-  P.FunDef primsT sizeT ->
+  P.FunDef ext ->
   m (LoweredProc sizeT)
 lowerFunDef
   with_ctrl
@@ -437,18 +447,18 @@ lowerFunDef
 
 -- | Lower a full program into a unitary CQPL program.
 lowerProgram ::
-  forall primsT precT.
-  ( Lowerable primsT SizeT precT
+  forall ext precT.
+  ( Lowerable ext SizeT precT
   , Show precT
   , Floating precT
-  , P.HasFreeVars primsT
+  , P.HasFreeVars ext
   ) =>
   P.PrecisionSplittingStrategy ->
   -- | All variable bindings
   P.TypingCtx SizeT ->
   -- | precision \delta
   P.L2NormError precT ->
-  P.Program primsT SizeT ->
+  P.Program ext ->
   Either String (CQPL.Program SizeT)
 lowerProgram strat gamma_in delta prog@(P.Program fs) = do
   unless (P.checkVarsUnique prog) $

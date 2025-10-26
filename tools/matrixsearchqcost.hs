@@ -34,27 +34,27 @@ printDivider = putStrLn $ replicate 80 '='
 data Phantom p = Phantom
 
 class
-  ( P.CanParsePrimitive p
+  ( P.Parseable p
   , P.QuantumCostablePrimitive p SizeT Double
-  , PrimAny :<: p
+  , PrimAny SizeT Double :<: p
   ) =>
   MyPrim p
 
-instance MyPrim DefaultPrims
-instance MyPrim RandomSearch
-instance MyPrim QSearchCFNW
-instance MyPrim DetSearch
+instance MyPrim (DefaultPrims SizeT Double)
+instance MyPrim (RandomSearch SizeT Double)
+instance MyPrim (QSearchCFNW SizeT Double)
+instance MyPrim (DetSearch SizeT Double)
 
-defPrims :: Phantom DefaultPrims
+defPrims :: Phantom (DefaultPrims SizeT Double)
 defPrims = Phantom
 
-randSearchP :: Phantom RandomSearch
+randSearchP :: Phantom (RandomSearch SizeT Double)
 randSearchP = Phantom
 
-qSearchP :: Phantom QSearchCFNW
+qSearchP :: Phantom (QSearchCFNW SizeT Double)
 qSearchP = Phantom
 
-detSearchP :: Phantom DetSearch
+detSearchP :: Phantom (DetSearch SizeT Double)
 detSearchP = Phantom
 
 type Value = P.Value SizeT
@@ -169,8 +169,8 @@ computeStatsForWorstCaseMatrices phantom =
 
 computeStatsForWorstCaseExample :: IO ()
 computeStatsForWorstCaseExample = do
-  Right sprog <- parseFromFile (P.programParser @DefaultPrims) "examples/matrix_search/worstcase.qb"
-  let getprog n = fmap (Sym.unSym . Sym.subst "M" (Sym.con n) . Sym.subst "N" (Sym.con n)) sprog
+  Right sprog <- parseFromFile (P.programParser @(DefaultPrims (Sym.Sym SizeT) Double)) "examples/matrix_search/worstcase.qb"
+  let getprog n = P.mapSize (Sym.unSym . Sym.subst "M" (Sym.con n) . Sym.subst "N" (Sym.con n)) sprog
 
   withFile "examples/matrix_search/stats/worstcase.csv" WriteMode $ \h -> do
     hPutStrLn h "n,cost"
@@ -183,8 +183,8 @@ computeStatsForWorstCaseExample = do
 
 triangular :: IO ()
 triangular = do
-  Right sprog <- parseFromFile (P.programParser @DefaultPrims) "examples/matrix_search/triangular.qb"
-  let getprog n = fmap (Sym.unSym . Sym.subst "M" (Sym.con n) . Sym.subst "N" (Sym.con n)) sprog
+  Right sprog <- parseFromFile (P.programParser @(DefaultPrims (Sym.Sym SizeT) Double)) "examples/matrix_search/triangular.qb"
+  let getprog n = P.mapSize (Sym.unSym . Sym.subst "M" (Sym.con n) . Sym.subst "N" (Sym.con n)) sprog
 
   withFile "examples/matrix_search/stats/triangular.csv" WriteMode $ \h -> do
     hPutStrLn h "n,cost"

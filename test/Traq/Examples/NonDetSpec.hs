@@ -21,12 +21,12 @@ import TestHelpers
 spec :: Spec
 spec = do
   describe "SimpleExample" $ do
-    let load = parseFromFile (PP.programParser @DefaultPrims) "examples/nondet.qb"
+    let load = parseFromFile (PP.programParser @(DefaultPrims (Sym.Sym SizeT) Double)) "examples/nondet.qb"
     it "parses" $ do
       mEx <- load
       assertRight mEx
 
-    let load' = load <&> fromRight (error "parsing failed") <&> fmap Sym.unSym
+    let load' = load <&> fromRight (error "parsing failed") <&> P.mapSize Sym.unSym
 
     it "typechecks" $ do
       ex <- load'

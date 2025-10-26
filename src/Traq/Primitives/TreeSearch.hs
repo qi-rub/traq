@@ -17,7 +17,6 @@ import Lens.Micro.Mtl
 
 import Traq.Control.Monad
 import qualified Traq.Data.Context as Ctx
-import qualified Traq.Data.Probability as Prob
 
 import Traq.Prelude
 import qualified Traq.ProtoLang as P
@@ -31,7 +30,7 @@ import qualified Traq.Utils.Printing as PP
 
  @checkNode@ returns a boolean value.
 -}
-data TreeSearch = TreeSearch
+data TreeSearch sizeT precT = TreeSearch
   { getChildren :: Ident
   , getChildrenArgs :: [Ident]
   , checkNode :: Ident
@@ -39,8 +38,11 @@ data TreeSearch = TreeSearch
   }
   deriving (Eq, Show, Read)
 
+type instance SizeType (TreeSearch sizeT precT) = sizeT
+type instance PrecType (TreeSearch sizeT precT) = precT
+
 -- Printing
-instance PP.ToCodeString TreeSearch where
+instance PP.ToCodeString (TreeSearch sizeT precT) where
   build TreeSearch{getChildren, getChildrenArgs, checkNode, checkNodeArgs} =
     PP.putWord $
       printf
@@ -51,8 +53,8 @@ instance PP.ToCodeString TreeSearch where
         (PP.commaList checkNodeArgs)
 
 -- Parsing
-instance P.CanParsePrimitive TreeSearch where
-  primitiveParser tp = do
+instance P.Parseable (TreeSearch sizeT precT) where
+  parseE tp = do
     symbol tp "@treesearch"
     (getChildren, checkNode) <- brackets tp $ do
       gc <- identifier tp
@@ -64,7 +66,7 @@ instance P.CanParsePrimitive TreeSearch where
     return TreeSearch{getChildren, getChildrenArgs, checkNode, checkNodeArgs}
 
 -- Type check
-instance P.TypeCheckablePrimitive TreeSearch where
+instance (P.TypeCheckable sizeT) => P.TypeCheckablePrimitive (TreeSearch sizeT precT) sizeT where
   typeCheckPrimitive TreeSearch{getChildren, getChildrenArgs, checkNode, checkNodeArgs} = do
     P.FunDef{P.param_types = gc_param_tys, P.ret_types = gc_ret_tys} <-
       view (Ctx.at getChildren)
@@ -111,7 +113,7 @@ runTreeSearch child check u = do
       (l, r) <- child u
       (||) <$> check l <*> check r
 
-instance P.Evaluatable TreeSearch precT where
+instance (P.EvalReqs SizeT precT) => P.Evaluatable (TreeSearch SizeT precT) SizeT precT where
   eval TreeSearch{getChildren, getChildrenArgs, checkNode, checkNodeArgs} sigma = do
     child_fun <- view $ P._funCtx . Ctx.at getChildren . to (fromMaybe (error "unable to find predicate, please typecheck first!"))
     check_fun <- view $ P._funCtx . Ctx.at checkNode . to (fromMaybe (error "unable to find predicate, please typecheck first!"))

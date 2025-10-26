@@ -2,6 +2,7 @@
 {-# LANGUAGE DuplicateRecordFields #-}
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE MultiParamTypeClasses #-}
+{-# LANGUAGE RecordWildCards #-}
 {-# LANGUAGE TypeApplications #-}
 
 module Traq.Primitives.Search.DetSearch (
@@ -32,22 +33,29 @@ import qualified Traq.Utils.Printing as PP
 -- ================================================================================
 
 -- | Primitive implementing brute-force classical search.
-newtype DetSearch = DetSearch PrimAny
+newtype DetSearch sizeT precT = DetSearch (PrimAny sizeT precT)
   deriving (Eq, Show, Read, Generic)
 
-instance PrimAny :<: DetSearch
-instance IsA SearchLikePrim DetSearch
+type instance SizeType (DetSearch sizeT precT) = sizeT
+type instance PrecType (DetSearch sizeT precT) = precT
 
-instance PP.ToCodeString DetSearch where
+instance P.MapSize (DetSearch size prec) where
+  type MappedSize (DetSearch size prec) size' = DetSearch size' prec
+  mapSize f (DetSearch p) = DetSearch (P.mapSize f p)
+
+instance PrimAny sizeT precT :<: DetSearch sizeT precT
+instance IsA SearchLikePrim (DetSearch sizeT precT)
+
+instance PP.ToCodeString (DetSearch sizeT precT) where
   build (DetSearch p) = printSearchLikePrim "any" p
 
-instance P.CanParsePrimitive DetSearch where
-  primitiveParser = fmap inject . parsePrimAnyWithName "any"
+instance P.Parseable (DetSearch sizeT precT) where
+  parseE = fmap inject . parsePrimAnyWithName @sizeT @precT "any"
 
-instance P.HasFreeVars DetSearch
-instance P.TypeCheckablePrimitive DetSearch
+instance P.HasFreeVars (DetSearch sizeT precT)
+instance (P.TypeCheckable sizeT) => P.TypeCheckablePrimitive (DetSearch sizeT precT) sizeT
 
-instance P.Evaluatable DetSearch precT
+instance (P.EvalReqs sizeT precT) => P.Evaluatable (DetSearch sizeT precT) sizeT precT
 
 -- ================================================================================
 -- Abstract Costs
@@ -56,9 +64,9 @@ instance P.Evaluatable DetSearch precT
 instance
   ( Integral sizeT
   , Floating precT
-  , Show precT
+  , P.TypeCheckable sizeT
   ) =>
-  P.UnitaryCostablePrimitive DetSearch sizeT precT
+  P.UnitaryCostablePrimitive (DetSearch sizeT precT) sizeT precT
   where
   unitaryQueryCostPrimitive delta prim = do
     let SearchLikePrim{predicate} = extract prim
@@ -80,9 +88,9 @@ instance
   ( Integral sizeT
   , Floating precT
   , Ord precT
-  , Show precT
+  , P.TypeCheckable sizeT
   ) =>
-  P.QuantumMaxCostablePrimitive DetSearch sizeT precT
+  P.QuantumMaxCostablePrimitive (DetSearch sizeT precT) sizeT precT
   where
   quantumMaxQueryCostPrimitive eps prim = do
     let SearchLikePrim{predicate} = extract prim
@@ -106,9 +114,9 @@ instance
   , Ord precT
   , Prob.ProbType precT
   , sizeT ~ SizeT
-  , Show precT
+  , P.EvalReqs sizeT precT
   ) =>
-  P.QuantumCostablePrimitive DetSearch sizeT precT
+  P.QuantumCostablePrimitive (DetSearch sizeT precT) sizeT precT
   where
   quantumQueryCostPrimitive eps prim sigma = do
     let SearchLikePrim{predicate, pred_args = args} = extract prim
@@ -137,7 +145,7 @@ instance
       -- evaluate predicate on `v` to check if it is a solution
       eval_env <- view P._evaluationEnv
       [is_sol_v] <-
-        P.eval @_ @precT pred_call_expr sigma_pred'
+        P.eval pred_call_expr sigma_pred'
           & (runReaderT ?? eval_env)
           & Prob.toDeterministicValue
           & lift

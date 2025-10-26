@@ -90,7 +90,7 @@ spec = do
   describe "matrix search symbolic" $ do
     let n = Sym.var "n" :: Sym.Sym Int
     let m = Sym.var "m" :: Sym.Sym Int
-    let ex = matrixExample @QSearchSym n m
+    let ex = matrixExample @(QSearchSym Int Double) n m
 
     -- expected, worst, unitary
     let ucF = _QryU

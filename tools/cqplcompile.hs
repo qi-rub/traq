@@ -1,3 +1,5 @@
+{-# LANGUAGE TypeApplications #-}
+
 module Main (main) where
 
 import Options.Applicative
@@ -60,7 +62,7 @@ subsNM params s = Sym.unSym $ foldr subsOnce s params
   subsOnce :: (Ident, SizeT) -> SymbSize -> SymbSize
   subsOnce (k, v) = Sym.subst k (Sym.con v)
 
-compile :: (RealFloat precT, Show precT) => P.Program DefaultPrims SizeT -> precT -> IO String
+compile :: (RealFloat precT, Show precT) => P.Program (DefaultPrims SizeT precT) -> precT -> IO String
 compile prog eps = do
   Right cqpl_prog <- return $ CompileQ.lowerProgram default_ Ctx.empty (P.failProb eps) prog
   let nqubits = CQPL.numQubits cqpl_prog
@@ -73,7 +75,9 @@ main = do
 
   -- parse
   code <- readFile in_file
-  Right prog <- return $ fmap (subsNM params) <$> P.parseProgram code
+  Right prog <-
+    return $
+      P.mapSize (subsNM params) <$> P.parseProgram @(DefaultPrims _ _) code
 
   -- compile
   out_prog <- case eps of

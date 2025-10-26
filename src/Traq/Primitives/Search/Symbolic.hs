@@ -43,48 +43,53 @@ _QryQmax n eps = Sym.var $ printf "QryQmax(%s, %s)" (show n) (show $ P.getFailPr
 -- ================================================================================
 -- Primitive Class Implementation
 -- ================================================================================
-data QSearchSym = QSearchSym PrimSearch | QAnySym PrimAny
+data QSearchSym sizeT precT
+  = QSearchSym (PrimSearch (Sym.Sym sizeT) (Sym.Sym precT))
+  | QAnySym (PrimAny (Sym.Sym sizeT) (Sym.Sym precT))
   deriving (Eq, Show, Read, Generic)
 
-_QSearchSym :: Traversal' QSearchSym PrimSearch
+type instance SizeType (QSearchSym sizeT precT) = Sym.Sym sizeT
+type instance PrecType (QSearchSym sizeT precT) = Sym.Sym precT
+
+_QSearchSym :: Traversal' (QSearchSym sizeT precT) (PrimSearch (Sym.Sym sizeT) (Sym.Sym precT))
 _QSearchSym focus (QSearchSym p) = QSearchSym <$> focus p
 _QSearchSym _ q = pure q
 
-_QAnySym :: Traversal' QSearchSym PrimAny
+_QAnySym :: Traversal' (QSearchSym sizeT precT) (PrimAny (Sym.Sym sizeT) (Sym.Sym precT))
 _QAnySym focus (QAnySym p) = QAnySym <$> focus p
 _QAnySym _ q = pure q
 
-getPred :: QSearchSym -> Ident
+getPred :: QSearchSym sizeT precT -> Ident
 getPred (QSearchSym PrimSearch{predicate}) = predicate
 getPred (QAnySym PrimAny{predicate}) = predicate
 
-instance PrimAny :<: QSearchSym where
+instance PrimAny (Sym.Sym sizeT) (Sym.Sym precT) :<: QSearchSym sizeT precT where
   inject = QAnySym
 
   project (QAnySym p) = Just p
   project _ = Nothing
 
-instance PrimSearch :<: QSearchSym where
+instance PrimSearch (Sym.Sym sizeT) (Sym.Sym precT) :<: QSearchSym sizeT precT where
   inject = QSearchSym
 
   project (QSearchSym p) = Just p
   project _ = Nothing
 
-instance IsA SearchLikePrim QSearchSym
+instance IsA SearchLikePrim (QSearchSym sizeT precT)
 
 -- Printing
-instance PP.ToCodeString QSearchSym where
+instance PP.ToCodeString (QSearchSym sizeT precT) where
   build (QAnySym p) = printSearchLikePrim "any" p
   build (QSearchSym p) = printSearchLikePrim "search" p
 
 -- Parsing
-instance P.CanParsePrimitive QSearchSym where
-  primitiveParser tp =
+instance P.Parseable (QSearchSym sizeT precT) where
+  parseE tp =
     try (QAnySym <$> parsePrimAnyWithName "any" tp)
       <|> try (QSearchSym <$> parsePrimSearchWithName "search" tp)
 
 -- Type check
-instance P.TypeCheckablePrimitive QSearchSym
+instance (P.TypeCheckable sizeT) => P.TypeCheckablePrimitive (QSearchSym sizeT precT) (Sym.Sym sizeT)
 
 -- ================================================================================
 -- Abstract Costs (worst case)
@@ -97,7 +102,7 @@ instance
   , Eq precT
   , Floating precT
   ) =>
-  P.UnitaryCostablePrimitive QSearchSym (Sym.Sym sizeT) (Sym.Sym precT)
+  P.UnitaryCostablePrimitive (QSearchSym sizeT precT) (Sym.Sym sizeT) (Sym.Sym precT)
   where
   unitaryQueryCostPrimitive delta prim = do
     Just fun_def@P.FunDef{P.param_types} <- view $ P._funCtx . Ctx.at (getPred prim)
@@ -135,7 +140,7 @@ instance
   , Eq precT
   , Floating precT
   ) =>
-  P.QuantumMaxCostablePrimitive QSearchSym (Sym.Sym sizeT) (Sym.Sym precT)
+  P.QuantumMaxCostablePrimitive (QSearchSym sizeT precT) (Sym.Sym sizeT) (Sym.Sym precT)
   where
   quantumMaxQueryCostPrimitive eps prim = do
     Just fun_def@P.FunDef{P.param_types} <- view $ P._funCtx . Ctx.at (getPred prim)

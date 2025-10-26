@@ -115,52 +115,61 @@ _QSearchZalka n delta = 2 * nq_simple -- 2x for compute-uncompute
 -- Primitive Class Implementation
 -- ================================================================================
 
-data QSearchCFNW
-  = QSearchCFNW PrimSearch
-  | QAnyCFNW PrimAny
+data QSearchCFNW sizeT precT
+  = QSearchCFNW (PrimSearch sizeT precT)
+  | QAnyCFNW (PrimAny sizeT precT)
   deriving (Eq, Show, Read, Generic)
 
-_QSearchCFNW :: Traversal' QSearchCFNW PrimSearch
+type instance SizeType (QSearchCFNW sizeT precT) = sizeT
+type instance PrecType (QSearchCFNW sizeT precT) = precT
+
+instance P.MapSize (QSearchCFNW size prec) where
+  type MappedSize (QSearchCFNW size prec) size' = QSearchCFNW size' prec
+
+  mapSize f (QSearchCFNW p) = QSearchCFNW (P.mapSize f p)
+  mapSize f (QAnyCFNW p) = QAnyCFNW (P.mapSize f p)
+
+_QSearchCFNW :: Traversal' (QSearchCFNW sizeT precT) (PrimSearch sizeT precT)
 _QSearchCFNW focus (QSearchCFNW p) = QSearchCFNW <$> focus p
 _QSearchCFNW _ q = pure q
 
-_QAnyCFNW :: Traversal' QSearchCFNW PrimAny
+_QAnyCFNW :: Traversal' (QSearchCFNW sizeT precT) (PrimAny sizeT precT)
 _QAnyCFNW focus (QAnyCFNW p) = QAnyCFNW <$> focus p
 _QAnyCFNW _ q = pure q
 
-instance PrimAny :<: QSearchCFNW where
+instance PrimAny sizeT precT :<: QSearchCFNW sizeT precT where
   inject = QAnyCFNW
 
   project (QAnyCFNW p) = Just p
   project _ = Nothing
 
-instance PrimSearch :<: QSearchCFNW where
+instance PrimSearch sizeT precT :<: QSearchCFNW sizeT precT where
   inject = QSearchCFNW
 
   project (QSearchCFNW p) = Just p
   project _ = Nothing
 
-instance IsA SearchLikePrim QSearchCFNW
+instance IsA SearchLikePrim (QSearchCFNW sizeT precT)
 
-instance PP.ToCodeString QSearchCFNW where
+instance PP.ToCodeString (QSearchCFNW sizeT precT) where
   build (QAnyCFNW p) = printSearchLikePrim "any" p
   build (QSearchCFNW p) = printSearchLikePrim "search" p
 
 -- Parsing
-instance P.CanParsePrimitive QSearchCFNW where
-  primitiveParser tp = try parseAny <|> try parseSearch
+instance P.Parseable (QSearchCFNW sizeT precT) where
+  parseE tp = try parseAny <|> try parseSearch
    where
     parseAny = QAnyCFNW <$> parsePrimAnyWithName "any" tp
     parseSearch = QSearchCFNW <$> parsePrimSearchWithName "search" tp
 
 -- Type check
-instance P.HasFreeVars QSearchCFNW
-instance P.TypeCheckablePrimitive QSearchCFNW
+instance P.HasFreeVars (QSearchCFNW sizeT precT)
+instance (P.TypeCheckable sizeT) => P.TypeCheckablePrimitive (QSearchCFNW sizeT precT) sizeT
 
 {- | Evaluate an `any` call by evaluating the predicate on each element of the search space
  and or-ing the results.
 -}
-instance P.Evaluatable QSearchCFNW precT
+instance (P.EvalReqs sizeT precT) => P.Evaluatable (QSearchCFNW sizeT precT) sizeT precT
 
 -- ================================================================================
 -- Abstract Costs
@@ -171,8 +180,9 @@ instance
   ( Integral sizeT
   , Floating precT
   , Show precT
+  , P.TypeCheckable sizeT
   ) =>
-  P.UnitaryCostablePrimitive QSearchCFNW sizeT precT
+  P.UnitaryCostablePrimitive (QSearchCFNW sizeT precT) sizeT precT
   where
   unitaryQueryCostPrimitive delta prim = do
     let SearchLikePrim{predicate} = extract prim
@@ -201,8 +211,9 @@ instance
   ( Integral sizeT
   , Floating precT
   , Show precT
+  , P.TypeCheckable sizeT
   ) =>
-  P.QuantumMaxCostablePrimitive QSearchCFNW sizeT precT
+  P.QuantumMaxCostablePrimitive (QSearchCFNW sizeT precT) sizeT precT
   where
   quantumMaxQueryCostPrimitive eps prim = do
     let SearchLikePrim{predicate} = extract prim
@@ -233,10 +244,10 @@ instance
   ( Integral sizeT
   , Floating precT
   , Show precT
-  , P.Evaluatable QSearchCFNW precT
   , sizeT ~ SizeT
+  , P.EvalReqs sizeT precT
   ) =>
-  P.QuantumCostablePrimitive QSearchCFNW sizeT precT
+  P.QuantumCostablePrimitive (QSearchCFNW sizeT precT) sizeT precT
   where
   quantumQueryCostPrimitive eps prim sigma = do
     let SearchLikePrim{predicate, pred_args} = extract prim
@@ -282,24 +293,24 @@ data UQSearchEnv sizeT = UQSearchEnv
   }
 
 -- | A layer on top of the unitary compiler, holding the relevant QSearch context, and storing the produced statements.
-type UQSearchBuilder primsT sizeT precT =
+type UQSearchBuilder ext =
   RWST
-    (UQSearchEnv sizeT)
-    [CQPL.UStmt sizeT]
+    (UQSearchEnv (SizeType ext))
+    [CQPL.UStmt (SizeType ext)]
     ()
-    (CompileU.CompilerT primsT sizeT precT)
+    (CompileU.CompilerT ext)
 
-allocSearchArgReg :: UQSearchBuilder primsT sizeT precT Ident
+allocSearchArgReg :: UQSearchBuilder ext Ident
 allocSearchArgReg = do
   ty <- view $ to search_arg_type
   lift $ CompileU.allocAncillaWithPref "s_arg" ty
 
-addPredCall :: Ident -> Ident -> Ident -> UQSearchBuilder primsT sizeT precT ()
+addPredCall :: Ident -> Ident -> Ident -> UQSearchBuilder ext ()
 addPredCall c x b = do
   mk_pred <- view $ to pred_call_builder
   writeElem $ mk_pred c x b
 
-withComputed :: CQPL.UStmt sizeT -> UQSearchBuilder primsT sizeT precT a -> UQSearchBuilder primsT sizeT precT a
+withComputed :: (sizeT ~ SizeType ext) => CQPL.UStmt sizeT -> UQSearchBuilder ext a -> UQSearchBuilder ext a
 withComputed s m = do
   writeElem s
   a <- m
@@ -307,10 +318,12 @@ withComputed s m = do
   return a
 
 addGroverIteration ::
-  forall primsT sizeT precT.
+  forall ext sizeT precT.
   ( Integral sizeT
   , RealFloat precT
   , P.TypeCheckable sizeT
+  , sizeT ~ SizeType ext
+  , precT ~ PrecType ext
   ) =>
   -- | ctrl
   Ident ->
@@ -318,7 +331,7 @@ addGroverIteration ::
   Ident ->
   -- | b
   Ident ->
-  UQSearchBuilder primsT sizeT precT ()
+  UQSearchBuilder ext ()
 addGroverIteration c x b = do
   addPredCall c x b
   writeElem $ CQPL.UnitaryS [x] (CQPL.Adjoint CQPL.Unif)
@@ -326,14 +339,16 @@ addGroverIteration c x b = do
   writeElem $ CQPL.UnitaryS [x] CQPL.Unif
 
 algoQSearchZalkaRandomIterStep ::
-  forall primsT sizeT precT.
+  forall ext sizeT precT.
   ( Integral sizeT
   , RealFloat precT
   , P.TypeCheckable sizeT
+  , sizeT ~ SizeType ext
+  , precT ~ PrecType ext
   ) =>
   -- | max num of iteration
   sizeT ->
-  UQSearchBuilder primsT sizeT precT Ident
+  UQSearchBuilder ext Ident
 algoQSearchZalkaRandomIterStep r = do
   -- time register
   let r_ty = P.Fin r
@@ -372,16 +387,18 @@ algoQSearchZalkaRandomIterStep r = do
   return b_reg
 
 algoQSearchZalka ::
-  forall primsT sizeT precT.
+  forall ext sizeT precT.
   ( Integral sizeT
   , RealFloat precT
   , P.TypeCheckable sizeT
+  , sizeT ~ SizeType ext
+  , precT ~ PrecType ext
   ) =>
   -- | max. norm error @\delta@
   P.L2NormError precT ->
   -- | output bit
   Ident ->
-  UQSearchBuilder primsT sizeT precT ()
+  UQSearchBuilder ext ()
 algoQSearchZalka delta out_bit = do
   n <- view $ to search_arg_type . singular P._Fin
 
@@ -419,7 +436,7 @@ instance
   , Show precT
   , P.TypeCheckable sizeT
   ) =>
-  CompileU.Lowerable QSearchCFNW sizeT precT
+  CompileU.Lowerable (QSearchCFNW sizeT precT) sizeT precT
   where
   lowerPrimitive delta (QAnyCFNW PrimAny{predicate, pred_args = args}) [ret] = do
     -- the predicate
@@ -566,13 +583,15 @@ instance
 -- ================================================================================
 
 -- | the generated QSearch procedure: body stmts and local vars
-type QSearchCompilerT primsT sizeT precT =
+type QSearchCompilerT ext =
   WriterT
-    ([CQPL.Stmt sizeT], [(Ident, P.VarType sizeT)])
-    (CompileQ.CompilerT primsT sizeT precT)
+    ([CQPL.Stmt (SizeType ext)], [(Ident, P.VarType (SizeType ext))])
+    (CompileQ.CompilerT ext)
 
 allocReg ::
-  (m ~ QSearchCompilerT primsT sizeT precT) =>
+  ( m ~ QSearchCompilerT ext
+  , sizeT ~ SizeType ext
+  ) =>
   Ident ->
   P.VarType sizeT ->
   m Ident
@@ -621,11 +640,11 @@ groverK k (x, _) b mk_pred =
 
 -- | Implementation of the hybrid quantum search algorithm \( \textbf{QSearch} \).
 algoQSearch ::
-  forall primsT sizeT precT.
+  forall ext sizeT precT.
   ( Integral sizeT
   , RealFloat precT
   , sizeT ~ SizeT
-  , CompileQ.Lowerable primsT sizeT precT
+  , CompileQ.Lowerable ext sizeT precT
   , Show sizeT
   , Show precT
   , P.TypeCheckable sizeT
@@ -643,7 +662,7 @@ algoQSearch ::
   -- | Result register
   Ident ->
   -- | the generated QSearch procedure: body stmts and local vars
-  WriterT ([CQPL.Stmt sizeT], [(Ident, P.VarType sizeT)]) (CompileQ.CompilerT primsT sizeT precT) ()
+  WriterT ([CQPL.Stmt sizeT], [(Ident, P.VarType sizeT)]) (CompileQ.CompilerT ext) ()
 algoQSearch ty n_samples eps grover_k_caller pred_caller ok = do
   not_done <- allocReg "not_done" P.tbool
   q_sum <- allocReg "Q_sum" j_type
@@ -737,7 +756,7 @@ instance
   , Show precT
   , P.TypeCheckable sizeT
   ) =>
-  CompileQ.Lowerable QSearchCFNW sizeT precT
+  CompileQ.Lowerable (QSearchCFNW sizeT precT) sizeT precT
   where
   lowerPrimitive eps (QAnyCFNW PrimAny{predicate, pred_args = args}) [ret] = do
     -- the predicate

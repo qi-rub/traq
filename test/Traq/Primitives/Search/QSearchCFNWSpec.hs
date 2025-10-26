@@ -43,13 +43,13 @@ spec = do
   describe "Grover circuit" $ do
     it "for simple values" $ do
       let n = 10 :: Int
-      let eps = P.l2NormError (0.001 :: Float)
+      let eps = P.l2NormError (0.001 :: Double)
       let pred_caller c x b = CQPL.UCallS{CQPL.uproc_id = "Oracle", CQPL.dagger = False, CQPL.qargs = [c, x, b]}
       let lenv = default_
       let lctx = default_
       circ <-
         expectRight $
-          algoQSearchZalka eps "output_bit"
+          algoQSearchZalka @P.Core' eps "output_bit"
             & execRWT UQSearchEnv{search_arg_type = P.Fin n, pred_call_builder = pred_caller}
             & runWriterT
             <&> fst
@@ -72,7 +72,7 @@ spec = do
       let compile_config = default_
       (n > 1) ==> do
         (ss, []) <-
-          algoQSearchZalka @QSearchCFNW @SizeT delta "result"
+          algoQSearchZalka @(QSearchCFNW SizeT Double) delta "result"
             & execRWT (qsearch_env n)
             & runWriterT
             & (runReaderT ?? compile_config)

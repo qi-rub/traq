@@ -2,8 +2,6 @@
 
 module Traq.Compiler.UnitarySpec (spec) where
 
-import Data.Void (Void)
-
 import qualified Traq.Data.Context as Ctx
 
 import qualified Traq.CQPL as CQPL
@@ -26,7 +24,7 @@ spec = do
                     Just
                       P.FunBody
                         { P.param_names = ["x"]
-                        , P.body_stmt = P.ExprS{P.rets = ["y"], P.expr = P.BasicExprE P.VarE{P.var = "x"}} :: P.Stmt Void Int
+                        , P.body_stmt = P.ExprS{P.rets = ["y"], P.expr = P.BasicExprE P.VarE{P.var = "x"}} :: P.Stmt P.Core'
                         , P.ret_names = ["y"]
                         }
                 , P.ret_types = [P.Fin 10]

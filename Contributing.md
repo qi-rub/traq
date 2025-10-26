@@ -15,11 +15,11 @@ For (deeply nested) data-structures, we manually write classy lenses to support 
 Here is an example: 
 ```haskell
 -- | A function context contains a list of functions
-type FunCtx primT sizeT = Ctx.Context (FunDef primT sizeT)
+type FunCtx ext = Ctx.Context (FunDef ext)
 
-class HasFunCtx p where
+class HasFunCtx p ext | p -> ext where
   -- prefix the lens with an underscore.
-  _funCtx :: (primT ~ PrimitiveType p, sizeT ~ SizeType p) => Lens' p (FunCtx primT sizeT)
+  _funCtx :: Lens' p (FunCtx ext)
 
-instance HasFunCtx (FunCtx primT sizeT) where _funCtx = id
+instance HasFunCtx (FunCtx ext) ext where _funCtx = id
 ```

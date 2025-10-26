@@ -20,7 +20,7 @@ diagMatrix _ = error "invalid input"
 spec :: Spec
 spec = do
   describe "RandomSearch" $ do
-    let mat_prog = matrixExample @RandomSearch
+    let mat_prog = matrixExample @(RandomSearch Int Double)
     it "expected cost" $ do
       let eps = P.failProb 0.001
       let n = 10

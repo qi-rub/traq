@@ -67,6 +67,7 @@ library
       Traq.ProtoLang.Cost
       Traq.ProtoLang.Error
       Traq.ProtoLang.Eval
+      Traq.ProtoLang.Lenses
       Traq.ProtoLang.Parser
       Traq.ProtoLang.Rewrites
       Traq.ProtoLang.Syntax
@@ -86,6 +87,7 @@ library
       TypeFamilies
       TypeOperators
       MultiWayIf
+      EmptyCase
   ghc-options: -Wall -fprint-typechecker-elaboration
   build-depends:
       algebra ==4.3.*
@@ -114,6 +116,7 @@ executable cqplcompile
       TypeFamilies
       TypeOperators
       MultiWayIf
+      EmptyCase
       RecordWildCards
   ghc-options: -Wall -fprint-typechecker-elaboration
   build-depends:
@@ -148,6 +151,7 @@ executable matrixsearch
       TypeFamilies
       TypeOperators
       MultiWayIf
+      EmptyCase
       RecordWildCards
   ghc-options: -Wall -fprint-typechecker-elaboration
   build-depends:
@@ -182,6 +186,7 @@ executable matrixsearchdemo
       TypeFamilies
       TypeOperators
       MultiWayIf
+      EmptyCase
       RecordWildCards
   ghc-options: -Wall -fprint-typechecker-elaboration
   build-depends:
@@ -216,6 +221,7 @@ executable matrixsearchqcost
       TypeFamilies
       TypeOperators
       MultiWayIf
+      EmptyCase
       RecordWildCards
   ghc-options: -Wall -fprint-typechecker-elaboration
   build-depends:
@@ -250,6 +256,7 @@ executable uqplcompile
       TypeFamilies
       TypeOperators
       MultiWayIf
+      EmptyCase
       RecordWildCards
   ghc-options: -Wall -fprint-typechecker-elaboration
   build-depends:
@@ -309,6 +316,7 @@ test-suite spec
       TypeFamilies
       TypeOperators
       MultiWayIf
+      EmptyCase
   ghc-options: -Wall -fprint-typechecker-elaboration
   cpp-options: -DTEST
   build-tool-depends:

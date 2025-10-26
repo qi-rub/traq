@@ -1,5 +1,6 @@
 {-# LANGUAGE FlexibleInstances #-}
-{-# LANGUAGE MultiParamTypeClasses #-}
+{-# LANGUAGE FunctionalDependencies #-}
+{-# LANGUAGE UndecidableInstances #-}
 
 module Traq.Compiler.Quantum (
   -- * Compilation
@@ -21,7 +22,6 @@ import Control.Monad.Reader (ReaderT, runReaderT)
 import Control.Monad.State (StateT, evalStateT)
 import Control.Monad.Trans (lift)
 import Control.Monad.Writer (WriterT, execWriterT)
-import Data.Void (Void, absurd)
 import GHC.Generics hiding (to)
 import Text.Printf (printf)
 
@@ -39,49 +39,54 @@ import Traq.Prelude
 import qualified Traq.ProtoLang as P
 
 -- | Configuration for lowering
-type LoweringEnv primT sizeT precT = P.QuantumMaxCostEnv primT sizeT precT
+type LoweringEnv ext = P.QuantumMaxCostEnv ext
 
 {- | Monad to compile ProtoQB to CQPL programs.
 This should contain the _final_ typing context for the input program,
 that is, contains both the inputs and outputs of each statement.
 -}
-type CompilerT primT sizeT precT =
+type CompilerT ext =
   WriterT
-    (LoweringOutput sizeT)
+    (LoweringOutput (SizeType ext))
     ( ReaderT
-        (LoweringEnv primT sizeT precT)
+        (LoweringEnv ext)
         ( StateT
-            (LoweringCtx sizeT)
+            (LoweringCtx (SizeType ext))
             (Either String)
         )
     )
 
 -- | Primitives that support a classical-quantum lowering.
 class
-  (CompileU.Lowerable primT sizeT precT) =>
-  Lowerable primT sizeT precT
+  (CompileU.Lowerable ext sizeT precT) =>
+  Lowerable ext sizeT precT
+    | ext -> sizeT precT
   where
   lowerPrimitive ::
-    forall primsT m.
-    ( Lowerable primsT sizeT precT
-    , m ~ CompilerT primsT sizeT precT
+    forall ext' m.
+    ( Lowerable ext' sizeT precT
+    , m ~ CompilerT ext'
+    , SizeType ext' ~ sizeT
+    , PrecType ext' ~ precT
     ) =>
     -- | fail prob
     P.FailProb precT ->
-    primT ->
+    ext ->
     -- | rets
     [Ident] ->
     m (Stmt sizeT)
 
-instance (Show precT) => Lowerable Void sizeT precT where
-  lowerPrimitive _ = absurd
+instance (P.TypeCheckable sizeT) => Lowerable (P.Core sizeT precT) sizeT precT where
+  lowerPrimitive _ = \case {}
 
 -- | Generic
-class GLowerable f sizeT precT where
+class GLowerable f sizeT precT | f -> sizeT precT where
   glowerPrimitive ::
-    forall primsT primT m.
-    ( Lowerable primsT sizeT precT
-    , m ~ CompilerT primsT sizeT precT
+    forall ext' primT m.
+    ( Lowerable ext' sizeT precT
+    , m ~ CompilerT ext'
+    , SizeType ext' ~ sizeT
+    , PrecType ext' ~ precT
     ) =>
     f primT ->
     P.FailProb precT ->
@@ -114,8 +119,8 @@ instance
 
 -- | Lower a source function to a procedure call.
 lowerFunDef ::
-  forall primsT sizeT precT.
-  ( Lowerable primsT sizeT precT
+  forall ext sizeT precT.
+  ( Lowerable ext sizeT precT
   , P.TypeCheckable sizeT
   , Show precT
   , Floating precT
@@ -125,8 +130,8 @@ lowerFunDef ::
   -- | source function name
   Ident ->
   -- | source function
-  P.FunDef primsT sizeT ->
-  CompilerT primsT sizeT precT Ident
+  P.FunDef ext ->
+  CompilerT ext Ident
 -- lower declarations as-is, ignoring fail prob
 lowerFunDef _ fun_name P.FunDef{P.param_types, P.ret_types, P.mbody = Nothing} = do
   let proc_def =
@@ -169,8 +174,8 @@ lowerFunDef eps fun_name P.FunDef{P.param_types, P.mbody = Just body} = do
 
 -- | Lookup a source function by name, and lower it to a procedure call.
 lowerFunDefByName ::
-  forall primsT sizeT precT.
-  ( Lowerable primsT sizeT precT
+  forall ext sizeT precT.
+  ( Lowerable ext sizeT precT
   , P.TypeCheckable sizeT
   , Show precT
   , Floating precT
@@ -179,15 +184,15 @@ lowerFunDefByName ::
   P.FailProb precT ->
   -- | source function name
   Ident ->
-  CompilerT primsT sizeT precT Ident
+  CompilerT ext Ident
 lowerFunDefByName eps f = do
   fun_def <- view $ P._funCtx . Ctx.at f . singular _Just
   lowerFunDef eps f fun_def
 
 -- | Lower a source expression to a statement.
 lowerExpr ::
-  forall primsT sizeT precT.
-  ( Lowerable primsT sizeT precT
+  forall ext sizeT precT.
+  ( Lowerable ext sizeT precT
   , P.TypeCheckable sizeT
   , Show precT
   , Floating precT
@@ -195,10 +200,10 @@ lowerExpr ::
   -- fail prob
   P.FailProb precT ->
   -- source expression
-  P.Expr primsT sizeT ->
+  P.Expr ext ->
   -- return variables
   [Ident] ->
-  CompilerT primsT sizeT precT (Stmt sizeT)
+  CompilerT ext (Stmt sizeT)
 -- basic expressions
 lowerExpr _ P.BasicExprE{P.basic_expr} rets = return $ AssignS rets basic_expr
 -- random sampling expressions
@@ -218,15 +223,15 @@ lowerExpr eps P.PrimCallE{P.prim} rets =
 
 -- | Lower a single statement
 lowerStmt ::
-  forall primsT sizeT precT.
-  ( Lowerable primsT sizeT precT
+  forall ext sizeT precT.
+  ( Lowerable ext sizeT precT
   , P.TypeCheckable sizeT
   , Show precT
   , Floating precT
   ) =>
   P.FailProb precT ->
-  P.Stmt primsT sizeT ->
-  CompilerT primsT sizeT precT (Stmt sizeT)
+  P.Stmt ext ->
+  CompilerT ext (Stmt sizeT)
 -- single statement
 lowerStmt eps s@P.ExprS{P.rets, P.expr} = do
   lift . magnify P._funCtx . zoom P._typingCtx $ P.typeCheckStmt s
@@ -242,12 +247,12 @@ lowerStmt _ _ = throwError "lowering: unsupported"
 
 -- | Lower a full program into a CQPL program.
 lowerProgram ::
-  forall primsT sizeT precT.
-  ( Lowerable primsT sizeT precT
+  forall ext sizeT precT.
+  ( Lowerable ext sizeT precT
   , P.TypeCheckable sizeT
   , Show precT
   , Floating precT
-  , P.HasFreeVars primsT
+  , P.HasFreeVars ext
   ) =>
   P.PrecisionSplittingStrategy ->
   -- | input bindings to the source program
@@ -255,7 +260,7 @@ lowerProgram ::
   -- | fail prob \( \varepsilon \)
   P.FailProb precT ->
   -- | source program
-  P.Program primsT sizeT ->
+  P.Program ext ->
   Either String (Program sizeT)
 lowerProgram strat gamma_in eps prog@(P.Program fs) = do
   unless (P.checkVarsUnique prog) $

@@ -1,3 +1,5 @@
+{-# LANGUAGE TypeApplications #-}
+
 module Traq.ProtoLang.CostSpec (spec) where
 
 import Prelude
@@ -15,8 +17,8 @@ import Traq.ProtoLang
 
 import Test.Hspec
 
-unsafeParseProgram :: String -> Program DefaultPrims SizeT
-unsafeParseProgram = fmap Sym.unSym . either (error . show) id . parseProgram
+unsafeParseProgram :: String -> Program DefaultPrims'
+unsafeParseProgram = mapSize Sym.unSym . either (error . show) id . (parseProgram @(DefaultPrims (Sym.Sym SizeT) Double))
 
 spec :: Spec
 spec = do

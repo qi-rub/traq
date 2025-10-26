@@ -426,19 +426,23 @@ instance HasAst (Stmt sizeT) where
   _ast focus (RepeatS n_iter loop_body) = RepeatS n_iter <$> focus loop_body
   _ast _ s = pure s
 
-instance HasStmt (Stmt sizeT) (Stmt sizeT) where
+instance HasStmt (Stmt sizeT) where
+  type StmtOf (Stmt sizeT) = Stmt sizeT
   _stmt = id
 
-instance HasStmt (CProcBody sizeT) (Stmt sizeT) where
+instance HasStmt (CProcBody sizeT) where
+  type StmtOf (CProcBody sizeT) = Stmt sizeT
   _stmt focus b@CProcBody{cproc_body_stmt} = focus cproc_body_stmt <&> \s' -> b{cproc_body_stmt = s'}
   _stmt _ b@CProcDecl{} = pure b
 
-instance HasStmt (ProcDef sizeT) (Stmt sizeT) where
+instance HasStmt (ProcDef sizeT) where
+  type StmtOf (ProcDef sizeT) = Stmt sizeT
   _stmt focus p@ProcDef{proc_body = ProcBodyC b} =
     _stmt focus b <&> \b' -> p{proc_body = ProcBodyC b'}
   _stmt _ p = pure p
 
-instance HasStmt (Program sizeT) (Stmt sizeT) where
+instance HasStmt (Program sizeT) where
+  type StmtOf (Program sizeT) = Stmt sizeT
   _stmt focus (Program proc_defs) = Program <$> traverse (_stmt focus) proc_defs
 
 -- ================================================================================

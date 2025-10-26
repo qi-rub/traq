@@ -58,22 +58,25 @@ _WUQMax n delta = 2 * _WQMax n eps -- 2x for compute-uncompute
 -- Primitive Class Implementation
 -- ================================================================================
 
-data QMax = QMax {predicate :: Ident, pred_args :: [Ident]}
+data QMax sizeT precT = QMax {predicate :: Ident, pred_args :: [Ident]}
   deriving (Eq, Show, Read)
 
-instance PP.ToCodeString QMax where
+type instance SizeType (QMax sizeT precT) = sizeT
+type instance PrecType (QMax sizeT precT) = precT
+
+instance PP.ToCodeString (QMax sizeT precT) where
   build QMax{predicate, pred_args} = PP.putWord $ printf "@max[%s](%s)" predicate (PP.commaList pred_args)
 
 -- Parsing
-instance P.CanParsePrimitive QMax where
-  primitiveParser tp = do
+instance P.Parseable (QMax sizeT precT) where
+  parseE tp = do
     symbol tp "@max"
     predicate <- brackets tp $ identifier tp
     pred_args <- parens tp $ commaSep tp $ identifier tp
     return QMax{predicate, pred_args}
 
 -- Type check
-instance P.TypeCheckablePrimitive QMax where
+instance (P.TypeCheckable sizeT) => P.TypeCheckablePrimitive (QMax sizeT precT) sizeT where
   typeCheckPrimitive QMax{predicate, pred_args} = do
     P.FunDef{P.param_types, P.ret_types} <-
       view (Ctx.at predicate)
@@ -92,7 +95,7 @@ instance P.TypeCheckablePrimitive QMax where
 {- | Evaluate an `any` call by evaluating the predicate on each element of the search space
  and or-ing the results.
 -}
-instance P.Evaluatable QMax precT where
+instance (P.EvalReqs sizeT precT) => P.Evaluatable (QMax sizeT precT) sizeT precT where
   eval QMax{predicate, pred_args} sigma = do
     pred_fun <- view $ P._funCtx . Ctx.at predicate . to (fromMaybe (error "unable to find predicate, please typecheck first!"))
     let search_range = pred_fun ^. to P.param_types . to last . to P.domain
@@ -117,8 +120,9 @@ instance
   ( Integral sizeT
   , Floating precT
   , Show precT
+  , P.TypeCheckable sizeT
   ) =>
-  P.UnitaryCostablePrimitive QMax sizeT precT
+  P.UnitaryCostablePrimitive (QMax sizeT precT) sizeT precT
   where
   unitaryQueryCostPrimitive delta QMax{predicate} = do
     P.FunDef{P.param_types} <- view $ P._funCtx . Ctx.at predicate . singular _Just
@@ -145,8 +149,9 @@ instance
   ( Integral sizeT
   , Floating precT
   , Show precT
+  , P.TypeCheckable sizeT
   ) =>
-  P.QuantumMaxCostablePrimitive QMax sizeT precT
+  P.QuantumMaxCostablePrimitive (QMax sizeT precT) sizeT precT
   where
   quantumMaxQueryCostPrimitive eps QMax{predicate} = do
     P.FunDef{P.param_types} <- view $ P._funCtx . Ctx.at predicate . singular _Just
@@ -174,12 +179,12 @@ instance
 instance
   ( Integral sizeT
   , Floating precT
-  , P.Evaluatable QMax precT
   , sizeT ~ SizeT
   , P.SizeToPrec SizeT precT
   , Show precT
+  , P.EvalReqs sizeT precT
   ) =>
-  P.QuantumCostablePrimitive QMax sizeT precT
+  P.QuantumCostablePrimitive (QMax sizeT precT) sizeT precT
   where
   quantumQueryCostPrimitive eps QMax{predicate} _ = do
     P.FunDef{P.param_types} <- view $ P._funCtx . Ctx.at predicate . singular _Just

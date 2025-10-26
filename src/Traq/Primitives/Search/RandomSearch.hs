@@ -54,30 +54,37 @@ _ERandomSearch n k _ = fromIntegral n / fromIntegral k
 {- | Primitive implementing search using classical random sampling.
  The unitary mode does a brute-force loop.
 -}
-newtype RandomSearch = RandomSearch PrimAny
+newtype RandomSearch sizeT precT = RandomSearch (PrimAny sizeT precT)
   deriving (Eq, Show, Read, Generic)
 
-instance PrimAny :<: RandomSearch
-instance IsA SearchLikePrim RandomSearch
+type instance SizeType (RandomSearch sizeT precT) = sizeT
+type instance PrecType (RandomSearch sizeT precT) = precT
 
-instance PP.ToCodeString RandomSearch where
+instance P.MapSize (RandomSearch size prec) where
+  type MappedSize (RandomSearch size prec) size' = RandomSearch size' prec
+  mapSize f (RandomSearch p) = RandomSearch (P.mapSize f p)
+
+instance PrimAny sizeT precT :<: RandomSearch sizeT precT
+instance IsA SearchLikePrim (RandomSearch sizeT precT)
+
+instance PP.ToCodeString (RandomSearch sizeT precT) where
   build (RandomSearch p) = printSearchLikePrim "any" p
 
-instance P.CanParsePrimitive RandomSearch where
-  primitiveParser = fmap RandomSearch . parsePrimAnyWithName "any"
+instance P.Parseable (RandomSearch sizeT precT) where
+  parseE = fmap RandomSearch . parsePrimAnyWithName "any"
 
-instance P.HasFreeVars RandomSearch
-instance P.TypeCheckablePrimitive RandomSearch
+instance P.HasFreeVars (RandomSearch sizeT precT)
+instance (P.TypeCheckable sizeT) => P.TypeCheckablePrimitive (RandomSearch sizeT precT) sizeT
 
-instance P.Evaluatable RandomSearch precT
+instance (P.EvalReqs sizeT precT) => P.Evaluatable (RandomSearch sizeT precT) sizeT precT
 
 -- ================================================================================
 -- Abstract Costs
 -- ================================================================================
 
 instance
-  (Integral sizeT, Floating precT, Show precT) =>
-  P.UnitaryCostablePrimitive RandomSearch sizeT precT
+  (P.TypeCheckable sizeT, Integral sizeT, Floating precT) =>
+  P.UnitaryCostablePrimitive (RandomSearch sizeT precT) sizeT precT
   where
   unitaryQueryCostPrimitive delta prim = do
     let SearchLikePrim{predicate} = extract prim
@@ -102,9 +109,9 @@ instance
   ( Integral sizeT
   , Floating precT
   , Ord precT
-  , Show precT
+  , P.TypeCheckable sizeT
   ) =>
-  P.QuantumMaxCostablePrimitive RandomSearch sizeT precT
+  P.QuantumMaxCostablePrimitive (RandomSearch sizeT precT) sizeT precT
   where
   quantumMaxQueryCostPrimitive eps prim = do
     let SearchLikePrim{predicate} = extract prim
@@ -139,11 +146,9 @@ instance
   ( Integral sizeT
   , Floating precT
   , Ord precT
-  , Prob.ProbType precT
-  , sizeT ~ SizeT
-  , Show precT
+  , P.EvalReqs sizeT precT
   ) =>
-  P.QuantumCostablePrimitive RandomSearch sizeT precT
+  P.QuantumCostablePrimitive (RandomSearch sizeT precT) sizeT precT
   where
   quantumQueryCostPrimitive eps prim sigma = do
     let SearchLikePrim{predicate, pred_args = args} = extract prim
@@ -180,7 +185,7 @@ instance
       eval_env <- view P._evaluationEnv
       [is_sol_v] <-
         lift $
-          P.eval @_ @precT pred_call_expr sigma_pred'
+          P.eval pred_call_expr sigma_pred'
             & (runReaderT ?? eval_env)
             & Prob.toDeterministicValue
       return (P.valueToBool is_sol_v, cost_v)

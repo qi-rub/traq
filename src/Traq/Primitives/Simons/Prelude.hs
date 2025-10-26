@@ -35,20 +35,24 @@ References:
   "On the Power of Quantum Computation"
   https://epubs.siam.org/doi/10.1137/S0097539796298637
 -}
-data FindXorPeriod precT = FindXorPeriod {fun :: Ident, p_0 :: precT, fun_args :: [Ident]}
+data FindXorPeriod sizeT precT = FindXorPeriod {fun :: Ident, p_0 :: precT, fun_args :: [Ident]}
   deriving (Eq, Show, Read)
 
+type instance SizeType (FindXorPeriod sizeT precT) = sizeT
+type instance PrecType (FindXorPeriod sizeT precT) = precT
+
+instance P.MapSize (FindXorPeriod size prec) where
+  type MappedSize (FindXorPeriod size prec) size' = (FindXorPeriod size' prec)
+  mapSize _ FindXorPeriod{..} = FindXorPeriod{..}
+
 -- Pretty Printing
-instance PP.ToCodeString (FindXorPeriod Double) where
+instance PP.ToCodeString (FindXorPeriod sizeT Double) where
   build FindXorPeriod{fun, p_0, fun_args} =
     PP.putWord $ printf "@findXorPeriod[%s, %.2f](%s)" fun p_0 (PP.commaList fun_args)
 
 -- Parsing
-instance
-  (precT ~ Double) =>
-  P.CanParsePrimitive (FindXorPeriod precT)
-  where
-  primitiveParser TokenParser{..} = parseFindXorPeriod
+instance (precT ~ Double) => P.Parseable (FindXorPeriod sizeT precT) where
+  parseE TokenParser{..} = parseFindXorPeriod
    where
     parseFindXorPeriod = do
       -- Parse "@findXorPeriod" keyword
@@ -62,7 +66,7 @@ instance
       fun_args <- parens $ commaSep identifier
       return FindXorPeriod{fun, p_0, fun_args}
 
-instance P.HasFreeVars (FindXorPeriod precT) where
+instance P.HasFreeVars (FindXorPeriod s precT) where
   freeVarsList FindXorPeriod{fun_args} = fun_args
 
 -- Type check
@@ -70,8 +74,9 @@ instance
   ( Show precT
   , Ord precT
   , Num precT
+  , P.TypeCheckable sizeT
   ) =>
-  P.TypeCheckablePrimitive (FindXorPeriod precT)
+  P.TypeCheckablePrimitive (FindXorPeriod sizeT precT) sizeT
   where
   typeCheckPrimitive FindXorPeriod{fun, p_0, fun_args} = do
     when (p_0 < 0 || p_0 > 1) $

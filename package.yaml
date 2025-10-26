@@ -51,6 +51,7 @@ default-extensions:
   - TypeFamilies
   - TypeOperators
   - MultiWayIf
+  - EmptyCase
 
 library:
   source-dirs: src

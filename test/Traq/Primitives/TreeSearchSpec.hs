@@ -6,6 +6,7 @@ import Text.Parsec.String
 
 import qualified Traq.Data.Symbolic as Sym
 
+import Traq.Prelude
 import Traq.Primitives.TreeSearch
 import qualified Traq.ProtoLang as P
 import Traq.ProtoLang.Parser (programParser)
@@ -13,7 +14,7 @@ import Traq.ProtoLang.Parser (programParser)
 import Test.Hspec
 import TestHelpers
 
-exampleProgram :: sizeT -> sizeT -> P.Program TreeSearch sizeT
+exampleProgram :: sizeT -> sizeT -> P.Program (TreeSearch sizeT precT)
 exampleProgram n two =
   P.Program
     [ P.NamedFunDef "child" child
@@ -70,7 +71,7 @@ spec = do
     it "parses" $ do
       p <-
         parseFromFile
-          (programParser @TreeSearch)
+          (programParser @(TreeSearch (Sym.Sym SizeT) Double))
           "examples/primitives/treesearch.qb"
           >>= expectRight
       p `shouldBe` exampleProgram (Sym.var "N") (Sym.con 2)

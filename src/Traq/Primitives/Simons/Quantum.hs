@@ -19,6 +19,7 @@ import Traq.Control.Monad
 import qualified Traq.Data.Context as Ctx
 import Traq.Data.Subtyping
 
+import Traq.Prelude
 import Traq.Primitives.Simons.Prelude
 import qualified Traq.ProtoLang as P
 import qualified Traq.Utils.Printing as PP
@@ -34,8 +35,15 @@ References:
 
  1. [Breaking Symmetric Cryptosystems using Quantum Period Finding](https://arxiv.org/pdf/1602.05973)
 -}
-newtype SimonsFindXorPeriod precT = SimonsFindXorPeriod (FindXorPeriod precT)
+newtype SimonsFindXorPeriod sizeT precT = SimonsFindXorPeriod (FindXorPeriod sizeT precT)
   deriving (Eq, Show, Read, Generic)
+
+type instance SizeType (SimonsFindXorPeriod sizeT precT) = sizeT
+type instance PrecType (SimonsFindXorPeriod sizeT precT) = precT
+
+instance P.MapSize (SimonsFindXorPeriod size prec) where
+  type MappedSize (SimonsFindXorPeriod size prec) size' = (SimonsFindXorPeriod size' prec)
+  mapSize f (SimonsFindXorPeriod p) = SimonsFindXorPeriod (P.mapSize f p)
 
 -- | Number of queries as described in Theorem 1.
 _SimonsQueries ::
@@ -64,23 +72,24 @@ _SimonsQueries n p0 eps = q
 -- Instances
 -- ================================================================================
 
-instance FindXorPeriod precT :<: SimonsFindXorPeriod precT
+instance FindXorPeriod sizeT precT :<: SimonsFindXorPeriod sizeT precT
 
-instance IsA (FindXorPeriod precT) (SimonsFindXorPeriod precT)
+instance IsA (FindXorPeriod sizeT precT) (SimonsFindXorPeriod sizeT precT)
 
-instance PP.ToCodeString (SimonsFindXorPeriod Double) where
+instance PP.ToCodeString (SimonsFindXorPeriod sizeT Double) where
   build (SimonsFindXorPeriod p) = PP.build p
 
-instance P.CanParsePrimitive (SimonsFindXorPeriod Double) where
-  primitiveParser tp = SimonsFindXorPeriod <$> P.primitiveParser tp
+instance P.Parseable (SimonsFindXorPeriod sizeT Double) where
+  parseE tp = SimonsFindXorPeriod <$> P.parseE tp
 
-instance P.HasFreeVars (SimonsFindXorPeriod precT)
+instance P.HasFreeVars (SimonsFindXorPeriod sizeT precT)
 instance
   ( Show precT
   , Ord precT
   , Num precT
+  , P.TypeCheckable sizeT
   ) =>
-  P.TypeCheckablePrimitive (SimonsFindXorPeriod precT)
+  P.TypeCheckablePrimitive (SimonsFindXorPeriod sizeT precT) sizeT
 
 instance
   ( Integral sizeT
@@ -89,11 +98,12 @@ instance
   , Show precT
   , Eq precT
   , Ord precT
+  , P.TypeCheckable sizeT
   ) =>
-  P.UnitaryCostablePrimitive (SimonsFindXorPeriod precT) sizeT precT
+  P.UnitaryCostablePrimitive (SimonsFindXorPeriod sizeT precT) sizeT precT
   where
   unitaryQueryCostPrimitive delta prim = do
-    let FindXorPeriod{fun, p_0, fun_args} = extract prim
+    let FindXorPeriod{fun, p_0, fun_args} = extract prim :: FindXorPeriod sizeT precT
 
     -- size of domain (i.e. @N = 2^n@)
     _N <-
@@ -143,11 +153,12 @@ instance
   , Show precT
   , Eq precT
   , Ord precT
+  , P.TypeCheckable sizeT
   ) =>
-  P.QuantumMaxCostablePrimitive (SimonsFindXorPeriod precT) sizeT precT
+  P.QuantumMaxCostablePrimitive (SimonsFindXorPeriod sizeT precT) sizeT precT
   where
   quantumMaxQueryCostPrimitive eps prim = do
-    let FindXorPeriod{fun, p_0, fun_args} = extract prim
+    let FindXorPeriod{fun, p_0, fun_args} = extract prim :: FindXorPeriod sizeT precT
 
     _N <-
       view

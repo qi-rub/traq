@@ -14,7 +14,7 @@ import qualified Traq.Utils.Printing as PP
 import Test.Hspec
 import TestHelpers
 
-exampleProgram1 :: (Num sizeT) => sizeT -> P.Program Amplify sizeT
+exampleProgram1 :: (Num sizeT, Fractional precT) => sizeT -> P.Program (Amplify sizeT precT)
 exampleProgram1 n = P.Program [P.NamedFunDef "sampler" sampler, P.NamedFunDef "main" main_fun]
  where
   node_ty = P.Fin n
@@ -58,7 +58,7 @@ exampleProgram1 n = P.Program [P.NamedFunDef "sampler" sampler, P.NamedFunDef "m
             Amplify{sampler = "sampler", p_min = 0.02, sampler_args = ["x"]}
       }
 
-exampleProgram2 :: (Num sizeT) => sizeT -> P.Program Amplify sizeT
+exampleProgram2 :: (Num sizeT, Fractional precT) => sizeT -> P.Program (Amplify sizeT precT)
 exampleProgram2 n = P.Program [P.NamedFunDef "f" fDef, P.NamedFunDef "main" mainDef]
  where
   node_ty = P.Fin n
@@ -128,7 +128,7 @@ exampleProgram2 n = P.Program [P.NamedFunDef "f" fDef, P.NamedFunDef "main" main
               }
       }
 
-exampleProgram3 :: (Num sizeT) => sizeT -> P.Program Amplify sizeT
+exampleProgram3 :: (Num sizeT, Fractional precT) => sizeT -> P.Program (Amplify sizeT precT)
 exampleProgram3 n = P.Program [P.NamedFunDef "sampler" sampler, P.NamedFunDef "main" mainDef]
  where
   node_ty = P.Fin n
@@ -235,11 +235,11 @@ spec = describe "amplify" $ do
           P.programParser
           "examples/primitives/amplify/amplify1.qb"
           >>= expectRight
-      p `shouldBe` exampleProgram1 (Sym.var "N")
+      p `shouldBe` exampleProgram1 @(Sym.Sym Int) @Double (Sym.var "N")
 
     it "round-trips through print/parse" $ do
       let stmt = "ok, result <- @amplify[f, 0.02](x1, x2);\n"
-      let parsed = P.parseStmt @Amplify stmt
+      let parsed = P.parseStmt @(Amplify (Sym.Sym Int) Double) stmt
       let printed = PP.toCodeString <$> parsed
       printed `shouldBe` Right stmt
 
@@ -261,7 +261,7 @@ spec = describe "amplify" $ do
           P.programParser
           "examples/primitives/amplify/amplify2.qb"
           >>= expectRight
-      p `shouldBe` exampleProgram2 (Sym.var "N")
+      p `shouldBe` exampleProgram2 @(Sym.Sym Int) @Double (Sym.var "N")
 
     let program2 = exampleProgram2 3
 
@@ -284,7 +284,7 @@ spec = describe "amplify" $ do
           P.programParser
           "examples/primitives/amplify/amplify3.qb"
           >>= expectRight
-      p `shouldBe` exampleProgram3 (Sym.var "N")
+      p `shouldBe` exampleProgram3 @(Sym.Sym Int) @Double (Sym.var "N")
 
     let program3 = exampleProgram3 3
 
