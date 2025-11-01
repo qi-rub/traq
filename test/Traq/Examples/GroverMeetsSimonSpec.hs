@@ -1,27 +1,22 @@
-{-# LANGUAGE DeriveGeneric #-}
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE MultiParamTypeClasses #-}
 {-# LANGUAGE TypeApplications #-}
 
-module Traq.Examples.SimonMeetsGroverSpec where
+module Traq.Examples.GroverMeetsSimonSpec where
 
 import Text.Parsec.String
 
-import Lens.Micro.GHC
-
 import qualified Traq.Data.Symbolic as Sym
 
-import Traq.Analysis.CostModel.QueryCost (SimpleQueryCost (..))
 import Traq.Prelude
 import Traq.Primitives (QSearchCFNW (..))
-import Traq.Primitives.Simons.Quantum
 import qualified Traq.ProtoLang as P
 
 import Test.Hspec
-import TestHelpers (assertRight, expectRight)
+import TestHelpers
 
 examplePath :: String
-examplePath = "examples/simons_meets_grover.qb"
+examplePath = "examples/grover_meets_simon.qb"
 
 -- data SimonsSearch sizeT precT
 --     = Simon (SimonsFindXorPeriod (Sym.Sym sizeT) precT)
@@ -32,7 +27,7 @@ examplePath = "examples/simons_meets_grover.qb"
 --   parseE tp = (SimonsFindXorPeriod <$> P.parseE tp) <|> (QSearchCFNW <$> P.parseE tp)
 
 spec :: Spec
-spec = describe "Simon Meets Grover" $ do
+spec = describe "Grover Meets Simon" $ do
   xit "parses" $ do
     expectRight =<< parseFromFile (P.programParser @(QSearchCFNW (Sym.Sym SizeT) Double)) examplePath
     return ()

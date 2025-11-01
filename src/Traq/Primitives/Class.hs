@@ -17,13 +17,13 @@ module Traq.Primitives.Class (
   QuantumExpCostPrim (..),
 ) where
 
-import Control.Applicative (many)
+import Control.Applicative (Alternative ((<|>)), many)
 import Control.Monad (forM, when)
 import Control.Monad.Except (throwError)
 import Control.Monad.Extra (concatMapM)
 import Control.Monad.Reader (runReaderT)
 import Data.Kind (Type)
-import Data.Maybe (fromMaybe)
+import Data.Maybe (catMaybes, fromMaybe)
 import Text.Parsec.Token (GenTokenParser (..))
 import Text.Printf (printf)
 
@@ -40,15 +40,25 @@ import Traq.Prelude
 import qualified Traq.ProtoLang as P
 import qualified Traq.Utils.Printing as PP
 
+{- | A partially applied function
+Syntax: @f(a_1, ..., a_n)@ where each @a_i@ is either an identifier, or a blank @_@
+-}
 data PartialFun = PartialFun
   { pfun_name :: Ident
-  , prefix_args :: [Ident]
+  , pfun_args :: [Maybe Ident]
   }
   deriving (Eq, Show)
 
 instance PP.ToCodeString PartialFun where
-  build PartialFun{pfun_name, prefix_args} = do
-    PP.putWord $ printf "%s(%s)" pfun_name (PP.commaList prefix_args)
+  build PartialFun{pfun_name, pfun_args} = do
+    let args = PP.commaList $ map (fromMaybe "_") pfun_args
+    PP.putWord $ printf "%s(%s)" pfun_name args
+
+instance P.Parseable PartialFun where
+  parseE TokenParser{..} = do
+    pfun_name <- identifier
+    pfun_args <- parens $ commaSep ((Nothing <$ symbol "_") <|> (Just <$> identifier))
+    return PartialFun{..}
 
 {- | A generic second-order primitive.
 It accepts a sequence of partially applied functions.
@@ -94,14 +104,11 @@ instance (P.Parseable prim) => P.Parseable (Primitive prim) where
    where
     parseFindXorPeriod = do
       prim <- P.parseE tp
-      par_funs <- brackets $ many $ do
-        pfun_name <- identifier
-        prefix_args <- parens $ commaSep identifier
-        return PartialFun{..}
+      par_funs <- brackets $ many $ P.parseE tp
       return $ Primitive par_funs prim
 
 instance P.HasFreeVars (Primitive prim) where
-  freeVarsList (Primitive par_funs _) = concatMap prefix_args par_funs
+  freeVarsList (Primitive par_funs _) = concatMap (catMaybes . pfun_args) par_funs
 
 -- ================================================================================
 -- Specialized Typeclasses for Primitives.
@@ -134,18 +141,23 @@ class
 
 instance (TypeCheckPrim prim size, P.TypingReqs size) => P.TypeInferrable (Primitive prim) size where
   inferTypes (Primitive par_funs prim) = do
-    fn_tys <- forM par_funs $ \PartialFun{pfun_name, prefix_args} -> do
+    fn_tys <- forM par_funs $ \PartialFun{pfun_name, pfun_args} -> do
       P.FunDef{P.param_types, P.ret_types} <-
         view (Ctx.at pfun_name)
           >>= maybeWithError (printf "cannot find function argument `%s`" pfun_name)
 
-      arg_tys <- mapM Ctx.lookup prefix_args
-      let n_args = length arg_tys
+      when (length pfun_args /= length param_types) $
+        throwError "Invalid number of function arguments"
 
-      when (take n_args param_types /= arg_tys) $
-        throwError "Invalid arguments to bind to function"
+      prim_arg_tys <- forM (zip pfun_args param_types) $ \(mvar, ty) -> do
+        case mvar of
+          Just var -> do
+            var_ty <- Ctx.lookup var
+            when (var_ty /= ty) $ throwError "invalid arg type to bind"
+            return Nothing
+          Nothing -> return $ Just ty
 
-      return $ P.FnType (drop n_args param_types) ret_types
+      return $ P.FnType (catMaybes prim_arg_tys) ret_types
 
     shaped_fn_tys <- liftEither $ listToShape fn_tys
 
@@ -174,6 +186,15 @@ class
     shape ([P.Value size] -> m [P.Value size]) ->
     m [P.Value size]
 
+{- | Place a list of concrete values inside a list of incomplete values.
+For example, @placeVals [Just 0, Nothing, Just 2, Nothing] [1, 3] = [0,1,2,3]@
+-}
+placeVals :: [Maybe a] -> [a] -> [a]
+placeVals [] [] = []
+placeVals (Just x : xs) as = x : placeVals xs as
+placeVals (Nothing : xs) (a : as) = a : placeVals xs as
+placeVals _ _ = error "invalid use of placeVals"
+
 instance
   ( EvalPrim prim size prec
   , P.EvalReqs size prec
@@ -181,15 +202,19 @@ instance
   P.Evaluatable (Primitive prim) size prec
   where
   eval (Primitive par_funs prim) sigma = do
-    fns_eval <- forM par_funs $ \PartialFun{pfun_name, prefix_args} -> do
+    fns_eval <- forM par_funs $ \PartialFun{pfun_name, pfun_args} -> do
       fn <-
         view $
           P._funCtx
             . Ctx.at pfun_name
             . to (fromMaybe (error "unable to find predicate, please typecheck first!"))
 
-      let vs = map (\x -> sigma ^. Ctx.at x . non (error "ill-formed program")) prefix_args
-      return $ \vs' -> P.evalFun (vs ++ vs') P.NamedFunDef{P.fun_name = pfun_name, P.fun_def = fn}
+      let vs = flip map pfun_args $ \case
+            Just x -> Just $ sigma ^. Ctx.at x . non (error "ill-formed program")
+            Nothing -> Nothing
+
+      let eval_fn vs' = P.evalFun (placeVals vs vs') P.NamedFunDef{P.fun_name = pfun_name, P.fun_def = fn}
+      return eval_fn
 
     let shaped_fns_eval = either (error "please typecheck first") id $ listToShape fns_eval
 
@@ -370,18 +395,22 @@ instance
     -- Extract the semantics of each function argument.
     eval_env <- view P._evaluationEnv
 
-    fns_eval_and_args <- forM par_funs $ \PartialFun{pfun_name, prefix_args} -> do
+    fns_eval_and_args <- forM par_funs $ \PartialFun{pfun_name, pfun_args} -> do
       fn <-
         view $
           P._funCtx
             . Ctx.at pfun_name
             . to (fromMaybe (error "unable to find predicate, please typecheck first!"))
 
-      let vs = map (\x -> sigma ^. Ctx.at x . non (error "ill-formed program")) prefix_args
-      let fn_eval vs' =
-            P.evalFun (vs ++ vs') P.NamedFunDef{P.fun_name = pfun_name, P.fun_def = fn}
+      let vs = flip map pfun_args $ \case
+            Just x -> Just $ sigma ^. Ctx.at x . non (error "ill-formed program")
+            Nothing -> Nothing
+
+      let eval_fn vs' =
+            P.evalFun (placeVals vs vs') P.NamedFunDef{P.fun_name = pfun_name, P.fun_def = fn}
               & (runReaderT ?? eval_env)
-      return (fn_eval, vs)
+
+      return (eval_fn, vs)
 
     let (fns_eval, fns_args) = unzip fns_eval_and_args
     let shaped_fns_eval = either (error "please typecheck first") id $ listToShape fns_eval
@@ -408,7 +437,7 @@ instance
 
         -- queries to quantum f
         q_costs <- forM exp_queries_q $ \(vs, eq) -> do
-          q_f <- A.quantumQueryCostF eps_fn (pref_args ++ vs) pfun_name
+          q_f <- A.quantumQueryCostF eps_fn (placeVals pref_args vs) pfun_name
           return $ eq Alg..* q_f
 
         -- queries to unitary f

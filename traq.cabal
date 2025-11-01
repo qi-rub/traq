@@ -295,11 +295,11 @@ test-suite spec
       Traq.Examples.ClusteringAlgorithmSpec
       Traq.Examples.DepthThreeNandFormulaSpec
       Traq.Examples.EvanMansourSpec
+      Traq.Examples.GroverMeetsSimonSpec
       Traq.Examples.MatrixSearchSpec
       Traq.Examples.NonDetSpec
       Traq.Examples.PeriodFindingSpec
       Traq.Examples.SearchSpec
-      Traq.Examples.SimonMeetsGroverSpec
       Traq.Examples.SteepMaxKSatSpec
       Traq.Examples.ThreeRoundFeistelAttackSpec
       Traq.Examples.TreeGeneratorSpec
