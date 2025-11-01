@@ -141,6 +141,7 @@ evalBinOp SubOp (FinV x) (FinV y) = FinV $ x - y
 evalBinOp XorOp (FinV x) (FinV y) = FinV (xor x y)
 evalBinOp LEqOp (FinV x) (FinV y) = toValue $ x <= y
 evalBinOp LtOp (FinV x) (FinV y) = toValue $ x < y
+evalBinOp EqOp (FinV x) (FinV y) = toValue $ x == y
 evalBinOp AndOp v1 v2 = toValue $ fromValue v1 && fromValue v2
 evalBinOp op lhs rhs = error $ printf "evalBinOp failed: %s (%s) (%s)" (show op) (show lhs) (show rhs)
 

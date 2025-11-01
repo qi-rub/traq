@@ -288,12 +288,18 @@ test-suite spec
       Traq.Data.Probability.ContSpec
       Traq.Data.Probability.TreeSpec
       Traq.Data.SymbolicSpec
+      Traq.Examples.ClusteringAlgorithmSpec
+      Traq.Examples.DepthThreeNandFormulaSpec
       Traq.Examples.EvanMansourSpec
       Traq.Examples.MatrixSearchSpec
       Traq.Examples.NonDetSpec
       Traq.Examples.PeriodFindingSpec
       Traq.Examples.SearchSpec
+      Traq.Examples.SimonMeetsGroverSpec
+      Traq.Examples.SteepMaxKSatSpec
+      Traq.Examples.ThreeRoundFeistelAttackSpec
       Traq.Examples.TreeGeneratorSpec
+      Traq.Examples.TriangleCycleSpec
       Traq.Primitives.Amplify.CAmplifySpec
       Traq.Primitives.Amplify.PreludeSpec
       Traq.Primitives.Search.QSearchCFNWSpec

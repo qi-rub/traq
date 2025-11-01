@@ -152,6 +152,7 @@ data BinOp
   | LEqOp
   | LtOp
   | AndOp
+  | EqOp
   deriving (Eq, Show, Read)
 
 instance PP.ToCodeString BinOp where
@@ -162,6 +163,7 @@ instance PP.ToCodeString BinOp where
   build LEqOp = PP.putWord "<="
   build LtOp = PP.putWord "<"
   build AndOp = PP.putWord "&&"
+  build EqOp = PP.putWord "=="
 
 -- | Operations which take multiple arguments
 data NAryOp = MultiOrOp

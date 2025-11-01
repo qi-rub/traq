@@ -1,0 +1,43 @@
+// The Triangle Finding algorithm from Triangle-finding problem: 
+// first para https://arxiv.org/pdf/quant-ph/0007016
+// + also, case-study in Quipper
+
+declare Adj(Fin<N>, Fin<N>) -> Bool end
+
+def CompletesTriangle(i: Fin<N>, j: Fin<N>, k: Fin<N>) -> Bool do
+  
+  ij <- i == j;
+  neq_ij <- not ij;
+
+  jk <- j == k;
+  neq_jk <- not jk;
+
+  ki <- k == i;
+  neq_ki <- ki;
+  
+  distinct_ijk <- neq_ij && neq_jk;
+
+  distinct <- distnct_ijk && neq_ki;
+
+  edge_jk <- Adj(j, k);
+  edge_ki <- Adj(k, i);
+
+  temp <- distinct && edge_jk;
+  result <- temp && edge_ki;
+
+  return result
+end
+
+def HasTriangleCycle(i: Fin<N>, j: Fin<N>) -> Bool do
+  edge_ij <- Adj(i, j);
+  found_k <- @any[CompletesTriangle](i, j);
+
+  result <- edge_ij && found_k;
+  
+  return result
+end
+
+def HasTriangle() -> Bool do
+  found_triangle <- @any[hasTriangleCycle]();
+  return found_triangle
+end

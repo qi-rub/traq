@@ -160,6 +160,8 @@ instance (Parseable ext, SizeType ext ~ SymbSize) => Parseable (Expr ext) where
         "<=" -> return LEqOp
         "&&" -> return AndOp
         "<" -> return LtOp
+        "==" -> return EqOp
+        -- "!=" -> return $ (Not (EqOp))
         _ -> fail "invalid binary operator"
 
     binOpE :: Parser (Expr ext)

@@ -17,7 +17,7 @@ import Test.Hspec
 import TestHelpers (assertRight, expectRight)
 
 examplePath :: String
-examplePath = "examples/cryptoanalysis/evan_mansour.qb"
+examplePath = "examples/cryptanalysis/evan_mansour.qb"
 
 loadEvanMansour ::
   -- | bitsize @n@ of the inputs/outputs

@@ -17,7 +17,7 @@ import Test.Hspec
 import TestHelpers (assertRight, expectRight)
 
 examplePath :: String
-examplePath = "examples/cryptoanalysis/period_finding.qb"
+examplePath = "examples/cryptanalysis/period_finding.qb"
 
 loadPeriodFinding ::
   -- | bitsize @n@ of the inputs/outputs

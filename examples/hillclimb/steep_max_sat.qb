@@ -1,23 +1,22 @@
-// Taken from paper Quantifying Grover speed-ups beyond asymptotic analysis
-// https://arxiv.org/pdf/2203.04975
+// Taken from paper Quantifying Grover speed-ups beyond
+// asymptotic analysis https://arxiv.org/pdf/2203.04975
 
 // Evaluate the weight of an assignment
 declare Phi(Arr<n, Bool>) -> Fin<W> end
 
 // check if flipping `i` gives a good neighbour
-def good(x: Arr<n, Bool>, i: Fin<n>) -> Bool
+def good(x: Arr<n, Bool>, i: Fin<n>) -> Fin<W>
 do
 	w <- Phi(x);
 	b <- x[i];
 	b' <- not b;
 	x' <- update x[i] = b;
 	w' <- Phi(x');
-	ok <- w' > w;
-	return ok
+	return w'
 end
 
 def hillclimb_iter(x: Arr<n, Bool>) -> Arr<n, Bool> do
-	i <- @search[good](x);
+	i <- @max[good](x);
 	b <- x[i];
 	b' <- not b;
 	x' <- update x[i] = b;

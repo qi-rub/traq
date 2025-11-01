@@ -1,0 +1,28 @@
+// Depth 3 NAND formula evaluation (re-written using De-morgan's laws).
+// Evalutates: NAND_i(NAND_j(NAND_k(f_{i,j,k})))
+
+// Leaf nodes of the formula.
+declare f(Fin<N>, Fin<M>, Fin<K>) -> Bool end
+
+def NOR_0(i0: Fin<N>, j0: Fin<M>, k0: Fin<K>) -> Bool do
+	e <- f(i0, j0, k0);
+	e' <- !e;
+	return e'
+end
+
+def NOR_1(i1: Fin<N>, j1: Fin<M>) -> Bool do
+	or_1 <- @any[NOR_0](i1, j1);
+	nor_1 <- not or_1;
+	return nor_1
+end
+
+def NOR_2(i2: Fin<N>) -> Bool do
+	or_2 <- @any[NOR_1](i2);
+	nor_2 <- not or_2;
+	return nor_2
+end
+
+def Depth3Nand() -> Bool do
+	or_3 <- @any[NOR_2]();
+	return or_3
+end

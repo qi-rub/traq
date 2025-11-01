@@ -9,7 +9,7 @@ References:
 
  1. [Quantifying Grover speed-ups beyond asymptotic analysis](https://arxiv.org/abs/2203.04975)
 -}
-module Traq.Primitives.Search.QMax () where
+module Traq.Primitives.Search.QMax where
 
 import Control.Monad (forM, when)
 import Control.Monad.Except (throwError)

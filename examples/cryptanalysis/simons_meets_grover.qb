@@ -1,0 +1,32 @@
+// Taken from Grover Meets Simon – Quantumly Attacking the FX-construction (https://eprint.iacr.org/2017/427.pdf)
+
+// N = 2^n
+// Block-cipher E(k, x)
+declare E(Fin<N>, Fin<N>) -> Fin<N> end
+
+// FX-construction with secret keys (k0, k1, k2):
+// Enc(x) = E_k0(x ^ k1) ^ k2
+declare Enc(Fin<N>) -> Fin<N> end
+
+// FX-construction almost 2-1 function, when k = k0 (hidden)
+def f(k: Fin<N>, x : Fin<N>) -> Fin<N> do
+	ex <- Enc(x);
+	p_kx <- E(k, x);
+	f_kx <- ex ^ p_kx;
+	return f_kx
+end
+
+// classifier(k: Fin<N>, k1: Fin<N>)
+declare classifier(Fin<N>, Fin<N>) -> Bool end
+
+// takes k and outputs some Fin<N>
+def innerAttack(k: Fin<N>) -> Bool do
+    k1 <- @findXorPeriod[f, 0.01](k);
+    res <- classifier(k, k1);
+    return res
+end
+
+def outerAttack() -> Bool do
+    k0 <- search[innerAttack]();
+    return k0
+end

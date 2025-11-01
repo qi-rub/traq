@@ -1,0 +1,39 @@
+// A clustering algorithm example taken from Quantum Clustering Algorithms (Algorithm 1)
+// https://web.archive.org/web/20170713101119id_/http://machinelearning.wustl.edu/mlpapers/paper_files/icml2007_AimeurBG07.pdf
+
+// type point = Arr<N, Fin<M>>
+
+declare D_n(Fin<N>) -> Arr<N, Fin<M>> end
+
+declare Dist(Arr<N, Fin<M>>, Arr<N, Fin<M>>) -> Fin<M> end
+
+def check(dmax : Fin<M>, i: Fin<N>, j: Fin<N>) -> Bool do
+    xi <- D_n(i);
+    xj <- D_n(j);
+    dist' <- Dist(xi, xj);
+
+    ok <- dist' > dmax;
+
+    return ok
+end
+
+def loop_body(i: Fin<N>, j: Fin<N>) -> (Fin<N>, Fin<N>) do
+    xi <- D_n(i);
+    xj <- D_n(j);
+    dmax <- Dist(xi, xj);
+
+    i', j' <- @search[check](dmax);
+    return i', j'
+end
+
+def main () -> (Fin<N>, Fin<N>) do
+    i0 <-$ uniform : Fin<N>;
+    j0 <-$ uniform : Fin<N>;
+
+    i1, j1 <- loop_body(i0, j0);
+    i2, j2 <- loop_body(i1, j1);
+    i3, j3 <- loop_body(i2, j2);
+    i4, j4 <- loop_body(i3, j3);
+    
+    return i4, j4
+end

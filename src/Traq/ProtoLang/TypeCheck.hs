@@ -126,6 +126,11 @@ typeCheckBasicExpr BinOpE{bin_op, lhs, rhs} = do
         throwError
           ("`^` requires same type args, got " <> show [ty_lhs, ty_rhs])
       return ty_lhs
+    EqOp -> do
+      unless (ty_lhs == ty_rhs) $
+        throwError
+          ("`==` requires same type args, got " <> show [ty_lhs, ty_rhs])
+      return ty_lhs
 typeCheckBasicExpr TernaryE{branch, lhs, rhs} = do
   ty_branch <- typeCheckBasicExpr branch
   unless (ty_branch == tbool) $
