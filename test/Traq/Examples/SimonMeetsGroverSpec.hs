@@ -11,7 +11,7 @@ import Lens.Micro.GHC
 
 import qualified Traq.Data.Symbolic as Sym
 
-import Traq.CostModel.QueryCost (SimpleQueryCost (..))
+import Traq.Analysis.CostModel.QueryCost (SimpleQueryCost (..))
 import Traq.Prelude
 import Traq.Primitives (QSearchCFNW (..))
 import Traq.Primitives.Simons.Quantum

@@ -3,7 +3,7 @@ module Traq.Primitives.Amplify.CAmplifySpec where
 import qualified Traq.Data.Context as Ctx
 import qualified Traq.Data.Symbolic as Sym
 
-import Traq.CostModel.QueryCost (SimpleQueryCost (..))
+import Traq.Analysis.CostModel.QueryCost (SimpleQueryCost (..))
 import Traq.Primitives.Amplify.CAmplify (CAmplify (..))
 import Traq.Primitives.Amplify.Prelude (Amplify (..))
 import qualified Traq.ProtoLang as P

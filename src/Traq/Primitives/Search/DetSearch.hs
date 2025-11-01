@@ -53,7 +53,7 @@ instance P.Parseable (DetSearch sizeT precT) where
   parseE = fmap inject . parsePrimAnyWithName @sizeT @precT "any"
 
 instance P.HasFreeVars (DetSearch sizeT precT)
-instance (P.TypeCheckable sizeT) => P.TypeCheckablePrimitive (DetSearch sizeT precT) sizeT
+instance (P.TypingReqs sizeT) => P.TypeInferrable (DetSearch sizeT precT) sizeT
 
 instance (P.EvalReqs sizeT precT) => P.Evaluatable (DetSearch sizeT precT) sizeT precT
 
@@ -64,11 +64,11 @@ instance (P.EvalReqs sizeT precT) => P.Evaluatable (DetSearch sizeT precT) sizeT
 instance
   ( Integral sizeT
   , Floating precT
-  , P.TypeCheckable sizeT
+  , P.TypingReqs sizeT
   ) =>
-  P.UnitaryCostablePrimitive (DetSearch sizeT precT) sizeT precT
+  P.UnitaryCost (DetSearch sizeT precT) sizeT precT
   where
-  unitaryQueryCostPrimitive delta prim = do
+  unitaryCost delta prim = do
     let SearchLikePrim{predicate} = extract prim
 
     P.FunDef{P.param_types} <- view $ P._funCtx . Ctx.at predicate . singular _Just
@@ -88,11 +88,11 @@ instance
   ( Integral sizeT
   , Floating precT
   , Ord precT
-  , P.TypeCheckable sizeT
+  , P.TypingReqs sizeT
   ) =>
-  P.QuantumMaxCostablePrimitive (DetSearch sizeT precT) sizeT precT
+  P.QuantumHavocCost (DetSearch sizeT precT) sizeT precT
   where
-  quantumMaxQueryCostPrimitive eps prim = do
+  quantumHavocCost eps prim = do
     let SearchLikePrim{predicate} = extract prim
 
     P.FunDef{P.param_types} <- view $ P._funCtx . Ctx.at predicate . singular _Just
@@ -116,9 +116,9 @@ instance
   , sizeT ~ SizeT
   , P.EvalReqs sizeT precT
   ) =>
-  P.QuantumCostablePrimitive (DetSearch sizeT precT) sizeT precT
+  P.QuantumExpCost (DetSearch sizeT precT) sizeT precT
   where
-  quantumQueryCostPrimitive eps prim sigma = do
+  quantumExpCost eps prim sigma = do
     let SearchLikePrim{predicate, pred_args = args} = extract prim
 
     P.FunDef{P.param_types} <- view $ P._funCtx . Ctx.at predicate . singular _Just

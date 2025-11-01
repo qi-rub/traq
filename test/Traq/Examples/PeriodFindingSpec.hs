@@ -8,13 +8,16 @@ import Lens.Micro.GHC
 
 import qualified Traq.Data.Symbolic as Sym
 
-import Traq.CostModel.QueryCost (SimpleQueryCost (..))
+import Traq.Analysis.CostModel.QueryCost (SimpleQueryCost (..))
 import Traq.Prelude
+import Traq.Primitives.Class
 import Traq.Primitives.Simons.Quantum
 import qualified Traq.ProtoLang as P
 
 import Test.Hspec
 import TestHelpers (assertRight, expectRight)
+
+type SPrim size = Primitive (SimonsFindXorPeriod size Double)
 
 examplePath :: String
 examplePath = "examples/cryptanalysis/period_finding.qb"
@@ -22,12 +25,13 @@ examplePath = "examples/cryptanalysis/period_finding.qb"
 loadPeriodFinding ::
   -- | bitsize @n@ of the inputs/outputs
   SizeT ->
-  IO (P.Program (SimonsFindXorPeriod SizeT Double))
+  IO (P.Program (SPrim SizeT))
 loadPeriodFinding n = do
-  Right prog <- parseFromFile (P.programParser @(SimonsFindXorPeriod (Sym.Sym SizeT) Double)) examplePath
+  Right prog <- parseFromFile (P.programParser @(SPrim (Sym.Sym SizeT))) examplePath
   return $
     prog
       & P.mapSize (Sym.subst "N" (Sym.con $ 2 ^ n))
+      & P.mapSize (Sym.subst "n" (Sym.con n))
       & P.mapSize Sym.unSym
 
 spec :: Spec
@@ -39,26 +43,26 @@ spec = describe "FindXorPeriod" $ do
   let p0 = 0.01 :: Double
 
   it "parses" $ do
-    expectRight =<< parseFromFile (P.programParser @(SimonsFindXorPeriod (Sym.Sym SizeT) Double)) examplePath
+    expectRight =<< parseFromFile (P.programParser @(SPrim (Sym.Sym SizeT))) examplePath
     return ()
 
   it "typechecks" $ do
     p <-
-      parseFromFile (P.programParser @(SimonsFindXorPeriod (Sym.Sym SizeT) Double)) examplePath
+      parseFromFile (P.programParser @(SPrim (Sym.Sym SizeT))) examplePath
         >>= expectRight
-    assertRight $ (P.typeCheckProg @(SimonsFindXorPeriod (Sym.Sym SizeT) Double)) p
+    assertRight $ (P.typeCheckProg @(SPrim (Sym.Sym SizeT))) p
 
   before (loadPeriodFinding n) $ do
     it "calculates unitary cost correctly" $ \program -> do
       let delta = P.l2NormError (0.01 :: Double)
       let actualCost = getCost $ P.unitaryQueryCost P.SplitUsingNeedsEps delta program
-      let formulaCost = 2 * _SimonsQueries (fromIntegral n) p0 (P.requiredNormErrorToFailProb $ delta `P.divideError` 2)
+      let formulaCost = 2 * _SimonsQueries n p0 (P.requiredNormErrorToFailProb $ delta `P.divideError` 2)
 
       actualCost `shouldBe` formulaCost
 
     it "calculates quantum max cost correctly" $ \program -> do
       let eps = P.failProb (0.1 :: Double)
       let actualCost = getCost $ P.quantumMaxQueryCost P.SplitUsingNeedsEps eps program
-      let formulaCost = 2 * _SimonsQueries (fromIntegral n) p0 (eps `P.divideError` 2)
+      let formulaCost = 2 * _SimonsQueries n p0 (eps `P.divideError` 2)
 
       actualCost `shouldBe` formulaCost

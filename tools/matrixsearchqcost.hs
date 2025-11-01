@@ -17,7 +17,7 @@ import qualified Traq.Data.Context as Ctx
 import Traq.Data.Subtyping
 import qualified Traq.Data.Symbolic as Sym
 
-import Traq.CostModel.QueryCost (SimpleQueryCost (..))
+import Traq.Analysis.CostModel.QueryCost (SimpleQueryCost (..))
 import Traq.Examples.MatrixSearch
 import Traq.Prelude
 import Traq.Primitives (DefaultPrims)
@@ -35,7 +35,7 @@ data Phantom p = Phantom
 
 class
   ( P.Parseable p
-  , P.QuantumCostablePrimitive p SizeT Double
+  , P.QuantumExpCost p SizeT Double
   , PrimAny SizeT Double :<: p
   ) =>
   MyPrim p

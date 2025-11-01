@@ -78,7 +78,7 @@ instance P.Parseable (DefaultPrims sizeT precT) where
     rany = RAny . RandomSearch <$> parsePrimAnyWithName "any_rand" tp
     dany = DAny . DetSearch <$> parsePrimAnyWithName "any_det" tp
 
-instance (P.TypeCheckable sizeT) => P.TypeCheckablePrimitive (DefaultPrims sizeT precT) sizeT
+instance (P.TypingReqs sizeT) => P.TypeInferrable (DefaultPrims sizeT precT) sizeT
 instance P.HasFreeVars (DefaultPrims sizeT precT)
 
 -- Evaluation
@@ -89,18 +89,18 @@ instance
   ( Integral sizeT
   , Floating precT
   , Show precT
-  , P.TypeCheckable sizeT
+  , P.TypingReqs sizeT
   ) =>
-  P.UnitaryCostablePrimitive (DefaultPrims sizeT precT) sizeT precT
+  P.UnitaryCost (DefaultPrims sizeT precT) sizeT precT
 
 instance
   ( Integral sizeT
   , Floating precT
   , Ord precT
   , Show precT
-  , P.TypeCheckable sizeT
+  , P.TypingReqs sizeT
   ) =>
-  P.QuantumMaxCostablePrimitive (DefaultPrims sizeT precT) sizeT precT
+  P.QuantumHavocCost (DefaultPrims sizeT precT) sizeT precT
 
 instance
   ( Floating precT
@@ -110,14 +110,14 @@ instance
   , Show precT
   , P.EvalReqs sizeT precT
   ) =>
-  P.QuantumCostablePrimitive (DefaultPrims sizeT precT) sizeT precT
+  P.QuantumExpCost (DefaultPrims sizeT precT) sizeT precT
 
 -- Lowering
 instance
   ( Integral sizeT
   , Floating precT
   , RealFloat precT
-  , P.TypeCheckable sizeT
+  , P.TypingReqs sizeT
   , Show precT
   ) =>
   CompileU.Lowerable (DefaultPrims sizeT precT) sizeT precT
@@ -129,7 +129,7 @@ instance
   ( Integral sizeT
   , Floating precT
   , RealFloat precT
-  , P.TypeCheckable sizeT
+  , P.TypingReqs sizeT
   , Show precT
   , sizeT ~ SizeT
   ) =>

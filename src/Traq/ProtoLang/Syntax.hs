@@ -19,6 +19,9 @@ module Traq.ProtoLang.Syntax (
   _ArrV,
   _TupV,
 
+  -- ** Function types
+  FnType (..),
+
   -- ** Basic Operations
   UnOp (..),
   BinOp (..),
@@ -77,7 +80,8 @@ instance (Show sizeT) => PP.ToCodeString (MetaParam sizeT) where
 
 -- | Types
 data VarType sizeT
-  = Fin sizeT -- Fin<N>
+  = Fin sizeT -- Fin<N> = [0, ..., N - 1]
+  | Bitvec sizeT -- Bitvec<n> = {0, 1}^n
   | Arr sizeT (VarType sizeT) -- Arr<N, T>
   | Tup [VarType sizeT] -- (T_1, ..., T_k)
   deriving (Eq, Show, Read, Functor)
@@ -98,6 +102,7 @@ _Tup _ t = pure t
 
 instance (Show a) => PP.ToCodeString (VarType a) where
   build (Fin len) = PP.putWord $ "Fin<" <> show len <> ">"
+  build (Bitvec n) = PP.putWord $ "BitVec<" <> show n <> ">"
   build (Arr n t) = PP.putWord . printf "Arr<%s, %s>" (show n) =<< PP.fromBuild t
   build (Tup ts) = do
     ws <- mapM PP.fromBuild ts
@@ -131,6 +136,11 @@ instance (Show sizeT) => PP.ToCodeString (Value sizeT) where
   build (FinV v) = PP.putWord $ show v
   build (ArrV vs) = PP.joined (printf "[%s]" . PP.commaList) $ mapM_ PP.build vs
   build (TupV vs) = PP.joined (printf "(%s)" . PP.commaList) $ mapM_ PP.build vs
+
+data FnType size = FnType [VarType size] [VarType size]
+  deriving (Eq, Read, Show, Functor)
+
+type instance SizeType (FnType size) = size
 
 -- ================================================================================
 -- Basic Expressions

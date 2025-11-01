@@ -12,14 +12,11 @@ module Traq.Primitives.Simons.Quantum (
 
 import GHC.Generics (Generic)
 
-import Lens.Micro.Mtl
-import qualified Numeric.Algebra as Alg
-
-import Traq.Control.Monad
-import qualified Traq.Data.Context as Ctx
 import Traq.Data.Subtyping
+import qualified Traq.Data.Symbolic as Sym
 
 import Traq.Prelude
+import Traq.Primitives.Class
 import Traq.Primitives.Simons.Prelude
 import qualified Traq.ProtoLang as P
 import qualified Traq.Utils.Printing as PP
@@ -41,16 +38,42 @@ newtype SimonsFindXorPeriod sizeT precT = SimonsFindXorPeriod (FindXorPeriod siz
 type instance SizeType (SimonsFindXorPeriod sizeT precT) = sizeT
 type instance PrecType (SimonsFindXorPeriod sizeT precT) = precT
 
+type instance PrimFnShape (SimonsFindXorPeriod sizeT precT) = FindXorPeriodArg
+
 instance P.MapSize (SimonsFindXorPeriod size prec) where
   type MappedSize (SimonsFindXorPeriod size prec) size' = (SimonsFindXorPeriod size' prec)
   mapSize f (SimonsFindXorPeriod p) = SimonsFindXorPeriod (P.mapSize f p)
 
+-- ================================================================================
+-- Basic Instances
+-- ================================================================================
+
+instance FindXorPeriod sizeT precT :<: SimonsFindXorPeriod sizeT precT
+
+instance IsA (FindXorPeriod sizeT precT) (SimonsFindXorPeriod sizeT precT)
+
+instance (Show sizeT) => PP.ToCodeString (SimonsFindXorPeriod sizeT Double) where
+  build (SimonsFindXorPeriod p) = PP.build p
+
+instance (sizeT ~ Sym.Sym SizeT) => P.Parseable (SimonsFindXorPeriod sizeT Double) where
+  parseE tp = SimonsFindXorPeriod <$> P.parseE tp
+
+instance
+  (P.TypingReqs size, Num prec, Ord prec, Show prec) =>
+  TypeCheckPrim (SimonsFindXorPeriod size prec) size
+  where
+  inferRetTypesPrim (SimonsFindXorPeriod p) = inferRetTypesPrim p
+
+-- ================================================================================
+-- Cost Instances
+-- ================================================================================
+
 -- | Number of queries as described in Theorem 1.
 _SimonsQueries ::
-  forall precT.
-  (Floating precT) =>
+  forall sizeT precT.
+  (Floating precT, P.SizeToPrec sizeT precT) =>
   -- | bitsize
-  precT ->
+  sizeT ->
   -- | p_0: maximum probability of spurious collisions for non-period values.
   precT ->
   -- | maximum allowed failure probability.
@@ -58,141 +81,32 @@ _SimonsQueries ::
   precT
 _SimonsQueries n p0 eps = q
  where
-  -- Sketch:
-  -- We need to pick @c@ such that @(2 * ((1 + p0)/2)^c)^n <= eps@ (see Theorem 1)
-  -- ==> 2^n / eps <= (2 / (1+p0))^(cn)
-  -- define q := cn (i.e. number of queries)
-  -- ==> n + log_2 (1/eps) <= q * log_2(2 / (1+p0))
+  {- Sketch:
+    We need to pick @c@ such that @(2 * ((1 + p0)/2)^c)^n <= eps@ (see Theorem 1)
+    ==> 2^n / eps <= (2 / (1+p0))^(cn)
+    define q := cn (i.e. number of queries)
+    ==> n + log_2 (1/eps) <= q * log_2(2 / (1+p0))
+  -}
 
-  q_num = n + logBase 2 (1 / P.getFailProb eps)
+  q_num = P.sizeToPrec n + logBase 2 (1 / P.getFailProb eps)
   q_den = logBase 2 (2 / (1 + p0))
   q = q_num / q_den
 
--- ================================================================================
--- Instances
--- ================================================================================
-
-instance FindXorPeriod sizeT precT :<: SimonsFindXorPeriod sizeT precT
-
-instance IsA (FindXorPeriod sizeT precT) (SimonsFindXorPeriod sizeT precT)
-
-instance PP.ToCodeString (SimonsFindXorPeriod sizeT Double) where
-  build (SimonsFindXorPeriod p) = PP.build p
-
-instance P.Parseable (SimonsFindXorPeriod sizeT Double) where
-  parseE tp = SimonsFindXorPeriod <$> P.parseE tp
-
-instance P.HasFreeVars (SimonsFindXorPeriod sizeT precT)
 instance
-  ( Show precT
-  , Ord precT
-  , Num precT
-  , P.TypeCheckable sizeT
-  ) =>
-  P.TypeCheckablePrimitive (SimonsFindXorPeriod sizeT precT) sizeT
-
-instance
-  ( Integral sizeT
-  , Real precT
-  , Floating precT
-  , Show precT
-  , Eq precT
-  , Ord precT
-  , P.TypeCheckable sizeT
-  ) =>
-  P.UnitaryCostablePrimitive (SimonsFindXorPeriod sizeT precT) sizeT precT
+  (P.TypingReqs size, Floating prec, Ord prec, Show prec, P.SizeToPrec size prec) =>
+  UnitaryCostPrim (SimonsFindXorPeriod size prec) size prec
   where
-  unitaryQueryCostPrimitive delta prim = do
-    let FindXorPeriod{fun, p_0, fun_args} = extract prim :: FindXorPeriod sizeT precT
+  unitaryQueryCosts prim eps =
+    let FindXorPeriod{n, p_0} = extract prim :: FindXorPeriod size prec
+     in FindXorPeriodArg{fun = _SimonsQueries n p_0 eps}
 
-    -- size of domain (i.e. @N = 2^n@)
-    _N <-
-      view
-        ( P._funCtx
-            . Ctx.at fun
-            . non' (error "unable to find function for FindXorPeriod")
-        )
-        >>= \funDef ->
-          case last (P.param_types funDef) of
-            P.Fin _N -> return _N
-            _ -> error "BUG: FindXorPeriod function has last type wrong, should be caught by typechecker."
-
-    -- compute the bitsize @n@.
-    let n :: sizeT
-        n = ceiling $ logBase (2 :: Double) $ fromIntegral _N
-
-        n_sym :: precT
-        n_sym = P.sizeToPrec n
-
-    -- split
-    let delta_alg = delta `P.divideError` 2
-    let delta_f_total = delta - delta_alg
-
-    -- compute eps for query cost
-    let eps_alg :: P.FailProb precT
-        eps_alg = P.requiredNormErrorToFailProb delta_alg
-
-    -- worst case number of queries
-    let qry = _SimonsQueries n_sym p_0 eps_alg
-
-    -- delta per predicate call
-    let delta_f = delta_f_total `P.divideError` qry
-
-    cost <-
-      magnify P._unitaryCostEnv $
-        P.unitaryQueryCostE
-          delta_f
-          P.FunCallE{P.fname = fun, P.args = fun_args}
-
-    return $ qry Alg..* cost
-
+-- | Same as unitary compilation.
 instance
-  ( Integral sizeT
-  , Real precT
-  , Floating precT
-  , Show precT
-  , Eq precT
-  , Ord precT
-  , P.TypeCheckable sizeT
-  ) =>
-  P.QuantumMaxCostablePrimitive (SimonsFindXorPeriod sizeT precT) sizeT precT
+  (P.TypingReqs size, Floating prec, Ord prec, Show prec, P.SizeToPrec size prec) =>
+  QuantumHavocCostPrim (SimonsFindXorPeriod size prec) size prec
   where
-  quantumMaxQueryCostPrimitive eps prim = do
-    let FindXorPeriod{fun, p_0, fun_args} = extract prim :: FindXorPeriod sizeT precT
+  quantumQueryCostsQuantum _ _ = FindXorPeriodArg{fun = 0}
 
-    _N <-
-      view
-        ( P._funCtx
-            . Ctx.at fun
-            . non' (error "unable to find function for FindXorPeriod")
-        )
-        >>= \funDef ->
-          case last (P.param_types funDef) of
-            P.Fin _N -> return _N
-            _ -> error "BUG: FindXorPeriod function has last type wrong, should be caught by typechecker."
-
-    -- compute the bitsize @n@.
-    let n :: sizeT
-        n = ceiling $ logBase (2 :: Double) $ fromIntegral _N
-
-        n_sym :: precT
-        n_sym = P.sizeToPrec n
-
-    -- split
-    let eps_alg = eps `P.divideError` 2
-    let eps_f_total = eps - eps_alg
-
-    -- worst case number of queries
-    let qry = _SimonsQueries n_sym p_0 eps_alg
-
-    -- delta per predicate call
-    let eps_f = eps_f_total `P.divideError` qry
-    let delta_f = P.requiredFailProbToNormError eps_f
-
-    cost <-
-      magnify P._unitaryCostEnv $
-        P.unitaryQueryCostE
-          delta_f
-          P.FunCallE{P.fname = fun, P.args = fun_args}
-
-    return $ qry Alg..* cost
+  quantumQueryCostsUnitary prim eps =
+    let FindXorPeriod{n, p_0} = extract prim :: FindXorPeriod size prec
+     in FindXorPeriodArg{fun = _SimonsQueries n p_0 eps}

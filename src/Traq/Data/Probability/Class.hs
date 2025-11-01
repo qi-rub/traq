@@ -12,6 +12,7 @@ module Traq.Data.Probability.Class (
   -- * Types
   Event,
   ProbType,
+  RandVar,
   RVType,
 
   -- * Special Distributions
@@ -89,6 +90,8 @@ bernoulli p = choose2 p (pure True) (pure False)
 scale :: (MonadProb probT m) => probT -> m a -> m a
 scale p x = choose [(p, x)]
 
+type RandVar a r = a -> r
+
 type RVType probT r = (Alg.Monoidal r, Alg.Module probT r)
 
 -- | A probability monad with support for computing expectation of random variables.
@@ -97,7 +100,7 @@ class (MonadProb probT m) => MonadExp probT m where
   expectationA :: forall f r a. (Applicative f, RVType probT r) => (a -> f r) -> m a -> f r
 
 -- | compute the expectation of a random variable.
-expectation :: forall probT r m a. (MonadExp probT m, RVType probT r) => (a -> r) -> m a -> r
+expectation :: forall probT r m a. (MonadExp probT m, RVType probT r) => RandVar a r -> m a -> r
 expectation f = runIdentity . expectationA (Identity . f)
 
 -- | Compute the mass or total probability of a given probability distribution.

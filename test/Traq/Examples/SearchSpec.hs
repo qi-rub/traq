@@ -6,9 +6,9 @@ module Traq.Examples.SearchSpec (spec) where
 import qualified Traq.Data.Context as Ctx
 import Traq.Data.Default
 
+import Traq.Analysis.CostModel.QueryCost (SimpleQueryCost (..))
 import qualified Traq.CQPL as CQPL
 import qualified Traq.Compiler.Unitary as CompileU
-import Traq.CostModel.QueryCost (SimpleQueryCost (..))
 import Traq.Examples.Search
 import Traq.Prelude
 import Traq.Primitives.Search.QSearchCFNW (_EQSearch, _QSearchZalka)

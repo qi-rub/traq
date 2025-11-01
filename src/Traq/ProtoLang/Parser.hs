@@ -9,6 +9,7 @@ module Traq.ProtoLang.Parser (
   parseProgram,
   parseFunDef,
   parseStmt,
+  varType,
 
   -- * Helpers
   isValidIdentifier,
@@ -58,6 +59,7 @@ protoLangDef =
           "Fin"
         , "Bool"
         , "Arr"
+        , "BitVec"
         , -- operators
           "not"
         ]
@@ -77,10 +79,11 @@ symbSize :: TokenParser () -> Parser SymbSize
 symbSize TokenParser{..} = (Sym.con . fromIntegral <$> integer) <|> (Sym.var <$> identifier)
 
 varType :: TokenParser () -> Parser (VarType SymbSize)
-varType tp@TokenParser{..} = boolType <|> finType <|> arrType
+varType tp@TokenParser{..} = boolType <|> finType <|> bitvecType <|> arrType
  where
   boolType = reserved "Bool" $> Fin (Sym.con 2)
   finType = reserved "Fin" >> Fin <$> angles (symbSize tp)
+  bitvecType = (reserved "BitVec" <|> reserved "Bitvec" <|> reserved "Word") >> Bitvec <$> angles (symbSize tp)
   arrType = do
     reserved "Arr"
     angles $ do

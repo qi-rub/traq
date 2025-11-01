@@ -74,7 +74,7 @@ type CompilerT ext =
 
 -- | Primitives that support a unitary lowering.
 class
-  ( P.UnitaryCostablePrimitive ext sizeT precT
+  ( P.UnitaryCost ext sizeT precT
   , sizeT ~ SizeType ext
   , precT ~ PrecType ext
   ) =>
@@ -109,7 +109,7 @@ class
     m (UStmt sizeT)
   lowerPrimitive delta p = glowerPrimitive (from p) delta
 
-instance (P.TypeCheckable sizeT) => Lowerable (P.Core sizeT precT) sizeT precT where
+instance (P.TypingReqs sizeT) => Lowerable (P.Core sizeT precT) sizeT precT where
   lowerPrimitive _ = \case {}
 
 -- | Generic
@@ -185,7 +185,7 @@ data ControlFlag = WithControl | WithoutControl deriving (Eq, Show, Read, Enum)
 lowerExpr ::
   forall ext sizeT precT.
   ( Lowerable ext sizeT precT
-  , P.TypeCheckable sizeT
+  , P.TypingReqs sizeT
   , Show precT
   , Floating precT
   ) =>
@@ -230,7 +230,7 @@ lowerExpr delta P.PrimCallE{prim} rets =
 lowerStmt ::
   forall ext sizeT precT.
   ( Lowerable ext sizeT precT
-  , P.TypeCheckable sizeT
+  , P.TypingReqs sizeT
   , Show precT
   , Floating precT
   ) =>
@@ -260,7 +260,7 @@ lowerStmt _ _ = error "lowering: unsupported"
 lowerFunDefWithGarbage ::
   forall ext sizeT precT m.
   ( Lowerable ext sizeT precT
-  , P.TypeCheckable sizeT
+  , P.TypingReqs sizeT
   , Show precT
   , Floating precT
   , m ~ CompilerT ext
@@ -355,7 +355,7 @@ withTag tag = map $ \(x, ty) -> (x, tag, ty)
 lowerFunDef ::
   forall ext sizeT precT m.
   ( Lowerable ext sizeT precT
-  , P.TypeCheckable sizeT
+  , P.TypingReqs sizeT
   , Show precT
   , Floating precT
   , m ~ CompilerT ext

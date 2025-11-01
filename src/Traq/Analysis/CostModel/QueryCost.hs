@@ -5,7 +5,7 @@
 {-# LANGUAGE MultiParamTypeClasses #-}
 {-# LANGUAGE UndecidableInstances #-}
 
-module Traq.CostModel.QueryCost (
+module Traq.Analysis.CostModel.QueryCost (
   QueryCost (..),
   totalQueryCost,
   SimpleQueryCost (..),
@@ -18,7 +18,7 @@ import qualified Numeric.Algebra as Alg
 
 import Traq.Data.Default
 
-import Traq.CostModel.Class
+import Traq.Analysis.CostModel.Class
 import Traq.Prelude
 
 data QueryCost precT = QueryCost

@@ -13,8 +13,8 @@ import Traq.Control.Monad
 import qualified Traq.Data.Context as Ctx
 import Traq.Data.Default
 
+import Traq.Analysis.CostModel.QueryCost (SimpleQueryCost (..))
 import qualified Traq.CQPL as CQPL
-import Traq.CostModel.QueryCost (SimpleQueryCost (..))
 import Traq.Prelude
 import Traq.Primitives.Search.QSearchCFNW
 import qualified Traq.ProtoLang as P

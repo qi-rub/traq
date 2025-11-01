@@ -89,7 +89,7 @@ instance P.Parseable (QSearchSym sizeT precT) where
       <|> try (QSearchSym <$> parsePrimSearchWithName "search" tp)
 
 -- Type check
-instance (P.TypeCheckable sizeT) => P.TypeCheckablePrimitive (QSearchSym sizeT precT) (Sym.Sym sizeT)
+instance (P.TypingReqs sizeT) => P.TypeInferrable (QSearchSym sizeT precT) (Sym.Sym sizeT)
 
 -- ================================================================================
 -- Abstract Costs (worst case)
@@ -102,9 +102,9 @@ instance
   , Eq precT
   , Floating precT
   ) =>
-  P.UnitaryCostablePrimitive (QSearchSym sizeT precT) (Sym.Sym sizeT) (Sym.Sym precT)
+  P.UnitaryCost (QSearchSym sizeT precT) (Sym.Sym sizeT) (Sym.Sym precT)
   where
-  unitaryQueryCostPrimitive delta prim = do
+  unitaryCost delta prim = do
     Just fun_def@P.FunDef{P.param_types} <- view $ P._funCtx . Ctx.at (getPred prim)
 
     P.Fin n <- pure $ last param_types
@@ -140,9 +140,9 @@ instance
   , Eq precT
   , Floating precT
   ) =>
-  P.QuantumMaxCostablePrimitive (QSearchSym sizeT precT) (Sym.Sym sizeT) (Sym.Sym precT)
+  P.QuantumHavocCost (QSearchSym sizeT precT) (Sym.Sym sizeT) (Sym.Sym precT)
   where
-  quantumMaxQueryCostPrimitive eps prim = do
+  quantumHavocCost eps prim = do
     Just fun_def@P.FunDef{P.param_types} <- view $ P._funCtx . Ctx.at (getPred prim)
     P.Fin n <- pure $ last param_types
 

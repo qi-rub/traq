@@ -6,10 +6,10 @@ import qualified Traq.Data.Context as Ctx
 import Traq.Data.Default
 import qualified Traq.Data.Symbolic as Sym
 
+import Traq.Analysis.CostModel.QueryCost (SimpleQueryCost (getCost))
 import qualified Traq.CQPL as CQPL
 import qualified Traq.Compiler.Quantum as CompileQ
 import qualified Traq.Compiler.Unitary as CompileU
-import Traq.CostModel.QueryCost (SimpleQueryCost (getCost))
 import Traq.Examples.MatrixSearch
 import Traq.Primitives.Search.QSearchCFNW (_EQSearchWorst, _QSearchZalka)
 import Traq.Primitives.Search.Symbolic

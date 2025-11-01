@@ -9,7 +9,7 @@ import qualified Data.Map as Map
 import Traq.Data.Default
 import qualified Traq.Data.Symbolic as Sym
 
-import Traq.CostModel.QueryCost
+import Traq.Analysis.CostModel.QueryCost
 import Traq.Prelude
 import Traq.Primitives
 import Traq.Primitives.Search.QSearchCFNW (_QSearchZalka)

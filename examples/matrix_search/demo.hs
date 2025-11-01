@@ -11,7 +11,7 @@ import qualified Traq.Data.Symbolic as Sym
 import Traq.Prelude
 import qualified Traq.ProtoLang as P
 
-import Traq.CostModel.QueryCost (SimpleQueryCost (..))
+import Traq.Analysis.CostModel.QueryCost (SimpleQueryCost (..))
 import Traq.Primitives.Search.DetSearch (DetSearch (..))
 import Traq.Primitives.Search.QSearchCFNW (QSearchCFNW (..))
 import Traq.Primitives.Search.RandomSearch (RandomSearch (..))
@@ -25,7 +25,7 @@ matrixToFun _ _ = error "invalid indices"
 expectedCost ::
   forall primT primT'.
   ( P.Parseable primT'
-  , P.QuantumCostablePrimitive primT SizeT Double
+  , P.QuantumExpCost primT SizeT Double
   , SizeType primT' ~ Sym.Sym Int
   , P.MapSize primT'
   , primT ~ P.MappedSize primT' Int

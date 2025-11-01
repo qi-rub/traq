@@ -2,7 +2,6 @@
 {-# LANGUAGE MultiParamTypeClasses #-}
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE RecordWildCards #-}
-{-# LANGUAGE TypeApplications #-}
 
 module Traq.Primitives.Amplify.Prelude (
   -- * Amplify Primitive
@@ -65,8 +64,8 @@ instance P.Parseable (Amplify sizeT Double) where
 instance P.HasFreeVars (Amplify sizeT precT) where
   freeVarsList Amplify{sampler_args} = sampler_args
 
-instance (P.TypeCheckable sizeT, Num precT, Ord precT, Show precT) => P.TypeCheckablePrimitive (Amplify sizeT precT) sizeT where
-  typeCheckPrimitive Amplify{sampler, p_min, sampler_args} = do
+instance (P.TypingReqs sizeT, Num precT, Ord precT, Show precT) => P.TypeInferrable (Amplify sizeT precT) sizeT where
+  inferTypes Amplify{sampler, p_min, sampler_args} = do
     when (p_min < 0 || p_min > 1) $
       throwError $
         printf "p_min must be in [0, 1], got %s" (show p_min)
@@ -112,7 +111,7 @@ instance
 
     -- result distribution
     let mu =
-          P.evalFun @_ @precT arg_vals (P.NamedFunDef sampler sampler_fundef)
+          P.evalFun arg_vals (P.NamedFunDef sampler sampler_fundef)
             & (runReaderT ?? eval_env)
     let p_succ = Prob.probabilityOf success mu
 

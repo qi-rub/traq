@@ -20,6 +20,7 @@ module Traq.Control.Monad (
   throwFrom,
   singularM,
   maybeWithError,
+  liftEither,
 
   -- * Helpers
   (??),
@@ -115,6 +116,11 @@ singularM l err s = case s ^.. l of [a] -> pure a; _ -> throwError err
 -- | lift a @Maybe@ to a value, throwing an error if @Nothing@
 maybeWithError :: (MonadError e m) => e -> Maybe a -> m a
 maybeWithError = singularM _Just
+
+-- | lift a @Maybe@ to a value, throwing an error if @Nothing@
+liftEither :: (MonadError e m) => Either e a -> m a
+liftEither (Left e) = throwError e
+liftEither (Right a) = pure a
 
 -- ================================================================================
 -- Helpers

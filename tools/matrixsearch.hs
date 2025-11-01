@@ -10,10 +10,10 @@ import Text.Printf (printf)
 import qualified Traq.Data.Context as Ctx
 import qualified Traq.Data.Symbolic as Sym
 
+import Traq.Analysis.CostModel.QueryCost (QueryCost (..))
 import qualified Traq.CQPL as CQPL
 import qualified Traq.Compiler.Quantum as CompileQ
 import qualified Traq.Compiler.Unitary as CompileU
-import Traq.CostModel.QueryCost (QueryCost (..))
 import Traq.Examples.MatrixSearch
 import Traq.Prelude
 import Traq.Primitives.Search.Symbolic

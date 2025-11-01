@@ -39,7 +39,7 @@ import Traq.Prelude
 import qualified Traq.ProtoLang as P
 
 -- | Configuration for lowering
-type LoweringEnv ext = P.QuantumMaxCostEnv ext
+type LoweringEnv ext = P.UnitaryCostEnv ext
 
 {- | Monad to compile ProtoQB to CQPL programs.
 This should contain the _final_ typing context for the input program,
@@ -76,7 +76,7 @@ class
     [Ident] ->
     m (Stmt sizeT)
 
-instance (P.TypeCheckable sizeT) => Lowerable (P.Core sizeT precT) sizeT precT where
+instance (P.TypingReqs sizeT) => Lowerable (P.Core sizeT precT) sizeT precT where
   lowerPrimitive _ = \case {}
 
 -- | Generic
@@ -121,7 +121,7 @@ instance
 lowerFunDef ::
   forall ext sizeT precT.
   ( Lowerable ext sizeT precT
-  , P.TypeCheckable sizeT
+  , P.TypingReqs sizeT
   , Show precT
   , Floating precT
   ) =>
@@ -176,7 +176,7 @@ lowerFunDef eps fun_name P.FunDef{P.param_types, P.mbody = Just body} = do
 lowerFunDefByName ::
   forall ext sizeT precT.
   ( Lowerable ext sizeT precT
-  , P.TypeCheckable sizeT
+  , P.TypingReqs sizeT
   , Show precT
   , Floating precT
   ) =>
@@ -193,7 +193,7 @@ lowerFunDefByName eps f = do
 lowerExpr ::
   forall ext sizeT precT.
   ( Lowerable ext sizeT precT
-  , P.TypeCheckable sizeT
+  , P.TypingReqs sizeT
   , Show precT
   , Floating precT
   ) =>
@@ -225,7 +225,7 @@ lowerExpr eps P.PrimCallE{P.prim} rets =
 lowerStmt ::
   forall ext sizeT precT.
   ( Lowerable ext sizeT precT
-  , P.TypeCheckable sizeT
+  , P.TypingReqs sizeT
   , Show precT
   , Floating precT
   ) =>
@@ -249,7 +249,7 @@ lowerStmt _ _ = throwError "lowering: unsupported"
 lowerProgram ::
   forall ext sizeT precT.
   ( Lowerable ext sizeT precT
-  , P.TypeCheckable sizeT
+  , P.TypingReqs sizeT
   , Show precT
   , Floating precT
   , P.HasFreeVars ext

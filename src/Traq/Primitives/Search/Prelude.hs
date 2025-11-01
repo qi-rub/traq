@@ -70,7 +70,7 @@ printSearchLikePrim name prim =
 -- ================================================================================
 
 typeCheckSearchPredicate ::
-  (sizeT ~ SizeType ext, P.TypeCheckable sizeT) =>
+  (sizeT ~ SizeType ext, P.TypingReqs sizeT) =>
   -- | name of the predicate function
   Ident ->
   -- | arguments
@@ -171,8 +171,8 @@ parsePrimAnyWithName name tp = do
 instance P.HasFreeVars (PrimAny sizeT precT) where
   freeVarsList PrimAny{pred_args} = pred_args
 
-instance (P.TypeCheckable sizeT) => P.TypeCheckablePrimitive (PrimAny sizeT precT) sizeT where
-  typeCheckPrimitive PrimAny{predicate, pred_args} = do
+instance (P.TypingReqs sizeT) => P.TypeInferrable (PrimAny sizeT precT) sizeT where
+  inferTypes PrimAny{predicate, pred_args} = do
     typeCheckSearchPredicate predicate pred_args
     return [P.tbool]
 
@@ -211,8 +211,8 @@ parsePrimSearchWithName name tp = do
 instance P.HasFreeVars (PrimSearch sizeT precT) where
   freeVarsList PrimSearch{pred_args} = pred_args
 
-instance (P.TypeCheckable sizeT) => P.TypeCheckablePrimitive (PrimSearch sizeT precT) sizeT where
-  typeCheckPrimitive PrimSearch{predicate, pred_args} = do
+instance (P.TypingReqs sizeT) => P.TypeInferrable (PrimSearch sizeT precT) sizeT where
+  inferTypes PrimSearch{predicate, pred_args} = do
     s_tys <- typeCheckSearchPredicate predicate pred_args
     return $ P.tbool : s_tys
 

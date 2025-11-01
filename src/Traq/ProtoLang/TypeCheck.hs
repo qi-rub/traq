@@ -11,13 +11,13 @@ module Traq.ProtoLang.TypeCheck (
   HasTypingCtx (..),
 
   -- * Typeable size types
-  TypeCheckable,
+  TypingReqs,
   tbool,
 
   -- * Types
   TypingEnv,
   TypeChecker,
-  TypeCheckablePrimitive (..),
+  TypeInferrable (..),
 
   -- * Checkers
   typeCheckBasicExpr,
@@ -63,7 +63,7 @@ instance HasTypingCtx (TypingCtx sizeT) where _typingCtx = id
 -- ================================================================================
 
 -- | Type @sizeT@ that can be type-checked.
-type TypeCheckable sizeT = (Eq sizeT, Show sizeT, Num sizeT)
+type TypingReqs sizeT = (Eq sizeT, Show sizeT, Num sizeT)
 
 -- | Boolean type in our language.
 tbool :: (Num sizeT) => VarType sizeT
@@ -75,7 +75,7 @@ tbool = Fin 2
 
 typeCheckBasicExpr ::
   forall sizeT m.
-  ( TypeCheckable sizeT
+  ( TypingReqs sizeT
   , MonadError String m
   , MonadReader (TypingCtx sizeT) m
   ) =>
@@ -213,30 +213,30 @@ type TypeChecker ext = ReaderT (TypingEnv ext) (StateT (TypingCtx (SizeType ext)
 -- --------------------------------------------------------------------------------
 -- Primitives
 -- --------------------------------------------------------------------------------
-class (TypeCheckable sizeT, sizeT ~ SizeType ext) => TypeCheckablePrimitive ext sizeT | ext -> sizeT where
-  typeCheckPrimitive ::
+class (TypingReqs sizeT, sizeT ~ SizeType ext) => TypeInferrable ext sizeT | ext -> sizeT where
+  inferTypes ::
     forall ext' m.
     ( m ~ TypeChecker ext'
     , sizeT ~ SizeType ext'
     ) =>
     ext ->
     m [VarType sizeT]
-  default typeCheckPrimitive ::
+  default inferTypes ::
     forall ext' m.
     ( Generic ext
-    , GTypeCheckablePrimitive (Rep ext) sizeT
+    , GTypeInferrable (Rep ext) sizeT
     , m ~ TypeChecker ext'
     , sizeT ~ SizeType ext'
     ) =>
     ext ->
     m [VarType sizeT]
-  typeCheckPrimitive p = gtypeCheckPrimitive (from p)
+  inferTypes p = ginferTypes (from p)
 
-instance (TypeCheckable sizeT) => TypeCheckablePrimitive (Core sizeT precT) sizeT where
-  typeCheckPrimitive = \case {}
+instance (TypingReqs sizeT) => TypeInferrable (Core sizeT precT) sizeT where
+  inferTypes = \case {}
 
-class (TypeCheckable sizeT) => GTypeCheckablePrimitive f sizeT | f -> sizeT where
-  gtypeCheckPrimitive ::
+class (TypingReqs sizeT) => GTypeInferrable f sizeT | f -> sizeT where
+  ginferTypes ::
     forall ext' m ext.
     ( m ~ TypeChecker ext'
     , sizeT ~ SizeType ext'
@@ -244,15 +244,15 @@ class (TypeCheckable sizeT) => GTypeCheckablePrimitive f sizeT | f -> sizeT wher
     f ext ->
     m [VarType sizeT]
 
-instance (GTypeCheckablePrimitive p1 sizeT, GTypeCheckablePrimitive p2 sizeT) => GTypeCheckablePrimitive (p1 :+: p2) sizeT where
-  gtypeCheckPrimitive (L1 p) = gtypeCheckPrimitive p
-  gtypeCheckPrimitive (R1 p) = gtypeCheckPrimitive p
+instance (GTypeInferrable p1 sizeT, GTypeInferrable p2 sizeT) => GTypeInferrable (p1 :+: p2) sizeT where
+  ginferTypes (L1 p) = ginferTypes p
+  ginferTypes (R1 p) = ginferTypes p
 
-instance (GTypeCheckablePrimitive p sizeT) => GTypeCheckablePrimitive (M1 i c p) sizeT where
-  gtypeCheckPrimitive (M1 x) = gtypeCheckPrimitive x
+instance (GTypeInferrable p sizeT) => GTypeInferrable (M1 i c p) sizeT where
+  ginferTypes (M1 x) = ginferTypes x
 
-instance (TypeCheckablePrimitive p sizeT, sizeT ~ SizeType p) => GTypeCheckablePrimitive (K1 i p) sizeT where
-  gtypeCheckPrimitive (K1 x) = typeCheckPrimitive x
+instance (TypeInferrable p sizeT, sizeT ~ SizeType p) => GTypeInferrable (K1 i p) sizeT where
+  ginferTypes (K1 x) = inferTypes x
 
 -- --------------------------------------------------------------------------------
 -- Core Language
@@ -260,7 +260,7 @@ instance (TypeCheckablePrimitive p sizeT, sizeT ~ SizeType p) => GTypeCheckableP
 
 typeCheckDistrExpr ::
   forall primT sizeT.
-  (TypeCheckable sizeT) =>
+  (TypingReqs sizeT) =>
   DistrExpr sizeT ->
   TypeChecker primT [VarType sizeT]
 typeCheckDistrExpr UniformE{sample_ty} = pure [sample_ty]
@@ -269,7 +269,7 @@ typeCheckDistrExpr BernoulliE{} = pure [tbool]
 -- | Typecheck an expression and return the output types
 typeCheckExpr ::
   forall primT sizeT.
-  ( TypeCheckablePrimitive primT sizeT
+  ( TypeInferrable primT sizeT
   , sizeT ~ SizeType primT
   ) =>
   Expr primT ->
@@ -291,7 +291,7 @@ typeCheckExpr FunCallE{fname, args} = do
   return ret_types
 
 -- `primitive`
-typeCheckExpr PrimCallE{prim} = typeCheckPrimitive prim
+typeCheckExpr PrimCallE{prim} = inferTypes prim
 -- loop ...
 typeCheckExpr LoopE{initial_args, loop_body_fun} =
   do
@@ -314,7 +314,7 @@ typeCheckExpr LoopE{initial_args, loop_body_fun} =
 -}
 typeCheckStmt ::
   forall primT sizeT.
-  ( TypeCheckablePrimitive primT sizeT
+  ( TypeInferrable primT sizeT
   , sizeT ~ SizeType primT
   ) =>
   Stmt primT ->
@@ -344,7 +344,7 @@ typeCheckStmt IfThenElseS{cond, s_true, s_false} = do
 
 -- | Type check a single function.
 typeCheckFun ::
-  ( TypeCheckablePrimitive primT sizeT
+  ( TypeInferrable primT sizeT
   , sizeT ~ SizeType primT
   ) =>
   FunCtx primT ->
@@ -379,7 +379,7 @@ typeCheckFun _ FunDef{mbody = Nothing} = return ()
 
 -- | Type check a full program (i.e. list of functions).
 typeCheckProg ::
-  (TypeCheckablePrimitive primT sizeT) =>
+  (TypeInferrable primT sizeT) =>
   Program primT ->
   Either String ()
 typeCheckProg (Program fs) =

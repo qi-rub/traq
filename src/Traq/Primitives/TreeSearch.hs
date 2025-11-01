@@ -66,8 +66,8 @@ instance P.Parseable (TreeSearch sizeT precT) where
     return TreeSearch{getChildren, getChildrenArgs, checkNode, checkNodeArgs}
 
 -- Type check
-instance (P.TypeCheckable sizeT) => P.TypeCheckablePrimitive (TreeSearch sizeT precT) sizeT where
-  typeCheckPrimitive TreeSearch{getChildren, getChildrenArgs, checkNode, checkNodeArgs} = do
+instance (P.TypingReqs sizeT) => P.TypeInferrable (TreeSearch sizeT precT) sizeT where
+  inferTypes TreeSearch{getChildren, getChildrenArgs, checkNode, checkNodeArgs} = do
     P.FunDef{P.param_types = gc_param_tys, P.ret_types = gc_ret_tys} <-
       view (Ctx.at getChildren)
         >>= maybeWithError (printf "cannot find getChildren function `%s`" getChildren)

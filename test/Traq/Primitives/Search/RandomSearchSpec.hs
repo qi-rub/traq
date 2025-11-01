@@ -5,7 +5,7 @@ module Traq.Primitives.Search.RandomSearchSpec (spec) where
 import qualified Traq.Data.Context as Ctx
 import Traq.Data.Default
 
-import Traq.CostModel.QueryCost (SimpleQueryCost (..))
+import Traq.Analysis.CostModel.QueryCost (SimpleQueryCost (..))
 import Traq.Examples.MatrixSearch (matrixExample)
 import Traq.Prelude
 import Traq.Primitives.Search.RandomSearch

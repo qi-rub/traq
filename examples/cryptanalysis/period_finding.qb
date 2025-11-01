@@ -1,7 +1,6 @@
-// N = 2^n
-declare f(Fin<N>) -> Fin<N> end
+declare f(BitVec<n>) -> BitVec<n> end
 
-def main() -> Fin<N> do
-	s <- @findXorPeriod[f, 0.01]();
+def main() -> BitVec<n> do
+	s <- @findXorPeriod<n, 0.01>[f()];
 	return s
 end

@@ -2,7 +2,7 @@
 {-# LANGUAGE FunctionalDependencies #-}
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
 
-module Traq.ProtoLang.Error (
+module Traq.Analysis.Error (
   FailProb,
   failProb,
   getFailProb,

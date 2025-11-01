@@ -164,7 +164,7 @@ instance P.Parseable (QSearchCFNW sizeT precT) where
 
 -- Type check
 instance P.HasFreeVars (QSearchCFNW sizeT precT)
-instance (P.TypeCheckable sizeT) => P.TypeCheckablePrimitive (QSearchCFNW sizeT precT) sizeT
+instance (P.TypingReqs sizeT) => P.TypeInferrable (QSearchCFNW sizeT precT) sizeT
 
 {- | Evaluate an `any` call by evaluating the predicate on each element of the search space
  and or-ing the results.
@@ -180,11 +180,11 @@ instance
   ( Integral sizeT
   , Floating precT
   , Show precT
-  , P.TypeCheckable sizeT
+  , P.TypingReqs sizeT
   ) =>
-  P.UnitaryCostablePrimitive (QSearchCFNW sizeT precT) sizeT precT
+  P.UnitaryCost (QSearchCFNW sizeT precT) sizeT precT
   where
-  unitaryQueryCostPrimitive delta prim = do
+  unitaryCost delta prim = do
     let SearchLikePrim{predicate} = extract prim
 
     P.FunDef{P.param_types} <- view $ P._funCtx . Ctx.at predicate . singular _Just
@@ -211,11 +211,11 @@ instance
   ( Integral sizeT
   , Floating precT
   , Show precT
-  , P.TypeCheckable sizeT
+  , P.TypingReqs sizeT
   ) =>
-  P.QuantumMaxCostablePrimitive (QSearchCFNW sizeT precT) sizeT precT
+  P.QuantumHavocCost (QSearchCFNW sizeT precT) sizeT precT
   where
-  quantumMaxQueryCostPrimitive eps prim = do
+  quantumHavocCost eps prim = do
     let SearchLikePrim{predicate} = extract prim
 
     P.FunDef{P.param_types} <- view $ P._funCtx . Ctx.at predicate . singular _Just
@@ -247,9 +247,9 @@ instance
   , sizeT ~ SizeT
   , P.EvalReqs sizeT precT
   ) =>
-  P.QuantumCostablePrimitive (QSearchCFNW sizeT precT) sizeT precT
+  P.QuantumExpCost (QSearchCFNW sizeT precT) sizeT precT
   where
-  quantumQueryCostPrimitive eps prim sigma = do
+  quantumExpCost eps prim sigma = do
     let SearchLikePrim{predicate, pred_args} = extract prim
 
     pred_arg_vals <- runReaderT ?? sigma $
@@ -321,7 +321,7 @@ addGroverIteration ::
   forall ext sizeT precT.
   ( Integral sizeT
   , RealFloat precT
-  , P.TypeCheckable sizeT
+  , P.TypingReqs sizeT
   , sizeT ~ SizeType ext
   , precT ~ PrecType ext
   ) =>
@@ -342,7 +342,7 @@ algoQSearchZalkaRandomIterStep ::
   forall ext sizeT precT.
   ( Integral sizeT
   , RealFloat precT
-  , P.TypeCheckable sizeT
+  , P.TypingReqs sizeT
   , sizeT ~ SizeType ext
   , precT ~ PrecType ext
   ) =>
@@ -390,7 +390,7 @@ algoQSearchZalka ::
   forall ext sizeT precT.
   ( Integral sizeT
   , RealFloat precT
-  , P.TypeCheckable sizeT
+  , P.TypingReqs sizeT
   , sizeT ~ SizeType ext
   , precT ~ PrecType ext
   ) =>
@@ -434,7 +434,7 @@ instance
   , RealFloat precT
   , Show sizeT
   , Show precT
-  , P.TypeCheckable sizeT
+  , P.TypingReqs sizeT
   ) =>
   CompileU.Lowerable (QSearchCFNW sizeT precT) sizeT precT
   where
@@ -647,7 +647,7 @@ algoQSearch ::
   , CompileQ.Lowerable ext sizeT precT
   , Show sizeT
   , Show precT
-  , P.TypeCheckable sizeT
+  , P.TypingReqs sizeT
   ) =>
   -- | search elem type
   P.VarType sizeT ->
@@ -754,7 +754,7 @@ instance
   , sizeT ~ SizeT
   , Show sizeT
   , Show precT
-  , P.TypeCheckable sizeT
+  , P.TypingReqs sizeT
   ) =>
   CompileQ.Lowerable (QSearchCFNW sizeT precT) sizeT precT
   where

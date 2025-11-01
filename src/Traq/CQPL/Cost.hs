@@ -24,8 +24,8 @@ import qualified Numeric.Algebra as Alg
 import Traq.Control.Monad
 import qualified Traq.Data.Context as Ctx
 
+import qualified Traq.Analysis.CostModel.Class as C
 import Traq.CQPL.Syntax
-import qualified Traq.CostModel.Class as C
 import Traq.Prelude
 import qualified Traq.ProtoLang as P
 

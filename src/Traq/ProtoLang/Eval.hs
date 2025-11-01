@@ -25,6 +25,7 @@ module Traq.ProtoLang.Eval (
   fromValue,
   valueToBool,
   domainSize,
+  bitsize,
   domain,
 
   -- * Types and Monad
@@ -72,6 +73,7 @@ import Traq.ProtoLang.Syntax
 -- | default value of a given type
 defaultV :: forall sizeT. (sizeT ~ SizeT) => VarType sizeT -> Value sizeT
 defaultV (Fin _) = FinV 0
+defaultV (Bitvec _) = FinV 0
 defaultV (Arr n t) = ArrV $ replicate n (defaultV t)
 defaultV (Tup ts) = TupV $ map defaultV ts
 
@@ -116,16 +118,25 @@ valueToBool :: Value SizeT -> Bool
 valueToBool = fromValue
 
 -- | Size of the value set of a given type.
-domainSize :: (Num sizeT) => VarType sizeT -> sizeT
-domainSize (Fin n) = n
+domainSize :: (Integral sizeT) => VarType sizeT -> sizeT
+domainSize (Fin _N) = _N
+domainSize (Bitvec n) = 2 ^ n
 domainSize (Arr n t) = n * domainSize t
 domainSize (Tup ts) = product $ map domainSize ts
 
 -- | Set of all values of a given type
 domain :: (Integral sizeT) => VarType sizeT -> [Value sizeT]
-domain (Fin n) = FinV <$> [0 .. n - 1]
+domain (Fin _N) = FinV <$> [0 .. _N - 1]
+domain (Bitvec n) = FinV <$> [0 .. 2 ^ n - 1]
 domain (Arr n t) = ArrV <$> replicateM (fromIntegral n) (domain t)
 domain (Tup ts) = TupV <$> traverse domain ts
+
+-- | Bitsize
+bitsize :: (Num size) => VarType size -> Maybe size
+bitsize (Fin _) = Nothing
+bitsize (Bitvec n) = Just n
+bitsize (Arr n t) = (n *) <$> bitsize t
+bitsize (Tup ts) = sum <$> mapM bitsize ts
 
 -- ================================================================================
 -- Evaluating Basic Expressions
@@ -344,7 +355,7 @@ evalRandomSampleExpr ::
 evalRandomSampleExpr UniformE{sample_ty} = Prob.uniform (domain sample_ty)
 evalRandomSampleExpr BernoulliE{prob_one} = toValue <$> Prob.bernoulli (realToFrac prob_one)
 
-instance (sizeT ~ SizeType ext, Evaluatable ext sizeT precT) => Evaluatable (Expr ext) sizeT precT where
+instance (Evaluatable ext sizeT precT) => Evaluatable (Expr ext) sizeT precT where
   -- deterministic expressions
   eval BasicExprE{basic_expr} sigma = do
     val <- runReaderT ?? sigma $ evalBasicExpr basic_expr
@@ -371,10 +382,12 @@ instance (sizeT ~ SizeType ext, Evaluatable ext sizeT precT) => Evaluatable (Exp
     foldM (\args i -> evalFun (args ++ [i]) (NamedFunDef loop_body_fun fun_def)) init_vals (domain (last (param_types fun_def)))
 
 evalFun ::
-  forall ext precT m.
-  ( Evaluatable ext SizeT precT
+  forall ext sizeT precT m.
+  ( Evaluatable ext sizeT precT
   , m ~ Evaluator ext
-  , EvalReqs SizeT precT
+  , SizeType ext ~ sizeT
+  , PrecType ext ~ precT
+  , EvalReqs sizeT precT
   ) =>
   -- | arguments
   [Value SizeT] ->

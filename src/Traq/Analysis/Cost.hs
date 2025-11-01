@@ -5,11 +5,12 @@
 {-# LANGUAGE FunctionalDependencies #-}
 {-# LANGUAGE TypeApplications #-}
 
-module Traq.ProtoLang.Cost (
+module Traq.Analysis.Cost (
   -- * Unitary Cost
   unitaryQueryCost,
   unitaryQueryCostE,
   unitaryQueryCostS,
+  unitaryQueryCostF,
 
   -- * Quantum Cost
 
@@ -17,29 +18,29 @@ module Traq.ProtoLang.Cost (
   quantumQueryCost,
   quantumQueryCostE,
   quantumQueryCostS,
+  quantumQueryCostF,
 
   -- ** Quantum Worst case Cost
   quantumMaxQueryCost,
   quantumMaxQueryCostE,
   quantumMaxQueryCostS,
+  quantumMaxQueryCostF,
 
   -- * Types and Monad
   UnitaryCostEnv,
-  QuantumMaxCostEnv,
   QuantumCostEnv,
 
   -- ** Lenses
   _funInterpCtx,
   _unitaryCostEnv,
-  _quantumMaxCostEnv,
 
   -- ** Cost Monads
   UnitaryCostCalculator,
-  UnitaryCostablePrimitive (..),
+  UnitaryCost (..),
   QuantumMaxCostCalculator,
-  QuantumMaxCostablePrimitive (..),
+  QuantumHavocCost (..),
   QuantumCostCalculator,
-  QuantumCostablePrimitive (..),
+  QuantumExpCost (..),
 
   -- * Precision Splitting Strategies
   PrecisionSplittingStrategy (..),
@@ -66,9 +67,9 @@ import Traq.Data.Default
 import qualified Traq.Data.Probability as Prob
 import qualified Traq.Data.Symbolic as Sym
 
-import qualified Traq.CostModel.Class as C
+import qualified Traq.Analysis.CostModel.Class as C
+import Traq.Analysis.Error
 import Traq.Prelude
-import Traq.ProtoLang.Error
 import Traq.ProtoLang.Eval
 import Traq.ProtoLang.Syntax
 import Traq.ProtoLang.TypeCheck
@@ -186,14 +187,14 @@ type UnitaryCostCalculator ext = ReaderT (UnitaryCostEnv ext) Maybe
 
 -- | Primitives that have a unitary cost
 class
-  (TypeCheckablePrimitive primT sizeT) =>
-  UnitaryCostablePrimitive primT sizeT precT
+  (TypeInferrable primT sizeT, sizeT ~ SizeType primT, precT ~ PrecType primT) =>
+  UnitaryCost primT sizeT precT
     | primT -> sizeT precT
   where
-  unitaryQueryCostPrimitive ::
+  unitaryCost ::
     forall primsT costT m.
     ( m ~ UnitaryCostCalculator primsT
-    , UnitaryCostablePrimitive primsT sizeT precT
+    , UnitaryCost primsT sizeT precT
     , C.CostModel costT
     , precT ~ PrecType costT
     , SizeToPrec sizeT precT
@@ -201,29 +202,29 @@ class
     L2NormError precT ->
     primT ->
     m costT
-  default unitaryQueryCostPrimitive ::
+  default unitaryCost ::
     forall primsT costT m.
     ( m ~ UnitaryCostCalculator primsT
-    , UnitaryCostablePrimitive primsT sizeT precT
+    , UnitaryCost primsT sizeT precT
     , C.CostModel costT
     , precT ~ PrecType costT
     , SizeToPrec sizeT precT
     , Generic primT
-    , GUnitaryCostablePrimitive (Rep primT) sizeT precT
+    , GUnitaryCost (Rep primT) sizeT precT
     ) =>
     L2NormError precT ->
     primT ->
     m costT
-  unitaryQueryCostPrimitive delta p = gunitaryQueryCostPrimitive delta (from p)
+  unitaryCost delta p = gunitaryCost delta (from p)
 
-instance (TypeCheckable sizeT) => UnitaryCostablePrimitive (Core sizeT precT) sizeT precT where
-  unitaryQueryCostPrimitive _ = \case {}
+instance (TypingReqs sizeT) => UnitaryCost (Core sizeT precT) sizeT precT where
+  unitaryCost _ = \case {}
 
-class GUnitaryCostablePrimitive f sizeT precT where
-  gunitaryQueryCostPrimitive ::
+class GUnitaryCost f sizeT precT where
+  gunitaryCost ::
     forall primsT primT costT m.
     ( m ~ UnitaryCostCalculator primsT
-    , UnitaryCostablePrimitive primsT sizeT precT
+    , UnitaryCost primsT sizeT precT
     , C.CostModel costT
     , precT ~ PrecType costT
     , SizeToPrec sizeT precT
@@ -233,20 +234,20 @@ class GUnitaryCostablePrimitive f sizeT precT where
     m costT
 
 instance
-  (GUnitaryCostablePrimitive f1 sizeT precT, GUnitaryCostablePrimitive f2 sizeT precT) =>
-  GUnitaryCostablePrimitive (f1 :+: f2) sizeT precT
+  (GUnitaryCost f1 sizeT precT, GUnitaryCost f2 sizeT precT) =>
+  GUnitaryCost (f1 :+: f2) sizeT precT
   where
-  gunitaryQueryCostPrimitive delta (L1 p) = gunitaryQueryCostPrimitive delta p
-  gunitaryQueryCostPrimitive delta (R1 p) = gunitaryQueryCostPrimitive delta p
+  gunitaryCost delta (L1 p) = gunitaryCost delta p
+  gunitaryCost delta (R1 p) = gunitaryCost delta p
 
-instance (GUnitaryCostablePrimitive f sizeT precT) => GUnitaryCostablePrimitive (M1 i c f) sizeT precT where
-  gunitaryQueryCostPrimitive delta (M1 x) = gunitaryQueryCostPrimitive delta x
+instance (GUnitaryCost f sizeT precT) => GUnitaryCost (M1 i c f) sizeT precT where
+  gunitaryCost delta (M1 x) = gunitaryCost delta x
 
 instance
-  (UnitaryCostablePrimitive f sizeT precT) =>
-  GUnitaryCostablePrimitive (K1 i f) sizeT precT
+  (UnitaryCost f sizeT precT) =>
+  GUnitaryCost (K1 i f) sizeT precT
   where
-  gunitaryQueryCostPrimitive delta (K1 x) = unitaryQueryCostPrimitive delta x
+  gunitaryCost delta (K1 x) = unitaryCost delta x
 
 -- --------------------------------------------------------------------------------
 -- Unitary Cost: Core Language
@@ -257,7 +258,7 @@ unitaryQueryCostE ::
   forall primsT sizeT precT costT m.
   ( Num sizeT
   , Floating precT
-  , UnitaryCostablePrimitive primsT sizeT precT
+  , UnitaryCost primsT sizeT precT
   , m ~ UnitaryCostCalculator primsT
   , C.CostModel costT
   , precT ~ PrecType costT
@@ -269,7 +270,7 @@ unitaryQueryCostE ::
   Expr primsT ->
   m costT
 unitaryQueryCostE delta FunCallE{fname} = ((2.0 :: precT) Alg..*) <$> unitaryQueryCostF (delta `divideError` 2) fname
-unitaryQueryCostE delta PrimCallE{prim} = unitaryQueryCostPrimitive delta prim
+unitaryQueryCostE delta PrimCallE{prim} = unitaryCost delta prim
 -- basic expressions
 unitaryQueryCostE _ BasicExprE{basic_expr} = return $ C.callExpr C.Unitary basic_expr
 unitaryQueryCostE _ RandomSampleE{distr_expr} = return $ C.callDistrExpr C.Unitary distr_expr
@@ -280,7 +281,7 @@ unitaryQueryCostS ::
   forall primsT sizeT precT costT m.
   ( Num sizeT
   , Floating precT
-  , UnitaryCostablePrimitive primsT sizeT precT
+  , UnitaryCost primsT sizeT precT
   , m ~ UnitaryCostCalculator primsT
   , C.CostModel costT
   , precT ~ PrecType costT
@@ -306,7 +307,7 @@ unitaryQueryCostF ::
   forall primsT sizeT precT costT m.
   ( Num sizeT
   , Floating precT
-  , UnitaryCostablePrimitive primsT sizeT precT
+  , UnitaryCost primsT sizeT precT
   , m ~ UnitaryCostCalculator primsT
   , C.CostModel costT
   , precT ~ PrecType costT
@@ -328,7 +329,7 @@ unitaryQueryCost ::
   forall primsT sizeT precT costT.
   ( Num sizeT
   , Floating precT
-  , UnitaryCostablePrimitive primsT sizeT precT
+  , UnitaryCost primsT sizeT precT
   , C.CostModel costT
   , precT ~ PrecType costT
   , SizeToPrec sizeT precT
@@ -352,30 +353,8 @@ unitaryQueryCost strat delta (Program fs) =
 -- Quantum Max Cost
 -- ================================================================================
 
--- | Environment to compute the worst case quantum cost
-newtype QuantumMaxCostEnv primT = QuantumMaxCostEnv (UnitaryCostEnv primT) -- unitary enviroment
-  deriving (Generic, HasDefault)
-{-# DEPRECATED QuantumMaxCostEnv "directly use UnitaryCostEnv (or rename to sth. like WorstCaseCostEnv" #-}
-
--- instances
-type instance SizeType (QuantumMaxCostEnv ext) = SizeType ext
-type instance PrecType (QuantumMaxCostEnv ext) = PrecType ext
-
-instance HasUnitaryCostEnv (QuantumMaxCostEnv ext) ext where
-  _unitaryCostEnv focus (QuantumMaxCostEnv u) = focus u <&> \u' -> QuantumMaxCostEnv u'
-
-instance HasFunCtx (QuantumMaxCostEnv ext) ext where _funCtx = _unitaryCostEnv . _funCtx
-
-instance HasPrecisionSplittingStrategy (QuantumMaxCostEnv ext) where _precSplitStrat = _unitaryCostEnv . _precSplitStrat
-
--- lens
-class HasQuantumMaxCostEnv p ext | p -> ext where
-  _quantumMaxCostEnv :: Lens' p (QuantumMaxCostEnv ext)
-
-instance HasQuantumMaxCostEnv (QuantumMaxCostEnv ext) ext where _quantumMaxCostEnv = id
-
 -- Environment to compute the max quantum cost (input independent)
-type QuantumMaxCostCalculator ext = ReaderT (QuantumMaxCostEnv ext) Maybe
+type QuantumMaxCostCalculator ext = ReaderT (UnitaryCostEnv ext) Maybe
 
 -- --------------------------------------------------------------------------------
 -- Quantum Max Cost: Primitives (with generics)
@@ -383,13 +362,13 @@ type QuantumMaxCostCalculator ext = ReaderT (QuantumMaxCostEnv ext) Maybe
 
 -- | Primitives that have a quantum max cost
 class
-  (UnitaryCostablePrimitive primT sizeT precT) =>
-  QuantumMaxCostablePrimitive primT sizeT precT
+  (UnitaryCost primT sizeT precT) =>
+  QuantumHavocCost primT sizeT precT
   where
-  quantumMaxQueryCostPrimitive ::
+  quantumHavocCost ::
     forall primsT costT m.
     ( m ~ QuantumMaxCostCalculator primsT
-    , QuantumMaxCostablePrimitive primsT sizeT precT
+    , QuantumHavocCost primsT sizeT precT
     , C.CostModel costT
     , precT ~ PrecType costT
     , SizeToPrec sizeT precT
@@ -398,30 +377,30 @@ class
     FailProb precT ->
     primT ->
     m costT
-  default quantumMaxQueryCostPrimitive ::
+  default quantumHavocCost ::
     forall primsT costT m.
     ( m ~ QuantumMaxCostCalculator primsT
-    , QuantumMaxCostablePrimitive primsT sizeT precT
+    , QuantumHavocCost primsT sizeT precT
     , C.CostModel costT
     , precT ~ PrecType costT
     , SizeToPrec sizeT precT
     , Ord costT
     , Generic primT
-    , GQuantumMaxCostablePrimitive (Rep primT) sizeT precT
+    , GQuantumHavocCost (Rep primT) sizeT precT
     ) =>
     FailProb precT ->
     primT ->
     m costT
-  quantumMaxQueryCostPrimitive eps p = gquantumMaxQueryCostPrimitive eps (from p)
+  quantumHavocCost eps p = gquantumHavocCost eps (from p)
 
-instance (TypeCheckable sizeT) => QuantumMaxCostablePrimitive (Core sizeT precT) sizeT precT where
-  quantumMaxQueryCostPrimitive _ = \case {}
+instance (TypingReqs sizeT) => QuantumHavocCost (Core sizeT precT) sizeT precT where
+  quantumHavocCost _ = \case {}
 
-class GQuantumMaxCostablePrimitive f sizeT precT where
-  gquantumMaxQueryCostPrimitive ::
+class GQuantumHavocCost f sizeT precT where
+  gquantumHavocCost ::
     forall primT primsT costT m.
     ( m ~ QuantumMaxCostCalculator primsT
-    , QuantumMaxCostablePrimitive primsT sizeT precT
+    , QuantumHavocCost primsT sizeT precT
     , C.CostModel costT
     , precT ~ PrecType costT
     , SizeToPrec sizeT precT
@@ -432,20 +411,20 @@ class GQuantumMaxCostablePrimitive f sizeT precT where
     m costT
 
 instance
-  (GQuantumMaxCostablePrimitive f1 sizeT precT, GQuantumMaxCostablePrimitive f2 sizeT precT) =>
-  GQuantumMaxCostablePrimitive (f1 :+: f2) sizeT precT
+  (GQuantumHavocCost f1 sizeT precT, GQuantumHavocCost f2 sizeT precT) =>
+  GQuantumHavocCost (f1 :+: f2) sizeT precT
   where
-  gquantumMaxQueryCostPrimitive eps (L1 p) = gquantumMaxQueryCostPrimitive eps p
-  gquantumMaxQueryCostPrimitive eps (R1 p) = gquantumMaxQueryCostPrimitive eps p
+  gquantumHavocCost eps (L1 p) = gquantumHavocCost eps p
+  gquantumHavocCost eps (R1 p) = gquantumHavocCost eps p
 
-instance (GQuantumMaxCostablePrimitive f sizeT precT) => GQuantumMaxCostablePrimitive (M1 i c f) sizeT precT where
-  gquantumMaxQueryCostPrimitive eps (M1 x) = gquantumMaxQueryCostPrimitive eps x
+instance (GQuantumHavocCost f sizeT precT) => GQuantumHavocCost (M1 i c f) sizeT precT where
+  gquantumHavocCost eps (M1 x) = gquantumHavocCost eps x
 
 instance
-  (QuantumMaxCostablePrimitive f sizeT precT) =>
-  GQuantumMaxCostablePrimitive (K1 i f) sizeT precT
+  (QuantumHavocCost f sizeT precT) =>
+  GQuantumHavocCost (K1 i f) sizeT precT
   where
-  gquantumMaxQueryCostPrimitive eps (K1 x) = quantumMaxQueryCostPrimitive eps x
+  gquantumHavocCost eps (K1 x) = quantumHavocCost eps x
 
 -- --------------------------------------------------------------------------------
 -- Quantum Max Cost: Core Language
@@ -456,7 +435,7 @@ quantumMaxQueryCostE ::
   ( Num sizeT
   , Ord precT
   , Floating precT
-  , QuantumMaxCostablePrimitive primsT sizeT precT
+  , QuantumHavocCost primsT sizeT precT
   , m ~ QuantumMaxCostCalculator primsT
   , C.CostModel costT
   , precT ~ PrecType costT
@@ -471,7 +450,7 @@ quantumMaxQueryCostE ::
 quantumMaxQueryCostE eps FunCallE{fname} = quantumMaxQueryCostF eps fname
 -- known cost formulas
 quantumMaxQueryCostE eps PrimCallE{prim} =
-  quantumMaxQueryCostPrimitive eps prim
+  quantumHavocCost eps prim
 -- basic expressions
 quantumMaxQueryCostE _ BasicExprE{basic_expr} = return $ C.callExpr C.Classical basic_expr
 quantumMaxQueryCostE _ RandomSampleE{distr_expr} = return $ C.callDistrExpr C.Classical distr_expr
@@ -482,7 +461,7 @@ quantumMaxQueryCostS ::
   ( Num sizeT
   , Ord precT
   , Floating precT
-  , QuantumMaxCostablePrimitive primsT sizeT precT
+  , QuantumHavocCost primsT sizeT precT
   , m ~ QuantumMaxCostCalculator primsT
   , C.CostModel costT
   , precT ~ PrecType costT
@@ -507,7 +486,7 @@ quantumMaxQueryCostF ::
   ( Num sizeT
   , Ord precT
   , Floating precT
-  , QuantumMaxCostablePrimitive primsT sizeT precT
+  , QuantumHavocCost primsT sizeT precT
   , m ~ QuantumMaxCostCalculator primsT
   , C.CostModel costT
   , precT ~ PrecType costT
@@ -530,7 +509,7 @@ quantumMaxQueryCost ::
   ( Num sizeT
   , Ord precT
   , Floating precT
-  , QuantumMaxCostablePrimitive primsT sizeT precT
+  , QuantumHavocCost primsT sizeT precT
   , C.CostModel costT
   , precT ~ PrecType costT
   , SizeToPrec sizeT precT
@@ -560,24 +539,22 @@ TODO: rename to something like QuantumExpCostEnv
 -}
 data QuantumCostEnv ext
   = QuantumCostEnv
-      (QuantumMaxCostEnv ext)
+      (UnitaryCostEnv ext)
       (FunInterpCtx (SizeType ext))
   deriving (Generic, HasDefault)
 
 type instance SizeType (QuantumCostEnv ext) = SizeType ext
 type instance PrecType (QuantumCostEnv ext) = PrecType ext
 
-instance HasQuantumMaxCostEnv (QuantumCostEnv ext) ext where
-  _quantumMaxCostEnv focus (QuantumCostEnv e f) = focus e <&> \e' -> QuantumCostEnv e' f
-
 instance HasFunInterpCtx (QuantumCostEnv ext) where
   _funInterpCtx focus (QuantumCostEnv e f) = focus f <&> QuantumCostEnv e
 
-instance HasUnitaryCostEnv (QuantumCostEnv ext) ext where _unitaryCostEnv = _quantumMaxCostEnv . _unitaryCostEnv
+instance HasUnitaryCostEnv (QuantumCostEnv ext) ext where
+  _unitaryCostEnv focus (QuantumCostEnv uenv fenv) = focus uenv <&> \uenv' -> QuantumCostEnv uenv' fenv
 
-instance HasFunCtx (QuantumCostEnv ext) ext where _funCtx = _quantumMaxCostEnv . _funCtx
+instance HasFunCtx (QuantumCostEnv ext) ext where _funCtx = _unitaryCostEnv . _funCtx
 
-instance HasPrecisionSplittingStrategy (QuantumCostEnv ext) where _precSplitStrat = _quantumMaxCostEnv . _precSplitStrat
+instance HasPrecisionSplittingStrategy (QuantumCostEnv ext) where _precSplitStrat = _unitaryCostEnv . _precSplitStrat
 
 instance HasEvaluationEnv (QuantumCostEnv ext) ext where
   _evaluationEnv = lens _get _set
@@ -599,30 +576,32 @@ type QuantumCostCalculator ext = ReaderT (QuantumCostEnv ext) Maybe
 
 -- | Primitives that have a input dependent expected quantum cost
 class
-  ( QuantumMaxCostablePrimitive primT sizeT precT
+  ( QuantumHavocCost primT sizeT precT
   , Evaluatable primT sizeT precT
   ) =>
-  QuantumCostablePrimitive primT sizeT precT
+  QuantumExpCost primT sizeT precT
   where
-  quantumQueryCostPrimitive ::
+  quantumExpCost ::
     forall primsT costT m.
     ( m ~ QuantumCostCalculator primsT
-    , QuantumCostablePrimitive primsT sizeT precT
+    , QuantumExpCost primsT sizeT precT
     , C.CostModel costT
     , precT ~ PrecType costT
     , Prob.RVType precT costT
     , Prob.RVType precT precT
     , SizeToPrec SizeT precT
     , Ord costT
+    , SizeType primsT ~ sizeT
+    , PrecType primsT ~ precT
     ) =>
     FailProb precT ->
     primT ->
     ProgramState sizeT ->
     m costT
-  default quantumQueryCostPrimitive ::
+  default quantumExpCost ::
     forall primsT costT m.
     ( m ~ QuantumCostCalculator primsT
-    , QuantumCostablePrimitive primsT sizeT precT
+    , QuantumExpCost primsT sizeT precT
     , C.CostModel costT
     , precT ~ PrecType costT
     , Prob.RVType precT costT
@@ -630,22 +609,23 @@ class
     , SizeToPrec SizeT precT
     , Ord costT
     , Generic primT
-    , GQuantumCostablePrimitive (Rep primT) sizeT precT
+    , GQuantumExpCost (Rep primT) sizeT precT
+    , PrecType primsT ~ precT
     ) =>
     FailProb precT ->
     primT ->
     ProgramState sizeT ->
     m costT
-  quantumQueryCostPrimitive eps p = gquantumQueryCostPrimitive eps (from p)
+  quantumExpCost eps p = gquantumExpCost eps (from p)
 
-instance (Show precT, EvalReqs sizeT precT) => QuantumCostablePrimitive (Core sizeT precT) sizeT precT where
-  quantumQueryCostPrimitive _ = \case {}
+instance (Show precT, EvalReqs sizeT precT) => QuantumExpCost (Core sizeT precT) sizeT precT where
+  quantumExpCost _ = \case {}
 
-class GQuantumCostablePrimitive f sizeT precT where
-  gquantumQueryCostPrimitive ::
+class GQuantumExpCost f sizeT precT where
+  gquantumExpCost ::
     forall primsT costT m primT.
     ( m ~ QuantumCostCalculator primsT
-    , QuantumCostablePrimitive primsT sizeT precT
+    , QuantumExpCost primsT sizeT precT
     , C.CostModel costT
     , precT ~ PrecType costT
     , Prob.RVType precT costT
@@ -659,20 +639,20 @@ class GQuantumCostablePrimitive f sizeT precT where
     m costT
 
 instance
-  (GQuantumCostablePrimitive f1 sizeT precT, GQuantumCostablePrimitive f2 sizeT precT) =>
-  GQuantumCostablePrimitive (f1 :+: f2) sizeT precT
+  (GQuantumExpCost f1 sizeT precT, GQuantumExpCost f2 sizeT precT) =>
+  GQuantumExpCost (f1 :+: f2) sizeT precT
   where
-  gquantumQueryCostPrimitive eps (L1 p) = gquantumQueryCostPrimitive eps p
-  gquantumQueryCostPrimitive eps (R1 p) = gquantumQueryCostPrimitive eps p
+  gquantumExpCost eps (L1 p) = gquantumExpCost eps p
+  gquantumExpCost eps (R1 p) = gquantumExpCost eps p
 
-instance (GQuantumCostablePrimitive f sizeT precT) => GQuantumCostablePrimitive (M1 i c f) sizeT precT where
-  gquantumQueryCostPrimitive eps (M1 x) = gquantumQueryCostPrimitive eps x
+instance (GQuantumExpCost f sizeT precT) => GQuantumExpCost (M1 i c f) sizeT precT where
+  gquantumExpCost eps (M1 x) = gquantumExpCost eps x
 
 instance
-  (QuantumCostablePrimitive f sizeT precT) =>
-  GQuantumCostablePrimitive (K1 i f) sizeT precT
+  (QuantumExpCost f sizeT precT) =>
+  GQuantumExpCost (K1 i f) sizeT precT
   where
-  gquantumQueryCostPrimitive eps (K1 x) = quantumQueryCostPrimitive eps x
+  gquantumExpCost eps (K1 x) = quantumExpCost eps x
 
 -- --------------------------------------------------------------------------------
 -- Quantum Expected Cost: Core Language
@@ -680,7 +660,7 @@ instance
 quantumQueryCostE ::
   forall primsT precT costT m.
   ( Floating precT
-  , QuantumCostablePrimitive primsT SizeT precT
+  , QuantumExpCost primsT SizeT precT
   , m ~ QuantumCostCalculator primsT
   , C.CostModel costT
   , precT ~ PrecType costT
@@ -701,7 +681,7 @@ quantumQueryCostE eps sigma FunCallE{fname, args} =
    in quantumQueryCostF eps vs fname
 -- known cost formulas
 quantumQueryCostE eps sigma PrimCallE{prim} = do
-  quantumQueryCostPrimitive eps prim sigma
+  quantumExpCost eps prim sigma
 -- basic expressions
 quantumQueryCostE _ _ BasicExprE{basic_expr} = return $ C.callExpr C.Classical basic_expr
 quantumQueryCostE _ _ RandomSampleE{distr_expr} = return $ C.callDistrExpr C.Classical distr_expr
@@ -710,7 +690,7 @@ quantumQueryCostE _ _ _ = error "TODO"
 quantumQueryCostS ::
   forall primsT precT costT m.
   ( Floating precT
-  , QuantumCostablePrimitive primsT SizeT precT
+  , QuantumExpCost primsT SizeT precT
   , m ~ QuantumCostCalculator primsT
   , C.CostModel costT
   , precT ~ PrecType costT
@@ -754,7 +734,7 @@ quantumQueryCostS eps sigma (SeqS ss) = do
 quantumQueryCostF ::
   forall primsT precT costT m.
   ( Floating precT
-  , QuantumCostablePrimitive primsT SizeT precT
+  , QuantumExpCost primsT SizeT precT
   , m ~ QuantumCostCalculator primsT
   , C.CostModel costT
   , precT ~ PrecType costT
@@ -762,6 +742,8 @@ quantumQueryCostF ::
   , Prob.RVType precT precT
   , SizeToPrec SizeT precT
   , Ord costT
+  , SizeType primsT ~ SizeT
+  , PrecType primsT ~ precT
   ) =>
   -- | failure probability \( \varepsilon \)
   FailProb precT ->
@@ -780,7 +762,7 @@ quantumQueryCostF eps arg_vals fname = do
 quantumQueryCost ::
   forall primsT precT costT.
   ( Floating precT
-  , QuantumCostablePrimitive primsT SizeT precT
+  , QuantumExpCost primsT SizeT precT
   , C.CostModel costT
   , precT ~ PrecType costT
   , Prob.RVType precT costT

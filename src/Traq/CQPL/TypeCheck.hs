@@ -56,7 +56,7 @@ ensureEqual expected actual err = do
 -- | Verify that the argument types match the deduced types
 verifyArgTys ::
   forall sizeT m.
-  (P.TypeCheckable sizeT, MonadError Err.MyError m) =>
+  (P.TypingReqs sizeT, MonadError Err.MyError m) =>
   [P.VarType sizeT] ->
   [P.VarType sizeT] ->
   m ()
@@ -72,7 +72,7 @@ verifyArgTys arg_tys tys = do
 -- | Verify that the arguments match the deduced types
 verifyArgs ::
   forall sizeT env m.
-  ( P.TypeCheckable sizeT
+  ( P.TypingReqs sizeT
   , MonadError Err.MyError m
   , MonadReader env m
   , P.HasTypingCtx env
@@ -110,7 +110,7 @@ type TypeChecker sizeT = ReaderT (CheckingCtx sizeT) (Either Err.MyError)
 -- Type Checking
 -- ================================================================================
 
-typeCheckUnitary :: forall sizeT. (P.TypeCheckable sizeT) => Unitary sizeT -> [P.VarType sizeT] -> TypeChecker sizeT ()
+typeCheckUnitary :: forall sizeT. (P.TypingReqs sizeT) => Unitary sizeT -> [P.VarType sizeT] -> TypeChecker sizeT ()
 typeCheckUnitary Toffoli tys = verifyArgTys tys [P.tbool, P.tbool, P.tbool]
 typeCheckUnitary CNOT tys = verifyArgTys tys [P.tbool, P.tbool]
 typeCheckUnitary XGate tys = verifyArgTys tys [P.tbool]
@@ -142,7 +142,7 @@ typeCheckUnitary (LoadData f) tys = do
 
   verifyArgTys tys proc_param_types
 
-typeCheckUStmt :: forall sizeT. (P.TypeCheckable sizeT) => UStmt sizeT -> TypeChecker sizeT ()
+typeCheckUStmt :: forall sizeT. (P.TypingReqs sizeT) => UStmt sizeT -> TypeChecker sizeT ()
 -- single statements
 typeCheckUStmt USkipS = return ()
 typeCheckUStmt (UCommentS _) = return ()
@@ -169,7 +169,7 @@ typeCheckUStmt UForInRangeS{iter_meta_var, iter_lim, uloop_body} = do
     typeCheckUStmt' uloop_body
 typeCheckUStmt UWithComputedS{with_ustmt, body_ustmt} = mapM_ typeCheckUStmt' [with_ustmt, body_ustmt]
 
-typeCheckUStmt' :: (P.TypeCheckable sizeT) => UStmt sizeT -> TypeChecker sizeT ()
+typeCheckUStmt' :: (P.TypingReqs sizeT) => UStmt sizeT -> TypeChecker sizeT ()
 typeCheckUStmt' s = do
   gamma <- view P._typingCtx
   typeCheckUStmt s
@@ -179,7 +179,7 @@ typeCheckUStmt' s = do
 -- | Check a statement
 typeCheckStmt ::
   forall sizeT.
-  (P.TypeCheckable sizeT) =>
+  (P.TypingReqs sizeT) =>
   Stmt sizeT ->
   TypeChecker sizeT ()
 typeCheckStmt SkipS = return ()
@@ -251,7 +251,7 @@ typeCheckStmt s = case desugarS s of
 
 typeCheckUProcBody ::
   forall sizeT.
-  (P.TypeCheckable sizeT) =>
+  (P.TypingReqs sizeT) =>
   UProcBody sizeT ->
   -- | parameter types
   [P.VarType sizeT] ->
@@ -270,7 +270,7 @@ typeCheckUProcBody procdef@UProcBody{uproc_param_names, uproc_body_stmt} tys = d
 -- | Check a procedure def
 typeCheckCProcBody ::
   forall sizeT.
-  (P.TypeCheckable sizeT) =>
+  (P.TypingReqs sizeT) =>
   CProcBody sizeT ->
   -- | parameter types
   [P.VarType sizeT] ->
@@ -292,7 +292,7 @@ typeCheckCProcBody CProcBody{cproc_param_names, cproc_local_vars, cproc_body_stm
 
 typeCheckProc ::
   forall sizeT.
-  (P.TypeCheckable sizeT) =>
+  (P.TypingReqs sizeT) =>
   ProcDef sizeT ->
   TypeChecker sizeT ()
 typeCheckProc ProcDef{proc_param_types, proc_body} =
@@ -303,7 +303,7 @@ typeCheckProc ProcDef{proc_param_types, proc_body} =
 -- | Check an entire program given the input bindings.
 typeCheckProgram ::
   forall sizeT.
-  (P.TypeCheckable sizeT) =>
+  (P.TypingReqs sizeT) =>
   Program sizeT ->
   Either Err.MyError ()
 typeCheckProgram Program{proc_defs} = do

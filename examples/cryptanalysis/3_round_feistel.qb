@@ -1,12 +1,12 @@
 // Taken from paper: Breaking Symmetric Cryptosystems Using Quantum Period Finding
 // https://link.springer.com/chapter/10.1007/978-3-662-53008-5_8
 
-declare R1(Fin<N>) -> Fin<N> end
-declare R2(Fin<N>) -> Fin<N> end
-declare R3(Fin<N>) -> Fin<N> end
+declare R1(BitVec<n>) -> BitVec<n> end
+declare R2(BitVec<n>) -> BitVec<n> end
+declare R3(BitVec<n>) -> BitVec<n> end
 
 // Figure 3
-def E(xL: Fin<N>, xR: Fin<N>) -> (Fin<N>, Fin<N>) do
+def E(xL: BitVec<n>, xR: BitVec<n>) -> (BitVec<n>, BitVec<n>) do
     u0 <- xL;
     v0 <- xR;
 
@@ -28,9 +28,9 @@ def E(xL: Fin<N>, xR: Fin<N>) -> (Fin<N>, Fin<N>) do
     return u3, v3
 end 
 
-declare alpha(Bool) -> Fin<N> end
+declare alpha(Bool) -> BitVec<n> end
 
-def f(b : Bool, x : Fin<N>) -> Fin<N> do
+def f(b : Bool, x : BitVec<n>) -> BitVec<n> do
     alpha_b <- alpha(b);
     yL, yR <- E(alpha_b, x);
 
@@ -40,7 +40,7 @@ def f(b : Bool, x : Fin<N>) -> Fin<N> do
 end
 
 def AttackThreeRoundFeistel() -> Bool do
-    b, s <- @findXorPeriod[f, 0.01]();
+    b, s <- @findXorPeriod<n, 0.01>[f()];
     
     return b, s
 
@@ -51,7 +51,7 @@ def AttackThreeRoundFeistel() -> Bool do
     // one <- const 1 : Bool;
     // alpha_1 <- alpha(one);
 
-    // x <- uniform : Fin<N>;
+    // x <- uniform : BitVec<n>;
     // yL, yR <- E(alpha_0, x);
 
     // yL', yR' <- E(alpha_1, x ^ s);

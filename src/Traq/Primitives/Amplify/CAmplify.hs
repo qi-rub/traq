@@ -46,7 +46,7 @@ instance P.Parseable (CAmplify sizeT Double) where
   parseE tp = CAmplify <$> P.parseE tp
 
 instance P.HasFreeVars (CAmplify sizeT precT)
-instance (P.TypeCheckable sizeT, Num precT, Ord precT, Show precT) => P.TypeCheckablePrimitive (CAmplify sizeT precT) sizeT
+instance (P.TypingReqs sizeT, Num precT, Ord precT, Show precT) => P.TypeInferrable (CAmplify sizeT precT) sizeT
 
 instance (Ord precT, P.EvalReqs sizeT precT) => P.Evaluatable (CAmplify sizeT precT) sizeT precT
 
@@ -65,11 +65,11 @@ instance
   , Eq precT
   , Ord precT
   , Show precT
-  , P.TypeCheckable sizeT
+  , P.TypingReqs sizeT
   ) =>
-  P.UnitaryCostablePrimitive (CAmplify sizeT precT) sizeT precT
+  P.UnitaryCost (CAmplify sizeT precT) sizeT precT
   where
-  unitaryQueryCostPrimitive delta (CAmplify (Amplify{sampler, p_min})) = do
+  unitaryCost delta (CAmplify (Amplify{sampler, p_min})) = do
     let delta_a = delta `P.divideError` 2
     let qry = _QMax (P.requiredNormErrorToFailProb delta_a) p_min
     let delta_f = (delta - delta_a) `P.divideError` qry
@@ -86,11 +86,11 @@ instance
   , Eq precT
   , Ord precT
   , Show precT
-  , P.TypeCheckable sizeT
+  , P.TypingReqs sizeT
   ) =>
-  P.QuantumMaxCostablePrimitive (CAmplify sizeT precT) sizeT precT
+  P.QuantumHavocCost (CAmplify sizeT precT) sizeT precT
   where
-  quantumMaxQueryCostPrimitive eps (CAmplify (Amplify{sampler, p_min})) = do
+  quantumHavocCost eps (CAmplify (Amplify{sampler, p_min})) = do
     let eps_a = eps `P.divideError` 2
     let num_repetitions = _QMax eps_a p_min
 
@@ -111,9 +111,9 @@ instance
   , Show precT
   , P.EvalReqs sizeT precT
   ) =>
-  P.QuantumCostablePrimitive (CAmplify sizeT precT) sizeT precT
+  P.QuantumExpCost (CAmplify sizeT precT) sizeT precT
   where
-  quantumQueryCostPrimitive eps (CAmplify (Amplify{sampler, p_min, sampler_args})) sigma = do
+  quantumExpCost eps (CAmplify (Amplify{sampler, p_min, sampler_args})) sigma = do
     -- get the function identifier
     sampler_fundef <-
       view $

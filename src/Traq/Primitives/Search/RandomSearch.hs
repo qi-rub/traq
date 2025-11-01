@@ -74,7 +74,7 @@ instance P.Parseable (RandomSearch sizeT precT) where
   parseE = fmap RandomSearch . parsePrimAnyWithName "any"
 
 instance P.HasFreeVars (RandomSearch sizeT precT)
-instance (P.TypeCheckable sizeT) => P.TypeCheckablePrimitive (RandomSearch sizeT precT) sizeT
+instance (P.TypingReqs sizeT) => P.TypeInferrable (RandomSearch sizeT precT) sizeT
 
 instance (P.EvalReqs sizeT precT) => P.Evaluatable (RandomSearch sizeT precT) sizeT precT
 
@@ -83,10 +83,10 @@ instance (P.EvalReqs sizeT precT) => P.Evaluatable (RandomSearch sizeT precT) si
 -- ================================================================================
 
 instance
-  (P.TypeCheckable sizeT, Integral sizeT, Floating precT) =>
-  P.UnitaryCostablePrimitive (RandomSearch sizeT precT) sizeT precT
+  (P.TypingReqs sizeT, Integral sizeT, Floating precT) =>
+  P.UnitaryCost (RandomSearch sizeT precT) sizeT precT
   where
-  unitaryQueryCostPrimitive delta prim = do
+  unitaryCost delta prim = do
     let SearchLikePrim{predicate} = extract prim
 
     P.FunDef{P.param_types} <- view $ P._funCtx . Ctx.at predicate . singular _Just
@@ -109,11 +109,11 @@ instance
   ( Integral sizeT
   , Floating precT
   , Ord precT
-  , P.TypeCheckable sizeT
+  , P.TypingReqs sizeT
   ) =>
-  P.QuantumMaxCostablePrimitive (RandomSearch sizeT precT) sizeT precT
+  P.QuantumHavocCost (RandomSearch sizeT precT) sizeT precT
   where
-  quantumMaxQueryCostPrimitive eps prim = do
+  quantumHavocCost eps prim = do
     let SearchLikePrim{predicate} = extract prim
 
     P.FunDef{P.param_types} <- view $ P._funCtx . Ctx.at predicate . singular _Just
@@ -148,9 +148,9 @@ instance
   , Ord precT
   , P.EvalReqs sizeT precT
   ) =>
-  P.QuantumCostablePrimitive (RandomSearch sizeT precT) sizeT precT
+  P.QuantumExpCost (RandomSearch sizeT precT) sizeT precT
   where
-  quantumQueryCostPrimitive eps prim sigma = do
+  quantumExpCost eps prim sigma = do
     let SearchLikePrim{predicate, pred_args = args} = extract prim
 
     P.FunDef{P.param_types} <- view $ P._funCtx . Ctx.at predicate . singular _Just

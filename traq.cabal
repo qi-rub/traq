@@ -20,13 +20,18 @@ extra-doc-files:
 
 library
   exposed-modules:
+      Traq.Analysis
+      Traq.Analysis.Annotate
+      Traq.Analysis.Cost
+      Traq.Analysis.CostModel.Class
+      Traq.Analysis.CostModel.QueryCost
+      Traq.Analysis.Error
+      Traq.Analysis.QuantumError
       Traq.Compiler
       Traq.Compiler.Quantum
       Traq.Compiler.Unitary
       Traq.Compiler.Utils
       Traq.Control.Monad
-      Traq.CostModel.Class
-      Traq.CostModel.QueryCost
       Traq.CQPL
       Traq.CQPL.Cost
       Traq.CQPL.Memory
@@ -52,11 +57,12 @@ library
       Traq.Primitives.Amplify.CAmplify
       Traq.Primitives.Amplify.Prelude
       Traq.Primitives.Amplify.QAmplify
+      Traq.Primitives.Class
+      Traq.Primitives.Count.QCount
+      Traq.Primitives.Max.QMax
       Traq.Primitives.Prelude
       Traq.Primitives.Search.DetSearch
       Traq.Primitives.Search.Prelude
-      Traq.Primitives.Search.QCount
-      Traq.Primitives.Search.QMax
       Traq.Primitives.Search.QSearchCFNW
       Traq.Primitives.Search.RandomSearch
       Traq.Primitives.Search.Symbolic
@@ -64,8 +70,6 @@ library
       Traq.Primitives.Simons.Quantum
       Traq.Primitives.TreeSearch
       Traq.ProtoLang
-      Traq.ProtoLang.Cost
-      Traq.ProtoLang.Error
       Traq.ProtoLang.Eval
       Traq.ProtoLang.Lenses
       Traq.ProtoLang.Parser

@@ -1,4 +1,4 @@
-module Traq.CostModel.Class (
+module Traq.Analysis.CostModel.Class (
   QueryType (..),
   CostModel (..),
 ) where
