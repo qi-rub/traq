@@ -6,8 +6,10 @@ import qualified Traq.Data.Context as Ctx
 import Traq.Data.Default
 
 import Traq.Analysis.CostModel.QueryCost (SimpleQueryCost (..))
-import Traq.Examples.MatrixSearch (matrixExample)
+import Traq.Examples.MatrixSearch (mkMatrixExample)
 import Traq.Prelude
+import Traq.Primitives (Primitive (Primitive))
+import Traq.Primitives.Search.Prelude (PrimAny (PrimAny))
 import Traq.Primitives.Search.RandomSearch
 import qualified Traq.ProtoLang as P
 
@@ -20,7 +22,7 @@ diagMatrix _ = error "invalid input"
 spec :: Spec
 spec = do
   describe "RandomSearch" $ do
-    let mat_prog = matrixExample @(RandomSearch Int Double)
+    let mat_prog = mkMatrixExample (\ty f -> P.PrimCallE $ Primitive [f] (RandomSearch $ PrimAny ty))
     it "expected cost" $ do
       let eps = P.failProb 0.001
       let n = 10

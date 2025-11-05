@@ -11,18 +11,18 @@ def NOR_0(i0: Fin<N>, j0: Fin<M>, k0: Fin<K>) -> Bool do
 end
 
 def NOR_1(i1: Fin<N>, j1: Fin<M>) -> Bool do
-	or_1 <- @any[NOR_0](i1, j1);
+	or_1 <- @any<Fin<K>>[NOR_0(i1, j1, _)];
 	nor_1 <- not or_1;
 	return nor_1
 end
 
 def NOR_2(i2: Fin<N>) -> Bool do
-	or_2 <- @any[NOR_1](i2);
+	or_2 <- @any<Fin<M>>[NOR_1(i2, _)];
 	nor_2 <- not or_2;
 	return nor_2
 end
 
 def Depth3Nand() -> Bool do
-	or_3 <- @any[NOR_2]();
+	or_3 <- @any<Fin<N>>[NOR_2(_)];
 	return or_3
 end

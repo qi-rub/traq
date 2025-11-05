@@ -1,20 +1,27 @@
+{-# LANGUAGE AllowAmbiguousTypes #-}
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE FunctionalDependencies #-}
 {-# LANGUAGE RecordWildCards #-}
+{-# LANGUAGE TypeApplications #-}
 {-# LANGUAGE UndecidableInstances #-}
 
 module Traq.Primitives.Class (
+  -- * Primitives
   Primitive (..),
-  PartialFun (..),
   PrimFnShape,
   ValidPrimShape (..),
 
-  -- * Typeclasses
+  -- ** Typeclasses
+  SerializePrim (..),
   TypeCheckPrim (..),
   EvalPrim (..),
   UnitaryCostPrim (..),
   QuantumHavocCostPrim (..),
   QuantumExpCostPrim (..),
+
+  -- ** Partial Functions
+  PartialFun (..),
+  placeArgs,
 ) where
 
 import Control.Applicative (Alternative ((<|>)), many)
@@ -24,7 +31,9 @@ import Control.Monad.Extra (concatMapM)
 import Control.Monad.Reader (runReaderT)
 import Data.Kind (Type)
 import Data.Maybe (catMaybes, fromMaybe)
-import Text.Parsec.Token (GenTokenParser (..))
+import Text.Parsec (try)
+import Text.Parsec.String (Parser)
+import Text.Parsec.Token (GenTokenParser (..), TokenParser)
 import Text.Printf (printf)
 
 import Lens.Micro.GHC
@@ -33,6 +42,7 @@ import qualified Numeric.Algebra as Alg
 
 import Traq.Control.Monad
 import qualified Traq.Data.Context as Ctx
+import qualified Traq.Data.Symbolic as Sym
 
 import qualified Traq.Analysis as A
 import qualified Traq.Analysis.CostModel.Class as C
@@ -59,6 +69,15 @@ instance P.Parseable PartialFun where
     pfun_name <- identifier
     pfun_args <- parens $ commaSep ((Nothing <$ symbol "_") <|> (Just <$> identifier))
     return PartialFun{..}
+
+{- | Place a list of concrete values inside a list of incomplete values.
+For example, @placeArgs [Just 0, Nothing, Just 2, Nothing] [1, 3] = [0,1,2,3]@
+-}
+placeArgs :: [Maybe a] -> [a] -> [a]
+placeArgs [] [] = []
+placeArgs (Just x : xs) as = x : placeArgs xs as
+placeArgs (Nothing : xs) (a : as) = a : placeArgs xs as
+placeArgs _ _ = error "invalid use of placeArgs"
 
 {- | A generic second-order primitive.
 It accepts a sequence of partially applied functions.
@@ -91,28 +110,51 @@ instance (P.MapSize prim) => P.MapSize (Primitive prim) where
   type MappedSize (Primitive prim) size' = Primitive (P.MappedSize prim size')
   mapSize f (Primitive par_funs prim) = Primitive par_funs (P.mapSize f prim)
 
--- Pretty Printing
-instance (PP.ToCodeString prim) => PP.ToCodeString (Primitive prim) where
-  build (Primitive par_funs prim) = do
-    prim_s <- PP.fromBuild prim
-    fns <- concatMapM PP.fromBuild par_funs
-    PP.putWord $ printf "%s[%s]" prim_s fns
-
--- Parsing
-instance (P.Parseable prim) => P.Parseable (Primitive prim) where
-  parseE tp@TokenParser{..} = parseFindXorPeriod
-   where
-    parseFindXorPeriod = do
-      prim <- P.parseE tp
-      par_funs <- brackets $ many $ P.parseE tp
-      return $ Primitive par_funs prim
-
 instance P.HasFreeVars (Primitive prim) where
   freeVarsList (Primitive par_funs _) = concatMap (catMaybes . pfun_args) par_funs
 
 -- ================================================================================
 -- Specialized Typeclasses for Primitives.
 -- ================================================================================
+
+-- --------------------------------------------------------------------------------
+-- Printing and Parsing
+-- --------------------------------------------------------------------------------
+
+{- | Simple class to print/parse second-order primitives.
+Syntax: `@prim<args, ...>[fns, ...];`
+-}
+class SerializePrim prim where
+  -- | all names (variants) used by the primitive
+  primNames :: [Ident]
+
+  -- | name for a specific constructor
+  primNameOf :: prim -> Ident
+  primNameOf _ = case (primNames @prim) of
+    [s] -> s
+    _ -> error "primitive has multiple names, please override primNameOf"
+
+  -- | parse the primitive info given its name
+  parsePrimParams :: (SizeType prim ~ Sym.Sym SizeT) => TokenParser () -> Ident -> Parser prim
+
+  -- | print the primitives parameters.
+  printPrimParams :: prim -> [String]
+
+-- Pretty Printing
+instance (SerializePrim prim) => PP.ToCodeString (Primitive prim) where
+  build (Primitive par_funs prim) = do
+    fns <- concatMapM PP.fromBuild par_funs
+    PP.putWord $ printf "@%s<%s>[%s]" (primNameOf prim) (PP.commaList $ printPrimParams prim) fns
+
+-- Parsing
+instance (SerializePrim prim, SizeType prim ~ Sym.Sym SizeT) => P.Parseable (Primitive prim) where
+  parseE tp@TokenParser{..} = parseFindXorPeriod
+   where
+    parseFindXorPeriod = do
+      name <- foldr1 (<|>) $ map (\s -> try $ symbol $ "@" ++ s) $ primNames @prim
+      prim <- angles $ parsePrimParams tp name
+      par_funs <- brackets $ many $ P.parseE tp
+      return $ Primitive par_funs prim
 
 -- --------------------------------------------------------------------------------
 -- Typing and Evaluation
@@ -186,15 +228,6 @@ class
     shape ([P.Value size] -> m [P.Value size]) ->
     m [P.Value size]
 
-{- | Place a list of concrete values inside a list of incomplete values.
-For example, @placeVals [Just 0, Nothing, Just 2, Nothing] [1, 3] = [0,1,2,3]@
--}
-placeVals :: [Maybe a] -> [a] -> [a]
-placeVals [] [] = []
-placeVals (Just x : xs) as = x : placeVals xs as
-placeVals (Nothing : xs) (a : as) = a : placeVals xs as
-placeVals _ _ = error "invalid use of placeVals"
-
 instance
   ( EvalPrim prim size prec
   , P.EvalReqs size prec
@@ -213,7 +246,7 @@ instance
             Just x -> Just $ sigma ^. Ctx.at x . non (error "ill-formed program")
             Nothing -> Nothing
 
-      let eval_fn vs' = P.evalFun (placeVals vs vs') P.NamedFunDef{P.fun_name = pfun_name, P.fun_def = fn}
+      let eval_fn vs' = P.evalFun (placeArgs vs vs') P.NamedFunDef{P.fun_name = pfun_name, P.fun_def = fn}
       return eval_fn
 
     let shaped_fns_eval = either (error "please typecheck first") id $ listToShape fns_eval
@@ -263,11 +296,12 @@ instance
     fn_costs <- forM (zip par_funs query_costs) $ \(PartialFun{pfun_name}, n_queries) -> do
       -- divide by number of queries to get cost per call
       let delta_fn = A.divideError delta_fns n_queries
+      let delta_fn_dirty = A.divideError delta_fn 2
 
       -- cost per call to f, with the same precision.
-      cost_f <- A.unitaryQueryCostF delta_fn pfun_name
+      cost_f <- A.unitaryQueryCostF delta_fn_dirty pfun_name
 
-      return $ n_queries Alg..* cost_f
+      return $ (2 * n_queries) Alg..* cost_f
 
     -- all other non-query operations
     let extra_costs = unitaryExprCosts prim eps_alg
@@ -407,7 +441,7 @@ instance
             Nothing -> Nothing
 
       let eval_fn vs' =
-            P.evalFun (placeVals vs vs') P.NamedFunDef{P.fun_name = pfun_name, P.fun_def = fn}
+            P.evalFun (placeArgs vs vs') P.NamedFunDef{P.fun_name = pfun_name, P.fun_def = fn}
               & (runReaderT ?? eval_env)
 
       return (eval_fn, vs)
@@ -437,7 +471,7 @@ instance
 
         -- queries to quantum f
         q_costs <- forM exp_queries_q $ \(vs, eq) -> do
-          q_f <- A.quantumQueryCostF eps_fn (placeVals pref_args vs) pfun_name
+          q_f <- A.quantumQueryCostF eps_fn (placeArgs pref_args vs) pfun_name
           return $ eq Alg..* q_f
 
         -- queries to unitary f

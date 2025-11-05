@@ -12,6 +12,7 @@ import Traq.Prelude
 import qualified Traq.ProtoLang as P
 
 import Traq.Analysis.CostModel.QueryCost (SimpleQueryCost (..))
+import Traq.Primitives (Primitive)
 import Traq.Primitives.Search.DetSearch (DetSearch (..))
 import Traq.Primitives.Search.QSearchCFNW (QSearchCFNW (..))
 import Traq.Primitives.Search.RandomSearch (RandomSearch (..))
@@ -64,8 +65,8 @@ main = do
   putStrLn "Costs for sample matrix:"
 
   putStr "  Quantum      : "
-  print =<< expectedCost @(QSearchCFNW _ _) n m sample_matrix eps
+  print =<< expectedCost @(Primitive (QSearchCFNW _ _)) n m sample_matrix eps
   putStr "  Deterministic: "
-  print =<< expectedCost @(DetSearch _ _) n m sample_matrix eps
+  print =<< expectedCost @(Primitive (DetSearch _ _)) n m sample_matrix eps
   putStr "  Randomized   : "
-  print =<< expectedCost @(RandomSearch _ _) n m sample_matrix eps
+  print =<< expectedCost @(Primitive (RandomSearch _ _)) n m sample_matrix eps

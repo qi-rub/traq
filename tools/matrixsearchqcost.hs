@@ -10,21 +10,17 @@ import System.IO
 import System.Random
 import System.Random.Shuffle (shuffleM)
 import System.TimeIt (timeIt)
-import Text.Parsec.String (parseFromFile)
 import Text.Printf (printf)
 
 import qualified Traq.Data.Context as Ctx
-import Traq.Data.Subtyping
-import qualified Traq.Data.Symbolic as Sym
 
 import Traq.Analysis.CostModel.QueryCost (SimpleQueryCost (..))
 import Traq.Examples.MatrixSearch
 import Traq.Prelude
-import Traq.Primitives (DefaultPrims)
-import Traq.Primitives.Search.DetSearch (DetSearch)
-import Traq.Primitives.Search.Prelude (PrimAny)
-import Traq.Primitives.Search.QSearchCFNW (QSearchCFNW)
-import Traq.Primitives.Search.RandomSearch (RandomSearch)
+import Traq.Primitives
+import Traq.Primitives.Search.DetSearch (DetSearch (..))
+import Traq.Primitives.Search.Prelude (PrimAny (..))
+import Traq.Primitives.Search.RandomSearch (RandomSearch (..))
 import qualified Traq.ProtoLang as P
 
 printDivider :: IO ()
@@ -34,27 +30,39 @@ printDivider = putStrLn $ replicate 80 '='
 data Phantom p = Phantom
 
 class
-  ( P.Parseable p
-  , P.QuantumExpCost p SizeT Double
-  , PrimAny SizeT Double :<: p
+  ( P.QuantumExpCost p SizeT Double
+  , SizeType p ~ SizeT
+  , PrecType p ~ Double
   ) =>
   MyPrim p
+  where
+  mkAny :: P.VarType SizeT -> PartialFun -> p
 
-instance MyPrim (DefaultPrims SizeT Double)
-instance MyPrim (RandomSearch SizeT Double)
-instance MyPrim (QSearchCFNW SizeT Double)
-instance MyPrim (DetSearch SizeT Double)
+  matrixExample :: SizeT -> SizeT -> P.Program p
+  matrixExample = mkMatrixExample (\t f -> P.PrimCallE $ mkAny t f)
+
+instance MyPrim (DefaultPrims SizeT Double) where
+  mkAny ty fn = QAny $ Primitive [fn] $ QAnyCFNW $ PrimAny ty
+
+instance MyPrim (Primitive (RandomSearch SizeT Double)) where
+  mkAny ty fn = Primitive [fn] $ RandomSearch $ PrimAny ty
+
+instance MyPrim (Primitive (QSearchCFNW SizeT Double)) where
+  mkAny ty fn = Primitive [fn] $ QAnyCFNW $ PrimAny ty
+
+instance MyPrim (Primitive (DetSearch SizeT Double)) where
+  mkAny ty fn = Primitive [fn] $ DetSearch $ PrimAny ty
 
 defPrims :: Phantom (DefaultPrims SizeT Double)
 defPrims = Phantom
 
-randSearchP :: Phantom (RandomSearch SizeT Double)
+randSearchP :: Phantom (Primitive (RandomSearch SizeT Double))
 randSearchP = Phantom
 
-qSearchP :: Phantom (QSearchCFNW SizeT Double)
+qSearchP :: Phantom (Primitive (QSearchCFNW SizeT Double))
 qSearchP = Phantom
 
-detSearchP :: Phantom (DetSearch SizeT Double)
+detSearchP :: Phantom (Primitive (DetSearch SizeT Double))
 detSearchP = Phantom
 
 type Value = P.Value SizeT
@@ -96,7 +104,7 @@ qcost _ eps mat = getCost cost
 
   ex = matrixExample @primsT n m
 
-  dataCtx = Ctx.singleton "Oracle" (toValueFun mat)
+  dataCtx = Ctx.singleton "Matrix" (toValueFun mat)
 
   cost = P.quantumQueryCost @_ @Double @(SimpleQueryCost Double) P.SplitUsingNeedsEps eps ex dataCtx []
 
@@ -166,37 +174,6 @@ computeStatsForWorstCaseMatrices phantom =
  where
   matfun :: Value -> Value -> Bool
   matfun i _ = i == P.FinV 0
-
-computeStatsForWorstCaseExample :: IO ()
-computeStatsForWorstCaseExample = do
-  Right sprog <- parseFromFile (P.programParser @(DefaultPrims (Sym.Sym SizeT) Double)) "examples/matrix_search/worstcase.qb"
-  let getprog n = P.mapSize (Sym.unSym . Sym.subst "M" (Sym.con n) . Sym.subst "N" (Sym.con n)) sprog
-
-  withFile "examples/matrix_search/stats/worstcase.csv" WriteMode $ \h -> do
-    hPutStrLn h "n,cost"
-
-    let eps = P.failProb (0.5 :: Double)
-    forM_ (10 : [500, 1000 .. 10000]) $ \n -> do
-      let ex = getprog n
-      let c = getCost $ P.quantumQueryCost P.SplitSimple eps ex Ctx.empty [] :: Double
-      hPutStrLn h $ printf "%d,%.2f" n c
-
-triangular :: IO ()
-triangular = do
-  Right sprog <- parseFromFile (P.programParser @(DefaultPrims (Sym.Sym SizeT) Double)) "examples/matrix_search/triangular.qb"
-  let getprog n = P.mapSize (Sym.unSym . Sym.subst "M" (Sym.con n) . Sym.subst "N" (Sym.con n)) sprog
-
-  withFile "examples/matrix_search/stats/triangular.csv" WriteMode $ \h -> do
-    hPutStrLn h "n,cost"
-
-    let eps = P.failProb (0.2 :: Double)
-    -- forM_ (10 : [500, 1000 .. 5000]) $ \n -> do
-    forM_ [5500, 6000] $ \n -> do
-      putStrLn $ printf "running n: %d" n
-      let ex = getprog n
-      let c = getCost $ P.quantumQueryCost P.SplitSimple eps ex Ctx.empty [] :: Double
-      hPutStrLn h $ printf "%d,%.2f" n c
-      putStrLn $ printf "cost: %.2f, ratio: %f" c (c / fromIntegral (n ^ (2 :: Int)))
 
 main :: IO ()
 main = do

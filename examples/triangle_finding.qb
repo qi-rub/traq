@@ -28,9 +28,11 @@ def CompletesTriangle(i: Fin<N>, j: Fin<N>, k: Fin<N>) -> Bool do
   return result
 end
 
-def HasTriangleCycle(i: Fin<N>, j: Fin<N>) -> Bool do
+def HasTriangleCycle(ij: Tup<Fin<N>, Fin<N>>) -> Bool do
+  i <- ij[0];
+  j <- ij[1];
   edge_ij <- Adj(i, j);
-  found_k <- @any[CompletesTriangle](i, j);
+  found_k <- @any<Fin<N>>[CompletesTriangle(i, j, _)];
 
   result <- edge_ij && found_k;
   
@@ -38,6 +40,6 @@ def HasTriangleCycle(i: Fin<N>, j: Fin<N>) -> Bool do
 end
 
 def HasTriangle() -> Bool do
-  found_triangle <- @any[hasTriangleCycle]();
+  found_triangle <- @any<Tup<Fin<N>, Fin<N>>>[hasTriangleCycle(_)];
   return found_triangle
 end

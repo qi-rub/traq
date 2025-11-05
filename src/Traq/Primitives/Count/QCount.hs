@@ -11,15 +11,10 @@ module Traq.Primitives.Count.QCount () where
 
 import Control.Monad (forM, when)
 import Control.Monad.Except (throwError)
-import Text.Parsec.Token (angles, symbol)
-import Text.Printf (printf)
-
-import qualified Traq.Data.Symbolic as Sym
 
 import Traq.Prelude
 import Traq.Primitives.Class
 import qualified Traq.ProtoLang as P
-import qualified Traq.Utils.Printing as PP
 
 data QCount sizeT precT = QCount {arg_ty :: P.VarType sizeT}
   deriving (Eq, Show, Read)
@@ -37,17 +32,10 @@ instance ValidPrimShape QCountFunArg where
 
   shapeToList QCountFunArg{fun} = [fun]
 
-instance (Show sizeT) => PP.ToCodeString (QCount sizeT precT) where
-  build QCount{arg_ty} = do
-    ty <- PP.fromBuild arg_ty
-    PP.putWord $ printf "@count<%s>" ty
-
--- Parsing
-instance (sizeT ~ Sym.Sym SizeT) => P.Parseable (QCount sizeT precT) where
-  parseE tp = do
-    symbol tp "@count"
-    arg_ty <- angles tp $ P.varType tp
-    return QCount{arg_ty}
+instance (Show sizeT) => SerializePrim (QCount sizeT precT) where
+  primNames = ["count"]
+  parsePrimParams tp _ = QCount <$> P.varType tp
+  printPrimParams QCount{arg_ty} = [show arg_ty]
 
 -- Type check
 instance (Eq sizeT, Integral sizeT) => TypeCheckPrim (QCount sizeT precT) sizeT where

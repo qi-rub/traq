@@ -1,5 +1,3 @@
-{-# LANGUAGE TypeApplications #-}
-
 module Traq.Examples.MatrixSearch where
 
 import Data.String (fromString)
@@ -8,21 +6,19 @@ import Traq.Data.Subtyping
 
 import Traq.Prelude
 import Traq.Primitives
-import Traq.Primitives.Search.Prelude (PrimAny (..))
+import Traq.Primitives.Class (PartialFun (..), Primitive (..))
+import Traq.Primitives.Search.Prelude (PrimAny (..), PrimSearch (PrimSearch))
 import Traq.ProtoLang.Syntax
 import Traq.ProtoLang.TypeCheck (tbool)
 
-matrixExample ::
-  forall ext sizeT precT.
-  ( PrimAny sizeT precT :<: ext
-  , Num sizeT
-  , sizeT ~ SizeType ext
-  , precT ~ PrecType ext
-  ) =>
+mkMatrixExample ::
+  forall ext sizeT.
+  (sizeT ~ SizeType ext, Num sizeT) =>
+  (VarType sizeT -> PartialFun -> Expr ext) ->
   sizeT ->
   sizeT ->
   Program ext
-matrixExample n m =
+mkMatrixExample mkAny n m =
   Program
     [ NamedFunDef oracle_name oracle_decl
     , NamedFunDef check_entry_name check_entry
@@ -79,7 +75,7 @@ matrixExample n m =
               { param_names = [i]
               , body_stmt =
                   SeqS
-                    [ ExprS{rets = [ok], expr = primCallE @(PrimAny sizeT precT) PrimAny{predicate = check_entry_name, pred_args = [i]}}
+                    [ ExprS{rets = [ok], expr = mkAny tyJ (PartialFun check_entry_name [Just i, Nothing])}
                     , ExprS{rets = [ok'], expr = BasicExprE UnOpE{un_op = NotOp, operand = fromString ok}}
                     ]
               , ret_names = [ok']
@@ -102,7 +98,7 @@ matrixExample n m =
           Just
             FunBody
               { param_names = []
-              , body_stmt = ExprS{rets = [ok], expr = primCallE @(PrimAny sizeT precT) PrimAny{predicate = check_row_name, pred_args = []}}
+              , body_stmt = ExprS{rets = [ok], expr = mkAny tyI (PartialFun check_row_name [Nothing])}
               , ret_names = [ok]
               }
       , ret_types = [tbool]
@@ -111,4 +107,4 @@ matrixExample n m =
     ok = "ok"
 
 matrixExampleS :: SizeT -> SizeT -> Program (DefaultPrims SizeT precT)
-matrixExampleS = matrixExample
+matrixExampleS = mkMatrixExample (\ty pfun -> PrimCallE $ QAny $ Primitive [pfun] $ QAnyCFNW $ PrimAny ty)

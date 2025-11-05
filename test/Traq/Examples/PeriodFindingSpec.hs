@@ -56,7 +56,7 @@ spec = describe "FindXorPeriod" $ do
     it "calculates unitary cost correctly" $ \program -> do
       let delta = P.l2NormError (0.01 :: Double)
       let actualCost = getCost $ P.unitaryQueryCost P.SplitUsingNeedsEps delta program
-      let formulaCost = 2 * _SimonsQueries n p0 (P.requiredNormErrorToFailProb $ delta `P.divideError` 2)
+      let formulaCost = 4 * _SimonsQueries n p0 (P.requiredNormErrorToFailProb $ delta `P.divideError` 2)
 
       actualCost `shouldBe` formulaCost
 

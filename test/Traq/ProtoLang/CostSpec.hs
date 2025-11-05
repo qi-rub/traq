@@ -12,7 +12,7 @@ import qualified Traq.Data.Symbolic as Sym
 import Traq.Analysis.CostModel.QueryCost
 import Traq.Prelude
 import Traq.Primitives
-import Traq.Primitives.Search.QSearchCFNW (_QSearchZalka)
+import Traq.Primitives.Search.QSearchCFNW (_QSearchZalkaWithNormErr)
 import Traq.ProtoLang
 
 import Test.Hspec
@@ -65,7 +65,7 @@ spec = do
               , "  return b"
               , "end"
               , "def main() -> Bool do"
-              , "  res <- @any[f]();"
+              , "  res <- @any<Fin<100>>[f(_)];"
               , "  return res"
               , "end"
               ]
@@ -77,12 +77,12 @@ spec = do
             unsafeParseProgram . unlines $
               [ "declare Oracle(Fin<100>) -> Bool end"
               , "def main() -> Bool do"
-              , "  res <- @any[Oracle]();"
+              , "  res <- @any<Fin<100>>[Oracle(_)];"
               , "  return res"
               , "end"
               ]
       let c = unitaryQueryCost SplitSimple delta prog :: QueryCost Double
-      let qry = 2 * _QSearchZalka (100 :: Int) (delta `divideError` 2)
+      let qry = 2 * _QSearchZalkaWithNormErr (100 :: Int) (delta `divideError` 2)
       c `shouldBe` default_{uqueries = Map.singleton "Oracle" qry}
 
     it "probabilistic outcome" $ do

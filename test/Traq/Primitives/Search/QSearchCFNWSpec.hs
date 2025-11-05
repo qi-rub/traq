@@ -108,5 +108,5 @@ spec = do
                 }
 
         let actual_cost = getCost . fst $ CQPL.programCost @_ @(SimpleQueryCost Double) uprog
-        let formula_cost = _QSearchZalka n delta
+        let formula_cost = _QSearchZalkaWithNormErr n delta
         actual_cost `shouldSatisfy` (<= formula_cost)

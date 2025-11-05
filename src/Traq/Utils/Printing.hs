@@ -1,6 +1,7 @@
 module Traq.Utils.Printing (
   ToCodeString (..),
   toCodeString,
+  toCodeWord,
   toCodeStringM,
 
   -- * Simple builders
@@ -33,6 +34,7 @@ module Traq.Utils.Printing (
 ) where
 
 import Control.Monad.Writer (MonadWriter, censor, execWriterT, listen, tell)
+import Data.Char (isSpace)
 import Data.List (intercalate)
 import Data.Maybe (fromJust)
 import Data.Void (Void, absurd)
@@ -48,6 +50,12 @@ toCodeStringM = fmap unlines . execWriterT . build
 
 toCodeString :: (ToCodeString a) => a -> String
 toCodeString = fromJust . toCodeStringM
+
+toCodeWord :: (ToCodeString a) => a -> String
+toCodeWord = trim . toCodeString
+ where
+  trim = ap2 $ reverse . dropWhile isSpace
+  ap2 f = f . f
 
 fromBuild :: (ToCodeString a, MonadWriter [String] m, MonadFail m) => a -> m String
 fromBuild a = censor (const mempty) $ do

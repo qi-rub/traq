@@ -22,7 +22,7 @@ def loop_body(i: Fin<N>, j: Fin<N>) -> (Fin<N>, Fin<N>) do
     xj <- D_n(j);
     dmax <- Dist(xi, xj);
 
-    i', j' <- @search[check](dmax);
+    i', j' <- @search<Fin<N>, Fin<N>>[check(dmax, _, _)];
     return i', j'
 end
 

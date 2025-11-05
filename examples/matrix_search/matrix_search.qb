@@ -7,12 +7,12 @@ def IsEntryZero(i0: Fin<N>, j0: Fin<M>) -> Bool do
 end
 
 def IsRowAllOnes(i: Fin<N>) -> Bool do
-	hasZero <- @any[IsEntryZero](i);
+	hasZero <- @any<Fin<M>>[IsEntryZero(i, _)];
 	okr <- not hasZero;
 	return okr
 end
 
 def HasAllOnesRow() -> Bool do
-	ok <- @any[IsRowAllOnes]();
+	ok <- @any<Fin<N>>[IsRowAllOnes(_)];
 	return ok
 end

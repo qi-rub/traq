@@ -57,20 +57,14 @@ instance P.MapSize (FindXorPeriod size prec) where
   mapSize f FindXorPeriod{n, ..} = FindXorPeriod{n = f n, ..}
 
 -- Pretty Printing
-instance (Show sizeT) => PP.ToCodeString (FindXorPeriod sizeT Double) where
-  build FindXorPeriod{n, p_0} =
-    PP.putWord $ printf "@findXorPeriod<%d, %.2f>" (show n) p_0
-
--- Parsing
-instance (precT ~ Double, sizeT ~ Sym.Sym SizeT) => P.Parseable (FindXorPeriod sizeT precT) where
-  parseE TokenParser{..} = do
-    _ <- symbol "@findXorPeriod"
-    (n, p_0) <- angles $ do
-      n <- (Sym.con . fromInteger <$> integer) <|> (Sym.var <$> identifier)
-      comma
-      p_0 <- float
-      return (n, p_0)
+instance (Show sizeT) => SerializePrim (FindXorPeriod sizeT Double) where
+  primNames = ["findXorPeriod"]
+  parsePrimParams TokenParser{..} _ = do
+    n <- (Sym.con . fromInteger <$> integer) <|> (Sym.var <$> identifier)
+    comma
+    p_0 <- float
     return FindXorPeriod{n, p_0}
+  printPrimParams FindXorPeriod{n, p_0} = [show n, printf "%.2f" p_0]
 
 instance
   (P.TypingReqs sizeT, Num precT, Ord precT, Show precT) =>

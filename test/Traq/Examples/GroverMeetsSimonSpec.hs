@@ -9,7 +9,7 @@ import Text.Parsec.String
 import qualified Traq.Data.Symbolic as Sym
 
 import Traq.Prelude
-import Traq.Primitives (QSearchCFNW (..))
+import Traq.Primitives (DefaultPrims)
 import qualified Traq.ProtoLang as P
 
 import Test.Hspec
@@ -17,6 +17,8 @@ import TestHelpers
 
 examplePath :: String
 examplePath = "examples/grover_meets_simon.qb"
+
+type P = DefaultPrims (Sym.Sym SizeT) Double
 
 -- data SimonsSearch sizeT precT
 --     = Simon (SimonsFindXorPeriod (Sym.Sym sizeT) precT)
@@ -29,5 +31,5 @@ examplePath = "examples/grover_meets_simon.qb"
 spec :: Spec
 spec = describe "Grover Meets Simon" $ do
   xit "parses" $ do
-    expectRight =<< parseFromFile (P.programParser @(QSearchCFNW (Sym.Sym SizeT) Double)) examplePath
+    expectRight =<< parseFromFile (P.programParser @P) examplePath
     return ()

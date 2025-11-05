@@ -60,6 +60,8 @@ protoLangDef =
         , "Bool"
         , "Arr"
         , "BitVec"
+        , "Word"
+        , "Tup"
         , -- operators
           "not"
         ]
@@ -79,7 +81,7 @@ symbSize :: TokenParser () -> Parser SymbSize
 symbSize TokenParser{..} = (Sym.con . fromIntegral <$> integer) <|> (Sym.var <$> identifier)
 
 varType :: TokenParser () -> Parser (VarType SymbSize)
-varType tp@TokenParser{..} = boolType <|> finType <|> bitvecType <|> arrType
+varType tp@TokenParser{..} = boolType <|> finType <|> bitvecType <|> arrType <|> tupleType
  where
   boolType = reserved "Bool" $> Fin (Sym.con 2)
   finType = reserved "Fin" >> Fin <$> angles (symbSize tp)
@@ -91,6 +93,11 @@ varType tp@TokenParser{..} = boolType <|> finType <|> bitvecType <|> arrType
       comma
       ty <- varType tp
       pure $ Arr n ty
+  tupleType = do
+    reserved "Tup"
+    angles $ do
+      tys <- commaSep1 $ varType tp
+      pure $ Tup tys
 
 typedTerm :: TokenParser () -> Parser a -> Parser (a, VarType SymbSize)
 typedTerm tp@TokenParser{..} pa = (,) <$> pa <*> (reservedOp ":" *> varType tp)

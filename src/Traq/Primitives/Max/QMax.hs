@@ -20,15 +20,11 @@ module Traq.Primitives.Max.QMax (
 
 import Control.Monad (forM, when)
 import Control.Monad.Except (throwError)
-import Text.Parsec.Token (GenTokenParser (..))
 import Text.Printf (printf)
-
-import qualified Traq.Data.Symbolic as Sym
 
 import Traq.Prelude
 import Traq.Primitives.Class
 import qualified Traq.ProtoLang as P
-import qualified Traq.Utils.Printing as PP
 
 -- ================================================================================
 -- Cost Formulas
@@ -68,17 +64,10 @@ instance ValidPrimShape QMaxFunArg where
 
   shapeToList QMaxFunArg{fun} = [fun]
 
-instance (Show sizeT) => PP.ToCodeString (QMax sizeT precT) where
-  build QMax{arg_ty} = do
-    ty_s <- PP.fromBuild arg_ty
-    PP.putWord $ printf "@max<%s>" ty_s
-
--- Parsing
-instance (sizeT ~ Sym.Sym SizeT) => P.Parseable (QMax sizeT precT) where
-  parseE tp = do
-    symbol tp "@max"
-    arg_ty <- angles tp $ P.varType tp
-    return QMax{arg_ty}
+instance (Show sizeT) => SerializePrim (QMax sizeT precT) where
+  primNames = ["max"]
+  parsePrimParams tp _ = QMax <$> P.varType tp
+  printPrimParams QMax{arg_ty} = [show arg_ty]
 
 -- Type check
 instance (Eq sizeT) => TypeCheckPrim (QMax sizeT precT) sizeT where

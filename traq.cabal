@@ -60,7 +60,6 @@ library
       Traq.Primitives.Class
       Traq.Primitives.Count.QCount
       Traq.Primitives.Max.QMax
-      Traq.Primitives.Prelude
       Traq.Primitives.Search.DetSearch
       Traq.Primitives.Search.Prelude
       Traq.Primitives.Search.QSearchCFNW

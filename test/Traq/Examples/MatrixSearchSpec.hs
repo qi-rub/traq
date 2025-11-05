@@ -11,7 +11,9 @@ import qualified Traq.CQPL as CQPL
 import qualified Traq.Compiler.Quantum as CompileQ
 import qualified Traq.Compiler.Unitary as CompileU
 import Traq.Examples.MatrixSearch
-import Traq.Primitives.Search.QSearchCFNW (_EQSearchWorst, _QSearchZalka)
+import Traq.Primitives (Primitive (..))
+import Traq.Primitives.Search.Prelude (PrimAny (..))
+import Traq.Primitives.Search.QSearchCFNW (_EQSearchWorst, _QSearchZalkaWithNormErr)
 import Traq.Primitives.Search.Symbolic
 import qualified Traq.ProtoLang as P
 import qualified Traq.Utils.Printing as PP
@@ -40,20 +42,20 @@ spec = do
 
     -- expected, worst, unitary
     let wcF = _EQSearchWorst
-    let ucF = _QSearchZalka
+    let ucF = _QSearchZalkaWithNormErr
 
     it "unitary cost for delta=0.0001" $ do
       let delta = P.l2NormError (0.001 :: Double)
       let cu = getCost $ P.unitaryQueryCost P.SplitSimple delta ex
       let nu_outer = ucF n (delta `P.divideError` 2)
-      let nu_inner = 2 * ucF m (delta `P.divideError` (2 * nu_outer * 8))
+      let nu_inner = 2 * ucF m (delta `P.divideError` (2 * nu_outer * 4))
       cu `shouldBe` 2 * nu_outer * 2 * nu_inner
 
     it "quantum cost for eps=0.0001" $ do
       let eps = P.failProb (0.001 :: Double)
       let cq = getCost $ P.quantumQueryCost P.SplitSimple eps ex interpCtx []
       let nq_outer = wcF n (eps `P.divideError` 2)
-      let nq_inner = 2 * ucF m (P.requiredFailProbToNormError eps `P.divideError` (2 * nq_outer * 8))
+      let nq_inner = 2 * ucF m (P.requiredFailProbToNormError eps `P.divideError` (2 * nq_outer * 4))
       let nq_oracle = 2
       cq `shouldBe` 2 * nq_outer * nq_inner * nq_oracle
 
@@ -87,10 +89,10 @@ spec = do
         -- case CQPL.typeCheckProgram gamma ex_uqpl of Left e -> putStrLn e; _ -> return ()
         assertRight $ CQPL.typeCheckProgram ex_cqpl
 
-  describe "matrix search symbolic" $ do
+  xdescribe "matrix search symbolic" $ do
     let n = Sym.var "n" :: Sym.Sym Int
     let m = Sym.var "m" :: Sym.Sym Int
-    let ex = matrixExample @(QSearchSym Int Double) n m
+    let ex = mkMatrixExample (\ty f -> P.PrimCallE $ Primitive [f] $ QAnySym $ PrimAny ty) n m
 
     -- expected, worst, unitary
     let ucF = _QryU

@@ -5,6 +5,7 @@
 {-# LANGUAGE MultiParamTypeClasses #-}
 
 module Traq.Primitives (
+  module Traq.Primitives.Class,
   primCallE,
   DefaultPrims (..),
   DefaultPrims',
@@ -14,13 +15,17 @@ module Traq.Primitives (
 import Control.Applicative ((<|>))
 import GHC.Generics
 import Text.Parsec (try)
+import Text.Parsec.Token (GenTokenParser (..))
+import Text.Printf (printf)
 
 import qualified Traq.Data.Probability as Prob
 import Traq.Data.Subtyping
+import qualified Traq.Data.Symbolic as Sym
 
 import qualified Traq.Compiler.Quantum as CompileQ
 import qualified Traq.Compiler.Unitary as CompileU
 import Traq.Prelude
+import Traq.Primitives.Class
 import Traq.Primitives.Search.DetSearch
 import Traq.Primitives.Search.Prelude
 import Traq.Primitives.Search.QSearchCFNW
@@ -33,10 +38,10 @@ primCallE :: forall ext ext'. (ext :<: ext') => ext -> P.Expr ext'
 primCallE = P.PrimCallE . inject
 
 data DefaultPrims sizeT precT
-  = QAny (QSearchCFNW sizeT precT)
-  | RAny (RandomSearch sizeT precT)
-  | DAny (DetSearch sizeT precT)
-  deriving (Eq, Show, Read, Generic)
+  = QAny (Primitive (QSearchCFNW sizeT precT))
+  | RAny (Primitive (RandomSearch sizeT precT))
+  | DAny (Primitive (DetSearch sizeT precT))
+  deriving (Eq, Show, Generic)
 
 type DefaultPrims' = DefaultPrims SizeT Double
 
@@ -50,33 +55,35 @@ instance P.MapSize (DefaultPrims size prec) where
   mapSize f (RAny p) = RAny (P.mapSize f p)
   mapSize f (DAny p) = DAny (P.mapSize f p)
 
-instance PrimAny sizeT precT :<: DefaultPrims sizeT precT where
-  inject = QAny . inject
+printSearchLikePrim :: (Show size) => String -> P.VarType size -> [PartialFun] -> String
+printSearchLikePrim name ty [pfun] = printf "@%s<%s>[%s]" name (str_trim ty) (str_trim pfun)
+ where
+  str_trim :: forall a. (PP.ToCodeString a) => a -> String
+  str_trim = trim . PP.toCodeString
 
-  project (QAny p) = project p
-  project _ = Nothing
-
-instance PrimSearch sizeT precT :<: DefaultPrims sizeT precT where
-  inject = QAny . inject
-
-  project (QAny p) = project p
-  project _ = Nothing
+  trim = head . lines
+printSearchLikePrim _ _ _ = error "primitive: expected exactly one predicate"
 
 -- Printing
-instance PP.ToCodeString (DefaultPrims sizeT precT) where
-  build (QAny (QAnyCFNW p)) = printSearchLikePrim "any" p
-  build (QAny (QSearchCFNW p)) = printSearchLikePrim "search" p
-  build (RAny p) = printSearchLikePrim "any_rand" p
-  build (DAny p) = printSearchLikePrim "any_det" p
+instance (Show sizeT) => PP.ToCodeString (DefaultPrims sizeT precT) where
+  build (QAny (Primitive predfun (QAnyCFNW (PrimAny ty)))) = PP.putWord $ printSearchLikePrim "any" ty predfun
+  build (QAny (Primitive predfun (QSearchCFNW (PrimSearch ty)))) = PP.putWord $ printSearchLikePrim "search" ty predfun
+  build (RAny (Primitive predfun (RandomSearch (PrimAny ty)))) = PP.putWord $ printSearchLikePrim "any_rand" ty predfun
+  build (DAny (Primitive predfun (DetSearch (PrimAny ty)))) = PP.putWord $ printSearchLikePrim "any_det" ty predfun
 
 -- Parsing
-instance P.Parseable (DefaultPrims sizeT precT) where
-  parseE tp = try qany <|> try qsearch <|> try rany <|> try dany
-   where
-    qany = QAny . QAnyCFNW <$> parsePrimAnyWithName "any" tp
-    qsearch = QAny . QSearchCFNW <$> parsePrimSearchWithName "search" tp
-    rany = RAny . RandomSearch <$> parsePrimAnyWithName "any_rand" tp
-    dany = DAny . DetSearch <$> parsePrimAnyWithName "any_det" tp
+instance (sizeT ~ Sym.Sym SizeT) => P.Parseable (DefaultPrims sizeT precT) where
+  parseE tp = do
+    s <- foldr1 (<|>) $ map (try . symbol tp) ["@any", "@search", "@any_rand", "@any_det"]
+    ty <- angles tp $ P.varType tp
+    pred_fun <- brackets tp (P.parseE tp)
+
+    case s of
+      "@any" -> pure $ QAny . Primitive [pred_fun] $ QAnyCFNW (PrimAny ty)
+      "@search" -> pure $ QAny . Primitive [pred_fun] $ QSearchCFNW (PrimSearch ty)
+      "@any_rand" -> pure $ RAny . Primitive [pred_fun] $ RandomSearch (PrimAny ty)
+      "@any_det" -> pure $ DAny . Primitive [pred_fun] $ DetSearch (PrimAny ty)
+      _ -> fail ""
 
 instance (P.TypingReqs sizeT) => P.TypeInferrable (DefaultPrims sizeT precT) sizeT
 instance P.HasFreeVars (DefaultPrims sizeT precT)
@@ -119,6 +126,7 @@ instance
   , RealFloat precT
   , P.TypingReqs sizeT
   , Show precT
+  , P.SizeToPrec sizeT precT
   ) =>
   CompileU.Lowerable (DefaultPrims sizeT precT) sizeT precT
   where

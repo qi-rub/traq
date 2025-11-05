@@ -13,13 +13,11 @@ module Traq.Primitives.Simons.Quantum (
 import GHC.Generics (Generic)
 
 import Traq.Data.Subtyping
-import qualified Traq.Data.Symbolic as Sym
 
 import Traq.Prelude
 import Traq.Primitives.Class
 import Traq.Primitives.Simons.Prelude
 import qualified Traq.ProtoLang as P
-import qualified Traq.Utils.Printing as PP
 
 -- ================================================================================
 -- Primitive and Query Cost Formulas
@@ -52,11 +50,10 @@ instance FindXorPeriod sizeT precT :<: SimonsFindXorPeriod sizeT precT
 
 instance IsA (FindXorPeriod sizeT precT) (SimonsFindXorPeriod sizeT precT)
 
-instance (Show sizeT) => PP.ToCodeString (SimonsFindXorPeriod sizeT Double) where
-  build (SimonsFindXorPeriod p) = PP.build p
-
-instance (sizeT ~ Sym.Sym SizeT) => P.Parseable (SimonsFindXorPeriod sizeT Double) where
-  parseE tp = SimonsFindXorPeriod <$> P.parseE tp
+instance (Show sizeT) => SerializePrim (SimonsFindXorPeriod sizeT Double) where
+  primNames = ["findXorPeriod"]
+  parsePrimParams tp s = SimonsFindXorPeriod <$> parsePrimParams tp s
+  printPrimParams (SimonsFindXorPeriod prim) = printPrimParams prim
 
 instance
   (P.TypingReqs size, Num prec, Ord prec, Show prec) =>

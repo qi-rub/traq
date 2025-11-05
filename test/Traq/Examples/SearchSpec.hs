@@ -11,7 +11,7 @@ import qualified Traq.CQPL as CQPL
 import qualified Traq.Compiler.Unitary as CompileU
 import Traq.Examples.Search
 import Traq.Prelude
-import Traq.Primitives.Search.QSearchCFNW (_EQSearch, _QSearchZalka)
+import Traq.Primitives.Search.QSearchCFNW (_EQSearch, _QSearchZalkaWithNormErr)
 import qualified Traq.ProtoLang as P
 import qualified Traq.Utils.Printing as PP
 
@@ -37,7 +37,7 @@ spec = do
       res `shouldBeDistribution` pure ([P.FinV 0], 1.0)
 
     let ecF = _EQSearch
-    let ucF = _QSearchZalka
+    let ucF = _QSearchZalkaWithNormErr
 
     it "unitary cost for delta=0.0001" $ do
       let delta = P.l2NormError (0.0001 :: Double)

@@ -26,24 +26,21 @@ module Traq.Primitives.Search.QSearchCFNW (
   -- * Cost Formulas
   _EQSearch,
   _EQSearchWorst,
-  _QSearchZalka,
+  _QSearchZalkaWithNormErr,
 ) where
 
-import Control.Applicative ((<|>))
 import Control.Monad (forM, replicateM, when)
 import Control.Monad.Except (throwError)
 import Control.Monad.RWS (RWST, evalRWST)
-import Control.Monad.Reader (runReaderT)
 import Control.Monad.Trans (lift)
 import Control.Monad.Writer (WriterT (..), censor, execWriterT, listen)
+import Data.Maybe (catMaybes, fromJust)
 import Data.String (fromString)
 import GHC.Generics (Generic)
-import Text.Parsec (try)
 import Text.Printf (printf)
 
 import Lens.Micro.GHC
 import Lens.Micro.Mtl
-import qualified Numeric.Algebra as Alg
 
 import Traq.Control.Monad
 import qualified Traq.Data.Context as Ctx
@@ -55,10 +52,10 @@ import qualified Traq.Compiler as Compiler
 import qualified Traq.Compiler.Quantum as CompileQ
 import qualified Traq.Compiler.Unitary as CompileU
 import Traq.Prelude
+import Traq.Primitives.Class
 import Traq.Primitives.Search.Prelude
 import Traq.ProtoLang (notE, (.&&.), (.+.), (.<=.))
 import qualified Traq.ProtoLang as P
-import qualified Traq.Utils.Printing as PP
 
 -- ================================================================================
 -- Cost Formulas
@@ -82,15 +79,10 @@ _EQSearch n t eps
  where
   term = _F n t / (9.2 * sqrt (fromIntegral n))
 
--- Eq. TODO REF
-_QSearchZalka :: forall sizeT precT. (Integral sizeT, Floating precT) => sizeT -> P.L2NormError precT -> precT
-_QSearchZalka n delta = 2 * nq_simple -- 2x for compute-uncompute
+_QSearchZalka :: forall sizeT precT. (Integral sizeT, Floating precT) => sizeT -> P.FailProb precT -> precT
+_QSearchZalka n eps = nq_simple
  where
   -- Section 2.2 Improved Algorithm (i.e. sqrt log(1/eps) instead of log(1/eps))
-  -- fail prob
-  eps :: P.FailProb precT
-  eps = P.requiredNormErrorToFailProb delta
-
   -- log_fac = ceiling log_fac
   -- log_fac :: precT
   -- log_fac = log (1 / eps) / (2 * log (4 / 3))
@@ -111,6 +103,13 @@ _QSearchZalka n delta = 2 * nq_simple -- 2x for compute-uncompute
   nq_simple :: precT
   nq_simple = fromIntegral max_iter * n_reps
 
+-- Eq. TODO REF
+_QSearchZalkaWithNormErr :: forall sizeT precT. (Integral sizeT, Floating precT) => sizeT -> P.L2NormError precT -> precT
+_QSearchZalkaWithNormErr n delta = 2 * _QSearchZalka n eps -- 2x for compute-uncompute
+ where
+  eps :: P.FailProb precT
+  eps = P.requiredNormErrorToFailProb delta
+
 -- ================================================================================
 -- Primitive Class Implementation
 -- ================================================================================
@@ -122,6 +121,8 @@ data QSearchCFNW sizeT precT
 
 type instance SizeType (QSearchCFNW sizeT precT) = sizeT
 type instance PrecType (QSearchCFNW sizeT precT) = precT
+
+type instance PrimFnShape (QSearchCFNW size prec) = BooleanPredicate
 
 instance P.MapSize (QSearchCFNW size prec) where
   type MappedSize (QSearchCFNW size prec) size' = QSearchCFNW size' prec
@@ -149,138 +150,69 @@ instance PrimSearch sizeT precT :<: QSearchCFNW sizeT precT where
   project (QSearchCFNW p) = Just p
   project _ = Nothing
 
-instance IsA SearchLikePrim (QSearchCFNW sizeT precT)
+instance (Show sizeT) => SerializePrim (QSearchCFNW sizeT precT) where
+  primNames = ["any", "search"]
 
-instance PP.ToCodeString (QSearchCFNW sizeT precT) where
-  build (QAnyCFNW p) = printSearchLikePrim "any" p
-  build (QSearchCFNW p) = printSearchLikePrim "search" p
+  parsePrimParams tp "any" = QAnyCFNW <$> parsePrimParams tp "any"
+  parsePrimParams tp "search" = QSearchCFNW <$> parsePrimParams tp "search"
+  parsePrimParams _ _ = fail ""
 
--- Parsing
-instance P.Parseable (QSearchCFNW sizeT precT) where
-  parseE tp = try parseAny <|> try parseSearch
-   where
-    parseAny = QAnyCFNW <$> parsePrimAnyWithName "any" tp
-    parseSearch = QSearchCFNW <$> parsePrimSearchWithName "search" tp
+  printPrimParams (QSearchCFNW prim) = printPrimParams prim
+  printPrimParams (QAnyCFNW prim) = printPrimParams prim
 
 -- Type check
-instance P.HasFreeVars (QSearchCFNW sizeT precT)
-instance (P.TypingReqs sizeT) => P.TypeInferrable (QSearchCFNW sizeT precT) sizeT
+instance (P.TypingReqs size) => TypeCheckPrim (QSearchCFNW size prec) size where
+  inferRetTypesPrim (QSearchCFNW prim) = inferRetTypesPrim prim
+  inferRetTypesPrim (QAnyCFNW prim) = inferRetTypesPrim prim
 
-{- | Evaluate an `any` call by evaluating the predicate on each element of the search space
- and or-ing the results.
--}
-instance (P.EvalReqs sizeT precT) => P.Evaluatable (QSearchCFNW sizeT precT) sizeT precT
+-- Eval
+instance EvalPrim (QSearchCFNW size prec) size prec where
+  evalPrim (QSearchCFNW prim) = evalPrim prim
+  evalPrim (QAnyCFNW prim) = evalPrim prim
 
 -- ================================================================================
 -- Abstract Costs
 -- ================================================================================
 
+getSearchType :: QSearchCFNW size prec -> P.VarType size
+getSearchType prim = case prim of
+  QSearchCFNW (PrimSearch ty) -> ty
+  QAnyCFNW (PrimAny ty) -> ty
+
 -- | Compute the unitary cost using the QSearch_Zalka cost formula.
 instance
-  ( Integral sizeT
-  , Floating precT
-  , Show precT
-  , P.TypingReqs sizeT
-  ) =>
-  P.UnitaryCost (QSearchCFNW sizeT precT) sizeT precT
+  (P.TypingReqs sizeT, Integral sizeT, Floating precT) =>
+  UnitaryCostPrim (QSearchCFNW sizeT precT) sizeT precT
   where
-  unitaryCost delta prim = do
-    let SearchLikePrim{predicate} = extract prim
-
-    P.FunDef{P.param_types} <- view $ P._funCtx . Ctx.at predicate . singular _Just
-    let n = last param_types ^?! P._Fin
-
-    -- split the precision
-    let delta_search = delta `P.divideError` 2
-    let delta_pred = delta - delta_search
-
-    -- number of predicate queries
-    let qry = _QSearchZalka n delta_search
-
-    -- precision per predicate call
-    let delta_per_pred_call = delta_pred `P.divideError` qry
-
-    -- cost of each predicate call
-    cost_pred <-
-      P.unitaryQueryCostE delta_per_pred_call $
-        P.FunCallE{P.fname = predicate, P.args = undefined}
-
-    return $ qry Alg..* cost_pred
+  unitaryQueryCosts prim eps = BooleanPredicate{predicate = _QSearchZalka _N eps}
+   where
+    _N = P.domainSize $ getSearchType prim
 
 instance
-  ( Integral sizeT
-  , Floating precT
-  , Show precT
-  , P.TypingReqs sizeT
-  ) =>
-  P.QuantumHavocCost (QSearchCFNW sizeT precT) sizeT precT
+  (P.TypingReqs sizeT, Integral sizeT, P.SizeToPrec sizeT precT, Floating precT) =>
+  QuantumHavocCostPrim (QSearchCFNW sizeT precT) sizeT precT
   where
-  quantumHavocCost eps prim = do
-    let SearchLikePrim{predicate} = extract prim
+  quantumQueryCostsUnitary prim eps = BooleanPredicate{predicate = _EQSearchWorst _N eps}
+   where
+    _N = P.domainSize $ getSearchType prim
 
-    P.FunDef{P.param_types} <- view $ P._funCtx . Ctx.at predicate . singular _Just
-    let n = last param_types ^?! P._Fin
+  quantumQueryCostsQuantum _ _ = BooleanPredicate{predicate = 0}
 
-    -- split the fail prob
-    let eps_search = eps `P.divideError` 2
-    let eps_pred = eps - eps_search
+instance (sizeT ~ SizeT, Floating precT, Prob.RVType precT precT) => QuantumExpCostPrim (QSearchCFNW sizeT precT) sizeT precT where
+  quantumExpQueryCostsUnitary prim eps BooleanPredicate{predicate = eval_pred} =
+    BooleanPredicate{predicate = _EQSearch _N _K eps}
+   where
+    search_ty = getSearchType prim
+    _N = P.domainSize search_ty
 
-    -- number of predicate queries
-    let qry = _EQSearchWorst n eps_search
+    flags =
+      P.domain search_ty <&> \v -> do
+        [b] <- Prob.toDeterministicValue $ eval_pred [v]
+        pure $ P.valueToBool b
 
-    -- fail prob per predicate call
-    let eps_per_pred_call = eps_pred `P.divideError` qry
-    let delta_per_pred_call = P.requiredFailProbToNormError eps_per_pred_call
+    _K = length $ filter fromJust flags
 
-    -- cost of each predicate call
-    cost_unitary_pred <-
-      magnify P._unitaryCostEnv $
-        P.unitaryQueryCostE delta_per_pred_call $
-          P.FunCallE{P.fname = predicate, P.args = undefined}
-
-    return $ qry Alg..* cost_unitary_pred
-
-instance
-  ( Integral sizeT
-  , Floating precT
-  , Show precT
-  , sizeT ~ SizeT
-  , P.EvalReqs sizeT precT
-  ) =>
-  P.QuantumExpCost (QSearchCFNW sizeT precT) sizeT precT
-  where
-  quantumExpCost eps prim sigma = do
-    let SearchLikePrim{predicate, pred_args} = extract prim
-
-    pred_arg_vals <- runReaderT ?? sigma $
-      forM pred_args $ \x -> do
-        view $ P._state . Ctx.at x . non (error "invalid argument, please typecheck first.")
-
-    -- split the fail prob
-    let eps_search = eps `P.divideError` 2
-    let eps_pred = eps - eps_search
-
-    -- number of solutions
-    search_results <- do
-      env <- view P._evaluationEnv
-      runSearchPredicateOnAllInputs @_ @precT predicate pred_arg_vals
-        & (runReaderT ?? env)
-        & Prob.toDeterministicValue
-        & lift
-    let n = length search_results
-    let t = countSolutions search_results
-
-    -- number of predicate queries
-    let qry = _EQSearch n t eps_search
-
-    let q_worst = _EQSearchWorst n eps_search
-    let eps_per_pred_call = eps_pred `P.divideError` q_worst
-    let delta_per_pred_call = P.requiredFailProbToNormError eps_per_pred_call
-
-    pred_unitary_cost <-
-      magnify P._unitaryCostEnv $
-        P.unitaryQueryCostE delta_per_pred_call P.FunCallE{P.fname = predicate, P.args = undefined}
-    return $ qry Alg..* pred_unitary_cost
+  quantumExpQueryCostsQuantum _ _ _ = BooleanPredicate{predicate = []}
 
 -- ================================================================================
 -- Unitary Lowering
@@ -435,14 +367,15 @@ instance
   , Show sizeT
   , Show precT
   , P.TypingReqs sizeT
+  , P.SizeToPrec sizeT precT
   ) =>
-  CompileU.Lowerable (QSearchCFNW sizeT precT) sizeT precT
+  CompileU.Lowerable (Primitive (QSearchCFNW sizeT precT)) sizeT precT
   where
-  lowerPrimitive delta (QAnyCFNW PrimAny{predicate, pred_args = args}) [ret] = do
+  lowerPrimitive delta (Primitive [PartialFun{pfun_name, pfun_args}] (QAnyCFNW PrimAny{})) [ret] = do
     -- the predicate
     pred_fun@P.FunDef{P.param_types} <-
-      view (P._funCtx . Ctx.at predicate)
-        >>= maybeWithError ("cannot find predicate " <> predicate)
+      view (P._funCtx . Ctx.at pfun_name)
+        >>= maybeWithError ("cannot find predicate " <> pfun_name)
 
     -- size of the search space
     let s_ty = last param_types
@@ -452,7 +385,7 @@ instance
     let delta_search = delta `P.divideError` 2
     let delta_pred = delta - delta_search
     -- number of predicate queries
-    let qry = _QSearchZalka n delta_search
+    let qry = _QSearchZalkaWithNormErr n delta_search
     -- precision per predicate call
     let delta_per_pred_call = delta_pred `P.divideError` qry
 
@@ -464,7 +397,7 @@ instance
       , CompileU.out_tys = pred_out_tys
       , CompileU.aux_tys = pred_aux_tys
       } <-
-      CompileU.lowerFunDef CompileU.WithControl delta_per_pred_call predicate pred_fun
+      CompileU.lowerFunDef CompileU.WithControl delta_per_pred_call pfun_name pred_fun
 
     when (pred_out_tys /= [P.tbool]) $ throwError "invalid outputs for predicate"
     when (last pred_inp_tys /= s_ty) $ throwError "mismatched search argument type"
@@ -475,7 +408,7 @@ instance
           CQPL.UCallS
             { CQPL.uproc_id = CQPL.proc_name pred_proc
             , CQPL.dagger = False
-            , CQPL.qargs = ctrl : args ++ [x, b] ++ pred_ancilla
+            , CQPL.qargs = ctrl : placeArgs pfun_args [x] ++ [b] ++ pred_ancilla
             }
 
     -- Emit the qsearch procedure
@@ -497,7 +430,7 @@ instance
             (show $ P.getL2NormError delta_search)
             (CQPL.proc_name pred_proc)
     let all_params =
-          CompileU.withTag CQPL.ParamInp (zip args (init pred_inp_tys))
+          CompileU.withTag CQPL.ParamInp (zip (catMaybes pfun_args) (init pred_inp_tys))
             ++ CompileU.withTag CQPL.ParamOut [(ret, P.tbool)]
             ++ CompileU.withTag CQPL.ParamAux (zip pred_ancilla pred_aux_tys)
             ++ CompileU.withTag CQPL.ParamAux qsearch_ancilla
@@ -523,7 +456,7 @@ instance
         return
           CQPL.UCallS
             { CQPL.uproc_id = qsearch_proc_name
-            , CQPL.qargs = args ++ [ret] ++ pred_ancilla ++ map fst qsearch_ancilla
+            , CQPL.qargs = catMaybes pfun_args ++ [ret] ++ pred_ancilla ++ map fst qsearch_ancilla
             , CQPL.dagger = False
             }
       else do
@@ -539,7 +472,7 @@ instance
         out_bit <- CompileU.allocAncilla P.tbool
 
         let all_params' =
-              CompileU.withTag CQPL.ParamInp (zip args (init pred_inp_tys))
+              CompileU.withTag CQPL.ParamInp (zip (catMaybes pfun_args) (init pred_inp_tys))
                 ++ CompileU.withTag CQPL.ParamOut [(ret, P.tbool)]
                 ++ CompileU.withTag CQPL.ParamAux (zip pred_ancilla pred_aux_tys)
                 ++ CompileU.withTag CQPL.ParamAux qsearch_ancilla
@@ -560,7 +493,7 @@ instance
                         CQPL.UWithComputedS
                           ( CQPL.UCallS
                               { CQPL.uproc_id = qsearch_proc_name
-                              , CQPL.qargs = args ++ [out_bit] ++ pred_ancilla ++ map fst qsearch_ancilla
+                              , CQPL.qargs = catMaybes pfun_args ++ [out_bit] ++ pred_ancilla ++ map fst qsearch_ancilla
                               , CQPL.dagger = False
                               }
                           )
@@ -571,7 +504,7 @@ instance
         return
           CQPL.UCallS
             { CQPL.uproc_id = qsearch_clean_proc_name
-            , CQPL.qargs = args ++ [ret] ++ pred_ancilla ++ map fst qsearch_ancilla ++ [out_bit]
+            , CQPL.qargs = catMaybes pfun_args ++ [ret] ++ pred_ancilla ++ map fst qsearch_ancilla ++ [out_bit]
             , CQPL.dagger = False
             }
 
@@ -756,16 +689,16 @@ instance
   , Show precT
   , P.TypingReqs sizeT
   ) =>
-  CompileQ.Lowerable (QSearchCFNW sizeT precT) sizeT precT
+  CompileQ.Lowerable (Primitive (QSearchCFNW sizeT precT)) sizeT precT
   where
-  lowerPrimitive eps (QAnyCFNW PrimAny{predicate, pred_args = args}) [ret] = do
+  lowerPrimitive eps (Primitive [PartialFun{pfun_name, pfun_args}] (QAnyCFNW (PrimAny s_ty))) [ret] = do
+    -- predicate, pred_args = args
     -- the predicate
-    pred_fun@P.FunDef{P.param_types} <-
-      view (P._funCtx . Ctx.at predicate)
-        >>= maybeWithError ("cannot find predicate " <> predicate)
+    pred_fun <-
+      view (P._funCtx . Ctx.at pfun_name)
+        >>= maybeWithError ("cannot find predicate " <> pfun_name)
 
     -- size of the search space
-    let s_ty = last param_types
     let n = s_ty ^?! P._Fin
 
     -- fail prob of search
@@ -779,7 +712,7 @@ instance
 
     -- lower the unitary predicate
     pred_uproc <- WriterT . magnify P._unitaryCostEnv . runWriterT $ do
-      CompileU.lowerFunDef @_ CompileU.WithoutControl delta_per_pred_call predicate pred_fun
+      CompileU.lowerFunDef @_ CompileU.WithoutControl delta_per_pred_call pfun_name pred_fun
 
     let CompileU.LoweredProc
           { CompileU.inp_tys = pred_inp_tys
@@ -803,11 +736,11 @@ instance
                 CQPL.UCallS
                   { CQPL.uproc_id = upred_proc_name
                   , CQPL.dagger = False
-                  , CQPL.qargs = args ++ [x, b] ++ upred_aux_vars
+                  , CQPL.qargs = catMaybes pfun_args ++ [x, b] ++ upred_aux_vars
                   }
             )
     let uproc_grover_k_params =
-          CompileU.withTag CQPL.ParamInp (zip (args ++ [grover_arg_name]) pred_inp_tys)
+          CompileU.withTag CQPL.ParamInp (zip (catMaybes pfun_args ++ [grover_arg_name]) pred_inp_tys)
             ++ CompileU.withTag CQPL.ParamOut [(ret, P.tbool)]
             ++ CompileU.withTag CQPL.ParamAux (zip upred_aux_vars pred_aux_tys)
     let uproc_grover_k =
@@ -834,7 +767,7 @@ instance
             }
 
     -- emit the QSearch algorithm
-    qsearch_params <- forM (args ++ [ret]) $ \x -> do
+    qsearch_params <- forM (catMaybes pfun_args ++ [ret]) $ \x -> do
       ty <- use $ P._typingCtx . Ctx.at x . singular _Just
       return (x, ty)
 
@@ -842,7 +775,7 @@ instance
           CQPL.CallS
             { CQPL.fun = CQPL.UProcAndMeas upred_proc_name
             , CQPL.meta_params = []
-            , CQPL.args = args ++ [x, b]
+            , CQPL.args = catMaybes pfun_args ++ [x, b]
             }
 
     (qsearch_body, qsearch_local_vars) <- execWriterT $ algoQSearch s_ty 0 eps_s grover_k_caller pred_caller ret
@@ -865,7 +798,7 @@ instance
     return
       CQPL.CallS
         { CQPL.fun = CQPL.FunctionCall qsearch_proc_name
-        , CQPL.args = args ++ [ret]
+        , CQPL.args = catMaybes pfun_args ++ [ret]
         , CQPL.meta_params = []
         }
   lowerPrimitive _ _ _ = error "Unsupported"

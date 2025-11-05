@@ -324,7 +324,7 @@ typeCheckStmt ExprS{rets, expr} = do
   out_tys <- typeCheckExpr expr
   when (length out_tys /= length rets) $ do
     throwError $
-      ("Expected " <> show (length out_tys) <> " outputs, but given " <> show (length out_tys) <> " vars to bind.")
+      ("Expected " <> show (length rets) <> " outputs, but given " <> show (length out_tys) <> " vars to bind.")
         <> (" (return variables: " <> show rets <> ", output types: " <> show out_tys <> ")")
   zipWithM_ Ctx.put rets out_tys
 -- sequence
