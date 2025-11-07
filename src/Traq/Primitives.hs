@@ -6,7 +6,6 @@
 
 module Traq.Primitives (
   module Traq.Primitives.Class,
-  primCallE,
   DefaultPrims (..),
   DefaultPrims',
   QSearchCFNW (..),
@@ -19,7 +18,6 @@ import Text.Parsec.Token (GenTokenParser (..))
 import Text.Printf (printf)
 
 import qualified Traq.Data.Probability as Prob
-import Traq.Data.Subtyping
 import qualified Traq.Data.Symbolic as Sym
 
 import qualified Traq.Compiler.Quantum as CompileQ
@@ -32,10 +30,6 @@ import Traq.Primitives.Search.QSearchCFNW
 import Traq.Primitives.Search.RandomSearch
 import qualified Traq.ProtoLang as P
 import qualified Traq.Utils.Printing as PP
-
--- | Build a primitive call by appropriately injecting an arbitrary primitive into a larger context.
-primCallE :: forall ext ext'. (ext :<: ext') => ext -> P.Expr ext'
-primCallE = P.PrimCallE . inject
 
 data DefaultPrims sizeT precT
   = QAny (Primitive (QSearchCFNW sizeT precT))
