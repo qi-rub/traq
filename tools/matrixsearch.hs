@@ -17,7 +17,7 @@ import qualified Traq.Compiler.Unitary as CompileU
 import Traq.Examples.MatrixSearch
 import Traq.Prelude
 import Traq.Primitives.Class (Primitive (..))
-import Traq.Primitives.Search.Prelude (PrimAny (..))
+import Traq.Primitives.Search.Prelude
 import Traq.Primitives.Search.Symbolic
 import qualified Traq.ProtoLang as P
 import qualified Traq.Utils.Printing as PP
@@ -33,7 +33,7 @@ symbolicEx = do
 
   let n = Sym.var "N" :: Sym.Sym SizeT
   let m = Sym.var "M" :: Sym.Sym SizeT
-  let P.Program ex_fs = mkMatrixExample (\t f -> P.PrimCallE $ Primitive [f] $ QAnySym $ PrimAny t) n m
+  let P.Program ex_fs = mkMatrixExample (\t f -> P.PrimCallE $ Primitive [f] $ QSearchSym $ PrimSearch AnyK t) n m
   let strat = P.SplitUsingNeedsEps
 
   forM_ (tail $ inits ex_fs) $ \fs -> do

@@ -7,6 +7,6 @@ end
 
 def main() -> (Bool, Fin<N>) do
   y <- const 1 : Fin<N>;
-  ok, result <- @amplify[f, 0.6](y);
+  ok, result <- @amplify<0.6>[f(y)];
   return ok, result
 end

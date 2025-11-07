@@ -6,9 +6,10 @@
 module Traq.Primitives.Amplify.Prelude (
   -- * Amplify Primitive
   Amplify (..),
+  SamplerFn (..),
 ) where
 
-import Control.Monad (forM, when)
+import Control.Monad (when)
 import Control.Monad.Except (throwError)
 import Control.Monad.Reader (ReaderT (..))
 import Control.Monad.Trans (lift)
@@ -19,74 +20,54 @@ import Lens.Micro.GHC
 import Lens.Micro.Mtl
 
 import Traq.Control.Monad
-import qualified Traq.Data.Context as Ctx
 import qualified Traq.Data.Probability as Prob
 
 import Traq.Prelude
+import Traq.Primitives.Class
 import qualified Traq.ProtoLang as P
-import qualified Traq.Utils.Printing as PP
 
-{- | Primitive @amplify@ that returns a sample using the sampling function f.
-Also returns a boolean flag indicating whether the sample returned is good.
+{- | Primitive @amplify@ that takes a sampler and returns a good sample w.h.p.
+The sampler must return a sample and a boolean flag,
+and if there is a good sample, it should return one with probability at least p_min.
 -}
-data Amplify sizeT precT = Amplify {sampler :: Ident, p_min :: precT, sampler_args :: [Ident]}
+data Amplify sizeT precT = Amplify {p_min :: precT}
   deriving (Eq, Show, Read)
 
 type instance SizeType (Amplify sizeT precT) = sizeT
 type instance PrecType (Amplify sizeT precT) = precT
+
+newtype SamplerFn a = SamplerFn a
+
+instance ValidPrimShape SamplerFn where
+  listToShape [f] = pure $ SamplerFn f
+  listToShape _ = throwError "amplify: expected exactly one sampler"
+  shapeToList (SamplerFn f) = [f]
+
+type instance PrimFnShape (Amplify size prec) = SamplerFn
 
 instance P.MapSize (Amplify size prec) where
   type MappedSize (Amplify size prec) size' = (Amplify size' prec)
   mapSize _ Amplify{..} = Amplify{..}
 
 -- Pretty Printing
-instance PP.ToCodeString (Amplify sizeT Double) where
-  build Amplify{sampler, p_min, sampler_args} =
-    PP.putWord $ printf "@amplify[%s, %.2f](%s)" sampler p_min (PP.commaList sampler_args)
+instance (Show prec, Fractional prec) => SerializePrim (Amplify size prec) where
+  primNames = ["amplify"]
 
--- Parsing
-instance P.Parseable (Amplify sizeT Double) where
-  parseE TokenParser{..} = parseAmplify
-   where
-    parseAmplify = do
-      -- Parse "@amplify" keyword
-      _ <- symbol "@amplify"
-      -- Parse the sample and p_min inside brackets
-      (sampler, p_min) <- brackets $ do
-        sampler <- identifier
-        comma
-        p_min <- float
-        return (sampler, p_min)
-      sampler_args <- parens $ commaSep identifier
-      return Amplify{sampler, p_min, sampler_args}
+  parsePrimParams tp _ = Amplify . realToFrac <$> float tp
+  printPrimParams Amplify{p_min} = [show p_min]
 
 -- Type check
-instance P.HasFreeVars (Amplify sizeT precT) where
-  freeVarsList Amplify{sampler_args} = sampler_args
+instance (P.TypingReqs sizeT) => TypeCheckPrim (Amplify sizeT precT) sizeT where
+  inferRetTypesPrim _ (SamplerFn sampler_ty) = do
+    let P.FnType param_types ret_types = sampler_ty
 
-instance (P.TypingReqs sizeT, Num precT, Ord precT, Show precT) => P.TypeInferrable (Amplify sizeT precT) sizeT where
-  inferTypes Amplify{sampler, p_min, sampler_args} = do
-    when (p_min < 0 || p_min > 1) $
-      throwError $
-        printf "p_min must be in [0, 1], got %s" (show p_min)
-
-    P.FunDef{P.param_types, P.ret_types} <-
-      view (Ctx.at sampler)
-        >>= maybeWithError (printf "cannot find sampler function '%s'" sampler)
+    when (param_types /= []) $ do
+      throwError $ printf "amplify: all sampler args must be bound, but got unbound %s" (show param_types)
 
     sample_ty <-
       case ret_types of
         [boolType, t] | boolType == P.tbool -> return t
-        _ -> throwError $ printf "sampler must return (Bool, T), got %s" (show ret_types)
-
-    arg_tys <- mapM Ctx.lookup sampler_args
-    when (param_types /= arg_tys) $
-      throwError
-        ( "Invalid arguments to bind to sampler: expected: "
-            ++ show param_types
-            ++ ", but got: "
-            ++ show arg_tys
-        )
+        _ -> throwError $ printf "amplify: sampler must return (Bool, T), got %s" (show ret_types)
 
     return [P.tbool, sample_ty]
 
@@ -96,23 +77,14 @@ based on Psucc.
 -}
 instance
   (Ord precT, sizeT ~ SizeT, P.EvalReqs sizeT precT) =>
-  P.Evaluatable (Amplify sizeT precT) sizeT precT
+  EvalPrim (Amplify sizeT precT) sizeT precT
   where
-  eval Amplify{sampler, p_min, sampler_args} sigma = do
-    sampler_fundef <-
-      view $
-        P._funCtx
-          . Ctx.at sampler
-          . non' (error "unable to find sampler, please typecheck first!")
-
-    eval_env <- view id -- current environment
-    arg_vals <- runReaderT ?? sigma $ forM sampler_args $ \x -> do
-      view $ Ctx.at x . non (error "invalid arg")
+  evalPrim Amplify{p_min} (SamplerFn sampler) = do
+    -- TODO also push this into the primitive class book-keeping.
+    eval_env <- view id
 
     -- result distribution
-    let mu =
-          P.evalFun arg_vals (P.NamedFunDef sampler sampler_fundef)
-            & (runReaderT ?? eval_env)
+    let mu = sampler [] & runReaderT ?? eval_env
     let p_succ = Prob.probabilityOf success mu
 
     lift $

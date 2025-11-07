@@ -66,10 +66,11 @@ printSearchLikePrim _ _ _ = error "primitive: expected exactly one predicate"
 
 -- Printing
 instance (Show sizeT) => PP.ToCodeString (DefaultPrims sizeT precT) where
-  build (QAny (Primitive predfun (QAnyCFNW (PrimAny ty)))) = PP.putWord $ printSearchLikePrim "any" ty predfun
-  build (QAny (Primitive predfun (QSearchCFNW (PrimSearch ty)))) = PP.putWord $ printSearchLikePrim "search" ty predfun
-  build (RAny (Primitive predfun (RandomSearch (PrimAny ty)))) = PP.putWord $ printSearchLikePrim "any_rand" ty predfun
-  build (DAny (Primitive predfun (DetSearch (PrimAny ty)))) = PP.putWord $ printSearchLikePrim "any_det" ty predfun
+  build (QAny (Primitive predfun (QSearchCFNW (PrimSearch AnyK ty)))) = PP.putWord $ printSearchLikePrim "any" ty predfun
+  build (QAny (Primitive predfun (QSearchCFNW (PrimSearch SearchK ty)))) = PP.putWord $ printSearchLikePrim "search" ty predfun
+  build (RAny (Primitive predfun (RandomSearch (PrimSearch AnyK ty)))) = PP.putWord $ printSearchLikePrim "any_rand" ty predfun
+  build (DAny (Primitive predfun (DetSearch (PrimSearch AnyK ty)))) = PP.putWord $ printSearchLikePrim "any_det" ty predfun
+  build _ = fail "DefaultPrims: invalid primitive"
 
 -- Parsing
 instance (sizeT ~ Sym.Sym SizeT) => P.Parseable (DefaultPrims sizeT precT) where
@@ -79,10 +80,10 @@ instance (sizeT ~ Sym.Sym SizeT) => P.Parseable (DefaultPrims sizeT precT) where
     pred_fun <- brackets tp (P.parseE tp)
 
     case s of
-      "@any" -> pure $ QAny . Primitive [pred_fun] $ QAnyCFNW (PrimAny ty)
-      "@search" -> pure $ QAny . Primitive [pred_fun] $ QSearchCFNW (PrimSearch ty)
-      "@any_rand" -> pure $ RAny . Primitive [pred_fun] $ RandomSearch (PrimAny ty)
-      "@any_det" -> pure $ DAny . Primitive [pred_fun] $ DetSearch (PrimAny ty)
+      "@any" -> pure $ QAny . Primitive [pred_fun] $ QSearchCFNW (PrimSearch AnyK ty)
+      "@search" -> pure $ QAny . Primitive [pred_fun] $ QSearchCFNW (PrimSearch SearchK ty)
+      "@any_rand" -> pure $ RAny . Primitive [pred_fun] $ RandomSearch (PrimSearch AnyK ty)
+      "@any_det" -> pure $ DAny . Primitive [pred_fun] $ DetSearch (PrimSearch AnyK ty)
       _ -> fail ""
 
 instance (P.TypingReqs sizeT) => P.TypeInferrable (DefaultPrims sizeT precT) sizeT

@@ -1,16 +1,18 @@
 module Traq.Primitives.Amplify.CAmplifySpec where
 
 import qualified Traq.Data.Context as Ctx
-import qualified Traq.Data.Symbolic as Sym
 
 import Traq.Analysis.CostModel.QueryCost (SimpleQueryCost (..))
-import Traq.Primitives.Amplify.CAmplify (CAmplify (..))
-import Traq.Primitives.Amplify.Prelude (Amplify (..))
+import Traq.Primitives.Amplify.CAmplify
+import Traq.Primitives.Amplify.Prelude
+import Traq.Primitives.Class
 import qualified Traq.ProtoLang as P
 
 import Test.Hspec
 
-exampleProgram :: (Num sizeT, Fractional precT) => sizeT -> P.Program (CAmplify sizeT precT)
+type Prim sizeT precT = Primitive (CAmplify sizeT precT)
+
+exampleProgram :: (Num sizeT, Fractional precT) => sizeT -> P.Program (Prim sizeT precT)
 exampleProgram n = P.Program [P.NamedFunDef "sampler" sampler, P.NamedFunDef "main" main_fun]
  where
   node_ty = P.Fin n
@@ -51,7 +53,8 @@ exampleProgram n = P.Program [P.NamedFunDef "sampler" sampler, P.NamedFunDef "ma
       { P.rets = ["ok", "result"]
       , P.expr =
           P.PrimCallE $
-            CAmplify (Amplify{sampler = "sampler", p_min = 0.02, sampler_args = ["x"]})
+            Primitive [PartialFun{pfun_name = "sampler", pfun_args = [Just "x"]}] $
+              CAmplify Amplify{p_min = 0.02}
       }
 
 spec :: Spec
@@ -64,7 +67,7 @@ spec = describe "CAmplify" $ do
       -- let expectedCost = 2 * _QryClassicalU ((delta / 2) / 2) p_min
       let actualCost = getCost $ P.unitaryQueryCost P.SplitSimple delta program
 
-      actualCost `shouldBe` 1779.40444900044
+      actualCost `shouldBe` 2 * 1779.40444900044
 
     it "calculates quantum max cost correctly" $ do
       let eps = P.failProb (0.001 :: Double)
@@ -89,4 +92,4 @@ spec = describe "CAmplify" $ do
       -- let expectedCost = _QryClassicalMax (Sym.con eps / 2) p_min
       let actualCost = getCost $ P.quantumQueryCost P.SplitSimple eps program funInterpCtx mempty
 
-      actualCost `shouldBe` 376.23187526706874
+      actualCost `shouldBe` 410.5414937585894

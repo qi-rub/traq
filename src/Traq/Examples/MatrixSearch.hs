@@ -2,12 +2,9 @@ module Traq.Examples.MatrixSearch where
 
 import Data.String (fromString)
 
-import Traq.Data.Subtyping
-
 import Traq.Prelude
 import Traq.Primitives
-import Traq.Primitives.Class (PartialFun (..), Primitive (..))
-import Traq.Primitives.Search.Prelude (PrimAny (..), PrimSearch (PrimSearch))
+import Traq.Primitives.Search.Prelude
 import Traq.ProtoLang.Syntax
 import Traq.ProtoLang.TypeCheck (tbool)
 
@@ -107,4 +104,4 @@ mkMatrixExample mkAny n m =
     ok = "ok"
 
 matrixExampleS :: SizeT -> SizeT -> Program (DefaultPrims SizeT precT)
-matrixExampleS = mkMatrixExample (\ty pfun -> PrimCallE $ QAny $ Primitive [pfun] $ QAnyCFNW $ PrimAny ty)
+matrixExampleS = mkMatrixExample (\ty pfun -> PrimCallE $ QAny $ Primitive [pfun] $ QSearchCFNW $ PrimSearch AnyK ty)

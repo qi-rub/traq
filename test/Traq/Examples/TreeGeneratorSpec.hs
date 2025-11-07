@@ -11,6 +11,7 @@ import qualified Traq.Data.Symbolic as Sym
 
 import Traq.Prelude
 import Traq.Primitives.Amplify.Prelude (Amplify)
+import Traq.Primitives.Class
 import Traq.ProtoLang
 
 import Test.Hspec
@@ -65,6 +66,9 @@ loopExample n w =
         }
     ]
 
+type Prim = Primitive (Amplify (Sym.Sym SizeT) Double)
+type Prim' = Primitive (Amplify SizeT Double)
+
 loadKnapsack ::
   -- | number of elements
   SizeT ->
@@ -74,9 +78,9 @@ loadKnapsack ::
   SizeT ->
   -- | number of iterations
   SizeT ->
-  IO (Program (Amplify SizeT Double))
+  IO (Program Prim')
 loadKnapsack n w p k = do
-  Right prog <- parseFromFile (programParser @(Amplify (Sym.Sym SizeT) Double)) "examples/tree_generator/tree_generator_01_knapsack.qb"
+  Right prog <- parseFromFile (programParser @Prim) "examples/tree_generator/tree_generator_01_knapsack.qb"
   return $
     prog
       & mapSize (Sym.subst "N" (Sym.con n))
@@ -89,15 +93,15 @@ spec :: Spec
 spec = do
   describe "Tree Generator Example" $ do
     it "parses" $ do
-      expectRight =<< parseFromFile (programParser @(Amplify (Sym.Sym SizeT) Double)) "examples/tree_generator/tree_generator_01_knapsack.qb"
+      expectRight =<< parseFromFile (programParser @Prim) "examples/tree_generator/tree_generator_01_knapsack.qb"
       -- p `shouldBe` treeGeneratorExample (Sym.var "N") (Sym.var "W") (Sym.var "P")
       return ()
 
     it "typechecks" $ do
       p <-
-        parseFromFile (programParser @(Amplify (Sym.Sym SizeT) Double)) "examples/tree_generator/tree_generator_01_knapsack.qb"
+        parseFromFile (programParser @Prim) "examples/tree_generator/tree_generator_01_knapsack.qb"
           >>= expectRight
-      assertRight $ (typeCheckProg @(Amplify (Sym.Sym SizeT) Double)) p
+      assertRight $ (typeCheckProg @Prim) p
 
     it "evaluates" $ do
       let n = 2

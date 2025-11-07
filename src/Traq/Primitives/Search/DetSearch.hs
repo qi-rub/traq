@@ -25,7 +25,7 @@ import qualified Traq.ProtoLang as P
 -- ================================================================================
 
 -- | Primitive implementing brute-force classical search.
-newtype DetSearch sizeT precT = DetSearch (PrimAny sizeT precT)
+newtype DetSearch sizeT precT = DetSearch (PrimSearch sizeT precT)
   deriving (Eq, Show, Read, Generic)
 
 type instance SizeType (DetSearch sizeT precT) = sizeT
@@ -37,14 +37,14 @@ instance P.MapSize (DetSearch size prec) where
   type MappedSize (DetSearch size prec) size' = DetSearch size' prec
   mapSize f (DetSearch p) = DetSearch (P.mapSize f p)
 
-instance PrimAny sizeT precT :<: DetSearch sizeT precT
+instance PrimSearch sizeT precT :<: DetSearch sizeT precT
 
 instance (Show size) => SerializePrim (DetSearch size prec) where
   primNames = ["any_det"]
   parsePrimParams tp s = DetSearch <$> parsePrimParams tp s
   printPrimParams (DetSearch prim) = printPrimParams prim
 
-instance (Eq size, Num size) => TypeCheckPrim (DetSearch size prec) size where
+instance (P.TypingReqs size) => TypeCheckPrim (DetSearch size prec) size where
   inferRetTypesPrim (DetSearch prim) = inferRetTypesPrim prim
 
 instance EvalPrim (DetSearch size prec) size prec where
@@ -54,14 +54,14 @@ instance EvalPrim (DetSearch size prec) size prec where
 -- Abstract Costs
 -- ================================================================================
 
-instance (Eq size, Integral size, Num prec) => UnitaryCostPrim (DetSearch size prec) size prec where
-  unitaryQueryCosts (DetSearch PrimAny{search_ty}) _ = BooleanPredicate{predicate = fromIntegral _N}
+instance (P.TypingReqs size, Integral size, Num prec) => UnitaryCostPrim (DetSearch size prec) size prec where
+  unitaryQueryCosts (DetSearch PrimSearch{search_ty}) _ = BooleanPredicate{predicate = fromIntegral _N}
    where
     _N = P.domainSize search_ty
 
-instance (Eq size, Integral size, Num prec, P.SizeToPrec size prec) => QuantumHavocCostPrim (DetSearch size prec) size prec where
+instance (P.TypingReqs size, Integral size, Num prec, P.SizeToPrec size prec) => QuantumHavocCostPrim (DetSearch size prec) size prec where
   -- only classical queries
-  quantumQueryCostsQuantum (DetSearch PrimAny{search_ty}) _ = BooleanPredicate{predicate = fromIntegral _N}
+  quantumQueryCostsQuantum (DetSearch PrimSearch{search_ty}) _ = BooleanPredicate{predicate = fromIntegral _N}
    where
     _N = P.domainSize search_ty
 
@@ -72,7 +72,7 @@ instance
   (size ~ SizeT, Floating prec, Alg.Monoidal prec, Alg.Semiring prec) =>
   QuantumExpCostPrim (DetSearch size prec) size prec
   where
-  quantumExpQueryCostsQuantum (DetSearch PrimAny{search_ty}) _ BooleanPredicate{predicate = eval_pred} =
+  quantumExpQueryCostsQuantum (DetSearch PrimSearch{search_ty}) _ BooleanPredicate{predicate = eval_pred} =
     BooleanPredicate{predicate = [([v], 1) | v <- queried_vals]}
    where
     results =

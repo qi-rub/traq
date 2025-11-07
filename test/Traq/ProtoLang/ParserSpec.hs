@@ -12,7 +12,7 @@ import qualified Traq.Data.Symbolic as Sym
 import Traq.Examples.MatrixSearch (matrixExampleS, mkMatrixExample)
 import Traq.Prelude
 import Traq.Primitives
-import Traq.Primitives.Search.Prelude (PrimAny (PrimAny))
+import Traq.Primitives.Search.Prelude
 import Traq.ProtoLang.Lenses
 import Traq.ProtoLang.Parser
 import Traq.ProtoLang.Rewrites
@@ -92,7 +92,7 @@ spec = do
     it "parses example" $ do
       e <- parseFromFile (programParser @(DefaultPrims (Sym.Sym SizeT) Double)) "examples/matrix_search/matrix_search.qb" >>= expectRight
       let e' = rewriteAST flattenSeq e
-      e' `shouldBe` mkMatrixExample (\ty f -> PrimCallE $ QAny $ Primitive [f] $ QAnyCFNW $ PrimAny ty) (Sym.var "N") (Sym.var "M")
+      e' `shouldBe` mkMatrixExample (\ty f -> PrimCallE $ QAny $ Primitive [f] $ QSearchCFNW $ PrimSearch AnyK ty) (Sym.var "N") (Sym.var "M")
 
   describe "round trip" $ do
     it "matrixExampleS" $ do

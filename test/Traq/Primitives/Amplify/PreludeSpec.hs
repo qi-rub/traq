@@ -8,13 +8,14 @@ import qualified Traq.Data.Context as Ctx
 import qualified Traq.Data.Symbolic as Sym
 
 import Traq.Primitives.Amplify.Prelude (Amplify (..))
+import Traq.Primitives.Class
 import qualified Traq.ProtoLang as P
 import qualified Traq.Utils.Printing as PP
 
 import Test.Hspec
 import TestHelpers
 
-exampleProgram1 :: (Num sizeT, Fractional precT) => sizeT -> P.Program (Amplify sizeT precT)
+exampleProgram1 :: (Num sizeT, Fractional precT) => sizeT -> P.Program (Primitive (Amplify sizeT precT))
 exampleProgram1 n = P.Program [P.NamedFunDef "sampler" sampler, P.NamedFunDef "main" main_fun]
  where
   node_ty = P.Fin n
@@ -54,11 +55,12 @@ exampleProgram1 n = P.Program [P.NamedFunDef "sampler" sampler, P.NamedFunDef "m
     P.ExprS
       { P.rets = ["ok", "result"]
       , P.expr =
-          P.PrimCallE
-            Amplify{sampler = "sampler", p_min = 0.02, sampler_args = ["x"]}
+          P.PrimCallE $
+            Primitive [PartialFun{pfun_name = "sampler", pfun_args = [Just "x"]}] $
+              Amplify{p_min = 0.02}
       }
 
-exampleProgram2 :: (Num sizeT, Fractional precT) => sizeT -> P.Program (Amplify sizeT precT)
+exampleProgram2 :: (Num sizeT, Fractional precT) => sizeT -> P.Program (Primitive (Amplify sizeT precT))
 exampleProgram2 n = P.Program [P.NamedFunDef "f" fDef, P.NamedFunDef "main" mainDef]
  where
   node_ty = P.Fin n
@@ -111,8 +113,9 @@ exampleProgram2 n = P.Program [P.NamedFunDef "f" fDef, P.NamedFunDef "main" main
     P.ExprS
       { P.rets = ["ok", "result"]
       , P.expr =
-          P.PrimCallE
-            Amplify{sampler = "f", p_min = 0.6, sampler_args = ["y"]}
+          P.PrimCallE $
+            Primitive [PartialFun{pfun_name = "f", pfun_args = [Just "y"]}] $
+              Amplify{p_min = 0.6}
       }
 
   mainDef =
@@ -128,7 +131,7 @@ exampleProgram2 n = P.Program [P.NamedFunDef "f" fDef, P.NamedFunDef "main" main
               }
       }
 
-exampleProgram3 :: (Num sizeT, Fractional precT) => sizeT -> P.Program (Amplify sizeT precT)
+exampleProgram3 :: (Num sizeT, Fractional precT) => sizeT -> P.Program (Primitive (Amplify sizeT precT))
 exampleProgram3 n = P.Program [P.NamedFunDef "sampler" sampler, P.NamedFunDef "main" mainDef]
  where
   node_ty = P.Fin n
@@ -209,8 +212,9 @@ exampleProgram3 n = P.Program [P.NamedFunDef "sampler" sampler, P.NamedFunDef "m
     P.ExprS
       { P.rets = ["ok", "x"]
       , P.expr =
-          P.PrimCallE
-            Amplify{sampler = "sampler", p_min = 0.2, sampler_args = ["l", "r"]}
+          P.PrimCallE $
+            Primitive [PartialFun{pfun_name = "sampler", pfun_args = [Just "l", Just "r"]}] $
+              Amplify{p_min = 0.2}
       }
 
   mainDef =
@@ -238,8 +242,8 @@ spec = describe "amplify" $ do
       p `shouldBe` exampleProgram1 @(Sym.Sym Int) @Double (Sym.var "N")
 
     it "round-trips through print/parse" $ do
-      let stmt = "ok, result <- @amplify[f, 0.02](x1, x2);\n"
-      let parsed = P.parseStmt @(Amplify (Sym.Sym Int) Double) stmt
+      let stmt = "ok, result <- @amplify<2.0e-2>[f(x1, x2)];\n"
+      let parsed = P.parseStmt @(Primitive (Amplify (Sym.Sym Int) Double)) stmt
       let printed = PP.toCodeString <$> parsed
       printed `shouldBe` Right stmt
 

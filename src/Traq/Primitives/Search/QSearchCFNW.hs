@@ -114,9 +114,7 @@ _QSearchZalkaWithNormErr n delta = 2 * _QSearchZalka n eps -- 2x for compute-unc
 -- Primitive Class Implementation
 -- ================================================================================
 
-data QSearchCFNW sizeT precT
-  = QSearchCFNW (PrimSearch sizeT precT)
-  | QAnyCFNW (PrimAny sizeT precT)
+newtype QSearchCFNW sizeT precT = QSearchCFNW (PrimSearch sizeT precT)
   deriving (Eq, Show, Read, Generic)
 
 type instance SizeType (QSearchCFNW sizeT precT) = sizeT
@@ -128,56 +126,31 @@ instance P.MapSize (QSearchCFNW size prec) where
   type MappedSize (QSearchCFNW size prec) size' = QSearchCFNW size' prec
 
   mapSize f (QSearchCFNW p) = QSearchCFNW (P.mapSize f p)
-  mapSize f (QAnyCFNW p) = QAnyCFNW (P.mapSize f p)
-
-_QSearchCFNW :: Traversal' (QSearchCFNW sizeT precT) (PrimSearch sizeT precT)
-_QSearchCFNW focus (QSearchCFNW p) = QSearchCFNW <$> focus p
-_QSearchCFNW _ q = pure q
-
-_QAnyCFNW :: Traversal' (QSearchCFNW sizeT precT) (PrimAny sizeT precT)
-_QAnyCFNW focus (QAnyCFNW p) = QAnyCFNW <$> focus p
-_QAnyCFNW _ q = pure q
-
-instance PrimAny sizeT precT :<: QSearchCFNW sizeT precT where
-  inject = QAnyCFNW
-
-  project (QAnyCFNW p) = Just p
-  project _ = Nothing
 
 instance PrimSearch sizeT precT :<: QSearchCFNW sizeT precT where
   inject = QSearchCFNW
-
   project (QSearchCFNW p) = Just p
-  project _ = Nothing
 
 instance (Show sizeT) => SerializePrim (QSearchCFNW sizeT precT) where
   primNames = ["any", "search"]
-
-  parsePrimParams tp "any" = QAnyCFNW <$> parsePrimParams tp "any"
-  parsePrimParams tp "search" = QSearchCFNW <$> parsePrimParams tp "search"
-  parsePrimParams _ _ = fail ""
-
+  primNameOf (QSearchCFNW p) = primNameOf p
+  parsePrimParams tp s = QSearchCFNW <$> parsePrimParams tp s
   printPrimParams (QSearchCFNW prim) = printPrimParams prim
-  printPrimParams (QAnyCFNW prim) = printPrimParams prim
 
 -- Type check
 instance (P.TypingReqs size) => TypeCheckPrim (QSearchCFNW size prec) size where
   inferRetTypesPrim (QSearchCFNW prim) = inferRetTypesPrim prim
-  inferRetTypesPrim (QAnyCFNW prim) = inferRetTypesPrim prim
 
 -- Eval
 instance EvalPrim (QSearchCFNW size prec) size prec where
   evalPrim (QSearchCFNW prim) = evalPrim prim
-  evalPrim (QAnyCFNW prim) = evalPrim prim
 
 -- ================================================================================
 -- Abstract Costs
 -- ================================================================================
 
 getSearchType :: QSearchCFNW size prec -> P.VarType size
-getSearchType prim = case prim of
-  QSearchCFNW (PrimSearch ty) -> ty
-  QAnyCFNW (PrimAny ty) -> ty
+getSearchType (QSearchCFNW (PrimSearch{search_ty})) = search_ty
 
 -- | Compute the unitary cost using the QSearch_Zalka cost formula.
 instance
@@ -371,7 +344,7 @@ instance
   ) =>
   CompileU.Lowerable (Primitive (QSearchCFNW sizeT precT)) sizeT precT
   where
-  lowerPrimitive delta (Primitive [PartialFun{pfun_name, pfun_args}] (QAnyCFNW PrimAny{})) [ret] = do
+  lowerPrimitive delta (Primitive [PartialFun{pfun_name, pfun_args}] (QSearchCFNW PrimSearch{})) [ret] = do
     -- the predicate
     pred_fun@P.FunDef{P.param_types} <-
       view (P._funCtx . Ctx.at pfun_name)
@@ -691,7 +664,7 @@ instance
   ) =>
   CompileQ.Lowerable (Primitive (QSearchCFNW sizeT precT)) sizeT precT
   where
-  lowerPrimitive eps (Primitive [PartialFun{pfun_name, pfun_args}] (QAnyCFNW (PrimAny s_ty))) [ret] = do
+  lowerPrimitive eps (Primitive [PartialFun{pfun_name, pfun_args}] (QSearchCFNW (PrimSearch _ s_ty))) [ret] = do
     -- predicate, pred_args = args
     -- the predicate
     pred_fun <-

@@ -19,7 +19,7 @@ import Traq.Examples.MatrixSearch
 import Traq.Prelude
 import Traq.Primitives
 import Traq.Primitives.Search.DetSearch (DetSearch (..))
-import Traq.Primitives.Search.Prelude (PrimAny (..))
+import Traq.Primitives.Search.Prelude
 import Traq.Primitives.Search.RandomSearch (RandomSearch (..))
 import qualified Traq.ProtoLang as P
 
@@ -42,16 +42,16 @@ class
   matrixExample = mkMatrixExample (\t f -> P.PrimCallE $ mkAny t f)
 
 instance MyPrim (DefaultPrims SizeT Double) where
-  mkAny ty fn = QAny $ Primitive [fn] $ QAnyCFNW $ PrimAny ty
+  mkAny ty fn = QAny $ Primitive [fn] $ QSearchCFNW $ PrimSearch AnyK ty
 
 instance MyPrim (Primitive (RandomSearch SizeT Double)) where
-  mkAny ty fn = Primitive [fn] $ RandomSearch $ PrimAny ty
+  mkAny ty fn = Primitive [fn] $ RandomSearch $ PrimSearch AnyK ty
 
 instance MyPrim (Primitive (QSearchCFNW SizeT Double)) where
-  mkAny ty fn = Primitive [fn] $ QAnyCFNW $ PrimAny ty
+  mkAny ty fn = Primitive [fn] $ QSearchCFNW $ PrimSearch AnyK ty
 
 instance MyPrim (Primitive (DetSearch SizeT Double)) where
-  mkAny ty fn = Primitive [fn] $ DetSearch $ PrimAny ty
+  mkAny ty fn = Primitive [fn] $ DetSearch $ PrimSearch AnyK ty
 
 defPrims :: Phantom (DefaultPrims SizeT Double)
 defPrims = Phantom

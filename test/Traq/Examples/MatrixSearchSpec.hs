@@ -12,7 +12,7 @@ import qualified Traq.Compiler.Quantum as CompileQ
 import qualified Traq.Compiler.Unitary as CompileU
 import Traq.Examples.MatrixSearch
 import Traq.Primitives (Primitive (..))
-import Traq.Primitives.Search.Prelude (PrimAny (..))
+import Traq.Primitives.Search.Prelude
 import Traq.Primitives.Search.QSearchCFNW (_EQSearchWorst, _QSearchZalkaWithNormErr)
 import Traq.Primitives.Search.Symbolic
 import qualified Traq.ProtoLang as P
@@ -92,7 +92,7 @@ spec = do
   xdescribe "matrix search symbolic" $ do
     let n = Sym.var "n" :: Sym.Sym Int
     let m = Sym.var "m" :: Sym.Sym Int
-    let ex = mkMatrixExample (\ty f -> P.PrimCallE $ Primitive [f] $ QAnySym $ PrimAny ty) n m
+    let ex = mkMatrixExample (\ty f -> P.PrimCallE $ Primitive [f] $ QSearchSym $ PrimSearch AnyK ty) n m
 
     -- expected, worst, unitary
     let ucF = _QryU

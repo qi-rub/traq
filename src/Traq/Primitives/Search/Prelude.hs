@@ -3,15 +3,10 @@
 {-# LANGUAGE MultiParamTypeClasses #-}
 
 module Traq.Primitives.Search.Prelude (
-  -- * Basic search primitives
-  BooleanPredicate (..),
-  -- SearchLikePrim (..),
-
-  -- ** @any@
-  PrimAny (..),
-
-  -- ** @search@
+  -- * Base class for Search Primitives
   PrimSearch (..),
+  PrimSearchKind (..),
+  BooleanPredicate (..),
 ) where
 
 import Control.Monad (forM, when)
@@ -24,9 +19,6 @@ import Traq.Primitives.Class
 import qualified Traq.ProtoLang as P
 import qualified Traq.Utils.Printing as PP
 
--- ================================================================================
--- Search-like primitive: has a predicate and a list of arguments to bind to it.
--- ================================================================================
 newtype BooleanPredicate a = BooleanPredicate {predicate :: a}
   deriving (Eq, Show)
 
@@ -35,51 +27,14 @@ instance ValidPrimShape BooleanPredicate where
   listToShape _ = Left "FindXorPeriod expects exactly one function"
   shapeToList BooleanPredicate{predicate} = [predicate]
 
--- ================================================================================
--- Primitive: any
--- ================================================================================
-
--- | Basic Primitive @any@ which asserts if there is a solution.
-data PrimAny sizeT precT = PrimAny {search_ty :: P.VarType sizeT}
-  deriving (Eq, Read, Show)
-
-type instance SizeType (PrimAny sizeT precT) = sizeT
-type instance PrecType (PrimAny sizeT precT) = precT
-
-type instance PrimFnShape (PrimAny size prec) = BooleanPredicate
-
-instance P.MapSize (PrimAny size prec) where
-  type MappedSize (PrimAny size prec) size' = PrimAny size' prec
-  mapSize f PrimAny{search_ty} = PrimAny{search_ty = fmap f search_ty}
-
-instance (Show size) => SerializePrim (PrimAny size prec) where
-  primNames = ["any"]
-  parsePrimParams tp _ = PrimAny <$> P.varType tp
-  printPrimParams PrimAny{search_ty} = [PP.toCodeWord search_ty]
-
-instance (Eq sizeT, Num sizeT) => TypeCheckPrim (PrimAny sizeT precT) sizeT where
-  inferRetTypesPrim PrimAny{search_ty} BooleanPredicate{predicate = pred_ty} = do
-    when (pred_ty /= P.FnType [search_ty] [P.tbool]) $
-      throwError "any: must be single-argument boolean predicate"
-    return [P.tbool]
-
-instance EvalPrim (PrimAny sizeT precT) sizeT precT where
-  evalPrim PrimAny{search_ty} BooleanPredicate{predicate = eval_pred} = do
-    let search_range = P.domain search_ty
-    bs <- forM search_range $ \v -> do
-      res <- eval_pred [v]
-      case res of
-        [b] -> return $ P.valueToBool b
-        _ -> error "fail"
-
-    return [P.toValue $ or bs]
-
--- ================================================================================
--- Primitive: search
--- ================================================================================
+data PrimSearchKind
+  = AnyK -- returns bool
+  | AllK -- returns bool
+  | SearchK -- returns bool, elem (uniform):
+  deriving (Eq, Read, Show, Enum)
 
 -- Primitive @search@ which returns a uniformly random solution
-data PrimSearch sizeT precT = PrimSearch {search_ty :: P.VarType sizeT}
+data PrimSearch sizeT precT = PrimSearch {search_kind :: PrimSearchKind, search_ty :: P.VarType sizeT}
   deriving (Eq, Read, Show)
 
 type instance SizeType (PrimSearch sizeT precT) = sizeT
@@ -89,22 +44,38 @@ type instance PrimFnShape (PrimSearch size prec) = BooleanPredicate
 
 instance P.MapSize (PrimSearch size prec) where
   type MappedSize (PrimSearch size prec) size' = PrimSearch size' prec
-  mapSize f PrimSearch{search_ty} = PrimSearch{search_ty = fmap f search_ty}
+  mapSize f PrimSearch{search_kind, search_ty} = PrimSearch{search_kind, search_ty = fmap f search_ty}
 
 instance (Show size) => SerializePrim (PrimSearch size prec) where
-  primNames = ["search"]
-  parsePrimParams tp _ = PrimSearch <$> P.varType tp
+  primNames = ["any", "all", "search"]
+  primNameOf PrimSearch{search_kind} =
+    case search_kind of
+      AnyK -> "any"
+      AllK -> "all"
+      SearchK -> "search"
+
+  parsePrimParams tp name = PrimSearch k <$> P.varType tp
+   where
+    k = case name of
+      "any" -> AnyK
+      "all" -> AllK
+      "search" -> SearchK
+      _ -> error "invalid"
+
   printPrimParams PrimSearch{search_ty} = [PP.toCodeWord search_ty]
 
 instance (P.TypingReqs sizeT) => TypeCheckPrim (PrimSearch sizeT precT) sizeT where
-  inferRetTypesPrim PrimSearch{search_ty} BooleanPredicate{predicate = pred_ty} = do
+  inferRetTypesPrim PrimSearch{search_kind, search_ty} BooleanPredicate{predicate = pred_ty} = do
     when (pred_ty /= P.FnType [search_ty] [P.tbool]) $
       throwError $
         "search: must be single-argument boolean predicate, got " ++ show pred_ty
-    return [P.tbool, search_ty]
+    return $ case search_kind of
+      AnyK -> [P.tbool]
+      AllK -> [P.tbool]
+      SearchK -> [P.tbool, search_ty]
 
 instance EvalPrim (PrimSearch sizeT precT) sizeT precT where
-  evalPrim PrimSearch{search_ty} BooleanPredicate{predicate = eval_pred} = do
+  evalPrim PrimSearch{search_kind, search_ty} BooleanPredicate{predicate = eval_pred} = do
     let search_range = P.domain search_ty
     res <- forM search_range $ \v -> do
       res <- eval_pred [v]
@@ -112,6 +83,10 @@ instance EvalPrim (PrimSearch sizeT precT) sizeT precT where
         [b] -> return (P.valueToBool b, v)
         _ -> error "fail"
 
-    let ok = any fst res
-    let outs = map snd $ filter ((ok ==) . fst) res
-    Prob.uniform [[P.toValue ok, v] | v <- outs]
+    case search_kind of
+      AnyK -> return [P.toValue $ any fst res]
+      AllK -> return [P.toValue $ all fst res]
+      SearchK -> do
+        let ok = any fst res
+        let outs = map snd $ filter ((ok ==) . fst) res
+        Prob.uniform [[P.toValue ok, v] | v <- outs]

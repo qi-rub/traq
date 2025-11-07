@@ -2,8 +2,7 @@ module Traq.Examples.Search where
 
 import Traq.Prelude
 import Traq.Primitives
-import Traq.Primitives.Class (PartialFun (..), Primitive (..))
-import Traq.Primitives.Search.Prelude (PrimAny (..), PrimSearch (..))
+import Traq.Primitives.Search.Prelude
 import Traq.ProtoLang.Syntax
 
 arraySearch :: forall precT. SizeT -> Program (DefaultPrims SizeT precT)
@@ -24,7 +23,7 @@ arraySearch n = Program [NamedFunDef "Oracle" oracle_decl, NamedFunDef "main" ma
               , ret_names = ["result"]
               , body_stmt =
                   ExprS
-                    { expr = PrimCallE $ QAny $ Primitive [PartialFun "Oracle" [Nothing]] $ QAnyCFNW $ PrimAny (Fin n)
+                    { expr = PrimCallE $ QAny $ Primitive [PartialFun "Oracle" [Nothing]] $ QSearchCFNW $ PrimSearch AnyK (Fin n)
                     , rets = ["result"]
                     }
               }
@@ -65,7 +64,7 @@ arraySearchIx n = Program [NamedFunDef "Oracle" oracle_decl, NamedFunDef "check"
               , body_stmt =
                   ExprS
                     { rets = ["result", "solution"]
-                    , expr = PrimCallE $ QAny $ Primitive [PartialFun "check" [Nothing]] $ QSearchCFNW $ PrimSearch (Fin n)
+                    , expr = PrimCallE $ QAny $ Primitive [PartialFun "check" [Nothing]] $ QSearchCFNW $ PrimSearch SearchK (Fin n)
                     }
               , ret_names = ["result", "solution"]
               }

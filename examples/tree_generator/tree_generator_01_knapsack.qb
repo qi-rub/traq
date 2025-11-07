@@ -85,7 +85,7 @@ end
 // Run one iteration of the tree generator to obtain a good sample
 def KnapsackLoopBody(xs: Arr<N, Bool>, i: Fin<K>) -> Arr<N, Bool> do
     pr <- TotalProfit(xs);
-    ok, xs' <- @amplify[TreeGen, 0.01](xs, pr);
+    ok, xs' <- @amplify<0.01>[TreeGen(xs, pr)];
     xs_next <- ok ? xs' : xs;
     return xs_next
 end
