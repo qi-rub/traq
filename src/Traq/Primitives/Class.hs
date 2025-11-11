@@ -70,6 +70,9 @@ instance P.Parseable PartialFun where
     pfun_args <- parens $ commaSep ((Nothing <$ symbol "_") <|> (Just <$> identifier))
     return PartialFun{..}
 
+instance P.RenameVars PartialFun where
+  renameVars pref f@PartialFun{pfun_args} = f{pfun_args = map (fmap (P.addOnePrefix pref)) pfun_args}
+
 {- | Place a list of concrete values inside a list of incomplete values.
 For example, @placeArgs [Just 0, Nothing, Just 2, Nothing] [1, 3] = [0,1,2,3]@
 -}
@@ -90,6 +93,9 @@ data Primitive prim = Primitive [PartialFun] prim
 
 type instance SizeType (Primitive p) = SizeType p
 type instance PrecType (Primitive p) = PrecType p
+
+instance P.RenameVars (Primitive p) where
+  renameVars pref (Primitive par_funs p) = Primitive (map (P.renameVars pref) par_funs) p
 
 {- | The shape of the function arguments that primitive @prim@ expects.
 The type @PrimFnShape prim a@ should be a subtype of @[a]@, for every @a@.

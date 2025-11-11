@@ -320,7 +320,7 @@ unitaryQueryCostF ::
   m costT
 -- declaration: use tick value (or 0 if not specified)
 unitaryQueryCostF delta fname = do
-  FunDef{mbody} <- view $ _funCtx . Ctx.at fname . non' (error "invalid function")
+  FunDef{mbody} <- view $ _funCtx . Ctx.at fname . non' (error $ "invalid function: " ++ fname)
   case mbody of
     Nothing -> return $ C.query C.Unitary fname -- query an external function
     Just FunBody{body_stmt} -> unitaryQueryCostS delta body_stmt -- def: compute using body

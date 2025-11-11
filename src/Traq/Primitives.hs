@@ -49,6 +49,11 @@ instance P.MapSize (DefaultPrims size prec) where
   mapSize f (RAny p) = RAny (P.mapSize f p)
   mapSize f (DAny p) = DAny (P.mapSize f p)
 
+instance P.RenameVars (DefaultPrims size prec) where
+  renameVars prefix (QAny p) = QAny $ P.renameVars prefix p
+  renameVars prefix (RAny p) = RAny $ P.renameVars prefix p
+  renameVars prefix (DAny p) = DAny $ P.renameVars prefix p
+
 printSearchLikePrim :: (Show size) => String -> P.VarType size -> [PartialFun] -> String
 printSearchLikePrim name ty [pfun] = printf "@%s<%s>[%s]" name (str_trim ty) (str_trim pfun)
  where

@@ -69,13 +69,19 @@ _exe_opts: &exe_opts
   default-extensions:
     - RecordWildCards
 
+_expt_opts: &expt_opts
+  source-dirs: experiments
+  dependencies:
+    - traq
+    - optparse-applicative ^>= 0.18
+    - random
+    - random-shuffle
+    - timeit ^>= 2.0
+  default-extensions:
+    - RecordWildCards
+
 executables:
-  matrixsearch:
-    main: matrixsearch.hs
-    <<: *exe_opts
-  matrixsearchqcost:
-    main: matrixsearchqcost.hs
-    <<: *exe_opts
+  ### Tools
   uqplcompile:
     main: uqplcompile.hs
     <<: *exe_opts
@@ -90,10 +96,23 @@ executables:
   #     - optparse-applicative ^>= 0.18
   #     - quipper-language == 0.9.0.0
   #     - quipper-libraries == 0.9.0.0
+  ### Experiments & Examples
+  matrixsearch:
+    main: matrixsearch.hs
+    <<: *expt_opts
+  matrixsearchqcost:
+    main: matrixsearchqcost.hs
+    <<: *expt_opts
   matrixsearchdemo:
     main: demo.hs
-    <<: *exe_opts
+    <<: *expt_opts
     source-dirs: examples/matrix_search
+  timing:
+    main: timing.hs
+    <<: *expt_opts
+  compile_loc:
+    main: compile_loc.hs
+    <<: *expt_opts
 
 
 tests:

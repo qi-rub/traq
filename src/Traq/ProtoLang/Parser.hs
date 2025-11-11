@@ -116,6 +116,7 @@ instance (Parseable ext, SizeType ext ~ SymbSize) => Parseable (Expr ext) where
       , constE
       , dynIndexE
       , indexE
+      , tupIndexE
       , updateArrE
       , loopE
       , varE
@@ -200,6 +201,13 @@ instance (Parseable ext, SizeType ext ~ SymbSize) => Parseable (Expr ext) where
       arr_expr <- VarE <$> identifier
       ix_val <- brackets $ symbSize tp
       return $ BasicExprE IndexE{arr_expr, ix_val}
+
+    tupIndexE :: Parser (Expr ext)
+    tupIndexE = do
+      tup_expr <- VarE <$> identifier
+      dot
+      tup_ix_val <- fromIntegral <$> integer
+      return $ BasicExprE ProjectE{tup_expr, tup_ix_val}
 
     dynIndexE :: Parser (Expr ext)
     dynIndexE = do

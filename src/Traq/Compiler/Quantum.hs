@@ -272,7 +272,7 @@ lowerProgram strat gamma_in eps prog@(P.Program fs) = do
           & (P._precSplitStrat .~ strat)
   let lowering_ctx =
         default_
-          & (P._typingCtx .~ gamma_in)
+          -- & (P._typingCtx .~ gamma_in)
           & (_uniqNamesCtx .~ P.allNamesP prog)
 
   let P.NamedFunDef{P.fun_name = main_name} = last fs

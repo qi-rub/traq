@@ -664,7 +664,7 @@ instance
   ) =>
   CompileQ.Lowerable (Primitive (QSearchCFNW sizeT precT)) sizeT precT
   where
-  lowerPrimitive eps (Primitive [PartialFun{pfun_name, pfun_args}] (QSearchCFNW (PrimSearch _ s_ty))) [ret] = do
+  lowerPrimitive eps (Primitive [PartialFun{pfun_name, pfun_args}] (QSearchCFNW (PrimSearch _ s_ty))) (ret : rets) = do
     -- predicate, pred_args = args
     -- the predicate
     pred_fun <-
@@ -672,7 +672,7 @@ instance
         >>= maybeWithError ("cannot find predicate " <> pfun_name)
 
     -- size of the search space
-    let n = s_ty ^?! P._Fin
+    let n = P.domainSize s_ty
 
     -- fail prob of search
     let eps_s = eps `P.divideError` 2
@@ -771,7 +771,7 @@ instance
     return
       CQPL.CallS
         { CQPL.fun = CQPL.FunctionCall qsearch_proc_name
-        , CQPL.args = catMaybes pfun_args ++ [ret]
+        , CQPL.args = catMaybes pfun_args ++ [ret] ++ rets
         , CQPL.meta_params = []
         }
   lowerPrimitive _ _ _ = error "Unsupported"

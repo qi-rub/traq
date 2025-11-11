@@ -6,6 +6,8 @@ module Traq.ProtoLang.Vars (
   freeVars,
   checkVarsUnique,
   allNamesP,
+  RenameVars (..),
+  addOnePrefix,
 ) where
 
 import Control.Monad (foldM, guard)
@@ -59,6 +61,7 @@ instance HasFreeVars (BasicExpr sizeT) where
   freeVarsList VarE{var} = [var]
   freeVarsList ConstE{} = []
   freeVarsList ParamE{} = []
+  freeVarsList DefaultE{} = []
   freeVarsList UnOpE{operand} = freeVarsList operand
   freeVarsList BinOpE{lhs, rhs} = concatMap freeVarsList [lhs, rhs]
   freeVarsList TernaryE{branch, lhs, rhs} = concatMap freeVarsList [branch, lhs, rhs]
@@ -116,7 +119,56 @@ checkVarsUnique (Program fs) =
     guard $ Set.disjoint u v
     return $ Set.union u v
 
-{- | Make all variable names in the program unique
- makeVarsUnique :: Program primT sizeT -> Program primT sizeT
- makeVarsUnique = error "TODO"
--}
+-- | Make all variable names in the program unique
+class RenameVars p where
+  renameVars :: Ident -> p -> p
+
+addOnePrefix :: Ident -> Ident -> Ident
+addOnePrefix prefix s = prefix ++ "_" ++ s
+
+addPrefix :: Ident -> [Ident] -> [Ident]
+addPrefix prefix = map (addOnePrefix prefix)
+
+instance RenameVars (BasicExpr size) where
+  renameVars pref (VarE v) = VarE $ addOnePrefix pref v
+  renameVars pref (UnOpE op e) = UnOpE op $ renameVars pref e
+  renameVars pref (BinOpE op e1 e2) = BinOpE op (renameVars pref e1) (renameVars pref e2)
+  renameVars pref (IndexE a i) = IndexE (renameVars pref a) i
+  renameVars pref (DynIndexE a i) = DynIndexE (renameVars pref a) (renameVars pref i)
+  renameVars pref (UpdateArrE a i v) = UpdateArrE (renameVars pref a) (renameVars pref i) (renameVars pref v)
+  renameVars pref (ProjectE tup i) = ProjectE (renameVars pref tup) i
+  renameVars _ e = e
+
+instance (RenameVars ext) => RenameVars (Expr ext) where
+  renameVars prefix BasicExprE{basic_expr} = BasicExprE $ renameVars prefix basic_expr
+  renameVars _ e@RandomSampleE{} = e
+  renameVars prefix e@FunCallE{args} = e{args = addPrefix prefix args}
+  renameVars prefix PrimCallE{prim} = PrimCallE $ renameVars prefix prim
+  renameVars _ _ = error "rename: unsupported expr"
+
+instance (RenameVars ext) => RenameVars (Stmt ext) where
+  renameVars prefix ExprS{rets, expr} =
+    ExprS
+      { rets = addPrefix prefix rets
+      , expr = renameVars prefix expr
+      }
+  renameVars prefix (SeqS ss) = SeqS $ map (renameVars prefix) ss
+  renameVars _ _ = error "unsupported"
+
+instance (RenameVars ext) => RenameVars (FunBody ext) where
+  renameVars prefix FunBody{param_names, ret_names, body_stmt} =
+    FunBody
+      { param_names = addPrefix prefix param_names
+      , ret_names = addPrefix prefix ret_names
+      , body_stmt = renameVars prefix body_stmt
+      }
+
+instance (RenameVars ext) => RenameVars (FunDef ext) where
+  renameVars prefix f@FunDef{mbody = Just body} = f{mbody = Just $ renameVars prefix body}
+  renameVars _ f = f
+
+instance (RenameVars ext) => RenameVars (NamedFunDef ext) where
+  renameVars _ f@NamedFunDef{fun_name, fun_def} = f{fun_def = renameVars fun_name fun_def}
+
+instance (RenameVars ext) => RenameVars (Program ext) where
+  renameVars pref (Program fs) = Program $ map (renameVars pref) fs

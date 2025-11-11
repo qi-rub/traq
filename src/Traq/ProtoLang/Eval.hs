@@ -162,6 +162,7 @@ evalOp MultiOrOp = toValue . any valueToBool
 -- | @elemOfArr i a@ returns a[i]
 elemOfArr :: (sizeT ~ SizeT) => Value sizeT -> Value sizeT -> Value sizeT
 elemOfArr (FinV i) (ArrV xs) = xs !! i
+elemOfArr (FinV i) (TupV xs) = xs !! i
 elemOfArr i arr = error $ printf "invalid inputs: elemOfArr[ix: %s, arr: %s]" (show i) (show arr)
 
 -- | @modifyArr a i v@ sets a[i] to v.
@@ -341,7 +342,7 @@ lookupS ::
   ) =>
   Ident ->
   m (Value sizeT)
-lookupS x = use $ _state . Ctx.at x . singular _Just
+lookupS x = use $ _state . Ctx.at x . non' (error $ "cannot find variable " ++ x)
 
 evalRandomSampleExpr ::
   ( MonadReader env m

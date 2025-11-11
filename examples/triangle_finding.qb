@@ -5,32 +5,30 @@
 declare Adj(Fin<N>, Fin<N>) -> Bool end
 
 def CompletesTriangle(i: Fin<N>, j: Fin<N>, k: Fin<N>) -> Bool do
+  eq_ij <- i == j;
+  neq_ij <- not eq_ij;
+
+  eq_jk <- j == k;
+  neq_jk <- not eq_jk;
+
+  eq_ki <- k == i;
+  neq_ki <- not eq_ki;
   
-  ij <- i == j;
-  neq_ij <- not ij;
-
-  jk <- j == k;
-  neq_jk <- not jk;
-
-  ki <- k == i;
-  neq_ki <- ki;
-  
-  distinct_ijk <- neq_ij && neq_jk;
-
-  distinct <- distnct_ijk && neq_ki;
+  distinct2 <- neq_ij && neq_jk;
+  distinct3 <- distinct2 && neq_ki;
 
   edge_jk <- Adj(j, k);
   edge_ki <- Adj(k, i);
 
-  temp <- distinct && edge_jk;
+  temp <- distinct3 && edge_jk;
   result <- temp && edge_ki;
 
   return result
 end
 
 def HasTriangleCycle(ij: Tup<Fin<N>, Fin<N>>) -> Bool do
-  i <- ij[0];
-  j <- ij[1];
+  i <- ij.0;
+  j <- ij.1;
   edge_ij <- Adj(i, j);
   found_k <- @any<Fin<N>>[CompletesTriangle(i, j, _)];
 
@@ -40,6 +38,6 @@ def HasTriangleCycle(ij: Tup<Fin<N>, Fin<N>>) -> Bool do
 end
 
 def HasTriangle() -> Bool do
-  found_triangle <- @any<Tup<Fin<N>, Fin<N>>>[hasTriangleCycle(_)];
+  found_triangle <- @any<Tup<Fin<N>, Fin<N>>>[HasTriangleCycle(_)];
   return found_triangle
 end
