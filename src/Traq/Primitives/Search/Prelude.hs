@@ -60,7 +60,7 @@ instance (Show size) => SerializePrim (PrimSearch size prec) where
       "any" -> AnyK
       "all" -> AllK
       "search" -> SearchK
-      _ -> error "invalid"
+      _ -> error $ "invalid search primitive `" <> name <> "`"
 
   printPrimParams PrimSearch{search_ty} = [PP.toCodeWord search_ty]
 

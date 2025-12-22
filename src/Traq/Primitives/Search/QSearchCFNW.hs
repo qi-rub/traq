@@ -684,8 +684,7 @@ instance
     let delta_per_pred_call = P.requiredFailProbToNormError eps_per_pred_call -- norm error in unitary predicate
 
     -- lower the unitary predicate
-    pred_uproc <- WriterT . magnify P._unitaryCostEnv . runWriterT $ do
-      CompileU.lowerFunDef @_ CompileU.WithoutControl delta_per_pred_call pfun_name pred_fun
+    pred_uproc <- CompileU.lowerFunDef @_ CompileU.WithoutControl delta_per_pred_call pfun_name pred_fun
 
     let CompileU.LoweredProc
           { CompileU.inp_tys = pred_inp_tys

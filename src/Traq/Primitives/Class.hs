@@ -157,7 +157,7 @@ instance (SerializePrim prim, SizeType prim ~ Sym.Sym SizeT) => P.Parseable (Pri
   parseE tp@TokenParser{..} = parseFindXorPeriod
    where
     parseFindXorPeriod = do
-      name <- foldr1 (<|>) $ map (\s -> try $ symbol $ "@" ++ s) $ primNames @prim
+      ('@' : name) <- foldr1 (<|>) $ map (\s -> try $ symbol $ "@" ++ s) $ primNames @prim
       prim <- angles $ parsePrimParams tp name
       par_funs <- brackets $ many $ P.parseE tp
       return $ Primitive par_funs prim
@@ -481,7 +481,7 @@ instance
           return $ eq Alg..* q_f
 
         -- queries to unitary f
-        cost_f_u <- magnify P._unitaryCostEnv $ A.unitaryQueryCostF (A.requiredFailProbToNormError eps_fn) pfun_name
+        cost_f_u <- A.unitaryQueryCostF (A.requiredFailProbToNormError eps_fn) pfun_name
         let u_cost = 2 * exp_queries_u Alg..* cost_f_u
 
         return $ Alg.sum q_costs Alg.+ u_cost

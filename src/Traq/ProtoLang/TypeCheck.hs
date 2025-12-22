@@ -21,7 +21,6 @@ module Traq.ProtoLang.TypeCheck (
 
   -- * Checkers
   typeCheckBasicExpr,
-  typeCheckStmt,
   typeCheckFun,
   typeCheckProg,
 
@@ -258,89 +257,71 @@ instance (TypeInferrable p sizeT, sizeT ~ SizeType p) => GTypeInferrable (K1 i p
 -- Core Language
 -- --------------------------------------------------------------------------------
 
-typeCheckDistrExpr ::
-  forall primT sizeT.
-  (TypingReqs sizeT) =>
-  DistrExpr sizeT ->
-  TypeChecker primT [VarType sizeT]
-typeCheckDistrExpr UniformE{sample_ty} = pure [sample_ty]
-typeCheckDistrExpr BernoulliE{} = pure [tbool]
+instance (TypingReqs sizeT) => TypeInferrable (DistrExpr sizeT) sizeT where
+  inferTypes UniformE{sample_ty} = pure [sample_ty]
+  inferTypes BernoulliE{} = pure [tbool]
 
--- | Typecheck an expression and return the output types
-typeCheckExpr ::
-  forall primT sizeT.
-  ( TypeInferrable primT sizeT
-  , sizeT ~ SizeType primT
-  ) =>
-  Expr primT ->
-  TypeChecker primT [VarType sizeT]
-typeCheckExpr BasicExprE{basic_expr} = do
-  gamma <- use id
-  lift $ do
-    ty <- runReaderT ?? gamma $ typeCheckBasicExpr basic_expr
-    return [ty]
-typeCheckExpr RandomSampleE{distr_expr} = typeCheckDistrExpr distr_expr
--- f(x, ...)
-typeCheckExpr FunCallE{fname, args} = do
-  FunDef{param_types, ret_types} <- lookupFunE fname
-
-  arg_tys <- mapM Ctx.lookup args
-  unless (arg_tys == param_types) $
-    throwError (fname <> " expects " <> show param_types <> ", got " <> show (zip args arg_tys))
-
-  return ret_types
-
--- `primitive`
-typeCheckExpr PrimCallE{prim} = inferTypes prim
--- loop ...
-typeCheckExpr LoopE{initial_args, loop_body_fun} =
-  do
-    -- extract the current context
+instance (TypeInferrable ext sizeT) => TypeInferrable (Expr ext) sizeT where
+  inferTypes BasicExprE{basic_expr} = do
     gamma <- use id
-    in_tys <- runReaderT ?? gamma $ mapM Ctx.lookup' initial_args
-    FunDef{param_types, ret_types} <- lookupFunE loop_body_fun
-    unless (ret_types == in_tys) $
-      throwError "Initial input argument types should match output types of the loop function."
-    unless (init param_types == ret_types) $
-      throwError "Initial N - 1 input param types should match output types of the loop function."
-    when (null param_types) $
-      throwError "There is should be at least one parameter types."
-    case last param_types of
-      (Fin _) -> return ret_types
-      _ -> throwError "Last type of the loop function should be a Fin type."
+    lift $ do
+      ty <- runReaderT ?? gamma $ typeCheckBasicExpr basic_expr
+      return [ty]
+  inferTypes RandomSampleE{distr_expr} = inferTypes distr_expr
+  -- f(x, ...)
+  inferTypes FunCallE{fname, args} = do
+    FunDef{param_types, ret_types} <- lookupFunE fname
 
-{- | Typecheck a statement, given the current context and function definitions.
- If successful, the typing context is updated.
--}
-typeCheckStmt ::
-  forall primT sizeT.
-  ( TypeInferrable primT sizeT
-  , sizeT ~ SizeType primT
-  ) =>
-  Stmt primT ->
-  TypeChecker primT ()
--- single statement
-typeCheckStmt ExprS{rets, expr} = do
-  out_tys <- typeCheckExpr expr
-  when (length out_tys /= length rets) $ do
-    throwError $
-      ("Expected " <> show (length rets) <> " outputs, but given " <> show (length out_tys) <> " vars to bind.")
-        <> (" (return variables: " <> show rets <> ", output types: " <> show out_tys <> ")")
-  zipWithM_ Ctx.put rets out_tys
--- sequence
-typeCheckStmt (SeqS ss) = mapM_ typeCheckStmt ss
--- ifte
-typeCheckStmt IfThenElseS{cond, s_true, s_false} = do
-  cond_ty <- Ctx.lookup cond
-  unless (cond_ty == tbool) $
-    throwError $
-      "`if` condition must be a boolean, got " <> show (cond, cond_ty)
+    arg_tys <- mapM Ctx.lookup args
+    unless (arg_tys == param_types) $
+      throwError (fname <> " expects " <> show param_types <> ", got " <> show (zip args arg_tys))
 
-  sigma_t <- withSandbox $ typeCheckStmt s_true >> use id
-  sigma_f <- withSandbox $ typeCheckStmt s_false >> use id
-  when (sigma_t /= sigma_f) $
-    throwError ("if: branches must declare same variables, got " <> show [sigma_t, sigma_f])
-  id .= sigma_t
+    return ret_types
+
+  -- `primitive`
+  inferTypes PrimCallE{prim} = inferTypes prim
+  -- loop ...
+  inferTypes LoopE{initial_args, loop_body_fun} =
+    do
+      -- extract the current context
+      gamma <- use id
+      in_tys <- runReaderT ?? gamma $ mapM Ctx.lookup' initial_args
+      FunDef{param_types, ret_types} <- lookupFunE loop_body_fun
+      unless (ret_types == in_tys) $
+        throwError "Initial input argument types should match output types of the loop function."
+      unless (init param_types == ret_types) $
+        throwError "Initial N - 1 input param types should match output types of the loop function."
+      when (null param_types) $
+        throwError "There is should be at least one parameter types."
+      case last param_types of
+        (Fin _) -> return ret_types
+        _ -> throwError "Last type of the loop function should be a Fin type."
+
+instance (TypeInferrable ext sizeT) => TypeInferrable (Stmt ext) sizeT where
+  -- single statement
+  inferTypes ExprS{rets, expr} = do
+    out_tys <- inferTypes expr
+    when (length out_tys /= length rets) $ do
+      throwError $
+        ("Expected " <> show (length rets) <> " outputs, but given " <> show (length out_tys) <> " vars to bind.")
+          <> (" (return variables: " <> show rets <> ", output types: " <> show out_tys <> ")")
+    zipWithM_ Ctx.put rets out_tys
+    pure []
+  -- sequence
+  inferTypes (SeqS ss) = mapM_ inferTypes ss >> pure []
+  -- ifte
+  inferTypes IfThenElseS{cond, s_true, s_false} = do
+    cond_ty <- Ctx.lookup cond
+    unless (cond_ty == tbool) $
+      throwError $
+        "`if` condition must be a boolean, got " <> show (cond, cond_ty)
+
+    sigma_t <- withSandbox $ inferTypes s_true >> use id
+    sigma_f <- withSandbox $ inferTypes s_false >> use id
+    when (sigma_t /= sigma_f) $
+      throwError ("if: branches must declare same variables, got " <> show [sigma_t, sigma_f])
+    id .= sigma_t
+    pure []
 
 -- | Type check a single function.
 typeCheckFun ::
@@ -363,7 +344,7 @@ typeCheckFun
       throwError "number of returns must match the types"
 
     let gamma = Ctx.fromList $ zip param_names param_types
-    gamma' <- execStateT ?? gamma $ runReaderT ?? funCtx $ typeCheckStmt body_stmt
+    gamma' <- execStateT ?? gamma $ runReaderT ?? funCtx $ inferTypes body_stmt
     forM_ (zip ret_names ret_types) $ \(x, t) -> do
       when (has _Just (gamma ^. Ctx.at x)) $ do
         throwError $ printf "parameter `%s` cannot be returned, please copy it into a new variable and return that" x

@@ -27,19 +27,16 @@ module Traq.Analysis.Cost (
   quantumMaxQueryCostF,
 
   -- * Types and Monad
-  UnitaryCostEnv,
-  QuantumCostEnv,
+  CostEnv,
 
   -- ** Lenses
   _funInterpCtx,
-  _unitaryCostEnv,
+  _costEnv,
 
   -- ** Cost Monads
-  UnitaryCostCalculator,
+  CostCalculator,
   UnitaryCost (..),
-  QuantumMaxCostCalculator,
   QuantumHavocCost (..),
-  QuantumCostCalculator,
   QuantumExpCost (..),
 
   -- * Precision Splitting Strategies
@@ -88,6 +85,7 @@ instance (Show sizeT) => SizeToPrec (Sym.Sym sizeT) (Sym.Sym precT) where
 -- ================================================================================
 data PrecisionSplittingStrategy = SplitSimple | SplitUsingNeedsEps
   deriving (Eq, Read, Show)
+{-# DEPRECATED PrecisionSplittingStrategy "Use annotations instead (once available)" #-}
 
 instance HasDefault PrecisionSplittingStrategy where
   default_ = SplitSimple
@@ -155,31 +153,38 @@ splitEps eps ss = do
     return $ map (\flag -> if flag then eps_each else 0) flags
 
 -- ================================================================================
--- Unitary Cost
+-- Env & Monad for Cost Analysis
 -- ================================================================================
 
--- | Environment to compute the unitary cost
-data UnitaryCostEnv ext = UnitaryCostEnv (FunCtx ext) PrecisionSplittingStrategy
+-- | Environment for cost analysis
+data CostEnv ext = CostEnv (EvaluationEnv ext) PrecisionSplittingStrategy
   deriving (Generic, HasDefault)
 
 -- Types and instances
-type instance SizeType (UnitaryCostEnv ext) = SizeType ext
-type instance PrecType (UnitaryCostEnv ext) = PrecType ext
+type instance SizeType (CostEnv ext) = SizeType ext
+type instance PrecType (CostEnv ext) = PrecType ext
 
-instance HasFunCtx (UnitaryCostEnv ext) ext where
-  _funCtx focus (UnitaryCostEnv f s) = focus f <&> \f' -> UnitaryCostEnv f' s
+instance HasEvaluationEnv (CostEnv ext) ext where
+  _evaluationEnv focus (CostEnv e strat) = focus e <&> \e' -> CostEnv e' strat
 
-instance HasPrecisionSplittingStrategy (UnitaryCostEnv ext) where
-  _precSplitStrat focus (UnitaryCostEnv f s) = focus s <&> \s' -> UnitaryCostEnv f s'
+instance HasFunCtx (CostEnv ext) ext where _funCtx = _evaluationEnv . _funCtx
+instance HasFunInterpCtx (CostEnv ext) where _funInterpCtx = _evaluationEnv . _funInterpCtx
+
+instance HasPrecisionSplittingStrategy (CostEnv ext) where
+  _precSplitStrat focus (CostEnv f s) = focus s <&> \s' -> CostEnv f s'
 
 -- Subtyping Lens
-class HasUnitaryCostEnv p ext | p -> ext where
-  _unitaryCostEnv :: Lens' p (UnitaryCostEnv ext)
+class HasCostEnv p ext | p -> ext where
+  _costEnv :: Lens' p (CostEnv ext)
 
-instance HasUnitaryCostEnv (UnitaryCostEnv ext) ext where _unitaryCostEnv = id
+instance HasCostEnv (CostEnv ext) ext where _costEnv = id
 
--- | Monad to compute unitary cost.
-type UnitaryCostCalculator ext = ReaderT (UnitaryCostEnv ext) Maybe
+-- | Monad for cost analysis
+type CostCalculator ext = ReaderT (CostEnv ext) Maybe
+
+-- ================================================================================
+-- Unitary Cost
+-- ================================================================================
 
 -- --------------------------------------------------------------------------------
 -- Unitary Cost: Primitives (with generics)
@@ -193,7 +198,7 @@ class
   where
   unitaryCost ::
     forall primsT costT m.
-    ( m ~ UnitaryCostCalculator primsT
+    ( m ~ CostCalculator primsT
     , UnitaryCost primsT sizeT precT
     , C.CostModel costT
     , precT ~ PrecType costT
@@ -204,7 +209,7 @@ class
     m costT
   default unitaryCost ::
     forall primsT costT m.
-    ( m ~ UnitaryCostCalculator primsT
+    ( m ~ CostCalculator primsT
     , UnitaryCost primsT sizeT precT
     , C.CostModel costT
     , precT ~ PrecType costT
@@ -223,7 +228,7 @@ instance (TypingReqs sizeT) => UnitaryCost (Core sizeT precT) sizeT precT where
 class GUnitaryCost f sizeT precT where
   gunitaryCost ::
     forall primsT primT costT m.
-    ( m ~ UnitaryCostCalculator primsT
+    ( m ~ CostCalculator primsT
     , UnitaryCost primsT sizeT precT
     , C.CostModel costT
     , precT ~ PrecType costT
@@ -259,7 +264,7 @@ unitaryQueryCostE ::
   ( Num sizeT
   , Floating precT
   , UnitaryCost primsT sizeT precT
-  , m ~ UnitaryCostCalculator primsT
+  , m ~ CostCalculator primsT
   , C.CostModel costT
   , precT ~ PrecType costT
   , SizeToPrec sizeT precT
@@ -282,7 +287,7 @@ unitaryQueryCostS ::
   ( Num sizeT
   , Floating precT
   , UnitaryCost primsT sizeT precT
-  , m ~ UnitaryCostCalculator primsT
+  , m ~ CostCalculator primsT
   , C.CostModel costT
   , precT ~ PrecType costT
   , SizeToPrec sizeT precT
@@ -308,7 +313,7 @@ unitaryQueryCostF ::
   ( Num sizeT
   , Floating precT
   , UnitaryCost primsT sizeT precT
-  , m ~ UnitaryCostCalculator primsT
+  , m ~ CostCalculator primsT
   , C.CostModel costT
   , precT ~ PrecType costT
   , SizeToPrec sizeT precT
@@ -353,9 +358,6 @@ unitaryQueryCost strat delta (Program fs) =
 -- Quantum Max Cost
 -- ================================================================================
 
--- Environment to compute the max quantum cost (input independent)
-type QuantumMaxCostCalculator ext = ReaderT (UnitaryCostEnv ext) Maybe
-
 -- --------------------------------------------------------------------------------
 -- Quantum Max Cost: Primitives (with generics)
 -- --------------------------------------------------------------------------------
@@ -367,7 +369,7 @@ class
   where
   quantumHavocCost ::
     forall primsT costT m.
-    ( m ~ QuantumMaxCostCalculator primsT
+    ( m ~ CostCalculator primsT
     , QuantumHavocCost primsT sizeT precT
     , C.CostModel costT
     , precT ~ PrecType costT
@@ -379,7 +381,7 @@ class
     m costT
   default quantumHavocCost ::
     forall primsT costT m.
-    ( m ~ QuantumMaxCostCalculator primsT
+    ( m ~ CostCalculator primsT
     , QuantumHavocCost primsT sizeT precT
     , C.CostModel costT
     , precT ~ PrecType costT
@@ -399,7 +401,7 @@ instance (TypingReqs sizeT) => QuantumHavocCost (Core sizeT precT) sizeT precT w
 class GQuantumHavocCost f sizeT precT where
   gquantumHavocCost ::
     forall primT primsT costT m.
-    ( m ~ QuantumMaxCostCalculator primsT
+    ( m ~ CostCalculator primsT
     , QuantumHavocCost primsT sizeT precT
     , C.CostModel costT
     , precT ~ PrecType costT
@@ -436,7 +438,7 @@ quantumMaxQueryCostE ::
   , Ord precT
   , Floating precT
   , QuantumHavocCost primsT sizeT precT
-  , m ~ QuantumMaxCostCalculator primsT
+  , m ~ CostCalculator primsT
   , C.CostModel costT
   , precT ~ PrecType costT
   , SizeToPrec sizeT precT
@@ -462,7 +464,7 @@ quantumMaxQueryCostS ::
   , Ord precT
   , Floating precT
   , QuantumHavocCost primsT sizeT precT
-  , m ~ QuantumMaxCostCalculator primsT
+  , m ~ CostCalculator primsT
   , C.CostModel costT
   , precT ~ PrecType costT
   , SizeToPrec sizeT precT
@@ -487,7 +489,7 @@ quantumMaxQueryCostF ::
   , Ord precT
   , Floating precT
   , QuantumHavocCost primsT sizeT precT
-  , m ~ QuantumMaxCostCalculator primsT
+  , m ~ CostCalculator primsT
   , C.CostModel costT
   , precT ~ PrecType costT
   , SizeToPrec sizeT precT
@@ -534,42 +536,6 @@ quantumMaxQueryCost strat a_eps (Program fs) =
 -- Quantum Cost
 -- ================================================================================
 
-{- | Environment to compute the quantum cost (input dependent)
-TODO: rename to something like QuantumExpCostEnv
--}
-data QuantumCostEnv ext
-  = QuantumCostEnv
-      (UnitaryCostEnv ext)
-      (FunInterpCtx (SizeType ext))
-  deriving (Generic, HasDefault)
-
-type instance SizeType (QuantumCostEnv ext) = SizeType ext
-type instance PrecType (QuantumCostEnv ext) = PrecType ext
-
-instance HasFunInterpCtx (QuantumCostEnv ext) where
-  _funInterpCtx focus (QuantumCostEnv e f) = focus f <&> QuantumCostEnv e
-
-instance HasUnitaryCostEnv (QuantumCostEnv ext) ext where
-  _unitaryCostEnv focus (QuantumCostEnv uenv fenv) = focus uenv <&> \uenv' -> QuantumCostEnv uenv' fenv
-
-instance HasFunCtx (QuantumCostEnv ext) ext where _funCtx = _unitaryCostEnv . _funCtx
-
-instance HasPrecisionSplittingStrategy (QuantumCostEnv ext) where _precSplitStrat = _unitaryCostEnv . _precSplitStrat
-
-instance HasEvaluationEnv (QuantumCostEnv ext) ext where
-  _evaluationEnv = lens _get _set
-   where
-    _get ce =
-      default_
-        & (_funCtx .~ (ce ^. _funCtx))
-        & (_funInterpCtx .~ (ce ^. _funInterpCtx))
-    _set ce ee =
-      ce
-        & (_funCtx .~ (ee ^. _funCtx))
-        & (_funInterpCtx .~ (ee ^. _funInterpCtx))
-
-type QuantumCostCalculator ext = ReaderT (QuantumCostEnv ext) Maybe
-
 -- --------------------------------------------------------------------------------
 -- Quantum Expected Cost: Primitives
 -- --------------------------------------------------------------------------------
@@ -583,7 +549,7 @@ class
   where
   quantumExpCost ::
     forall primsT costT m.
-    ( m ~ QuantumCostCalculator primsT
+    ( m ~ CostCalculator primsT
     , QuantumExpCost primsT sizeT precT
     , C.CostModel costT
     , precT ~ PrecType costT
@@ -600,7 +566,7 @@ class
     m costT
   default quantumExpCost ::
     forall primsT costT m.
-    ( m ~ QuantumCostCalculator primsT
+    ( m ~ CostCalculator primsT
     , QuantumExpCost primsT sizeT precT
     , C.CostModel costT
     , precT ~ PrecType costT
@@ -624,7 +590,7 @@ instance (Show precT, EvalReqs sizeT precT) => QuantumExpCost (Core sizeT precT)
 class GQuantumExpCost f sizeT precT where
   gquantumExpCost ::
     forall primsT costT m primT.
-    ( m ~ QuantumCostCalculator primsT
+    ( m ~ CostCalculator primsT
     , QuantumExpCost primsT sizeT precT
     , C.CostModel costT
     , precT ~ PrecType costT
@@ -661,7 +627,7 @@ quantumQueryCostE ::
   forall primsT precT costT m.
   ( Floating precT
   , QuantumExpCost primsT SizeT precT
-  , m ~ QuantumCostCalculator primsT
+  , m ~ CostCalculator primsT
   , C.CostModel costT
   , precT ~ PrecType costT
   , Prob.RVType precT costT
@@ -691,7 +657,7 @@ quantumQueryCostS ::
   forall primsT precT costT m.
   ( Floating precT
   , QuantumExpCost primsT SizeT precT
-  , m ~ QuantumCostCalculator primsT
+  , m ~ CostCalculator primsT
   , C.CostModel costT
   , precT ~ PrecType costT
   , Prob.RVType precT costT
@@ -735,7 +701,7 @@ quantumQueryCostF ::
   forall primsT precT costT m.
   ( Floating precT
   , QuantumExpCost primsT SizeT precT
-  , m ~ QuantumCostCalculator primsT
+  , m ~ CostCalculator primsT
   , C.CostModel costT
   , precT ~ PrecType costT
   , Prob.RVType precT costT

@@ -58,7 +58,7 @@ instance P.MapSize (RandomSearch size prec) where
   mapSize f (RandomSearch p) = RandomSearch (P.mapSize f p)
 
 instance (Show size) => SerializePrim (RandomSearch size prec) where
-  primNames = ["any_rand"]
+  primNames = ["any"]
   parsePrimParams tp s = RandomSearch <$> parsePrimParams tp s
   printPrimParams (RandomSearch prim) = printPrimParams prim
 

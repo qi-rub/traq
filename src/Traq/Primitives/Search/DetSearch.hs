@@ -40,7 +40,7 @@ instance P.MapSize (DetSearch size prec) where
 instance PrimSearch sizeT precT :<: DetSearch sizeT precT
 
 instance (Show size) => SerializePrim (DetSearch size prec) where
-  primNames = ["any_det"]
+  primNames = ["any"]
   parsePrimParams tp s = DetSearch <$> parsePrimParams tp s
   printPrimParams (DetSearch prim) = printPrimParams prim
 

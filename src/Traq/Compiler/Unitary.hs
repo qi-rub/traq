@@ -55,7 +55,7 @@ import Traq.Prelude
 import qualified Traq.ProtoLang as P
 
 -- | Configuration for lowering
-type LoweringEnv ext = P.UnitaryCostEnv ext
+type LoweringEnv ext = P.CostEnv ext
 
 {- | Monad to compile to Unitary CQPL programs.
 This should contain the _final_ typing context for the input program,
@@ -239,7 +239,7 @@ lowerStmt ::
   CompilerT ext (UStmt sizeT)
 -- single statement
 lowerStmt delta s@P.ExprS{P.rets, P.expr} = do
-  lift $ magnify P._funCtx . zoom P._typingCtx $ P.typeCheckStmt s
+  _ <- lift $ magnify P._funCtx . zoom P._typingCtx $ P.inferTypes s
   lowerExpr delta expr rets
 
 -- compound statements
