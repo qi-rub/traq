@@ -23,10 +23,17 @@ library
       Traq.Analysis
       Traq.Analysis.Annotate
       Traq.Analysis.Cost
+      Traq.Analysis.Cost.Prelude
+      Traq.Analysis.Cost.Quantum
+      Traq.Analysis.Cost.Unitary
       Traq.Analysis.CostModel.Class
       Traq.Analysis.CostModel.QueryCost
       Traq.Analysis.Error
-      Traq.Analysis.QuantumError
+      Traq.Analysis.Error.Prelude
+      Traq.Analysis.Error.Quantum
+      Traq.Analysis.Error.SplitError
+      Traq.Analysis.Error.Unitary
+      Traq.Analysis.Prelude
       Traq.Compiler
       Traq.Compiler.Quantum
       Traq.Compiler.Unitary
@@ -355,6 +362,8 @@ test-suite spec
   main-is: Spec.hs
   other-modules:
       TestHelpers
+      Traq.Analysis.Cost.QuantumSpec
+      Traq.Analysis.Error.QuantumSpec
       Traq.Compiler.QuantumSpec
       Traq.Compiler.UnitarySpec
       Traq.CQPL.TypeCheckSpec

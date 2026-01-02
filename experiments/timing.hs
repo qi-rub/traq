@@ -20,6 +20,7 @@ import Traq.Examples.MatrixSearch (matrixExampleS)
 import Traq.Prelude
 import qualified Traq.Primitives as Traq
 import qualified Traq.ProtoLang as P
+import qualified Traq.Analysis as P
 import qualified Traq.Utils.Printing as PP
 
 loadProgramFromFile :: String -> IO (P.Program (Traq.DefaultPrims (Sym.Sym SizeT) Double))

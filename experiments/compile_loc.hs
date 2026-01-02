@@ -5,6 +5,7 @@ module Main where
 import Control.Monad (when)
 import Text.Parsec.String (parseFromFile)
 import Text.Printf (printf)
+import qualified Traq.Analysis as P
 import qualified Traq.Analysis as Traq
 import qualified Traq.Compiler.Quantum
 import qualified Traq.Data.Symbolic as Sym

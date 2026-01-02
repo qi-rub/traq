@@ -8,6 +8,7 @@ import qualified Traq.Data.Context as Ctx
 import Traq.Data.Default
 import qualified Traq.Data.Symbolic as Sym
 
+import qualified Traq.Analysis as P
 import Traq.CQPL.Syntax
 import Traq.Compiler.Quantum
 import Traq.Prelude

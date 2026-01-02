@@ -8,6 +8,7 @@ import Lens.Micro.GHC
 
 import qualified Traq.Data.Symbolic as Sym
 
+import qualified Traq.Analysis as P
 import Traq.Analysis.CostModel.QueryCost (SimpleQueryCost (..))
 import Traq.Prelude
 import Traq.Primitives.Class

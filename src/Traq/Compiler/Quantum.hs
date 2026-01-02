@@ -32,6 +32,7 @@ import Traq.Control.Monad
 import qualified Traq.Data.Context as Ctx
 import Traq.Data.Default
 
+import qualified Traq.Analysis as A
 import Traq.CQPL.Syntax
 import qualified Traq.Compiler.Unitary as CompileU
 import Traq.Compiler.Utils
@@ -39,7 +40,7 @@ import Traq.Prelude
 import qualified Traq.ProtoLang as P
 
 -- | Configuration for lowering
-type LoweringEnv ext = P.CostEnv ext
+type LoweringEnv ext = A.CostEnv ext
 
 {- | Monad to compile ProtoQB to CQPL programs.
 This should contain the _final_ typing context for the input program,
@@ -70,7 +71,7 @@ class
     , PrecType ext' ~ precT
     ) =>
     -- | fail prob
-    P.FailProb precT ->
+    A.FailProb precT ->
     ext ->
     -- | rets
     [Ident] ->
@@ -89,7 +90,7 @@ class GLowerable f sizeT precT | f -> sizeT precT where
     , PrecType ext' ~ precT
     ) =>
     f primT ->
-    P.FailProb precT ->
+    A.FailProb precT ->
     -- | rets
     [Ident] ->
     m (Stmt sizeT)
@@ -126,7 +127,7 @@ lowerFunDef ::
   , Floating precT
   ) =>
   -- | fail prob
-  P.FailProb precT ->
+  A.FailProb precT ->
   -- | source function name
   Ident ->
   -- | source function
@@ -145,7 +146,7 @@ lowerFunDef _ fun_name P.FunDef{P.param_types, P.ret_types, P.mbody = Nothing} =
   addProc proc_def
   return fun_name
 lowerFunDef eps fun_name P.FunDef{P.param_types, P.mbody = Just body} = do
-  let info_comment = printf "%s[%s]" fun_name (show $ P.getFailProb eps)
+  let info_comment = printf "%s[%s]" fun_name (show $ A.getFailProb eps)
   proc_name <- newIdent fun_name
 
   let P.FunBody{P.param_names, P.ret_names, P.body_stmt} = body
@@ -181,7 +182,7 @@ lowerFunDefByName ::
   , Floating precT
   ) =>
   -- | fail prob
-  P.FailProb precT ->
+  A.FailProb precT ->
   -- | source function name
   Ident ->
   CompilerT ext Ident
@@ -198,7 +199,7 @@ lowerExpr ::
   , Floating precT
   ) =>
   -- fail prob
-  P.FailProb precT ->
+  A.FailProb precT ->
   -- source expression
   P.Expr ext ->
   -- return variables
@@ -229,7 +230,7 @@ lowerStmt ::
   , Show precT
   , Floating precT
   ) =>
-  P.FailProb precT ->
+  A.FailProb precT ->
   P.Stmt ext ->
   CompilerT ext (Stmt sizeT)
 -- single statement
@@ -239,7 +240,7 @@ lowerStmt eps s@P.ExprS{P.rets, P.expr} = do
 
 -- compound statements
 lowerStmt eps (P.SeqS ss) = do
-  epss <- P.splitEps eps ss
+  epss <- A.splitEps eps ss
   SeqS <$> zipWithM lowerStmt epss ss
 
 -- unsupported
@@ -254,11 +255,11 @@ lowerProgram ::
   , Floating precT
   , P.HasFreeVars ext
   ) =>
-  P.PrecisionSplittingStrategy ->
+  A.PrecisionSplittingStrategy ->
   -- | input bindings to the source program
   P.TypingCtx sizeT ->
   -- | fail prob \( \varepsilon \)
-  P.FailProb precT ->
+  A.FailProb precT ->
   -- | source program
   P.Program ext ->
   Either String (Program sizeT)
@@ -269,7 +270,7 @@ lowerProgram strat gamma_in eps prog@(P.Program fs) = do
   let config =
         default_
           & (P._funCtx .~ P.namedFunsToFunCtx fs)
-          & (P._precSplitStrat .~ strat)
+          & (A._precSplitStrat .~ strat)
   let lowering_ctx =
         default_
           -- & (P._typingCtx .~ gamma_in)

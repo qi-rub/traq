@@ -100,6 +100,12 @@ instance CoerceValue Bool where
   safeFromValue (FinV _) = pure True
   safeFromValue _ = fail "cannot convert non-Fin to Bool"
 
+instance CoerceValue Int where
+  safeToValue n = pure $ FinV n
+
+  safeFromValue (FinV n) = pure n
+  safeFromValue _ = fail "cannot convert non-Fin to Int"
+
 instance (CoerceValue a) => CoerceValue [a] where
   safeToValue xs = ArrV <$> traverse safeToValue xs
 
@@ -382,6 +388,32 @@ instance (Evaluatable ext sizeT precT) => Evaluatable (Expr ext) sizeT precT whe
     init_vals <- evalStateT ?? sigma $ mapM lookupS initial_args
     foldM (\args i -> evalFun (args ++ [i]) (NamedFunDef loop_body_fun fun_def)) init_vals (domain (last (param_types fun_def)))
 
+-- Evaluate a named function
+-- Pass the arguments as a mapping from 0.. to values, i.e. {0: v_0, 1: v_1, ...}
+instance (Evaluatable ext sizeT precT) => Evaluatable (NamedFunDef ext) sizeT precT where
+  -- defined function: run the body
+  eval
+    NamedFunDef
+      { fun_def =
+        FunDef{mbody = Just FunBody{param_names, ret_names, body_stmt}}
+      , fun_name
+      }
+    sigma_fn = do
+      let vals_in = Ctx.toAscList sigma_fn & map snd
+
+      when (length param_names /= length vals_in) $ error (printf "incorrect number of fun `%s` args: expected %s, got %s" fun_name (show param_names) (show vals_in))
+      let params = Ctx.fromList $ zip param_names vals_in
+      (evalStateT ?? params) $ do
+        execStmt body_stmt
+        mapM lookupS ret_names
+
+  -- external function: lookup and run the provided interpretation
+  eval NamedFunDef{fun_name, fun_def = FunDef{mbody = Nothing}} sigma_fn = do
+    let vals_in = Ctx.toAscList sigma_fn & map snd
+
+    fn_interp <- view $ _funInterpCtx . Ctx.at fun_name . non' (error $ "could not find fun interp for " ++ fun_name)
+    return $ fn_interp vals_in
+
 evalFun ::
   forall ext sizeT precT m.
   ( Evaluatable ext sizeT precT
@@ -395,15 +427,9 @@ evalFun ::
   -- | function
   NamedFunDef ext ->
   m [Value SizeT]
-evalFun vals_in NamedFunDef{fun_def = FunDef{mbody = Just FunBody{param_names, ret_names, body_stmt}}, fun_name} = do
-  when (length param_names /= length vals_in) $ error (printf "incorrect number of fun `%s` args: expected %s, got %s" fun_name (show param_names) (show vals_in))
-  let params = Ctx.fromList $ zip param_names vals_in
-  (evalStateT ?? params) $ do
-    execStmt body_stmt
-    mapM lookupS ret_names
-evalFun vals_in NamedFunDef{fun_name, fun_def = FunDef{mbody = Nothing}} = do
-  fn_interp <- view $ _funInterpCtx . Ctx.at fun_name . singular _Just
-  return $ fn_interp vals_in
+evalFun vals_in fn = eval fn sigma_fn
+ where
+  sigma_fn = Ctx.fromList $ zip [show i | i <- [0 :: Int ..]] vals_in
 
 -- ================================================================================
 -- Program Execution
@@ -414,12 +440,15 @@ type ExecutionState sizeT = ProgramState sizeT
 -- | Non-deterministic Execution Monad
 type Executor ext = StateT (ExecutionState (SizeType ext)) (Evaluator ext)
 
--- | Execute a statement, updating the state.
+{- | Execute a statement, updating the state.
+TODO unify this as a class instance, after unifying evaluation
+-}
 execStmt ::
-  forall ext precT m.
-  ( Evaluatable ext SizeT precT
-  , m ~ Executor ext
-  , EvalReqs SizeT precT
+  forall ext precT m ext'.
+  ( EvalReqs SizeT precT
+  , Evaluatable ext' SizeT precT
+  , Evaluatable ext SizeT precT
+  , m ~ Executor ext'
   ) =>
   Stmt ext ->
   m ()

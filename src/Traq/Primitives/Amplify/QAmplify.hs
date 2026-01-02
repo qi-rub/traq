@@ -16,6 +16,7 @@ import GHC.Generics (Generic)
 import qualified Traq.Data.Probability as Prob
 import Traq.Data.Subtyping
 
+import qualified Traq.Analysis as A
 import Traq.Prelude
 import Traq.Primitives.Amplify.Prelude
 import Traq.Primitives.Class
@@ -50,8 +51,8 @@ instance (P.EvalReqs sizeT precT, Ord precT) => EvalPrim (QAmplify sizeT precT) 
 -- ================================================================================
 
 -- | Fixed-Point Amplitude Amplification.
-_FPAA_L :: forall precT. (Floating precT) => P.FailProb precT -> precT -> precT
-_FPAA_L eps p_min = acosh (1 / sqrt (P.getFailProb eps)) / acosh (1 / sqrt (1 - p_min))
+_FPAA_L :: forall precT. (Floating precT) => A.FailProb precT -> precT -> precT
+_FPAA_L eps p_min = acosh (1 / sqrt (A.getFailProb eps)) / acosh (1 / sqrt (1 - p_min))
 
 instance (P.TypingReqs size, Floating prec) => UnitaryCostPrim (QAmplify size prec) size prec where
   unitaryQueryCosts (QAmplify Amplify{p_min}) eps = SamplerFn $ _FPAA_L eps p_min
@@ -59,8 +60,8 @@ instance (P.TypingReqs size, Floating prec) => UnitaryCostPrim (QAmplify size pr
 {- | Cost of quantum search adapted to general amplitude amplification.
 Eq. 4 of https://arxiv.org/abs/2203.04975
 -}
-_WQSearch :: forall precT. (Floating precT) => P.FailProb precT -> precT -> precT
-_WQSearch eps p_min = alpha * log (1 / P.getFailProb eps) / sqrt p_min
+_WQSearch :: forall precT. (Floating precT) => A.FailProb precT -> precT -> precT
+_WQSearch eps p_min = alpha * log (1 / A.getFailProb eps) / sqrt p_min
  where
   alpha = 9.2
 
@@ -75,7 +76,7 @@ _F p_good
 {- | Cost of quantum search adapted to general amplitude amplification.
 Eq. 2 of https://arxiv.org/abs/2203.04975
 -}
-_EQSearch :: forall precT. (Floating precT, Ord precT) => P.FailProb precT -> precT -> precT -> precT
+_EQSearch :: forall precT. (Floating precT, Ord precT) => A.FailProb precT -> precT -> precT -> precT
 _EQSearch eps p_min p_good
   | p_good == 0 = _WQSearch eps p_min
   | otherwise = _F p_good * (1 + 1 / (1 - term))
@@ -83,7 +84,7 @@ _EQSearch eps p_min p_good
   term = _F p_good * sqrt p_min / alpha
   alpha = 9.2
 
-instance (P.TypingReqs size, P.SizeToPrec size prec, Floating prec) => QuantumHavocCostPrim (QAmplify size prec) size prec where
+instance (P.TypingReqs size, A.SizeToPrec size prec, Floating prec) => QuantumHavocCostPrim (QAmplify size prec) size prec where
   quantumQueryCostsUnitary (QAmplify Amplify{p_min}) eps = SamplerFn $ _WQSearch eps p_min
   quantumQueryCostsQuantum _ _ = SamplerFn 0
 

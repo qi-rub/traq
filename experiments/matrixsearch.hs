@@ -13,6 +13,7 @@ import qualified Traq.Data.Symbolic as Sym
 import Traq.Analysis.CostModel.QueryCost (QueryCost (..))
 import qualified Traq.CQPL as CQPL
 import qualified Traq.Compiler.Quantum as CompileQ
+import qualified Traq.Analysis as P
 import qualified Traq.Compiler.Unitary as CompileU
 import Traq.Examples.MatrixSearch
 import Traq.Prelude

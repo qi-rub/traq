@@ -14,6 +14,7 @@ import GHC.Generics (Generic)
 
 import Traq.Data.Subtyping
 
+import qualified Traq.Analysis as P
 import Traq.Prelude
 import Traq.Primitives.Class
 import Traq.Primitives.Simons.Prelude

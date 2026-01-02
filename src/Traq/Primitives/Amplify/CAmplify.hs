@@ -16,6 +16,7 @@ import GHC.Generics (Generic)
 import qualified Traq.Data.Probability as Prob
 import Traq.Data.Subtyping
 
+import qualified Traq.Analysis as A
 import Traq.Prelude
 import Traq.Primitives.Amplify.Prelude
 import Traq.Primitives.Class
@@ -50,11 +51,11 @@ instance (P.EvalReqs sizeT precT, Ord precT) => EvalPrim (CAmplify sizeT precT) 
 -- ================================================================================
 
 -- | Maximum queries
-_QMax :: forall precT. (Floating precT) => P.FailProb precT -> precT -> precT
-_QMax eps p_min = logBase (1 / (1 - p_min)) (1 / P.getFailProb eps)
+_QMax :: forall precT. (Floating precT) => A.FailProb precT -> precT -> precT
+_QMax eps p_min = logBase (1 / (1 - p_min)) (1 / A.getFailProb eps)
 
 -- | Expected queries
-_EQ :: forall precT. (Floating precT, Ord precT) => P.FailProb precT -> precT -> precT -> precT
+_EQ :: forall precT. (Floating precT, Ord precT) => A.FailProb precT -> precT -> precT -> precT
 _EQ eps p_min p_good
   | p_good >= p_min = 1 / p_good
   | p_good == 0 = _QMax eps p_min
@@ -63,7 +64,7 @@ _EQ eps p_min p_good
 instance (P.TypingReqs size, Floating prec) => UnitaryCostPrim (CAmplify size prec) size prec where
   unitaryQueryCosts (CAmplify Amplify{p_min}) eps = SamplerFn $ _QMax eps p_min
 
-instance (P.TypingReqs size, P.SizeToPrec size prec, Floating prec) => QuantumHavocCostPrim (CAmplify size prec) size prec where
+instance (P.TypingReqs size, A.SizeToPrec size prec, Floating prec) => QuantumHavocCostPrim (CAmplify size prec) size prec where
   quantumQueryCostsQuantum (CAmplify Amplify{p_min}) eps = SamplerFn $ _QMax eps p_min
 
   -- no unitary cost for classical algo

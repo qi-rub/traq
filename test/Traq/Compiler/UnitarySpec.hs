@@ -4,6 +4,7 @@ module Traq.Compiler.UnitarySpec (spec) where
 
 import qualified Traq.Data.Context as Ctx
 
+import qualified Traq.Analysis as P
 import qualified Traq.CQPL as CQPL
 import Traq.Compiler.Unitary
 import qualified Traq.ProtoLang as P

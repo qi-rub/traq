@@ -20,6 +20,7 @@ import Text.Printf (printf)
 import qualified Traq.Data.Probability as Prob
 import qualified Traq.Data.Symbolic as Sym
 
+import qualified Traq.Analysis as P
 import qualified Traq.Compiler.Quantum as CompileQ
 import qualified Traq.Compiler.Unitary as CompileU
 import Traq.Prelude

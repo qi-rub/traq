@@ -2,6 +2,7 @@ module Traq.Primitives.Amplify.CAmplifySpec where
 
 import qualified Traq.Data.Context as Ctx
 
+import qualified Traq.Analysis as P
 import Traq.Analysis.CostModel.QueryCost (SimpleQueryCost (..))
 import Traq.Primitives.Amplify.CAmplify
 import Traq.Primitives.Amplify.Prelude

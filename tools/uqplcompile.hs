@@ -17,6 +17,7 @@ import qualified Traq.Data.Context as Ctx
 import Traq.Data.Default
 import qualified Traq.Data.Symbolic as Sym
 
+import qualified Traq.Analysis as P
 import Traq.Analysis.CostModel.QueryCost (SimpleQueryCost (..))
 import qualified Traq.CQPL as CQPL
 import qualified Traq.Compiler.Unitary as CompileU

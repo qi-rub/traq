@@ -5,12 +5,8 @@ module Traq.ProtoLang (
   module Traq.ProtoLang.Vars,
   module Traq.ProtoLang.Parser,
   module Traq.ProtoLang.Lenses,
-  module Traq.Analysis.Cost,
-  module Traq.Analysis.Error,
 ) where
 
-import Traq.Analysis.Cost
-import Traq.Analysis.Error
 import Traq.ProtoLang.Eval
 import Traq.ProtoLang.Lenses
 import Traq.ProtoLang.Parser

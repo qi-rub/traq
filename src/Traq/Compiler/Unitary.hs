@@ -48,6 +48,7 @@ import Traq.Control.Monad
 import qualified Traq.Data.Context as Ctx
 import Traq.Data.Default
 
+import qualified Traq.Analysis as A
 import qualified Traq.CQPL as CQPL
 import Traq.CQPL.Syntax
 import Traq.Compiler.Utils
@@ -55,7 +56,7 @@ import Traq.Prelude
 import qualified Traq.ProtoLang as P
 
 -- | Configuration for lowering
-type LoweringEnv ext = P.CostEnv ext
+type LoweringEnv ext = A.CostEnv ext
 
 {- | Monad to compile to Unitary CQPL programs.
 This should contain the _final_ typing context for the input program,
@@ -74,7 +75,7 @@ type CompilerT ext =
 
 -- | Primitives that support a unitary lowering.
 class
-  ( P.UnitaryCost ext sizeT precT
+  ( A.UnitaryCost ext sizeT precT
   , sizeT ~ SizeType ext
   , precT ~ PrecType ext
   ) =>
@@ -88,7 +89,7 @@ class
     , SizeType ext' ~ sizeT
     , PrecType ext' ~ precT
     ) =>
-    P.L2NormError precT ->
+    A.L2NormError precT ->
     ext ->
     -- | rets
     [Ident] ->
@@ -102,7 +103,7 @@ class
     , SizeType ext' ~ sizeT
     , PrecType ext' ~ precT
     ) =>
-    P.L2NormError precT ->
+    A.L2NormError precT ->
     ext ->
     -- | rets
     [Ident] ->
@@ -122,7 +123,7 @@ class GLowerable f sizeT precT | f -> sizeT precT where
     , PrecType ext' ~ precT
     ) =>
     f primT ->
-    P.L2NormError precT ->
+    A.L2NormError precT ->
     -- | rets
     [Ident] ->
     m (UStmt sizeT)
@@ -189,7 +190,7 @@ lowerExpr ::
   , Show precT
   , Floating precT
   ) =>
-  P.L2NormError precT ->
+  A.L2NormError precT ->
   P.Expr ext ->
   -- | returns
   [Ident] ->
@@ -234,7 +235,7 @@ lowerStmt ::
   , Show precT
   , Floating precT
   ) =>
-  P.L2NormError precT ->
+  A.L2NormError precT ->
   P.Stmt ext ->
   CompilerT ext (UStmt sizeT)
 -- single statement
@@ -244,7 +245,7 @@ lowerStmt delta s@P.ExprS{P.rets, P.expr} = do
 
 -- compound statements
 lowerStmt delta (P.SeqS ss) = do
-  deltas <- P.splitEps delta ss
+  deltas <- A.splitEps delta ss
   USeqS <$> zipWithM lowerStmt deltas ss
 
 -- unsupported
@@ -266,7 +267,7 @@ lowerFunDefWithGarbage ::
   , m ~ CompilerT ext
   ) =>
   -- | precision \delta
-  P.L2NormError precT ->
+  A.L2NormError precT ->
   -- | source function name
   Ident ->
   -- | function
@@ -304,7 +305,7 @@ lowerFunDefWithGarbage
     } =
     withSandboxOf P._typingCtx $ do
       proc_name <- newIdent fun_name
-      let info_comment = printf "%s[%s]" fun_name (show $ P.getL2NormError delta)
+      let info_comment = printf "%s[%s]" fun_name (show $ A.getL2NormError delta)
 
       let param_binds = zip param_names param_types
       let ret_binds = zip ret_names ret_types
@@ -363,7 +364,7 @@ lowerFunDef ::
   -- | Controlled?
   ControlFlag ->
   -- | precision \delta
-  P.L2NormError precT ->
+  A.L2NormError precT ->
   -- | function name
   Ident ->
   -- | function
@@ -379,7 +380,7 @@ lowerFunDef
     , P.mbody
     } = withSandboxOf P._typingCtx $ do
     -- get the proc call that computes with garbage
-    LoweredProc{lowered_def, aux_tys = g_aux_tys, out_tys = g_ret_tys} <- lowerFunDefWithGarbage (delta `P.divideError` 2) fun_name fun
+    LoweredProc{lowered_def, aux_tys = g_aux_tys, out_tys = g_ret_tys} <- lowerFunDefWithGarbage (delta `A.divideError` 2) fun_name fun
     let g_dirty_name = lowered_def ^. to proc_name
 
     let param_names = case mbody of
@@ -394,7 +395,7 @@ lowerFunDef
 
     P._typingCtx .= Ctx.fromList (param_binds ++ ret_binds)
     proc_name <- newIdent fun_name
-    let info_comment = printf "%sClean[%s, %s]" (case with_ctrl of WithControl -> "Ctrl_"; _ -> "") fun_name (show $ P.getL2NormError delta)
+    let info_comment = printf "%sClean[%s, %s]" (case with_ctrl of WithControl -> "Ctrl_"; _ -> "") fun_name (show $ A.getL2NormError delta)
 
     g_ret_names <- mapM allocAncilla g_ret_tys
 
@@ -453,11 +454,11 @@ lowerProgram ::
   , Floating precT
   , P.HasFreeVars ext
   ) =>
-  P.PrecisionSplittingStrategy ->
+  A.PrecisionSplittingStrategy ->
   -- | All variable bindings
   P.TypingCtx SizeT ->
   -- | precision \delta
-  P.L2NormError precT ->
+  A.L2NormError precT ->
   P.Program ext ->
   Either String (CQPL.Program SizeT)
 lowerProgram strat gamma_in delta prog@(P.Program fs) = do
@@ -467,7 +468,7 @@ lowerProgram strat gamma_in delta prog@(P.Program fs) = do
   let config =
         default_
           & (P._funCtx .~ P.namedFunsToFunCtx fs)
-          & (P._precSplitStrat .~ strat)
+          & (A._precSplitStrat .~ strat)
   let ctx =
         default_
           & (P._typingCtx .~ gamma_in)

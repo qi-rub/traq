@@ -6,6 +6,11 @@
 {-# LANGUAGE TypeApplications #-}
 
 module Traq.Analysis.Cost (
+  -- * New cost interfaces
+  module Traq.Analysis.Cost.Prelude,
+  module Traq.Analysis.Cost.Unitary,
+  module Traq.Analysis.Cost.Quantum,
+
   -- * Unitary Cost
   unitaryQueryCost,
   unitaryQueryCostE,
@@ -62,23 +67,17 @@ import Traq.Control.Monad
 import qualified Traq.Data.Context as Ctx
 import Traq.Data.Default
 import qualified Traq.Data.Probability as Prob
-import qualified Traq.Data.Symbolic as Sym
 
+import Traq.Analysis.Cost.Prelude
+import Traq.Analysis.Cost.Quantum
+import Traq.Analysis.Cost.Unitary
 import qualified Traq.Analysis.CostModel.Class as C
 import Traq.Analysis.Error
+import Traq.Analysis.Prelude
 import Traq.Prelude
 import Traq.ProtoLang.Eval
 import Traq.ProtoLang.Syntax
 import Traq.ProtoLang.TypeCheck
-
-class SizeToPrec sizeT precT where
-  sizeToPrec :: sizeT -> precT
-
-instance (Floating precT) => SizeToPrec Integer precT where sizeToPrec = fromIntegral
-instance (Floating precT) => SizeToPrec Int precT where sizeToPrec = fromIntegral
-
-instance (Show sizeT) => SizeToPrec (Sym.Sym sizeT) (Sym.Sym precT) where
-  sizeToPrec s = Sym.var (show s)
 
 -- ================================================================================
 -- Strategy for splitting the precison (eps/delta)

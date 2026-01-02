@@ -10,6 +10,7 @@ import qualified Traq.Data.Symbolic as Sym
 
 import Traq.Prelude
 import qualified Traq.ProtoLang as P
+import qualified Traq.Analysis as P
 
 import Traq.Analysis.CostModel.QueryCost (SimpleQueryCost (..))
 import Traq.Primitives (Primitive)

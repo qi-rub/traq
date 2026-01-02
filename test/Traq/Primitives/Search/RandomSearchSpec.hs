@@ -3,6 +3,7 @@ module Traq.Primitives.Search.RandomSearchSpec (spec) where
 import qualified Traq.Data.Context as Ctx
 import Traq.Data.Default
 
+import qualified Traq.Analysis as P
 import Traq.Analysis.CostModel.QueryCost (SimpleQueryCost (..))
 import Traq.Examples.MatrixSearch (mkMatrixExample)
 import Traq.Prelude

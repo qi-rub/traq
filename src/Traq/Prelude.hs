@@ -17,6 +17,8 @@ type family PrecType p
 -- | Type of AST extension in use (i.e. primitives)
 type family ExtensionType p
 
+{-# DEPRECATED ExtensionType "Use fundeps instead" #-}
+
 type instance SizeType (Ctx.Context e) = SizeType e
 type instance PrecType (Ctx.Context e) = PrecType e
 type instance ExtensionType (Ctx.Context e) = ExtensionType e

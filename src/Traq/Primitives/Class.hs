@@ -46,6 +46,8 @@ import qualified Traq.Data.Symbolic as Sym
 
 import qualified Traq.Analysis as A
 import qualified Traq.Analysis.CostModel.Class as C
+import qualified Traq.Analysis.Error.Quantum as A
+import qualified Traq.Analysis.Error.Unitary as A
 import Traq.Prelude
 import qualified Traq.ProtoLang as P
 import qualified Traq.Utils.Printing as PP
@@ -80,7 +82,7 @@ placeArgs :: [Maybe a] -> [a] -> [a]
 placeArgs [] [] = []
 placeArgs (Just x : xs) as = x : placeArgs xs as
 placeArgs (Nothing : xs) (a : as) = a : placeArgs xs as
-placeArgs _ _ = error "invalid use of placeArgs"
+placeArgs mxs ys = error $ printf "invalid use of placeArgs(%d, %d)" (length mxs) (length ys)
 
 {- | A generic second-order primitive.
 It accepts a sequence of partially applied functions.
@@ -260,7 +262,7 @@ instance
     evalPrim prim shaped_fns_eval
 
 -- --------------------------------------------------------------------------------
--- Costs
+-- Unitary Compiler: Costs, Error.
 -- --------------------------------------------------------------------------------
 
 {- | Unitary query and operation costs of a primitive.
@@ -283,11 +285,48 @@ class
 
 instance
   ( UnitaryCostPrim prim size prec
+  , A.ErrorReqs size prec
+  ) =>
+  A.TraceNormErrorU (A.AnnFailProb (Primitive prim)) size prec
+  where
+  traceNormErrorU (A.AnnFailProb eps (Primitive par_funs prim)) = do
+    let query_costs = shapeToList $ unitaryQueryCosts prim eps
+    eps_fn <- forM par_funs $ \PartialFun{pfun_name} -> do
+      fn <- view $ P._funCtx . Ctx.at pfun_name . non' (error "invalid function")
+      A.traceNormErrorU fn
+
+    let tot_eps_fns = A.failProb $ sum $ zipWith calc_tot_err query_costs eps_fn
+    return $ eps + tot_eps_fns
+   where
+    conv :: prec -> prec
+    conv eps' = sqrt (2 * eps')
+
+    calc_tot_err :: prec -> A.FailProb prec -> prec
+    calc_tot_err n eps' = n * conv (A.getFailProb eps')
+
+instance
+  ( UnitaryCostPrim prim size prec
+  , A.CostReqs size prec
+  ) =>
+  A.CostU (A.AnnFailProb (Primitive prim)) size prec
+  where
+  costU (A.AnnFailProb eps (Primitive par_funs prim)) = do
+    let query_costs = shapeToList $ unitaryQueryCosts prim eps
+
+    fn_costs <- forM par_funs $ \PartialFun{pfun_name} -> do
+      fn <- view $ P._funCtx . Ctx.at pfun_name . non' (error "invalid function")
+      A.costU $ P.NamedFunDef pfun_name fn
+
+    -- TODO expression cost
+    return $ Alg.sum $ zipWith (Alg..*) query_costs fn_costs
+
+instance
+  ( UnitaryCostPrim prim size prec
   , P.TypingReqs size
   , Floating prec
-  , P.SizeToPrec size prec
+  , A.SizeToPrec size prec
   ) =>
-  P.UnitaryCost (Primitive prim) size prec
+  A.UnitaryCost (Primitive prim) size prec
   where
   unitaryCost delta (Primitive par_funs prim) = do
     -- split the overall precision in half
@@ -315,6 +354,10 @@ instance
     -- 2x for compute-uncompute
     return $ (2 :: prec) Alg..* (Alg.sum fn_costs Alg.+ extra_costs)
 
+-- --------------------------------------------------------------------------------
+-- Quantum Compiler: Costs, Error.
+-- --------------------------------------------------------------------------------
+
 {- | Worst-case Quantum query and operation costs of a primitive.
 Represents one level of the call graph.
 The quantum compiler of the primitive can use both the quantum and unitary compilation of its function arguments.
@@ -322,7 +365,7 @@ The quantum compiler of the primitive can use both the quantum and unitary compi
 class
   ( size ~ SizeType prim
   , prec ~ PrecType prim
-  , P.SizeToPrec size prec
+  , A.SizeToPrec size prec
   , TypeCheckPrim prim size
   ) =>
   QuantumHavocCostPrim prim size prec
@@ -339,13 +382,67 @@ class
   quantumExprCosts _ _ = Alg.zero
 
 instance
+  ( UnitaryCostPrim prim size prec
+  , QuantumHavocCostPrim prim size prec
+  , A.ErrorReqs size prec
+  ) =>
+  A.TVErrorQ (A.AnnFailProb (Primitive prim)) size prec
+  where
+  tvErrorQ (A.AnnFailProb eps (Primitive par_funs prim)) = do
+    let query_costs_q = shapeToList $ quantumQueryCostsQuantum prim eps
+    let query_costs_u = shapeToList $ quantumQueryCostsUnitary prim eps
+
+    eps_fns <- forM par_funs $ \PartialFun{pfun_name} -> do
+      fn <- view $ P._funCtx . Ctx.at pfun_name . non' (error "invalid function")
+      eps_q <- A.tvErrorQ fn
+      eps_u <- A.traceNormErrorU fn
+      return (eps_q, eps_u)
+    let (eps_fns_q, eps_fns_u) = unzip eps_fns
+
+    let tot_eps_u = A.failProb $ sum $ zipWith calc_tot_err_u query_costs_u eps_fns_u
+    let tot_eps_q = A.failProb $ sum $ zipWith calc_tot_err_q query_costs_q eps_fns_q
+    return $ eps + tot_eps_q + tot_eps_u
+   where
+    conv :: prec -> prec
+    conv eps' = sqrt (2 * eps')
+
+    calc_tot_err_u :: prec -> A.FailProb prec -> prec
+    calc_tot_err_u n eps' = n * conv (A.getFailProb eps')
+
+    calc_tot_err_q :: prec -> A.FailProb prec -> prec
+    calc_tot_err_q n eps' = n * A.getFailProb eps'
+
+instance
+  ( UnitaryCostPrim prim size prec
+  , QuantumHavocCostPrim prim size prec
+  , A.CostReqs size prec
+  ) =>
+  A.CostQ (A.AnnFailProb (Primitive prim)) size prec
+  where
+  costQ (A.AnnFailProb eps (Primitive par_funs prim)) = do
+    let query_costs_q = shapeToList $ quantumQueryCostsQuantum prim eps
+    let query_costs_u = shapeToList $ quantumQueryCostsUnitary prim eps
+
+    fn_costs_uq <- forM par_funs $ \PartialFun{pfun_name} -> do
+      fn <- view $ P._funCtx . Ctx.at pfun_name . non' (error "invalid function")
+      cost_u <- A.costU $ P.NamedFunDef pfun_name fn
+      cost_q <- A.costQ $ P.NamedFunDef pfun_name fn
+      return (cost_u, cost_q)
+    let (fn_costs_u, fn_costs_q) = unzip fn_costs_uq
+
+    let tot_cost_q = Alg.sum $ zipWith (Alg..*) query_costs_q fn_costs_q
+    let tot_cost_u = Alg.sum $ zipWith (Alg..*) query_costs_u fn_costs_u
+    -- TODO expression cost
+    return $ Alg.sum [tot_cost_q, tot_cost_u]
+
+instance
   ( QuantumHavocCostPrim prim size prec
   , UnitaryCostPrim prim size prec
   , P.TypingReqs size
   , Floating prec
   , Ord prec
   ) =>
-  P.QuantumHavocCost (Primitive prim) size prec
+  A.QuantumHavocCost (Primitive prim) size prec
   where
   quantumHavocCost eps (Primitive par_funs prim) = do
     -- split the overall precision in half
@@ -379,7 +476,7 @@ The quantum compiler of the primitive can use both the quantum and unitary compi
 class
   ( size ~ SizeType prim
   , prec ~ PrecType prim
-  , P.SizeToPrec size prec
+  , A.SizeToPrec size prec
   , TypeCheckPrim prim size
   ) =>
   QuantumExpCostPrim prim size prec
@@ -421,6 +518,67 @@ class
   quantumExpExprCosts _ _ _ = Alg.zero
 
 instance
+  ( UnitaryCostPrim prim size prec
+  , QuantumHavocCostPrim prim size prec
+  , QuantumExpCostPrim prim size prec
+  , EvalPrim prim size prec
+  , A.CostReqs size prec
+  , P.EvalReqs size prec
+  ) =>
+  A.ExpCostQ (A.AnnFailProb (Primitive prim)) size prec
+  where
+  expCostQ (A.AnnFailProb eps (Primitive par_funs prim)) sigma = do
+    -- Extract the semantics of each function argument.
+    eval_env <- view P._evaluationEnv
+
+    fns_with_args_and_eval <- forM par_funs $ \PartialFun{pfun_name, pfun_args} -> do
+      fn <-
+        view $
+          P._funCtx
+            . Ctx.at pfun_name
+            . to (fromMaybe (error "unable to find predicate, please typecheck first!"))
+
+      let vs = flip map pfun_args $ \case
+            Just x -> Just $ sigma ^. Ctx.at x . non (error "ill-formed program")
+            Nothing -> Nothing
+
+      let eval_fn vs' =
+            P.evalFun (placeArgs vs vs') P.NamedFunDef{P.fun_name = pfun_name, P.fun_def = fn}
+              & (runReaderT ?? eval_env)
+
+      return ((P.NamedFunDef pfun_name fn, vs), eval_fn)
+
+    let (fns_with_args, fns_eval) = unzip fns_with_args_and_eval
+    let shaped_fns_eval = either (error "please typecheck first") id $ listToShape fns_eval
+
+    -- expected queries
+    let exp_query_costs_q = shapeToList $ quantumExpQueryCostsQuantum prim eps shaped_fns_eval
+    let exp_query_costs_u = shapeToList $ quantumExpQueryCostsUnitary prim eps shaped_fns_eval
+
+    fn_costs <- forM (zip3 fns_with_args exp_query_costs_q exp_query_costs_u) $
+      \((fn, pref_args), exp_queries_q, exp_queries_u) -> do
+        -- queries to quantum f
+        q_costs <- forM exp_queries_q $ \(vs, eq) -> do
+          let sigma_fn =
+                Ctx.fromList $
+                  zip
+                    [show i | i <- [0 :: Int ..]]
+                    (placeArgs pref_args vs)
+          q_f <- A.expCostQ fn sigma_fn
+          return $ eq Alg..* q_f
+
+        -- queries to unitary f
+        cost_f_u <- A.costU fn
+        let u_cost = 2 * exp_queries_u Alg..* cost_f_u
+
+        return $ Alg.sum q_costs Alg.+ u_cost
+
+    -- all other non-query operations
+    let extra_costs = quantumExpExprCosts prim eps shaped_fns_eval
+
+    return $ Alg.sum fn_costs Alg.+ extra_costs
+
+instance
   ( QuantumExpCostPrim prim size prec
   , EvalPrim prim size prec
   , QuantumHavocCostPrim prim size prec
@@ -429,7 +587,7 @@ instance
   , Floating prec
   , Ord prec
   ) =>
-  P.QuantumExpCost (Primitive prim) size prec
+  A.QuantumExpCost (Primitive prim) size prec
   where
   quantumExpCost eps (Primitive par_funs prim) sigma = do
     -- Extract the semantics of each function argument.

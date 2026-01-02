@@ -24,6 +24,7 @@ module Traq.Data.Context (
   toList,
   keys,
   elems,
+  toAscList,
 
   -- * Monadic functions
   unsafeLookup,
@@ -147,6 +148,9 @@ keys = map fst . toList
 
 elems :: Context a -> [a]
 elems = map snd . toList
+
+toAscList :: Context a -> [(Ident, a)]
+toAscList = List.sortOn fst . toList
 
 -- Monadic functions
 
