@@ -22,6 +22,8 @@ library
   exposed-modules:
       Traq.Analysis
       Traq.Analysis.Annotate
+      Traq.Analysis.Annotate.Prelude
+      Traq.Analysis.Annotate.Symbolic
       Traq.Analysis.Cost
       Traq.Analysis.Cost.Prelude
       Traq.Analysis.Cost.Quantum
@@ -31,7 +33,6 @@ library
       Traq.Analysis.Error
       Traq.Analysis.Error.Prelude
       Traq.Analysis.Error.Quantum
-      Traq.Analysis.Error.SplitError
       Traq.Analysis.Error.Unitary
       Traq.Analysis.Prelude
       Traq.Compiler
@@ -362,6 +363,7 @@ test-suite spec
   main-is: Spec.hs
   other-modules:
       TestHelpers
+      Traq.Analysis.Annotate.SymbolicSpec
       Traq.Analysis.Cost.QuantumSpec
       Traq.Analysis.Error.QuantumSpec
       Traq.Compiler.QuantumSpec

@@ -20,7 +20,8 @@ import Text.Printf (printf)
 import qualified Traq.Data.Probability as Prob
 import qualified Traq.Data.Symbolic as Sym
 
-import qualified Traq.Analysis as P
+import qualified Traq.Analysis as A
+import qualified Traq.Analysis.Error.Unitary as A
 import qualified Traq.Compiler.Quantum as CompileQ
 import qualified Traq.Compiler.Unitary as CompileU
 import Traq.Prelude
@@ -92,6 +93,48 @@ instance P.HasFreeVars (DefaultPrims sizeT precT)
 -- Evaluation
 instance (P.EvalReqs sizeT precT) => P.Evaluatable (DefaultPrims sizeT precT) sizeT precT
 
+-- Error Analysis
+instance
+  (A.ErrorReqs size prec, Show size, Integral size) =>
+  A.TraceNormErrorU (A.AnnFailProb (DefaultPrims size prec)) size prec
+  where
+  traceNormErrorU (A.AnnFailProb eps (QAny p)) = A.traceNormErrorU (A.AnnFailProb eps p)
+  traceNormErrorU (A.AnnFailProb eps (RAny p)) = A.traceNormErrorU (A.AnnFailProb eps p)
+  traceNormErrorU (A.AnnFailProb eps (DAny p)) = A.traceNormErrorU (A.AnnFailProb eps p)
+
+instance
+  (A.ErrorReqs size prec, Show size, Integral size, A.SizeToPrec size prec) =>
+  A.TVErrorQ (A.AnnFailProb (DefaultPrims size prec)) size prec
+  where
+  tvErrorQ (A.AnnFailProb eps (QAny p)) = A.tvErrorQ (A.AnnFailProb eps p)
+  tvErrorQ (A.AnnFailProb eps (RAny p)) = A.tvErrorQ (A.AnnFailProb eps p)
+  tvErrorQ (A.AnnFailProb eps (DAny p)) = A.tvErrorQ (A.AnnFailProb eps p)
+
+-- Cost Analysis
+instance
+  (A.CostReqs size prec, Show size, Integral size, A.SizeToPrec size prec) =>
+  A.CostU (A.AnnFailProb (DefaultPrims size prec)) size prec
+  where
+  costU (A.AnnFailProb eps (QAny p)) = A.costU (A.AnnFailProb eps p)
+  costU (A.AnnFailProb eps (RAny p)) = A.costU (A.AnnFailProb eps p)
+  costU (A.AnnFailProb eps (DAny p)) = A.costU (A.AnnFailProb eps p)
+
+instance
+  (A.CostReqs size prec, Show size, Integral size, A.SizeToPrec size prec) =>
+  A.CostQ (A.AnnFailProb (DefaultPrims size prec)) size prec
+  where
+  costQ (A.AnnFailProb eps (QAny p)) = A.costQ (A.AnnFailProb eps p)
+  costQ (A.AnnFailProb eps (RAny p)) = A.costQ (A.AnnFailProb eps p)
+  costQ (A.AnnFailProb eps (DAny p)) = A.costQ (A.AnnFailProb eps p)
+
+instance
+  (A.CostReqs size prec, P.EvalReqs size prec, A.SizeToPrec size prec) =>
+  A.ExpCostQ (A.AnnFailProb (DefaultPrims size prec)) size prec
+  where
+  expCostQ (A.AnnFailProb eps (QAny p)) = A.expCostQ (A.AnnFailProb eps p)
+  expCostQ (A.AnnFailProb eps (RAny p)) = A.expCostQ (A.AnnFailProb eps p)
+  expCostQ (A.AnnFailProb eps (DAny p)) = A.expCostQ (A.AnnFailProb eps p)
+
 -- Costs
 instance
   ( Integral sizeT
@@ -99,7 +142,7 @@ instance
   , Show precT
   , P.TypingReqs sizeT
   ) =>
-  P.UnitaryCost (DefaultPrims sizeT precT) sizeT precT
+  A.UnitaryCost (DefaultPrims sizeT precT) sizeT precT
 
 instance
   ( Integral sizeT
@@ -108,7 +151,7 @@ instance
   , Show precT
   , P.TypingReqs sizeT
   ) =>
-  P.QuantumHavocCost (DefaultPrims sizeT precT) sizeT precT
+  A.QuantumHavocCost (DefaultPrims sizeT precT) sizeT precT
 
 instance
   ( Floating precT
@@ -118,7 +161,7 @@ instance
   , Show precT
   , P.EvalReqs sizeT precT
   ) =>
-  P.QuantumExpCost (DefaultPrims sizeT precT) sizeT precT
+  A.QuantumExpCost (DefaultPrims sizeT precT) sizeT precT
 
 -- Lowering
 instance
@@ -127,7 +170,7 @@ instance
   , RealFloat precT
   , P.TypingReqs sizeT
   , Show precT
-  , P.SizeToPrec sizeT precT
+  , A.SizeToPrec sizeT precT
   ) =>
   CompileU.Lowerable (DefaultPrims sizeT precT) sizeT precT
   where

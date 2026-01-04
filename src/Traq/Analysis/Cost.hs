@@ -6,16 +6,18 @@
 {-# LANGUAGE TypeApplications #-}
 
 module Traq.Analysis.Cost (
-  -- * New cost interfaces
   module Traq.Analysis.Cost.Prelude,
   module Traq.Analysis.Cost.Unitary,
   module Traq.Analysis.Cost.Quantum,
+
+  -- * Old cost functions
 
   -- * Unitary Cost
   unitaryQueryCost,
   unitaryQueryCostE,
   unitaryQueryCostS,
   unitaryQueryCostF,
+  UnitaryCost (..),
 
   -- * Quantum Cost
 
@@ -24,34 +26,25 @@ module Traq.Analysis.Cost (
   quantumQueryCostE,
   quantumQueryCostS,
   quantumQueryCostF,
+  QuantumExpCost (..),
 
   -- ** Quantum Worst case Cost
   quantumMaxQueryCost,
   quantumMaxQueryCostE,
   quantumMaxQueryCostS,
   quantumMaxQueryCostF,
+  QuantumHavocCost (..),
 
   -- * Types and Monad
   CostEnv,
-
-  -- ** Lenses
-  _funInterpCtx,
   _costEnv,
-
-  -- ** Cost Monads
   CostCalculator,
-  UnitaryCost (..),
-  QuantumHavocCost (..),
-  QuantumExpCost (..),
 
   -- * Precision Splitting Strategies
   PrecisionSplittingStrategy (..),
   HasPrecisionSplittingStrategy (..),
   HasNeedsEps (..),
   splitEps,
-
-  -- * Misc
-  SizeToPrec (..),
 ) where
 
 import Control.Monad (forM, zipWithM)
@@ -78,6 +71,25 @@ import Traq.Prelude
 import Traq.ProtoLang.Eval
 import Traq.ProtoLang.Syntax
 import Traq.ProtoLang.TypeCheck
+
+{-# DEPRECATED
+  unitaryQueryCost
+  , unitaryQueryCostE
+  , unitaryQueryCostS
+  , unitaryQueryCostF
+  , quantumQueryCost
+  , quantumQueryCostE
+  , quantumQueryCostS
+  , quantumQueryCostF
+  , quantumMaxQueryCost
+  , quantumMaxQueryCostE
+  , quantumMaxQueryCostS
+  , quantumMaxQueryCostF
+  , UnitaryCost
+  , QuantumHavocCost
+  , QuantumExpCost
+  "Use the newer versions on annotated programs"
+  #-}
 
 -- ================================================================================
 -- Strategy for splitting the precison (eps/delta)

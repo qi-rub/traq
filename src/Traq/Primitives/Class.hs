@@ -46,8 +46,6 @@ import qualified Traq.Data.Symbolic as Sym
 
 import qualified Traq.Analysis as A
 import qualified Traq.Analysis.CostModel.Class as C
-import qualified Traq.Analysis.Error.Quantum as A
-import qualified Traq.Analysis.Error.Unitary as A
 import Traq.Prelude
 import qualified Traq.ProtoLang as P
 import qualified Traq.Utils.Printing as PP
