@@ -65,41 +65,41 @@ type AnnotateEnv ext = FunCtx ext
 mkAnnotateEnv :: Program ext -> AnnotateEnv ext
 mkAnnotateEnv (Program fs) = namedFunsToFunCtx fs
 
-data AnnotateState ext = AnnotateSymState
+data AnnotateState ext ext' = AnnotateSymState
   { unique_id :: Int
-  , funs :: [NamedFunDef (AnnFailProb ext)]
+  , funs :: [NamedFunDef ext']
   }
 
-instance HasDefault (AnnotateState ext) where
+instance HasDefault (AnnotateState ext ext') where
   default_ = AnnotateSymState{unique_id = 0, funs = []}
 
-_unique_id :: Lens' (AnnotateState ext) Int
+_unique_id :: Lens' (AnnotateState ext ext') Int
 _unique_id focus s = focus (unique_id s) <&> \v -> s{unique_id = v}
 
-nextId :: (m ~ AnnotateMonad ext) => m Int
+nextId :: (m ~ AnnotateMonad ext ext') => m Int
 nextId = do
   i <- use _unique_id
   _unique_id += 1
   return i
 
-_funs :: Lens' (AnnotateState ext) [NamedFunDef (AnnFailProb ext)]
+_funs :: Lens' (AnnotateState ext ext') [NamedFunDef ext']
 _funs focus s = focus (funs s) <&> \v -> s{funs = v}
 
-addFn :: (m ~ AnnotateMonad ext) => NamedFunDef (AnnFailProb ext) -> m ()
+addFn :: (m ~ AnnotateMonad ext ext') => NamedFunDef ext' -> m ()
 addFn f = _funs %= (f :)
 
-type AnnotateMonad ext =
+type AnnotateMonad ext ext' =
   RWST
     (AnnotateEnv ext)
     ()
-    (AnnotateState ext)
+    (AnnotateState ext ext')
     (Either String)
 
-type Annotater ext = Program ext -> AnnotateMonad ext (Program (AnnFailProb ext))
+type Annotater ext ext' = Program ext -> AnnotateMonad ext ext' (Program ext')
 
 annotateProgWith ::
   forall ext.
-  Annotater ext ->
+  Annotater ext (AnnFailProb ext) ->
   Program ext ->
   Either String (Program (AnnFailProb ext))
 annotateProgWith ann_act prog = do

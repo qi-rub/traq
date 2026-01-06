@@ -8,7 +8,8 @@ module Traq.Compiler.Utils (
   HasUniqNamesCtx (..),
   newIdent,
 
-  -- * Environments for compilation
+  -- * Compilation Monad
+  CompilerT,
 
   -- ** State
   LoweringCtx,
@@ -17,10 +18,14 @@ module Traq.Compiler.Utils (
   LoweringOutput,
   _loweredProcs,
   addProc,
+
+  -- ** Env
+  LoweringEnv,
 ) where
 
 import Control.Monad.Except (MonadError)
 import Control.Monad.Extra (loopM)
+import Control.Monad.RWS (RWST)
 import Control.Monad.State (MonadState)
 import Control.Monad.Writer (MonadWriter)
 import qualified Data.Set as Set
@@ -32,6 +37,7 @@ import Lens.Micro.Mtl
 import Traq.Control.Monad
 import Traq.Data.Default
 
+import qualified Traq.Analysis as A
 import qualified Traq.CQPL as CQPL
 import Traq.Prelude
 import qualified Traq.ProtoLang as P
@@ -99,3 +105,25 @@ _loweredProcs = id
 
 addProc :: (MonadWriter (LoweringOutput sizeT) m) => CQPL.ProcDef sizeT -> m ()
 addProc = writeElemAt _loweredProcs
+
+-- ================================================================================
+-- Compiler Environment
+-- ================================================================================
+
+-- | Read-only compiler env
+type LoweringEnv ext = A.CostEnv ext
+
+-- ================================================================================
+-- Compiler Monad
+-- ================================================================================
+
+{- | Monad to compile source programs to CQPL programs.
+This should contain the _final_ typing context for the input program,
+that is, contains both the inputs and outputs of each statement.
+-}
+type CompilerT ext =
+  RWST
+    (LoweringEnv ext)
+    (LoweringOutput (SizeType ext))
+    (LoweringCtx (SizeType ext))
+    (Either String)

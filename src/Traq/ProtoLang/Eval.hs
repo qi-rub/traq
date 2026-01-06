@@ -248,7 +248,6 @@ data EvaluationEnv ext = EvaluationEnv (FunCtx ext) (FunInterpCtx (SizeType ext)
 
 type instance SizeType (EvaluationEnv ext) = SizeType ext
 type instance PrecType (EvaluationEnv ext) = PrecType ext
-type instance ExtensionType (EvaluationEnv ext) = ext
 
 class HasEvaluationEnv p ext | p -> ext where
   _evaluationEnv :: Lens' p (EvaluationEnv ext)

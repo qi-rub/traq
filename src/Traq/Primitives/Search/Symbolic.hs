@@ -65,20 +65,26 @@ _QryU n delta = Sym.var $ printf "QryU(%s, %s)" (show n) (show $ P.getL2NormErro
 _QryQmax :: forall sizeT precT. (Show sizeT, Show precT) => Sym.Sym sizeT -> P.FailProb (Sym.Sym precT) -> Sym.Sym precT
 _QryQmax n eps = Sym.var $ printf "QryQmax(%s, %s)" (show n) (show $ P.getFailProb eps)
 
+domainSizeSym :: (Num size, Eq size, Show size) => P.VarType (Sym.Sym size) -> Sym.Sym size
+domainSizeSym (P.Fin _N) = _N
+domainSizeSym (P.Bitvec n) = Sym.var $ printf "(2^(%s))" (show n)
+domainSizeSym (P.Arr n t) = n * domainSizeSym t
+domainSizeSym (P.Tup ts) = product $ map domainSizeSym ts
+
 instance
-  (Eq sizeT, Num sizeT, Show sizeT, Show precT) =>
+  (Eq sizeT, Num sizeT, Show sizeT, Show precT, Num precT, Eq precT) =>
   UnitaryCostPrim (QSearchSym sizeT precT) (Sym.Sym sizeT) (Sym.Sym precT)
   where
-  unitaryQueryCosts prim eps = BooleanPredicate{predicate = _QryQmax _N eps}
+  unitaryQueryCosts prim eps = BooleanPredicate $ strongQueries $ _QryQmax _N eps
    where
-    P.Fin _N = getSearchType prim
+    _N = domainSizeSym $ getSearchType prim
 
 instance
-  (Eq sizeT, Num sizeT, Num precT, Show sizeT, Show precT) =>
+  (Eq sizeT, Num sizeT, Num precT, Show sizeT, Show precT, Num precT, Eq precT) =>
   QuantumHavocCostPrim (QSearchSym sizeT precT) (Sym.Sym sizeT) (Sym.Sym precT)
   where
-  quantumQueryCostsUnitary prim eps = BooleanPredicate{predicate = _QryQmax _N eps}
+  quantumQueryCostsUnitary prim eps = BooleanPredicate $ strongQueries $ _QryQmax _N eps
    where
-    P.Fin _N = getSearchType prim
+    _N = domainSizeSym $ getSearchType prim
 
-  quantumQueryCostsQuantum _ _ = BooleanPredicate{predicate = Sym.con 0}
+  quantumQueryCostsQuantum _ _ = BooleanPredicate 0

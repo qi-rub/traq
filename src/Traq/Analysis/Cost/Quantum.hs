@@ -6,6 +6,7 @@
 
 module Traq.Analysis.Cost.Quantum (
   CostQ (..),
+  costQProg,
   ExpCostQ (..),
   expCostQProg,
 
@@ -28,17 +29,8 @@ import qualified Traq.Data.Probability as Prob
 import Traq.Analysis.Cost.Prelude
 import Traq.Analysis.Cost.Unitary
 import Traq.Analysis.CostModel.Class
-import Traq.Analysis.Prelude
-import Traq.Prelude
 import Traq.ProtoLang.Eval
 import Traq.ProtoLang.Syntax
-
-type CostModelReqs size prec cost =
-  ( CostModel cost
-  , prec ~ PrecType cost
-  , SizeToPrec size prec
-  , Ord cost
-  )
 
 -- | Havoc Cost w.r.t. quantum compiler
 class (CostU ext size prec) => CostQ ext size prec | ext -> size prec where
@@ -166,6 +158,22 @@ instance (CostReqs size prec, EvalReqs size prec) => ExpCostQ (Core size prec) s
 -- ================================================================================
 -- Entry Points
 -- ================================================================================
+
+-- | Havoc (worst-case) quantum cost of the entire program (i.e. last function as entry-point)
+costQProg ::
+  forall cost ext size prec.
+  ( CostQ ext size prec
+  , CostModelReqs size prec cost
+  ) =>
+  Program ext ->
+  cost
+costQProg (Program fs) =
+  costQ main_fn & runReader ?? env
+ where
+  main_fn = last fs
+  env =
+    default_
+      & (_funCtx .~ namedFunsToFunCtx fs)
 
 -- | Expected quantum cost of the entire program (i.e. last function as entry-point)
 expCostQProg ::

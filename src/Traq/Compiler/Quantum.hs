@@ -18,10 +18,7 @@ module Traq.Compiler.Quantum (
 
 import Control.Monad (unless, zipWithM)
 import Control.Monad.Except (throwError)
-import Control.Monad.Reader (ReaderT, runReaderT)
-import Control.Monad.State (StateT, evalStateT)
-import Control.Monad.Trans (lift)
-import Control.Monad.Writer (WriterT, execWriterT)
+import Control.Monad.RWS (RWST (..))
 import GHC.Generics hiding (to)
 import Text.Printf (printf)
 
@@ -38,24 +35,6 @@ import qualified Traq.Compiler.Unitary as CompileU
 import Traq.Compiler.Utils
 import Traq.Prelude
 import qualified Traq.ProtoLang as P
-
--- | Configuration for lowering
-type LoweringEnv ext = A.CostEnv ext
-
-{- | Monad to compile ProtoQB to CQPL programs.
-This should contain the _final_ typing context for the input program,
-that is, contains both the inputs and outputs of each statement.
--}
-type CompilerT ext =
-  WriterT
-    (LoweringOutput (SizeType ext))
-    ( ReaderT
-        (LoweringEnv ext)
-        ( StateT
-            (LoweringCtx (SizeType ext))
-            (Either String)
-        )
-    )
 
 -- | Primitives that support a classical-quantum lowering.
 class
@@ -221,6 +200,7 @@ lowerExpr eps P.FunCallE{P.fname, P.args} rets = do
 -- primitive call
 lowerExpr eps P.PrimCallE{P.prim} rets =
   lowerPrimitive eps prim rets
+lowerExpr _ _ _ = error "TODO: UNSUPPORTED"
 
 -- | Lower a single statement
 lowerStmt ::
@@ -235,7 +215,7 @@ lowerStmt ::
   CompilerT ext (Stmt sizeT)
 -- single statement
 lowerStmt eps s@P.ExprS{P.rets, P.expr} = do
-  _ <- lift . magnify P._funCtx . zoom P._typingCtx $ P.inferTypes s
+  _ <- ignoreWriter . magnify P._funCtx . zoom P._typingCtx $ P.inferTypes s
   lowerExpr eps expr rets
 
 -- compound statements
@@ -277,10 +257,9 @@ lowerProgram strat gamma_in eps prog@(P.Program fs) = do
           & (_uniqNamesCtx .~ P.allNamesP prog)
 
   let P.NamedFunDef{P.fun_name = main_name} = last fs
-  output <-
+
+  (_, _, output) <-
     lowerFunDefByName eps main_name
-      & execWriterT
-      & (runReaderT ?? config)
-      & (evalStateT ?? lowering_ctx)
+      & (\m -> runRWST m config lowering_ctx)
 
   return Program{proc_defs = output ^. to (Ctx.fromListWith proc_name)}

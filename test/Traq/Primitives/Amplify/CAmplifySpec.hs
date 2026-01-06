@@ -18,6 +18,7 @@ exampleProgram n = P.Program [P.NamedFunDef "sampler" sampler, P.NamedFunDef "ma
  where
   node_ty = P.Fin n
 
+  -- EDSL hint: Traq.decl (node_ty ---> (P.tbool, node_ty))
   sampler =
     P.FunDef
       { P.param_types = [node_ty]
@@ -25,6 +26,7 @@ exampleProgram n = P.Program [P.NamedFunDef "sampler" sampler, P.NamedFunDef "ma
       , P.mbody = Nothing
       }
 
+  -- EDSL hint: Traq.fn (() ---> (P.tbool, node_ty)) $ P.FunBody{...}
   main_fun =
     P.FunDef
       { P.param_types = []

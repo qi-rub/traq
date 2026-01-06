@@ -13,6 +13,7 @@ numQubitsForType :: VarType SizeT -> SizeT
 numQubitsForType (Fin n) = log2 n
 numQubitsForType (Arr n t) = n * numQubitsForType t
 numQubitsForType (Tup ts) = sum $ map numQubitsForType ts
+numQubitsForType (Bitvec n) = n
 
 numQubitsForProc :: ProcDef SizeT -> SizeT
 numQubitsForProc p@ProcDef{proc_param_types}

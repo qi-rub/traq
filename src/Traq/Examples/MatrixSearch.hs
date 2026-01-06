@@ -104,4 +104,4 @@ mkMatrixExample mkAny n m =
     ok = "ok"
 
 matrixExampleS :: SizeT -> SizeT -> Program (DefaultPrims SizeT precT)
-matrixExampleS = mkMatrixExample (\ty pfun -> PrimCallE $ QAny $ Primitive [pfun] $ QSearchCFNW $ PrimSearch AnyK ty)
+matrixExampleS = mkMatrixExample (\ty pfun -> PrimCallE $ Primitive [pfun] $ QAny $ QSearchCFNW $ PrimSearch AnyK ty)

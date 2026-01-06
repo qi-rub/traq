@@ -4,17 +4,21 @@
 
 module Traq.Analysis.Cost.Unitary (
   CostU (..),
+  costUProg,
 ) where
 
+import Control.Monad.Reader (runReader)
+
+import Lens.Micro.GHC
 import Lens.Micro.Mtl
 import qualified Numeric.Algebra as Alg
 
-import Traq.Control.Monad (non')
+import Traq.Control.Monad (non', (??))
 import qualified Traq.Data.Context as Ctx
+import Traq.Data.Default (HasDefault (default_))
 
 import Traq.Analysis.Cost.Prelude
 import Traq.Analysis.CostModel.Class
-import Traq.Analysis.Prelude
 import Traq.Prelude
 import Traq.ProtoLang.Syntax
 
@@ -31,9 +35,7 @@ class
     forall ext' costT m.
     ( m ~ CostAnalysisMonad ext'
     , CostU ext' size prec
-    , CostModel costT
-    , prec ~ PrecType costT
-    , SizeToPrec size prec
+    , CostModelReqs size prec costT
     ) =>
     ext ->
     m costT
@@ -67,3 +69,23 @@ instance (CostU ext size prec) => CostU (NamedFunDef ext) size prec where
 
 instance (CostReqs size prec) => CostU (Core size prec) size prec where
   costU = \case {}
+
+-- ================================================================================
+-- Entry Points
+-- ================================================================================
+
+-- | Expected quantum cost of the entire program (i.e. last function as entry-point)
+costUProg ::
+  forall cost ext size prec.
+  ( CostU ext size prec
+  , CostModelReqs size prec cost
+  ) =>
+  Program ext ->
+  cost
+costUProg (Program fs) =
+  costU main_fn & runReader ?? env
+ where
+  main_fn = last fs
+  env =
+    default_
+      & (_funCtx .~ namedFunsToFunCtx fs)

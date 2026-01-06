@@ -81,6 +81,7 @@ instance (HasFreeVars ext) => HasFreeVars (Expr ext) where
   freeVarsList RandomSampleE{distr_expr} = freeVarsList distr_expr
   freeVarsList FunCallE{args} = args
   freeVarsList PrimCallE{prim} = freeVarsList prim
+  freeVarsList LoopE{initial_args} = initial_args
 
 -- | The set of free (unbound) variables
 instance (HasFreeVars ext) => HasFreeVars (Stmt ext) where

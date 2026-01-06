@@ -56,25 +56,25 @@ instance EvalPrim (DetSearch size prec) size prec where
 -- ================================================================================
 
 instance (P.TypingReqs size, Integral size, Num prec) => UnitaryCostPrim (DetSearch size prec) size prec where
-  unitaryQueryCosts (DetSearch PrimSearch{search_ty}) _ = BooleanPredicate{predicate = fromIntegral _N}
+  unitaryQueryCosts (DetSearch PrimSearch{search_ty}) _ = BooleanPredicate (weakQueries $ fromIntegral _N)
    where
     _N = P.domainSize search_ty
 
 instance (P.TypingReqs size, Integral size, Num prec, P.SizeToPrec size prec) => QuantumHavocCostPrim (DetSearch size prec) size prec where
   -- only classical queries
-  quantumQueryCostsQuantum (DetSearch PrimSearch{search_ty}) _ = BooleanPredicate{predicate = fromIntegral _N}
+  quantumQueryCostsQuantum (DetSearch PrimSearch{search_ty}) _ = BooleanPredicate (fromIntegral _N)
    where
     _N = P.domainSize search_ty
 
   -- no unitary
-  quantumQueryCostsUnitary _ _ = BooleanPredicate{predicate = 0}
+  quantumQueryCostsUnitary _ _ = BooleanPredicate $ weakQueries 0
 
 instance
   (size ~ SizeT, Floating prec, Alg.Monoidal prec, Alg.Semiring prec) =>
   QuantumExpCostPrim (DetSearch size prec) size prec
   where
-  quantumExpQueryCostsQuantum (DetSearch PrimSearch{search_ty}) _ BooleanPredicate{predicate = eval_pred} =
-    BooleanPredicate{predicate = [([v], 1) | v <- queried_vals]}
+  quantumExpQueryCostsQuantum (DetSearch PrimSearch{search_ty}) _ (BooleanPredicate eval_pred) =
+    BooleanPredicate [([v], 1) | v <- queried_vals]
    where
     results =
       P.domain search_ty <&> \v ->
@@ -85,4 +85,4 @@ instance
     (non_sols, sol_and_rest) = break fst results & (each %~ map snd)
     queried_vals = non_sols ++ take 1 sol_and_rest
 
-  quantumExpQueryCostsUnitary _ _ _ = BooleanPredicate{predicate = 0}
+  quantumExpQueryCostsUnitary _ _ _ = BooleanPredicate $ weakQueries 0

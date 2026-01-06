@@ -271,7 +271,6 @@ deriving instance (Read ext, Read (SizeType ext)) => Read (Expr ext)
 
 type instance SizeType (Expr ext) = SizeType ext
 type instance PrecType (Expr ext) = PrecType ext
-type instance ExtensionType (Expr ext) = ext
 
 instance (Show (SizeType ext), PP.ToCodeString ext) => PP.ToCodeString (Expr ext) where
   build BasicExprE{basic_expr} = PP.build basic_expr
@@ -294,7 +293,6 @@ deriving instance (Read ext, Read (SizeType ext)) => Read (Stmt ext)
 
 type instance SizeType (Stmt ext) = SizeType ext
 type instance PrecType (Stmt ext) = PrecType ext
-type instance ExtensionType (Stmt ext) = ext
 
 instance (Show (SizeType ext), PP.ToCodeString ext) => PP.ToCodeString (Stmt ext) where
   build ExprS{rets, expr} = do
@@ -322,7 +320,6 @@ deriving instance (Read ext, Read (SizeType ext)) => Read (FunBody ext)
 
 type instance SizeType (FunBody ext) = SizeType ext
 type instance PrecType (FunBody ext) = PrecType ext
-type instance ExtensionType (FunBody ext) = ext
 
 -- | A function definition or declaration in the prototype language.
 data FunDef ext = FunDef
@@ -336,7 +333,6 @@ deriving instance (Read ext, Read (SizeType ext)) => Read (FunDef ext)
 
 type instance SizeType (FunDef ext) = SizeType ext
 type instance PrecType (FunDef ext) = PrecType ext
-type instance ExtensionType (FunDef ext) = ext
 
 -- | A function with a name
 data NamedFunDef ext = NamedFunDef {fun_name :: Ident, fun_def :: FunDef ext}
@@ -347,7 +343,6 @@ deriving instance (Read ext, Read (SizeType ext)) => Read (NamedFunDef ext)
 
 type instance SizeType (NamedFunDef ext) = SizeType ext
 type instance PrecType (NamedFunDef ext) = PrecType ext
-type instance ExtensionType (NamedFunDef ext) = ext
 
 instance (Show (SizeType ext), PP.ToCodeString ext) => PP.ToCodeString (NamedFunDef ext) where
   -- def
@@ -401,7 +396,6 @@ deriving instance (Read ext, Read (SizeType ext)) => Read (Program ext)
 
 type instance SizeType (Program ext) = SizeType ext
 type instance PrecType (Program ext) = PrecType ext
-type instance ExtensionType (Program ext) = PrecType ext
 
 namedFunsToFunCtx :: (Foldable f) => f (NamedFunDef ext) -> FunCtx ext
 namedFunsToFunCtx fs = Ctx.fromList [(fun_name f, fun_def f) | f <- toList fs]

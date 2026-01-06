@@ -4,7 +4,7 @@
 
 module Main where
 
-import Control.Monad (forM_, replicateM)
+import Control.Monad (forM_, replicateM, when)
 import Lens.Micro.GHC
 import System.Random (randomIO)
 import System.TimeIt (timeItT)
@@ -20,7 +20,6 @@ import Traq.Examples.MatrixSearch (matrixExampleS)
 import Traq.Prelude
 import qualified Traq.Primitives as Traq
 import qualified Traq.ProtoLang as P
-import qualified Traq.Analysis as P
 import qualified Traq.Utils.Printing as PP
 
 loadProgramFromFile :: String -> IO (P.Program (Traq.DefaultPrims (Sym.Sym SizeT) Double))
@@ -28,9 +27,12 @@ loadProgramFromFile fname = do
   sprog_or_err <- parseFromFile (P.programParser @(Traq.DefaultPrims (Sym.Sym SizeT) Double)) fname
   sprog <- either (error . show) pure sprog_or_err
   let sprog' = P.renameVars "" sprog
-  -- putStrLn $ PP.toCodeString sprog
-  -- putStrLn $ PP.toCodeString sprog'
+  when show_prog $ do
+    putStrLn $ PP.toCodeString sprog
+    putStrLn $ PP.toCodeString sprog'
   return sprog'
+ where
+  show_prog = False
 
 type ValidExt ext =
   ( PrecType ext ~ Double
@@ -43,7 +45,7 @@ type ValidExt ext =
 -- | Compute the number of qubits used by the compiled program.
 numQubitsRequired :: (ValidExt ext) => P.Program ext -> Double -> Either String SizeT
 numQubitsRequired prog eps = do
-  compiled_prog <- Traq.Compiler.Quantum.lowerProgram P.SplitSimple undefined (Traq.failProb eps) prog
+  compiled_prog <- Traq.Compiler.Quantum.lowerProgram Traq.SplitSimple undefined (Traq.failProb eps) prog
   return $ CQPL.numQubits compiled_prog
 
 -- | Compute the wall-time by Traq to run a cost analysis
@@ -51,7 +53,7 @@ traqWallTime :: (ValidExt ext) => P.Program ext -> Double -> P.FunInterpCtx Size
 traqWallTime prog eps fs = do
   (t, _) <- timeItT $ do
     let cost :: Traq.SimpleQueryCost Double
-        !cost = Traq.quantumQueryCost P.SplitSimple (Traq.failProb eps) prog fs []
+        !cost = Traq.quantumQueryCost Traq.SplitSimple (Traq.failProb eps) prog fs []
     return $ Traq.getCost cost
   return t
 

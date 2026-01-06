@@ -43,7 +43,7 @@ module Traq.Analysis.Cost (
   -- * Precision Splitting Strategies
   PrecisionSplittingStrategy (..),
   HasPrecisionSplittingStrategy (..),
-  HasNeedsEps (..),
+  HasNeedsEps,
   splitEps,
 ) where
 
@@ -107,6 +107,8 @@ class HasPrecisionSplittingStrategy p where
 
 -- | Predicate for checking if an expr/stmt/prog can fail
 class HasNeedsEps p where
+  type ExtensionType p
+
   needsEps ::
     ( sizeT ~ SizeType p
     , ext ~ ExtensionType p
@@ -117,17 +119,23 @@ class HasNeedsEps p where
     m Bool
 
 instance HasNeedsEps (Expr ext) where
+  type ExtensionType (Expr ext) = ext
+
   needsEps FunCallE{fname} =
     view (_funCtx . Ctx.at fname . singular _Just) >>= needsEps
   needsEps PrimCallE{} = return True
   needsEps _ = return False
 
 instance HasNeedsEps (Stmt ext) where
+  type ExtensionType (Stmt ext) = ext
+
   needsEps ExprS{expr} = needsEps expr
   needsEps (SeqS ss) = or <$> mapM needsEps ss
   needsEps IfThenElseS{s_true, s_false} = (||) <$> needsEps s_true <*> needsEps s_false
 
 instance HasNeedsEps (FunDef ext) where
+  type ExtensionType (FunDef ext) = ext
+
   needsEps FunDef{mbody} = case mbody of
     Nothing -> return False
     Just FunBody{body_stmt} -> needsEps body_stmt

@@ -113,7 +113,7 @@ instance
   ) =>
   UnitaryCostPrim (QMax sizeT precT) sizeT precT
   where
-  unitaryQueryCosts QMax{arg_ty} eps = QMaxFunArg{fun = _WQMax _N eps}
+  unitaryQueryCosts QMax{arg_ty} eps = QMaxFunArg{fun = strongQueries $ _WQMax _N eps}
    where
     _N = P.domainSize arg_ty
 
@@ -124,7 +124,7 @@ instance
   ) =>
   QuantumHavocCostPrim (QMax sizeT precT) sizeT precT
   where
-  quantumQueryCostsUnitary QMax{arg_ty} eps = QMaxFunArg{fun = _WQMax _N eps}
+  quantumQueryCostsUnitary QMax{arg_ty} eps = QMaxFunArg{fun = strongQueries $ _WQMax _N eps}
    where
     _N = P.domainSize arg_ty
 
@@ -138,7 +138,7 @@ instance
   ) =>
   QuantumExpCostPrim (QMax sizeT precT) sizeT precT
   where
-  quantumExpQueryCostsUnitary QMax{arg_ty} _ _ = QMaxFunArg{fun = _EQMax _N}
+  quantumExpQueryCostsUnitary QMax{arg_ty} _ _ = QMaxFunArg{fun = strongQueries $ _EQMax _N}
    where
     _N = P.domainSize arg_ty
 

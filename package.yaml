@@ -88,14 +88,6 @@ executables:
   cqplcompile:
     main: cqplcompile.hs
     <<: *exe_opts
-  # uqpltoquipper:
-  #   main: uqpltoquipper.hs
-  #   <<: *exe_opts
-  #   dependencies:
-  #     - traq 
-  #     - optparse-applicative ^>= 0.18
-  #     - quipper-language == 0.9.0.0
-  #     - quipper-libraries == 0.9.0.0
   ### Experiments & Examples
   matrixsearch:
     main: matrixsearch.hs

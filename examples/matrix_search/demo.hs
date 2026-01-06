@@ -8,9 +8,9 @@ import Text.Parsec.String (parseFromFile)
 import qualified Traq.Data.Context as Ctx
 import qualified Traq.Data.Symbolic as Sym
 
+import qualified Traq.Analysis as A
 import Traq.Prelude
 import qualified Traq.ProtoLang as P
-import qualified Traq.Analysis as P
 
 import Traq.Analysis.CostModel.QueryCost (SimpleQueryCost (..))
 import Traq.Primitives (Primitive)
@@ -27,7 +27,7 @@ matrixToFun _ _ = error "invalid indices"
 expectedCost ::
   forall primT primT'.
   ( P.Parseable primT'
-  , P.QuantumExpCost primT SizeT Double
+  , A.QuantumExpCost primT SizeT Double
   , SizeType primT' ~ Sym.Sym Int
   , P.MapSize primT'
   , primT ~ P.MappedSize primT' Int
@@ -48,9 +48,9 @@ expectedCost n m matrix eps = do
 
   return $
     getCost $
-      P.quantumQueryCost @primT
-        P.SplitUsingNeedsEps -- precision splitting strategy
-        (P.failProb eps) -- maximum failure probability
+      A.quantumQueryCost @primT
+        A.SplitUsingNeedsEps -- precision splitting strategy
+        (A.failProb eps) -- maximum failure probability
         program
         interp
         mempty

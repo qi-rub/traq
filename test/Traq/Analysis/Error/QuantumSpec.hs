@@ -1,8 +1,7 @@
 module Traq.Analysis.Error.QuantumSpec (spec) where
 
 import qualified Traq.Analysis as A
-import qualified Traq.Analysis.Error.Quantum as A
-import Traq.Prelude (SizeT)
+import Traq.Prelude
 import qualified Traq.Primitives as P
 import qualified Traq.Primitives.Search.Prelude as P
 import qualified Traq.ProtoLang as P

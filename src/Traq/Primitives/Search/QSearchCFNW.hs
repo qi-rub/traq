@@ -26,6 +26,7 @@ module Traq.Primitives.Search.QSearchCFNW (
   -- * Cost Formulas
   _EQSearch,
   _EQSearchWorst,
+  _QSearchZalka,
   _QSearchZalkaWithNormErr,
 ) where
 
@@ -158,7 +159,7 @@ instance
   (P.TypingReqs sizeT, Integral sizeT, Floating precT) =>
   UnitaryCostPrim (QSearchCFNW sizeT precT) sizeT precT
   where
-  unitaryQueryCosts prim eps = BooleanPredicate{predicate = _QSearchZalka _N eps}
+  unitaryQueryCosts prim eps = BooleanPredicate $ strongQueries $ _QSearchZalka _N eps
    where
     _N = P.domainSize $ getSearchType prim
 
@@ -166,15 +167,15 @@ instance
   (P.TypingReqs sizeT, Integral sizeT, A.SizeToPrec sizeT precT, Floating precT) =>
   QuantumHavocCostPrim (QSearchCFNW sizeT precT) sizeT precT
   where
-  quantumQueryCostsUnitary prim eps = BooleanPredicate{predicate = _EQSearchWorst _N eps}
+  quantumQueryCostsUnitary prim eps = BooleanPredicate $ strongQueries $ _EQSearchWorst _N eps
    where
     _N = P.domainSize $ getSearchType prim
 
-  quantumQueryCostsQuantum _ _ = BooleanPredicate{predicate = 0}
+  quantumQueryCostsQuantum _ _ = BooleanPredicate 0
 
 instance (sizeT ~ SizeT, Floating precT, Prob.RVType precT precT) => QuantumExpCostPrim (QSearchCFNW sizeT precT) sizeT precT where
-  quantumExpQueryCostsUnitary prim eps BooleanPredicate{predicate = eval_pred} =
-    BooleanPredicate{predicate = _EQSearch _N _K eps}
+  quantumExpQueryCostsUnitary prim eps (BooleanPredicate eval_pred) =
+    BooleanPredicate $ strongQueries $ _EQSearch _N _K eps
    where
     search_ty = getSearchType prim
     _N = P.domainSize search_ty
@@ -186,7 +187,7 @@ instance (sizeT ~ SizeT, Floating precT, Prob.RVType precT precT) => QuantumExpC
 
     _K = length $ filter fromJust flags
 
-  quantumExpQueryCostsQuantum _ _ _ = BooleanPredicate{predicate = []}
+  quantumExpQueryCostsQuantum _ _ _ = BooleanPredicate []
 
 -- ================================================================================
 -- Unitary Lowering

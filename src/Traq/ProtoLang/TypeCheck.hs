@@ -30,8 +30,9 @@ module Traq.ProtoLang.TypeCheck (
 
 import Control.Monad (forM_, unless, when, zipWithM_)
 import Control.Monad.Except (MonadError, throwError)
-import Control.Monad.Reader (MonadReader, ReaderT, runReaderT)
-import Control.Monad.State (StateT, evalStateT, execStateT)
+import Control.Monad.RWS (RWST (runRWST))
+import Control.Monad.Reader (MonadReader, runReaderT)
+import Control.Monad.State (evalStateT)
 import Control.Monad.Trans (lift)
 import GHC.Generics
 import Text.Printf (printf)
@@ -207,7 +208,14 @@ lookupFunE fname =
 type TypingEnv ext = FunCtx ext
 
 -- | The TypeChecker monad
-type TypeChecker ext = ReaderT (TypingEnv ext) (StateT (TypingCtx (SizeType ext)) (Either String))
+type TypeChecker ext =
+  RWST
+    (TypingEnv ext)
+    ()
+    (TypingCtx (SizeType ext))
+    (Either String)
+
+-- ReaderT (TypingEnv ext) (StateT (TypingCtx (SizeType ext)) (Either String))
 
 -- --------------------------------------------------------------------------------
 -- Primitives
@@ -344,7 +352,8 @@ typeCheckFun
       throwError "number of returns must match the types"
 
     let gamma = Ctx.fromList $ zip param_names param_types
-    gamma' <- execStateT ?? gamma $ runReaderT ?? funCtx $ inferTypes body_stmt
+    -- gamma' <- execStateT ?? gamma $ runReaderT ?? funCtx $ inferTypes body_stmt
+    (_, gamma', _) <- runRWST (inferTypes body_stmt) funCtx gamma
     forM_ (zip ret_names ret_types) $ \(x, t) -> do
       when (has _Just (gamma ^. Ctx.at x)) $ do
         throwError $ printf "parameter `%s` cannot be returned, please copy it into a new variable and return that" x

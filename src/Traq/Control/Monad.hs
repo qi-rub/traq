@@ -15,6 +15,7 @@ module Traq.Control.Monad (
   tellAt,
   writeElemAt,
   writeElem,
+  ignoreWriter,
 
   -- * MonadError
   throwFrom,
@@ -28,14 +29,15 @@ module Traq.Control.Monad (
 ) where
 
 import Control.Monad.Except (MonadError, catchError, throwError)
-import Control.Monad.RWS (MonadState, MonadWriter, tell)
-import Control.Monad.State (StateT (..), runStateT)
+import Control.Monad.RWS (MonadState, MonadWriter, RWST (..), tell)
 import Data.Maybe (fromMaybe)
 import Data.Monoid (Endo)
-import Data.Tuple (swap)
 
 #if __GLASGOW_HASKELL__ >= 906
 import Data.Traversable(forAccumM,mapAccumM)
+#else
+import Control.Monad.State (StateT (..), runStateT)
+import Data.Tuple (swap)
 #endif
 
 import Lens.Micro.GHC
@@ -58,6 +60,11 @@ writeElemAt focus = tellAt focus . pure
 
 writeElem :: (Applicative f, MonadWriter (f a) m) => a -> m ()
 writeElem = writeElemAt id
+
+ignoreWriter :: (Monad m, Monoid w') => RWST r w s m a -> RWST r w' s m a
+ignoreWriter m = RWST $ \r s -> do
+  (a, s', _) <- runRWST m r s
+  pure (a, s', mempty)
 
 -- ================================================================================
 -- State

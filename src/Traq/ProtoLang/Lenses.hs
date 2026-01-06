@@ -2,7 +2,10 @@
 {-# LANGUAGE MultiParamTypeClasses #-}
 {-# LANGUAGE RecordWildCards #-}
 
-module Traq.ProtoLang.Lenses (MapSize (..)) where
+module Traq.ProtoLang.Lenses (
+  MapSize (..),
+  _exts,
+) where
 
 import Lens.Micro.GHC
 
@@ -94,3 +97,51 @@ instance HasStmt (NamedFunDef ext) where
 instance HasStmt (Program ext) where
   type StmtOf (Program ext) = Stmt ext
   _stmt focus (Program fs) = Program <$> traverse (_stmt focus) fs
+
+-- ============================================================================
+-- Simple traversal to focus on each `ext` in the program.
+-- ============================================================================
+
+-- | Assign a unique symbol eps to each primitive call.
+class HasExts f where
+  _exts ::
+    forall ext ext'.
+    (SizeType ext ~ SizeType ext') =>
+    Traversal (f ext) (f ext') ext ext'
+
+instance HasExts Expr where
+  _exts _ BasicExprE{basic_expr} = pure BasicExprE{basic_expr}
+  _exts _ RandomSampleE{distr_expr} = pure RandomSampleE{distr_expr}
+  _exts _ FunCallE{fname, args} = pure FunCallE{fname, args}
+  _exts focus (PrimCallE p) = PrimCallE <$> focus p
+  _exts _ _ = error "TODO"
+
+instance HasExts Stmt where
+  _exts focus ExprS{rets, expr} = do
+    expr <- _exts focus expr
+    pure ExprS{rets, expr}
+  _exts focus IfThenElseS{cond, s_true, s_false} = do
+    s_true <- _exts focus s_true
+    s_false <- _exts focus s_false
+    pure IfThenElseS{cond, s_true, s_false}
+  _exts focus (SeqS ss) = SeqS <$> traverse (_exts focus) ss
+
+instance HasExts FunBody where
+  _exts focus FunBody{param_names, ret_names, body_stmt} = do
+    body_stmt <- _exts focus body_stmt
+    pure FunBody{param_names, ret_names, body_stmt}
+
+instance HasExts FunDef where
+  _exts _ FunDef{param_types, ret_types, mbody = Nothing} = do
+    pure FunDef{param_types, ret_types, mbody = Nothing}
+  _exts focus FunDef{param_types, ret_types, mbody = Just body} = do
+    body <- _exts focus body
+    pure FunDef{param_types, ret_types, mbody = Just body}
+
+instance HasExts NamedFunDef where
+  _exts focus NamedFunDef{fun_name, fun_def} = do
+    fun_def <- _exts focus fun_def
+    pure NamedFunDef{fun_name, fun_def}
+
+instance HasExts Program where
+  _exts focus (Program fs) = Program <$> traverse (_exts focus) fs

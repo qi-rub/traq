@@ -8,7 +8,7 @@ import Lens.Micro.GHC
 
 import qualified Traq.Data.Symbolic as Sym
 
-import qualified Traq.Analysis as P
+import qualified Traq.Analysis as A
 import Traq.Analysis.CostModel.QueryCost (SimpleQueryCost (..))
 import Traq.Prelude
 import Traq.Primitives.Class
@@ -55,15 +55,19 @@ spec = describe "FindXorPeriod" $ do
 
   before (loadEvanMansour n) $ do
     it "calculates unitary cost correctly" $ \program -> do
-      let delta = P.l2NormError (0.01 :: Double)
-      let actualCost = getCost $ P.unitaryQueryCost P.SplitUsingNeedsEps delta program
-      let formulaCost = 4 + 16 * _SimonsQueries n p0 (P.requiredNormErrorToFailProb (delta `P.divideError` 2))
+      let eps = A.failProb (0.01 :: Double)
+      prog' <- expectRight $ A.annotateProgWith (P._exts (A.annSinglePrim eps)) program
+
+      let actualCost = getCost $ A.costUProg prog'
+      let formulaCost = 2 + 4 * _SimonsQueries n p0 eps
 
       actualCost `shouldBe` formulaCost
 
     it "calculates quantum max cost correctly" $ \program -> do
-      let eps = P.failProb (0.01 :: Double)
-      let actualCost = getCost $ P.quantumMaxQueryCost P.SplitUsingNeedsEps eps program
-      let formulaCost = 2 + 8 * _SimonsQueries n p0 (eps `P.divideError` 2)
+      let eps = A.failProb (0.01 :: Double)
+      prog' <- expectRight $ A.annotateProgWith (P._exts (A.annSinglePrim eps)) program
+
+      let actualCost = getCost $ A.costQProg prog'
+      let formulaCost = 2 + 4 * _SimonsQueries n p0 eps
 
       actualCost `shouldBe` formulaCost

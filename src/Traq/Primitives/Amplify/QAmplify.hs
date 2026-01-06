@@ -55,7 +55,7 @@ _FPAA_L :: forall precT. (Floating precT) => A.FailProb precT -> precT -> precT
 _FPAA_L eps p_min = acosh (1 / sqrt (A.getFailProb eps)) / acosh (1 / sqrt (1 - p_min))
 
 instance (P.TypingReqs size, Floating prec) => UnitaryCostPrim (QAmplify size prec) size prec where
-  unitaryQueryCosts (QAmplify Amplify{p_min}) eps = SamplerFn $ _FPAA_L eps p_min
+  unitaryQueryCosts (QAmplify Amplify{p_min}) eps = SamplerFn $ weakQueries $ _FPAA_L eps p_min
 
 {- | Cost of quantum search adapted to general amplitude amplification.
 Eq. 4 of https://arxiv.org/abs/2203.04975
@@ -85,11 +85,11 @@ _EQSearch eps p_min p_good
   alpha = 9.2
 
 instance (P.TypingReqs size, A.SizeToPrec size prec, Floating prec) => QuantumHavocCostPrim (QAmplify size prec) size prec where
-  quantumQueryCostsUnitary (QAmplify Amplify{p_min}) eps = SamplerFn $ _WQSearch eps p_min
+  quantumQueryCostsUnitary (QAmplify Amplify{p_min}) eps = SamplerFn $ strongQueries $ _WQSearch eps p_min
   quantumQueryCostsQuantum _ _ = SamplerFn 0
 
 instance (P.EvalReqs size prec, Floating prec, Ord prec) => QuantumExpCostPrim (QAmplify size prec) size prec where
-  quantumExpQueryCostsUnitary (QAmplify Amplify{p_min}) eps (SamplerFn eval_sample) = SamplerFn $ _EQSearch eps p_min p_good
+  quantumExpQueryCostsUnitary (QAmplify Amplify{p_min}) eps (SamplerFn eval_sample) = SamplerFn $ strongQueries $ _EQSearch eps p_min p_good
    where
     mu = eval_sample []
     p_good = Prob.probabilityOf success mu

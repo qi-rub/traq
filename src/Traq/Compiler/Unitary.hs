@@ -32,10 +32,7 @@ module Traq.Compiler.Unitary (
 
 import Control.Monad (forM, unless, when, zipWithM)
 import Control.Monad.Except (throwError)
-import Control.Monad.Reader (ReaderT, runReaderT)
-import Control.Monad.State (StateT, evalStateT)
-import Control.Monad.Trans (lift)
-import Control.Monad.Writer (WriterT, execWriterT)
+import Control.Monad.RWS (RWST (..))
 import Data.Foldable (Foldable (toList))
 import Data.List (intersect)
 import GHC.Generics hiding (to)
@@ -54,24 +51,6 @@ import Traq.CQPL.Syntax
 import Traq.Compiler.Utils
 import Traq.Prelude
 import qualified Traq.ProtoLang as P
-
--- | Configuration for lowering
-type LoweringEnv ext = A.CostEnv ext
-
-{- | Monad to compile to Unitary CQPL programs.
-This should contain the _final_ typing context for the input program,
-that is, contains both the inputs and outputs of each statement.
--}
-type CompilerT ext =
-  WriterT
-    (LoweringOutput (SizeType ext))
-    ( ReaderT
-        (LoweringEnv ext)
-        ( StateT
-            (LoweringCtx (SizeType ext))
-            (Either String)
-        )
-    )
 
 -- | Primitives that support a unitary lowering.
 class
@@ -226,6 +205,8 @@ lowerExpr delta P.FunCallE{fname, P.args} rets = do
 -- primitive call
 lowerExpr delta P.PrimCallE{prim} rets =
   lowerPrimitive delta prim rets
+-- unsupported
+lowerExpr _ _ _ = error "TODO: unsupported"
 
 -- | Compile a statement (simple or compound)
 lowerStmt ::
@@ -240,7 +221,7 @@ lowerStmt ::
   CompilerT ext (UStmt sizeT)
 -- single statement
 lowerStmt delta s@P.ExprS{P.rets, P.expr} = do
-  _ <- lift $ magnify P._funCtx . zoom P._typingCtx $ P.inferTypes s
+  _ <- magnify P._funCtx . zoom P._typingCtx . ignoreWriter $ P.inferTypes s
   lowerExpr delta expr rets
 
 -- compound statements
@@ -475,10 +456,8 @@ lowerProgram strat gamma_in delta prog@(P.Program fs) = do
           & (_uniqNamesCtx .~ P.allNamesP prog)
 
   let P.NamedFunDef{P.fun_name = main_name, P.fun_def = main_def} = last fs
-  outputU <-
+  (_, _, outputU) <-
     lowerFunDefWithGarbage delta main_name main_def
-      & execWriterT
-      & (runReaderT ?? config)
-      & (evalStateT ?? ctx)
+      & (\m -> runRWST m config ctx)
   let procs = outputU ^. _loweredProcs . to (Ctx.fromListWith proc_name)
   return CQPL.Program{CQPL.proc_defs = procs}

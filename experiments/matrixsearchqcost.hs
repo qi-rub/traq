@@ -14,6 +14,7 @@ import Text.Printf (printf)
 
 import qualified Traq.Data.Context as Ctx
 
+import qualified Traq.Analysis as P
 import Traq.Analysis.CostModel.QueryCost (SimpleQueryCost (..))
 import Traq.Examples.MatrixSearch
 import Traq.Prelude
@@ -22,7 +23,6 @@ import Traq.Primitives.Search.DetSearch (DetSearch (..))
 import Traq.Primitives.Search.Prelude
 import Traq.Primitives.Search.RandomSearch (RandomSearch (..))
 import qualified Traq.ProtoLang as P
-import qualified Traq.Analysis as P
 
 printDivider :: IO ()
 printDivider = putStrLn $ replicate 80 '='
@@ -43,7 +43,7 @@ class
   matrixExample = mkMatrixExample (\t f -> P.PrimCallE $ mkAny t f)
 
 instance MyPrim (DefaultPrims SizeT Double) where
-  mkAny ty fn = QAny $ Primitive [fn] $ QSearchCFNW $ PrimSearch AnyK ty
+  mkAny ty fn = Primitive [fn] $ QAny $ QSearchCFNW $ PrimSearch AnyK ty
 
 instance MyPrim (Primitive (RandomSearch SizeT Double)) where
   mkAny ty fn = Primitive [fn] $ RandomSearch $ PrimSearch AnyK ty

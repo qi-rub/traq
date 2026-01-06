@@ -23,7 +23,7 @@ arraySearch n = Program [NamedFunDef "Oracle" oracle_decl, NamedFunDef "main" ma
               , ret_names = ["result"]
               , body_stmt =
                   ExprS
-                    { expr = PrimCallE $ QAny $ Primitive [PartialFun "Oracle" [Nothing]] $ QSearchCFNW $ PrimSearch AnyK (Fin n)
+                    { expr = PrimCallE $ Primitive [PartialFun "Oracle" [Nothing]] $ QAny $ QSearchCFNW $ PrimSearch AnyK (Fin n)
                     , rets = ["result"]
                     }
               }
@@ -64,7 +64,7 @@ arraySearchIx n = Program [NamedFunDef "Oracle" oracle_decl, NamedFunDef "check"
               , body_stmt =
                   ExprS
                     { rets = ["result", "solution"]
-                    , expr = PrimCallE $ QAny $ Primitive [PartialFun "check" [Nothing]] $ QSearchCFNW $ PrimSearch SearchK (Fin n)
+                    , expr = PrimCallE $ Primitive [PartialFun "check" [Nothing]] $ QAny $ QSearchCFNW $ PrimSearch SearchK (Fin n)
                     }
               , ret_names = ["result", "solution"]
               }

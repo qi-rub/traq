@@ -19,13 +19,13 @@ import Traq.Primitives.Class
 import qualified Traq.ProtoLang as P
 import qualified Traq.Utils.Printing as PP
 
-newtype BooleanPredicate a = BooleanPredicate {predicate :: a}
+newtype BooleanPredicate a = BooleanPredicate a
   deriving (Eq, Show)
 
 instance ValidPrimShape BooleanPredicate where
-  listToShape [predicate] = Right BooleanPredicate{predicate}
+  listToShape [predicate] = Right $ BooleanPredicate predicate
   listToShape _ = Left "FindXorPeriod expects exactly one function"
-  shapeToList BooleanPredicate{predicate} = [predicate]
+  shapeToList (BooleanPredicate predicate) = [predicate]
 
 data PrimSearchKind
   = AnyK -- returns bool
@@ -65,7 +65,7 @@ instance (Show size) => SerializePrim (PrimSearch size prec) where
   printPrimParams PrimSearch{search_ty} = [PP.toCodeWord search_ty]
 
 instance (P.TypingReqs sizeT) => TypeCheckPrim (PrimSearch sizeT precT) sizeT where
-  inferRetTypesPrim PrimSearch{search_kind, search_ty} BooleanPredicate{predicate = pred_ty} = do
+  inferRetTypesPrim PrimSearch{search_kind, search_ty} (BooleanPredicate pred_ty) = do
     when (pred_ty /= P.FnType [search_ty] [P.tbool]) $
       throwError $
         "search: must be single-argument boolean predicate, got " ++ show pred_ty
@@ -75,7 +75,7 @@ instance (P.TypingReqs sizeT) => TypeCheckPrim (PrimSearch sizeT precT) sizeT wh
       SearchK -> [P.tbool, search_ty]
 
 instance EvalPrim (PrimSearch sizeT precT) sizeT precT where
-  evalPrim PrimSearch{search_kind, search_ty} BooleanPredicate{predicate = eval_pred} = do
+  evalPrim PrimSearch{search_kind, search_ty} (BooleanPredicate eval_pred) = do
     let search_range = P.domain search_ty
     res <- forM search_range $ \v -> do
       res <- eval_pred [v]

@@ -2,17 +2,24 @@
 
 module Traq.Analysis.Cost.QuantumSpec (spec) where
 
-import qualified Traq.Data.Context as Ctx
+import Prelude
 
+import qualified Traq.Data.Context as Ctx
+import Traq.Data.Default
+
+import Traq.Analysis
 import qualified Traq.Analysis as A
-import Traq.Analysis.CostModel.QueryCost (SimpleQueryCost (..))
-import Traq.Prelude (SizeT)
+import Traq.Analysis.Cost.UnitarySpec (unsafeParseProgram)
+import Traq.Analysis.CostModel.QueryCost
+import Traq.Prelude
 import qualified Traq.Primitives as P
 import qualified Traq.Primitives.Search.Prelude as P
 import Traq.Primitives.Search.QSearchCFNW (_EQSearch)
+import Traq.ProtoLang
 import qualified Traq.ProtoLang as P
 
 import Test.Hspec
+import TestHelpers
 
 type Ext = A.AnnFailProb (P.Primitive (P.QSearchCFNW SizeT Double))
 
@@ -64,3 +71,16 @@ spec = do
       let interps = Ctx.singleton "f" (\[x] -> [P.toValue $ (P.fromValue x :: Int) == 3])
       let c = getCost $ A.expCostQProg @(SimpleQueryCost Double) exProg [] interps
       c `shouldBe` 2 * _EQSearch (10 :: Int) 1 (A.failProb 0.1)
+    it "probabilistic outcome" $ do
+      prog <-
+        expectRight $
+          unsafeParseProgram . unlines $
+            [ "declare Oracle(Fin<100>) -> Bool end"
+            , "def main() -> Bool do"
+            , "  res1 <-$ uniform : Fin<2>;"
+            , "  return res"
+            , "end"
+            ]
+      prog' <- expectRight $ annotateProgWith (_exts annNoPrims) prog
+      let c = expCostQProg prog' [] default_ :: QueryCost Double
+      c `shouldBe` default_

@@ -10,12 +10,21 @@ module Traq.Primitives.Class (
   Primitive (..),
   PrimFnShape,
   ValidPrimShape (..),
+  reshapeUnsafe,
 
   -- ** Typeclasses
   SerializePrim (..),
   TypeCheckPrim (..),
   EvalPrim (..),
+
+  -- ** Unitary Compilation and Cost
   UnitaryCostPrim (..),
+  UnitaryQueries (..),
+  strongQueries,
+  weakQueries,
+  zeroQ,
+
+  -- ** Classical-Quantum Compilation and Cost
   QuantumHavocCostPrim (..),
   QuantumExpCostPrim (..),
 
@@ -108,6 +117,13 @@ class ValidPrimShape shape where
   listToShape :: [a] -> Either String (shape a)
   shapeToList :: shape a -> [a]
 
+reshapeUnsafe :: (ValidPrimShape shape, ValidPrimShape shape') => shape a -> shape' a
+reshapeUnsafe = either (error "please typecheck first") id . listToShape . shapeToList
+
+instance ValidPrimShape [] where
+  listToShape = Right
+  shapeToList = id
+
 -- ================================================================================
 -- Basic Instances
 -- ================================================================================
@@ -163,7 +179,7 @@ instance (SerializePrim prim, SizeType prim ~ Sym.Sym SizeT) => P.Parseable (Pri
       return $ Primitive par_funs prim
 
 -- --------------------------------------------------------------------------------
--- Typing and Evaluation
+-- Typing
 -- --------------------------------------------------------------------------------
 
 {- | Type check a primitive given the types of its function arguments, and infer the return types.
@@ -210,6 +226,10 @@ instance (TypeCheckPrim prim size, P.TypingReqs size) => P.TypeInferrable (Primi
     shaped_fn_tys <- liftEither $ listToShape fn_tys
 
     inferRetTypesPrim prim shaped_fn_tys
+
+-- --------------------------------------------------------------------------------
+-- Evaluation
+-- --------------------------------------------------------------------------------
 
 {- | Evaluate a primitive given the semantics of each function argument.
 For partial functions, the prefix of arguments are already bound.
@@ -263,6 +283,20 @@ instance
 -- Unitary Compiler: Costs, Error.
 -- --------------------------------------------------------------------------------
 
+data UnitaryQueries prec = UnitaryQueries {strong, weak :: prec}
+  deriving (Eq, Read, Show)
+
+strongQueries, weakQueries :: (Num prec) => prec -> UnitaryQueries prec
+strongQueries q = UnitaryQueries{strong = q, weak = 0}
+weakQueries q = UnitaryQueries{strong = 0, weak = q}
+
+zeroQ :: (Num prec) => UnitaryQueries prec
+zeroQ = UnitaryQueries{strong = 0, weak = 0}
+
+-- | Total number of queries to a "weak" (i.e. with entangled aux) implementation of the sub-function.
+totalWeakUnitaryQueries :: (Num prec) => UnitaryQueries prec -> prec
+totalWeakUnitaryQueries UnitaryQueries{strong, weak} = 2 * strong + weak
+
 {- | Unitary query and operation costs of a primitive.
 Represents one level of the call graph.
 -}
@@ -275,7 +309,7 @@ class
     | prim -> size prec
   where
   -- | Bound on number of queries made to each function.
-  unitaryQueryCosts :: prim -> A.FailProb prec -> PrimFnShape prim prec
+  unitaryQueryCosts :: prim -> A.FailProb prec -> PrimFnShape prim (UnitaryQueries prec)
 
   -- | Cost of all additional operations. Defaults to zero.
   unitaryExprCosts :: (C.CostModel cost, precT ~ PrecType cost) => prim -> A.FailProb prec -> cost
@@ -288,7 +322,7 @@ instance
   A.TraceNormErrorU (A.AnnFailProb (Primitive prim)) size prec
   where
   traceNormErrorU (A.AnnFailProb eps (Primitive par_funs prim)) = do
-    let query_costs = shapeToList $ unitaryQueryCosts prim eps
+    let query_costs = map totalWeakUnitaryQueries . shapeToList $ unitaryQueryCosts prim eps
     eps_fn <- forM par_funs $ \PartialFun{pfun_name} -> do
       fn <- view $ P._funCtx . Ctx.at pfun_name . non' (error "invalid function")
       A.traceNormErrorU fn
@@ -309,7 +343,7 @@ instance
   A.CostU (A.AnnFailProb (Primitive prim)) size prec
   where
   costU (A.AnnFailProb eps (Primitive par_funs prim)) = do
-    let query_costs = shapeToList $ unitaryQueryCosts prim eps
+    let query_costs = map totalWeakUnitaryQueries . shapeToList $ unitaryQueryCosts prim eps
 
     fn_costs <- forM par_funs $ \PartialFun{pfun_name} -> do
       fn <- view $ P._funCtx . Ctx.at pfun_name . non' (error "invalid function")
@@ -331,7 +365,7 @@ instance
     let delta_alg = A.divideError delta 2
     let eps_alg = A.requiredNormErrorToFailProb delta_alg
 
-    let query_costs = shapeToList $ unitaryQueryCosts prim eps_alg
+    let query_costs = map (\q -> strong q + weak q) . shapeToList $ unitaryQueryCosts prim eps_alg
 
     -- split the other half into equal parts per function
     let delta_fns = A.divideError (delta - delta_alg) (A.sizeToPrec $ length par_funs)
@@ -373,7 +407,7 @@ class
   quantumQueryCostsQuantum :: prim -> A.FailProb prec -> PrimFnShape prim prec
 
   -- | Bound on number of queries made to each function's unitary compilation.
-  quantumQueryCostsUnitary :: prim -> A.FailProb prec -> PrimFnShape prim prec
+  quantumQueryCostsUnitary :: prim -> A.FailProb prec -> PrimFnShape prim (UnitaryQueries prec)
 
   -- | Cost of all additional operations. Defaults to zero.
   quantumExprCosts :: (C.CostModel cost, precT ~ PrecType cost) => prim -> A.FailProb prec -> cost
@@ -388,7 +422,7 @@ instance
   where
   tvErrorQ (A.AnnFailProb eps (Primitive par_funs prim)) = do
     let query_costs_q = shapeToList $ quantumQueryCostsQuantum prim eps
-    let query_costs_u = shapeToList $ quantumQueryCostsUnitary prim eps
+    let query_costs_u = map totalWeakUnitaryQueries . shapeToList $ quantumQueryCostsUnitary prim eps
 
     eps_fns <- forM par_funs $ \PartialFun{pfun_name} -> do
       fn <- view $ P._funCtx . Ctx.at pfun_name . non' (error "invalid function")
@@ -419,7 +453,7 @@ instance
   where
   costQ (A.AnnFailProb eps (Primitive par_funs prim)) = do
     let query_costs_q = shapeToList $ quantumQueryCostsQuantum prim eps
-    let query_costs_u = shapeToList $ quantumQueryCostsUnitary prim eps
+    let query_costs_u = map totalWeakUnitaryQueries . shapeToList $ quantumQueryCostsUnitary prim eps
 
     fn_costs_uq <- forM par_funs $ \PartialFun{pfun_name} -> do
       fn <- view $ P._funCtx . Ctx.at pfun_name . non' (error "invalid function")
@@ -447,7 +481,7 @@ instance
     let eps_alg = A.divideError eps 2
 
     let query_costs_q = shapeToList $ quantumQueryCostsQuantum prim eps_alg
-    let query_costs_u = shapeToList $ quantumQueryCostsUnitary prim eps_alg
+    let query_costs_u = map (\q -> strong q + weak q) . shapeToList $ quantumQueryCostsUnitary prim eps_alg
 
     -- split the other half into equal parts per function
     let eps_fns = A.divideError (eps - eps_alg) (A.sizeToPrec $ length par_funs)
@@ -499,7 +533,7 @@ class
     prim ->
     A.FailProb prec ->
     shape ([P.Value size] -> m [P.Value size]) ->
-    shape prec
+    shape (UnitaryQueries prec)
 
   -- | Cost of all additional operations. Defaults to zero.
   quantumExpExprCosts ::
@@ -551,7 +585,7 @@ instance
 
     -- expected queries
     let exp_query_costs_q = shapeToList $ quantumExpQueryCostsQuantum prim eps shaped_fns_eval
-    let exp_query_costs_u = shapeToList $ quantumExpQueryCostsUnitary prim eps shaped_fns_eval
+    let exp_query_costs_u = map totalWeakUnitaryQueries . shapeToList $ quantumExpQueryCostsUnitary prim eps shaped_fns_eval
 
     fn_costs <- forM (zip3 fns_with_args exp_query_costs_q exp_query_costs_u) $
       \((fn, pref_args), exp_queries_q, exp_queries_u) -> do
@@ -567,7 +601,7 @@ instance
 
         -- queries to unitary f
         cost_f_u <- A.costU fn
-        let u_cost = 2 * exp_queries_u Alg..* cost_f_u
+        let u_cost = exp_queries_u Alg..* cost_f_u
 
         return $ Alg.sum q_costs Alg.+ u_cost
 
@@ -617,11 +651,11 @@ instance
 
     -- worst case queries
     let query_costs_q = shapeToList $ quantumQueryCostsQuantum prim eps_alg
-    let query_costs_u = shapeToList $ quantumQueryCostsUnitary prim eps_alg
+    let query_costs_u = map (\q -> strong q + weak q) . shapeToList $ quantumQueryCostsUnitary prim eps_alg
 
     -- expected queries
     let exp_query_costs_q = shapeToList $ quantumExpQueryCostsQuantum prim eps_alg shaped_fns_eval
-    let exp_query_costs_u = shapeToList $ quantumExpQueryCostsUnitary prim eps_alg shaped_fns_eval
+    let exp_query_costs_u = map (\q -> strong q + weak q) . shapeToList $ quantumExpQueryCostsUnitary prim eps_alg shaped_fns_eval
 
     -- split the other half into equal parts per function
     let eps_fns = A.divideError (eps - eps_alg) (A.sizeToPrec $ length par_funs)

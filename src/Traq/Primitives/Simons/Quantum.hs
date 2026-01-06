@@ -96,7 +96,7 @@ instance
   where
   unitaryQueryCosts prim eps =
     let FindXorPeriod{n, p_0} = extract prim :: FindXorPeriod size prec
-     in FindXorPeriodArg{fun = _SimonsQueries n p_0 eps}
+     in FindXorPeriodArg{fun = strongQueries $ _SimonsQueries n p_0 eps}
 
 -- | Same as unitary compilation.
 instance
@@ -107,4 +107,4 @@ instance
 
   quantumQueryCostsUnitary prim eps =
     let FindXorPeriod{n, p_0} = extract prim :: FindXorPeriod size prec
-     in FindXorPeriodArg{fun = _SimonsQueries n p_0 eps}
+     in FindXorPeriodArg{fun = strongQueries $ _SimonsQueries n p_0 eps}

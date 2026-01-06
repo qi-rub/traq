@@ -74,26 +74,26 @@ instance EvalPrim (RandomSearch size prec) size prec where
 -- ================================================================================
 
 instance (P.TypingReqs size, Integral size, Floating prec) => UnitaryCostPrim (RandomSearch size prec) size prec where
-  unitaryQueryCosts (RandomSearch PrimSearch{search_ty}) _ = BooleanPredicate{predicate = _URandomSearch _N}
+  unitaryQueryCosts (RandomSearch PrimSearch{search_ty}) _ = BooleanPredicate $ weakQueries $ _URandomSearch _N
    where
     _N = P.domainSize search_ty
 
 instance (P.TypingReqs size, Integral size, Floating prec, P.SizeToPrec size prec) => QuantumHavocCostPrim (RandomSearch size prec) size prec where
   -- only classical queries
   quantumQueryCostsQuantum (RandomSearch PrimSearch{search_ty}) eps =
-    BooleanPredicate{predicate = _ERandomSearchWorst _N eps}
+    BooleanPredicate $ _ERandomSearchWorst _N eps
    where
     _N = P.domainSize search_ty
 
   -- no unitary
-  quantumQueryCostsUnitary _ _ = BooleanPredicate{predicate = 0}
+  quantumQueryCostsUnitary _ _ = BooleanPredicate zeroQ
 
 instance
   (size ~ SizeT, Floating prec, Alg.Monoidal prec, Alg.Semiring prec) =>
   QuantumExpCostPrim (RandomSearch size prec) size prec
   where
-  quantumExpQueryCostsQuantum (RandomSearch PrimSearch{search_ty}) eps BooleanPredicate{predicate = eval_pred} =
-    BooleanPredicate{predicate = [([v], if b then qry_wt_per_sol else qry_wt_per_non_sol) | (b, v) <- results]}
+  quantumExpQueryCostsQuantum (RandomSearch PrimSearch{search_ty}) eps (BooleanPredicate eval_pred) =
+    BooleanPredicate [([v], if b then qry_wt_per_sol else qry_wt_per_non_sol) | (b, v) <- results]
    where
     _N = P.domainSize search_ty
 
@@ -108,4 +108,4 @@ instance
     qry_wt_per_sol = 1.0 / fromIntegral _K
     qry_wt_per_non_sol = qry / fromIntegral (_N - _K)
 
-  quantumExpQueryCostsUnitary _ _ _ = BooleanPredicate{predicate = 0}
+  quantumExpQueryCostsUnitary _ _ _ = BooleanPredicate $ weakQueries 0

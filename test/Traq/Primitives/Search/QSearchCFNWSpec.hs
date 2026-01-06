@@ -2,14 +2,10 @@
 
 module Traq.Primitives.Search.QSearchCFNWSpec (spec) where
 
-import Control.Monad.RWS (RWST, evalRWST)
-import Control.Monad.Reader (runReaderT)
-import Control.Monad.State (evalStateT)
-import Control.Monad.Writer (runWriterT)
+import Control.Monad.RWS (RWST (..), evalRWST)
 
 import Lens.Micro.GHC
 
-import Traq.Control.Monad
 import qualified Traq.Data.Context as Ctx
 import Traq.Data.Default
 
@@ -26,6 +22,9 @@ import Test.Hspec.QuickCheck
 import Test.QuickCheck
 import Test.QuickCheck.Gen (genDouble)
 import TestHelpers
+
+fst3 :: (a, b, c) -> a
+fst3 (a, _, _) = a
 
 execRWT :: (Monad m, Monoid w) => r -> RWST r w () m a -> m w
 execRWT r m = snd <$> evalRWST m r ()
@@ -52,11 +51,8 @@ spec = do
         expectRight $
           algoQSearchZalka @P.Core' eps "output_bit"
             & execRWT UQSearchEnv{search_arg_type = P.Fin n, pred_call_builder = pred_caller}
-            & runWriterT
-            <&> fst
-            & (runReaderT ?? lenv)
-            & (evalStateT ?? lctx)
-            <&> CQPL.USeqS
+            & (\m -> runRWST m lenv lctx)
+            <&> (CQPL.USeqS . fst3)
       PP.toCodeString circ `shouldSatisfy` (not . null)
 
   describe "QSearch_Zalka circuit" $ do
@@ -72,12 +68,11 @@ spec = do
       let delta = precision params
       let compile_config = default_
       (n > 1) ==> do
-        (ss, []) <-
+        ss <-
           algoQSearchZalka @(QSearchCFNW SizeT Double) delta "result"
             & execRWT (qsearch_env n)
-            & runWriterT
-            & (runReaderT ?? compile_config)
-            & (evalStateT ?? default_)
+            & (\m -> runRWST m compile_config default_)
+            <&> fst3
             & expectRight
 
         let uprog =
