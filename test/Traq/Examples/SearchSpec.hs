@@ -6,13 +6,13 @@ module Traq.Examples.SearchSpec (spec) where
 import qualified Traq.Data.Context as Ctx
 import Traq.Data.Default
 
-import qualified Traq.Analysis as P
+import qualified Traq.Analysis as A
 import Traq.Analysis.CostModel.QueryCost (SimpleQueryCost (..))
 import qualified Traq.CQPL as CQPL
 import qualified Traq.Compiler.Unitary as CompileU
 import Traq.Examples.Search
 import Traq.Prelude
-import Traq.Primitives.Search.QSearchCFNW (_EQSearch, _QSearchZalkaWithNormErr)
+import Traq.Primitives.Search.QSearchCFNW (_EQSearch, _QSearchZalka)
 import qualified Traq.ProtoLang as P
 import qualified Traq.Utils.Printing as PP
 
@@ -20,10 +20,10 @@ import Test.Hspec
 import TestHelpers
 
 spec :: Spec
-spec = do
+spec = describe "SearchSpec" $ do
   let ?epsilon = 1e-6 :: Double
 
-  describe "arraySearch: no solutions" $ do
+  describe "arraySearch (no solutions)" $ do
     let n = 6
     let ex = arraySearch n
 
@@ -38,26 +38,31 @@ spec = do
       res `shouldBeDistribution` pure ([P.FinV 0], 1.0)
 
     let ecF = _EQSearch
-    let ucF = _QSearchZalkaWithNormErr
+    let ucF = _QSearchZalka
 
-    it "unitary cost for delta=0.0001" $ do
-      let delta = P.l2NormError (0.0001 :: Double)
-      let true_cost = 2 * ucF n (delta `P.divideError` 2)
-      let computed_cost = getCost (P.unitaryQueryCost P.SplitSimple delta ex)
+    it "unitary cost for eps=0.0001" $ do
+      let eps = A.failProb (0.0001 :: Double)
+
+      ex' <- expectRight $ A.annotateProgWith (P._exts (A.annSinglePrim eps)) ex
+      let computed_cost = getCost $ A.costUProg ex'
+
+      let true_cost = 2 * ucF n eps
       computed_cost `shouldBe` true_cost
 
     it "quantum cost for eps=0.0001" $ do
-      let eps = P.failProb (0.0001 :: Double)
+      let eps = A.failProb (0.0001 :: Double)
 
-      let true_cost = 2 * ecF n 0 (eps `P.divideError` 2)
-      let computed_cost = getCost $ P.quantumQueryCost P.SplitSimple eps ex interpCtx []
+      ex' <- expectRight $ A.annotateProgWith (P._exts (A.annSinglePrim eps)) ex
+      let computed_cost = getCost $ A.expCostQProg ex' [] interpCtx
+
+      let true_cost = 2 * ecF n 0 eps
       computed_cost `shouldBe` true_cost
 
     it "generate code" $ do
       PP.toCodeString ex `shouldSatisfy` (not . null)
 
     describe "Unitary Compile" $ do
-      let delta = P.l2NormError (0.0001 :: Double)
+      let delta = A.l2NormError (0.0001 :: Double)
       it "lowers" $ do
         assertRight $ CompileU.lowerProgram default_ default_ delta ex
 
@@ -68,7 +73,7 @@ spec = do
       it "preserves cost" $ do
         ex_uqpl <- expectRight $ CompileU.lowerProgram default_ Ctx.empty delta ex
         let (uqpl_cost, _) = CQPL.programCost ex_uqpl
-        let proto_cost = P.unitaryQueryCost P.SplitSimple delta ex :: SimpleQueryCost Double
+        let proto_cost = A.unitaryQueryCost A.SplitSimple delta ex :: SimpleQueryCost Double
         uqpl_cost `shouldSatisfy` (<= proto_cost)
 
   describe "arraySearch (returning solution)" $ do

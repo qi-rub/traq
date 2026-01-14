@@ -187,9 +187,9 @@ lowerExpr ::
 -- basic expressions
 lowerExpr _ P.BasicExprE{P.basic_expr} rets = return $ AssignS rets basic_expr
 -- random sampling expressions
-lowerExpr _ P.RandomSampleE{P.distr_expr = P.UniformE{}} rets = do
+lowerExpr _ P.RandomSampleE{P.distr_expr = P.UniformE{}} _rets = do
   error "TODO uniform random sampling operation"
-lowerExpr _ P.RandomSampleE{P.distr_expr = P.BernoulliE{P.prob_one}} rets = do
+lowerExpr _ P.RandomSampleE{P.distr_expr = P.BernoulliE{}} _rets = do
   error "TODO biased coin toss"
 
 -- function call
@@ -243,7 +243,7 @@ lowerProgram ::
   -- | source program
   P.Program ext ->
   Either String (Program sizeT)
-lowerProgram strat gamma_in eps prog@(P.Program fs) = do
+lowerProgram strat _gamma_in eps prog@(P.Program fs) = do
   unless (P.checkVarsUnique prog) $
     throwError "program does not have unique variables!"
 

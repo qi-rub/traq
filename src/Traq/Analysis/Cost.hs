@@ -61,6 +61,7 @@ import qualified Traq.Data.Context as Ctx
 import Traq.Data.Default
 import qualified Traq.Data.Probability as Prob
 
+import Traq.Analysis.Annotate.Prelude
 import Traq.Analysis.Cost.Prelude
 import Traq.Analysis.Cost.Quantum
 import Traq.Analysis.Cost.Unitary
@@ -94,16 +95,6 @@ import Traq.ProtoLang.TypeCheck
 -- ================================================================================
 -- Strategy for splitting the precison (eps/delta)
 -- ================================================================================
-data PrecisionSplittingStrategy = SplitSimple | SplitUsingNeedsEps
-  deriving (Eq, Read, Show)
-{-# DEPRECATED PrecisionSplittingStrategy "Use annotations instead (once available)" #-}
-
-instance HasDefault PrecisionSplittingStrategy where
-  default_ = SplitSimple
-
--- Predicate for checking if a type has precision splitting strategy
-class HasPrecisionSplittingStrategy p where
-  _precSplitStrat :: Lens' p PrecisionSplittingStrategy
 
 -- | Predicate for checking if an expr/stmt/prog can fail
 class HasNeedsEps p where

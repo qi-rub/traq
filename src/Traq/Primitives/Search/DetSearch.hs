@@ -78,8 +78,9 @@ instance
    where
     results =
       P.domain search_ty <&> \v ->
-        let Just [b] = Prob.toDeterministicValue $ eval_pred [v]
-         in (P.valueToBool b, v)
+        case Prob.toDeterministicValue $ eval_pred [v] of
+          Just [b] -> (P.valueToBool b, v)
+          _ -> error "predicate is not determinisic"
 
     -- query all values till the first solution.
     (non_sols, sol_and_rest) = break fst results & (each %~ map snd)

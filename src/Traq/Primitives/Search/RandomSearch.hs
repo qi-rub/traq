@@ -27,8 +27,7 @@ import qualified Traq.ProtoLang as P
 
 -- | Number of predicate queries to unitarily implement random search.
 _URandomSearch :: forall sizeT precT. (Integral sizeT, Floating precT) => sizeT -> precT
-{-# HLINT ignore "Eta reduce" #-}
-_URandomSearch n = fromIntegral n
+_URandomSearch = fromIntegral
 
 -- | Worst case number of predicate queries to implement random search.
 _ERandomSearchWorst :: forall sizeT precT. (Integral sizeT, Floating precT) => sizeT -> P.FailProb precT -> precT
@@ -99,8 +98,9 @@ instance
 
     results =
       P.domain search_ty <&> \v ->
-        let Just [b] = Prob.toDeterministicValue $ eval_pred [v]
-         in (P.valueToBool b, v)
+        case Prob.toDeterministicValue $ eval_pred [v] of
+          Just [b] -> (P.valueToBool b, v)
+          _ -> error "predicate is not determinisic"
 
     _K = length $ filter fst results
     qry = _ERandomSearch _N _K eps

@@ -111,6 +111,7 @@ _QSearchZalkaWithNormErr n delta = 2 * _QSearchZalka n eps -- 2x for compute-unc
  where
   eps :: A.FailProb precT
   eps = A.requiredNormErrorToFailProb delta
+{-# DEPRECATED _QSearchZalkaWithNormErr "use _QSearchZalka" #-}
 
 -- ================================================================================
 -- Primitive Class Implementation

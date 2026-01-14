@@ -2,7 +2,7 @@ module Traq.Primitives.Amplify.CAmplifySpec where
 
 import qualified Traq.Data.Context as Ctx
 
-import qualified Traq.Analysis as P
+import qualified Traq.Analysis as A
 import Traq.Analysis.CostModel.QueryCost (SimpleQueryCost (..))
 import Traq.Primitives.Amplify.CAmplify
 import Traq.Primitives.Amplify.Prelude
@@ -10,6 +10,7 @@ import Traq.Primitives.Class
 import qualified Traq.ProtoLang as P
 
 import Test.Hspec
+import TestHelpers
 
 type Prim sizeT precT = Primitive (CAmplify sizeT precT)
 
@@ -64,35 +65,41 @@ spec :: Spec
 spec = describe "CAmplify" $ do
   describe "CAmplify cost example1" $ do
     let program = exampleProgram 10
+    let p_min = 0.02
 
     it "calculates unitary cost correctly" $ do
-      let delta = P.l2NormError (0.001 :: Double)
-      -- let expectedCost = 2 * _QryClassicalU ((delta / 2) / 2) p_min
-      let actualCost = getCost $ P.unitaryQueryCost P.SplitSimple delta program
+      let eps = A.failProb (0.001 :: Double)
 
-      actualCost `shouldBe` 2 * 1779.40444900044
+      prog' <- expectRight $ A.annotateProgWith (P._exts (A.annSinglePrim eps)) program
+      let actualCost = getCost $ A.costUProg prog'
+
+      let expectedCost = _QMax eps p_min
+      actualCost `shouldBe` expectedCost
 
     it "calculates quantum max cost correctly" $ do
-      let eps = P.failProb (0.001 :: Double)
+      let eps = A.failProb (0.001 :: Double)
 
-      -- let expectedCost = _QryClassicalMax (Sym.con eps / 4) p_min
-      let actualCost = getCost $ P.quantumMaxQueryCost P.SplitSimple eps program
+      prog' <- expectRight $ A.annotateProgWith (P._exts (A.annSinglePrim eps)) program
+      let actualCost = getCost $ A.costQProg prog'
 
-      actualCost `shouldBe` 410.5414937585894
+      let expectedCost = _QMax eps p_min
+      actualCost `shouldBe` expectedCost
 
     it "calculates quantum query cost correctly - sampler always succeeds" $ do
-      let eps = P.failProb (0.001 :: Double)
-      let funInterpCtx = Ctx.singleton "sampler" (\[_] -> [P.toValue True, P.FinV 1])
+      let eps = A.failProb (0.001 :: Double)
+      let funInterpCtx = Ctx.singleton "sampler" (const [P.toValue True, P.FinV 1])
 
-      let actualCost = getCost $ P.quantumQueryCost P.SplitSimple eps program funInterpCtx mempty
+      prog' <- expectRight $ A.annotateProgWith (P._exts (A.annSinglePrim eps)) program
+      let actualCost = getCost $ A.expCostQProg prog' [] funInterpCtx
 
       actualCost `shouldBe` 1.0
 
     it "calculates quantum query cost correctly - sampler always fails" $ do
-      let eps = P.failProb (0.001 :: Double)
-      let funInterpCtx = Ctx.singleton "sampler" (\[_] -> [P.toValue False, P.FinV 1])
+      let eps = A.failProb (0.001 :: Double)
+      let funInterpCtx = Ctx.singleton "sampler" (const [P.toValue False, P.FinV 1])
 
-      -- let expectedCost = _QryClassicalMax (Sym.con eps / 2) p_min
-      let actualCost = getCost $ P.quantumQueryCost P.SplitSimple eps program funInterpCtx mempty
+      prog' <- expectRight $ A.annotateProgWith (P._exts (A.annSinglePrim eps)) program
+      let actualCost = getCost $ A.expCostQProg prog' [] funInterpCtx
 
-      actualCost `shouldBe` 410.5414937585894
+      let expectedCost = _QMax eps p_min
+      actualCost `shouldBe` expectedCost

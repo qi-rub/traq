@@ -24,6 +24,7 @@ library
       Traq.Analysis.Annotate
       Traq.Analysis.Annotate.Basic
       Traq.Analysis.Annotate.Prelude
+      Traq.Analysis.Annotate.SplitBudget
       Traq.Analysis.Annotate.Symbolic
       Traq.Analysis.Cost
       Traq.Analysis.Cost.Prelude
@@ -364,6 +365,7 @@ test-suite spec
   main-is: Spec.hs
   other-modules:
       TestHelpers
+      Traq.Analysis.Annotate.SplitBudgetSpec
       Traq.Analysis.Annotate.SymbolicSpec
       Traq.Analysis.Cost.QuantumSpec
       Traq.Analysis.Cost.UnitarySpec

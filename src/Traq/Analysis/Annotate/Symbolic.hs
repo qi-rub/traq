@@ -36,5 +36,5 @@ annSymEpsProg ::
   Either String (Program (AnnFailProb ext))
 annSymEpsProg = annotateProgWith $ \p -> do
   Program fs' <- traverseOf _exts annSymEps p
-  fs_extra <- use _funs
+  fs_extra <- use _funCtx <&> funCtxToNamedFuns
   pure $ Program $ reverse fs_extra ++ fs'

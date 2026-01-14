@@ -1,6 +1,7 @@
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE MultiParamTypeClasses #-}
 {-# LANGUAGE RecordWildCards #-}
+{-# OPTIONS_GHC -Wno-name-shadowing #-}
 
 module Traq.ProtoLang.Lenses (
   MapSize (..),
@@ -11,7 +12,6 @@ import Lens.Micro.GHC
 
 import Traq.Prelude
 import Traq.ProtoLang.Syntax
-import Traq.Utils.ASTRewriting
 
 -- ================================================================================
 -- Functor extension
@@ -68,35 +68,6 @@ instance MapSize (Core size prec) where
   type MappedSize (Core size prec) size' = Core size' prec
 
   mapSize _ = \case {}
-
--- --------------------------------------------------------------------------------
--- AST traversals
--- --------------------------------------------------------------------------------
-instance HasAst (Stmt ext) where
-  _ast focus (SeqS ss) = SeqS <$> traverse focus ss
-  _ast focus (IfThenElseS cond s_true s_false) = IfThenElseS cond <$> focus s_true <*> focus s_false
-  _ast _ s = pure s
-
-instance HasStmt (Stmt ext) where
-  type StmtOf (Stmt ext) = Stmt ext
-  _stmt = id
-
-instance HasStmt (FunBody ext) where
-  type StmtOf (FunBody ext) = Stmt ext
-  _stmt focus fbody@FunBody{body_stmt} = (\body_stmt' -> fbody{body_stmt = body_stmt'}) <$> focus body_stmt
-
-instance HasStmt (FunDef ext) where
-  type StmtOf (FunDef ext) = Stmt ext
-  _stmt focus funDef@FunDef{mbody = Just body} = (\body' -> funDef{mbody = Just body'}) <$> _stmt focus body
-  _stmt _ f = pure f
-
-instance HasStmt (NamedFunDef ext) where
-  type StmtOf (NamedFunDef ext) = Stmt ext
-  _stmt focus f@NamedFunDef{fun_def} = _stmt focus fun_def <&> \fun_def' -> f{fun_def = fun_def'}
-
-instance HasStmt (Program ext) where
-  type StmtOf (Program ext) = Stmt ext
-  _stmt focus (Program fs) = Program <$> traverse (_stmt focus) fs
 
 -- ============================================================================
 -- Simple traversal to focus on each `ext` in the program.

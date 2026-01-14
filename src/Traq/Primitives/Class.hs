@@ -34,7 +34,7 @@ module Traq.Primitives.Class (
 ) where
 
 import Control.Applicative (Alternative ((<|>)), many)
-import Control.Monad (forM, when)
+import Control.Monad (forM, forM_, void, when)
 import Control.Monad.Except (throwError)
 import Control.Monad.Extra (concatMapM)
 import Control.Monad.Reader (runReaderT)
@@ -327,14 +327,8 @@ instance
       fn <- view $ P._funCtx . Ctx.at pfun_name . non' (error "invalid function")
       A.traceNormErrorU fn
 
-    let tot_eps_fns = A.failProb $ sum $ zipWith calc_tot_err query_costs eps_fn
+    let tot_eps_fns = sum $ zipWith A.unitarySubroutineTVErrorTotal query_costs eps_fn
     return $ eps + tot_eps_fns
-   where
-    conv :: prec -> prec
-    conv eps' = sqrt (2 * eps')
-
-    calc_tot_err :: prec -> A.FailProb prec -> prec
-    calc_tot_err n eps' = n * conv (A.getFailProb eps')
 
 instance
   ( UnitaryCostPrim prim size prec
@@ -431,18 +425,12 @@ instance
       return (eps_q, eps_u)
     let (eps_fns_q, eps_fns_u) = unzip eps_fns
 
-    let tot_eps_u = A.failProb $ sum $ zipWith calc_tot_err_u query_costs_u eps_fns_u
-    let tot_eps_q = A.failProb $ sum $ zipWith calc_tot_err_q query_costs_q eps_fns_q
+    let tot_eps_u = sum $ zipWith A.unitarySubroutineTVErrorTotal query_costs_u eps_fns_u
+    let tot_eps_q = sum $ zipWith calc_tot_err_q query_costs_q eps_fns_q
     return $ eps + tot_eps_q + tot_eps_u
    where
-    conv :: prec -> prec
-    conv eps' = sqrt (2 * eps')
-
-    calc_tot_err_u :: prec -> A.FailProb prec -> prec
-    calc_tot_err_u n eps' = n * conv (A.getFailProb eps')
-
-    calc_tot_err_q :: prec -> A.FailProb prec -> prec
-    calc_tot_err_q n eps' = n * A.getFailProb eps'
+    calc_tot_err_q :: prec -> A.FailProb prec -> A.FailProb prec
+    calc_tot_err_q n eps' = A.failProb $ n * A.getFailProb eps'
 
 instance
   ( UnitaryCostPrim prim size prec
@@ -680,3 +668,67 @@ instance
     let extra_costs = quantumExpExprCosts prim eps_alg shaped_fns_eval
 
     return $ Alg.sum fn_costs Alg.+ extra_costs
+
+-- --------------------------------------------------------------------------------
+-- Annotation
+-- --------------------------------------------------------------------------------
+
+instance
+  ( UnitaryCostPrim prim size prec
+  , QuantumHavocCostPrim prim size prec
+  ) =>
+  A.AnnotateWithErrorBudget (Primitive prim)
+  where
+  annEpsU eps (A.AnnFailProb eps_old (Primitive par_funs prim)) = do
+    -- check if any of the functions can error
+    pfuns_may_error <- fmap or $ forM par_funs $ \PartialFun{pfun_name} -> do
+      fn <- use $ P._funCtx . Ctx.at pfun_name . singular _Just
+      A.canError fn
+
+    -- split the overall precision in half if fns can error, otherwise use full.
+    let eps_alg = min eps_old (if pfuns_may_error then A.splitFailProb eps 2 else eps)
+
+    let n_queries_u = map totalWeakUnitaryQueries . shapeToList $ unitaryQueryCosts prim eps_alg
+
+    -- split the other half into equal parts per function
+    let eps_fns = A.splitFailProb (eps - eps_alg) (A.sizeToPrec $ length par_funs)
+
+    forM_ (zip par_funs n_queries_u) $ \(PartialFun{pfun_name}, n_query_u) -> do
+      fn <- use $ P._funCtx . Ctx.at pfun_name . singular _Just
+      let named_fn = P.NamedFunDef pfun_name fn
+
+      -- divide by number of queries to get eps per call
+      let eps_fn = A.splitFailProb eps_fns n_query_u
+      let eps_fn_u = A.unitarySubroutineTVBudget eps_fn
+
+      when (n_query_u > 0) $ void $ A.annEpsU1 eps_fn_u named_fn
+
+    pure $ A.AnnFailProb eps_alg $ Primitive par_funs prim
+
+  annEpsQ eps (A.AnnFailProb eps_old (Primitive par_funs prim)) = do
+    -- check if any of the functions can error
+    pfuns_may_error <- fmap or $ forM par_funs $ \PartialFun{pfun_name} -> do
+      fn <- use $ P._funCtx . Ctx.at pfun_name . singular _Just
+      A.canError fn
+
+    -- split the overall precision in half if fns can error, otherwise use full.
+    let eps_alg = min eps_old (if pfuns_may_error then A.splitFailProb eps 2 else eps)
+
+    let n_queries_q = shapeToList $ quantumQueryCostsQuantum prim eps_alg
+    let n_queries_u = map totalWeakUnitaryQueries . shapeToList $ quantumQueryCostsUnitary prim eps_alg
+
+    -- split the other half into equal parts per function
+    let eps_fns = A.splitFailProb (eps - eps_alg) (A.sizeToPrec $ length par_funs)
+
+    forM_ (zip3 par_funs n_queries_q n_queries_u) $ \(PartialFun{pfun_name}, n_query_q, n_query_u) -> do
+      fn <- use $ P._funCtx . Ctx.at pfun_name . singular _Just
+      let named_fn = P.NamedFunDef pfun_name fn
+
+      -- divide by number of queries to get eps per call
+      let eps_fn = A.splitFailProb eps_fns (n_query_q + n_query_u)
+      let eps_fn_u = A.unitarySubroutineTVBudget eps_fn
+
+      when (n_query_q > 0) $ void $ A.annEpsQ1 eps_fn named_fn
+      when (n_query_u > 0) $ void $ A.annEpsU1 eps_fn_u named_fn
+
+    pure $ A.AnnFailProb eps_alg $ Primitive par_funs prim

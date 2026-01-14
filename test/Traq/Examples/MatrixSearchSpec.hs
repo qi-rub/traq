@@ -6,6 +6,7 @@ import qualified Traq.Data.Context as Ctx
 import Traq.Data.Default
 import qualified Traq.Data.Symbolic as Sym
 
+import qualified Traq.Analysis as A
 import qualified Traq.Analysis as P
 import Traq.Analysis.CostModel.QueryCost (SimpleQueryCost (getCost))
 import qualified Traq.CQPL as CQPL
@@ -14,7 +15,7 @@ import qualified Traq.Compiler.Unitary as CompileU
 import Traq.Examples.MatrixSearch
 import Traq.Primitives (Primitive (..))
 import Traq.Primitives.Search.Prelude
-import Traq.Primitives.Search.QSearchCFNW (_EQSearchWorst, _QSearchZalkaWithNormErr)
+import Traq.Primitives.Search.QSearchCFNW (_EQSearchWorst, _QSearchZalka)
 import Traq.Primitives.Search.Symbolic
 import qualified Traq.ProtoLang as P
 import qualified Traq.Utils.Printing as PP
@@ -23,8 +24,8 @@ import Test.Hspec
 import TestHelpers
 
 spec :: Spec
-spec = do
-  describe "matrix search example" $ do
+spec = describe "MatrixSearch" $ do
+  describe "5x5 example" $ do
     let (n, m) = (5, 5)
     let ex = matrixExampleS n m
 
@@ -34,31 +35,42 @@ spec = do
     it "has unique vars" $ do
       P.checkVarsUnique ex `shouldBe` True
 
-    let oracleF = \[P.FinV i, P.FinV j] -> [P.toValue $ i == j]
+    let oracleF = \case
+          [P.FinV i, P.FinV j] -> [P.toValue $ i == j]
+          _ -> undefined
     let interpCtx = Ctx.singleton "Matrix" oracleF
 
     it "evaluates" $ do
       let res = P.runProgram @_ @Double ex interpCtx []
       res `shouldBeDistribution` pure ([P.FinV 0], 1.0)
 
-    -- expected, worst, unitary
+    -- worst, unitary
     let wcF = _EQSearchWorst
-    let ucF = _QSearchZalkaWithNormErr
+    let ucF = _QSearchZalka
 
     it "unitary cost for delta=0.0001" $ do
-      let delta = P.l2NormError (0.001 :: Double)
-      let cu = getCost $ P.unitaryQueryCost P.SplitSimple delta ex
-      let nu_outer = ucF n (delta `P.divideError` 2)
-      let nu_inner = 2 * ucF m (delta `P.divideError` (2 * nu_outer * 4))
-      cu `shouldBe` 2 * nu_outer * 2 * nu_inner
-
-    it "quantum cost for eps=0.0001" $ do
       let eps = P.failProb (0.001 :: Double)
-      let cq = getCost $ P.quantumQueryCost P.SplitSimple eps ex interpCtx []
-      let nq_outer = wcF n (eps `P.divideError` 2)
-      let nq_inner = 2 * ucF m (P.requiredFailProbToNormError eps `P.divideError` (2 * nq_outer * 4))
-      let nq_oracle = 2
-      cq `shouldBe` 2 * nq_outer * nq_inner * nq_oracle
+
+      ex' <- expectRight $ A.annotateProgWithErrorBudgetU eps ex
+      let cu = getCost $ P.costUProg ex'
+
+      let eps_outer = eps `P.divideError` 2
+      let eps_inner = eps - eps_outer
+      let nu_outer = 2 * ucF n eps_outer
+      let nu_inner = 2 * ucF m (A.unitarySubroutineTVBudget (eps_inner `P.divideError` nu_outer))
+      cu `shouldBe` nu_outer * nu_inner
+
+    it "quantum cost for eps=0.001" $ do
+      let eps = P.failProb (0.001 :: Double)
+
+      ex' <- expectRight $ A.annotateProgWithErrorBudget eps ex
+      let cq = getCost $ A.expCostQProg ex' [] interpCtx
+
+      let eps_outer = eps `P.divideError` 2
+      let eps_inner = eps - eps_outer
+      let nq_outer = 2 * wcF n eps_outer
+      let nq_inner = 2 * ucF m (A.unitarySubroutineTVBudget (eps_inner `P.divideError` nq_outer))
+      cq `shouldBe` nq_outer * nq_inner
 
     it "generate code" $ do
       PP.toCodeString ex `shouldSatisfy` (not . null)
@@ -90,13 +102,13 @@ spec = do
         -- case CQPL.typeCheckProgram gamma ex_uqpl of Left e -> putStrLn e; _ -> return ()
         assertRight $ CQPL.typeCheckProgram ex_cqpl
 
-  xdescribe "matrix search symbolic" $ do
+  xdescribe "symbolic" $ do
     let n = Sym.var "n" :: Sym.Sym Int
     let m = Sym.var "m" :: Sym.Sym Int
     let ex = mkMatrixExample (\ty f -> P.PrimCallE $ Primitive [f] $ QSearchSym $ PrimSearch AnyK ty) n m
 
     -- expected, worst, unitary
-    let ucF = _QryU
+    let ucF' = _QryU
     let wcF = _QryQmax
 
     -- TODO: update the tests below once symbolic expressions are upgraded.
@@ -106,8 +118,8 @@ spec = do
       let cu = getCost $ P.unitaryQueryCost P.SplitSimple delta ex
 
       let delta_outer = delta `P.divideError` 2
-      let nu_outer = ucF n delta_outer
-      let nu_inner = 2 * ucF m ((delta - delta_outer) `P.divideError` (nu_outer * 2 * 2 * 2))
+      let nu_outer = ucF' n delta_outer
+      let nu_inner = 2 * ucF' m ((delta - delta_outer) `P.divideError` (nu_outer * 2 * 2 * 2))
       let nu_oracle = 2
       let from_formula = 2 * nu_outer * nu_inner * nu_oracle
       -- cu `shouldBe` from_formula
@@ -118,8 +130,8 @@ spec = do
       let cu = getCost $ P.unitaryQueryCost P.SplitUsingNeedsEps delta ex
 
       let delta_outer = delta `P.divideError` 2
-      let nu_outer = ucF n delta_outer
-      let nu_inner = 2 * ucF m ((delta - delta_outer) `P.divideError` (nu_outer * 2))
+      let nu_outer = ucF' n delta_outer
+      let nu_inner = 2 * ucF' m ((delta - delta_outer) `P.divideError` (nu_outer * 2))
       let nu_oracle = 2
       let from_formula = 2 * nu_outer * nu_inner * nu_oracle
       -- cu `shouldBe` from_formula
@@ -131,7 +143,7 @@ spec = do
 
       let eps_outer = eps `P.divideError` 2
       let nq_outer = wcF n eps_outer
-      let nq_inner = 2 * ucF m (P.requiredFailProbToNormError (eps - eps_outer) `P.divideError` (nq_outer * 2 * 2 * 2))
+      let nq_inner = 2 * ucF' m (P.requiredFailProbToNormError (eps - eps_outer) `P.divideError` (nq_outer * 2 * 2 * 2))
       let nq_oracle = 2
       let from_formula = 2 * nq_outer * nq_inner * nq_oracle
       -- cq `shouldBe` from_formula
@@ -143,7 +155,7 @@ spec = do
 
       let eps_outer = eps `P.divideError` 2
       let nq_outer = wcF n eps_outer
-      let nq_inner = 2 * ucF m (P.requiredFailProbToNormError (eps - eps_outer) `P.divideError` (nq_outer * 2))
+      let nq_inner = 2 * ucF' m (P.requiredFailProbToNormError (eps - eps_outer) `P.divideError` (nq_outer * 2))
       let nq_oracle = 2
       let from_formula = 2 * nq_outer * nq_inner * nq_oracle
       -- cq `shouldBe` from_formula

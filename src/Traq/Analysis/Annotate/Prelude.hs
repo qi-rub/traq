@@ -1,3 +1,4 @@
+{-# LANGUAGE DeriveGeneric #-}
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE MultiParamTypeClasses #-}
 {-# LANGUAGE StandaloneDeriving #-}
@@ -14,20 +15,22 @@ module Traq.Analysis.Annotate.Prelude (
   -- ** Env
   AnnotateEnv,
   mkAnnotateEnv,
+  PrecisionSplittingStrategy (..),
+  HasPrecisionSplittingStrategy (..),
 
   -- ** State
   AnnotateState (..),
   _unique_id,
   nextId,
-  _funs,
-  addFn,
 ) where
 
 import Control.Monad.RWS (RWST (..))
+import GHC.Generics (Generic)
 
 import Lens.Micro.GHC
 import Lens.Micro.Mtl
 
+import qualified Traq.Data.Context as Ctx
 import Traq.Data.Default (HasDefault (..))
 
 import Traq.Analysis.Error.Prelude
@@ -60,18 +63,52 @@ instance (Evaluatable ext size prec) => Evaluatable (AnnFailProb ext) size prec 
 -- ============================================================================
 -- RS Monad to perform annotation
 -- ============================================================================
-type AnnotateEnv ext = FunCtx ext
+
+-- ----------------------------------------------------------------------------
+-- Env
+-- ----------------------------------------------------------------------------
+data PrecisionSplittingStrategy = SplitSimple | SplitUsingNeedsEps
+  deriving (Eq, Read, Show, Enum)
+
+instance HasDefault PrecisionSplittingStrategy where
+  default_ = SplitSimple
+
+-- Predicate for checking if a type has precision splitting strategy
+class HasPrecisionSplittingStrategy p where
+  _precSplitStrat :: Lens' p PrecisionSplittingStrategy
+
+data AnnotateEnv ext
+  = AnnotateEnv
+      (FunCtx ext)
+      PrecisionSplittingStrategy
+  deriving (Generic)
+
+instance HasDefault (AnnotateEnv ext)
+
+instance HasFunCtx (AnnotateEnv ext) ext where
+  _funCtx focus (AnnotateEnv f s) = focus f <&> \f' -> AnnotateEnv f' s
+
+instance HasPrecisionSplittingStrategy (AnnotateEnv ext) where
+  _precSplitStrat focus (AnnotateEnv f s) = focus s <&> \s' -> AnnotateEnv f s'
 
 mkAnnotateEnv :: Program ext -> AnnotateEnv ext
-mkAnnotateEnv (Program fs) = namedFunsToFunCtx fs
+mkAnnotateEnv prog =
+  default_
+    & (_funCtx .~ programToFunCtx prog)
 
+-- ----------------------------------------------------------------------------
+-- State
+-- ----------------------------------------------------------------------------
 data AnnotateState ext ext' = AnnotateSymState
   { unique_id :: Int
-  , funs :: [NamedFunDef ext']
+  , funs :: Ctx.Context (FunDef ext')
   }
 
 instance HasDefault (AnnotateState ext ext') where
-  default_ = AnnotateSymState{unique_id = 0, funs = []}
+  default_ = AnnotateSymState{unique_id = 0, funs = mempty}
+
+instance HasFunCtx (AnnotateState ext ext') ext' where
+  _funCtx focus s = focus (funs s) <&> \v -> s{funs = v}
 
 _unique_id :: Lens' (AnnotateState ext ext') Int
 _unique_id focus s = focus (unique_id s) <&> \v -> s{unique_id = v}
@@ -82,12 +119,9 @@ nextId = do
   _unique_id += 1
   return i
 
-_funs :: Lens' (AnnotateState ext ext') [NamedFunDef ext']
-_funs focus s = focus (funs s) <&> \v -> s{funs = v}
-
-addFn :: (m ~ AnnotateMonad ext ext') => NamedFunDef ext' -> m ()
-addFn f = _funs %= (f :)
-
+-- ----------------------------------------------------------------------------
+-- Monad
+-- ----------------------------------------------------------------------------
 type AnnotateMonad ext ext' =
   RWST
     (AnnotateEnv ext)

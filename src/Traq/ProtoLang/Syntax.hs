@@ -39,9 +39,13 @@ module Traq.ProtoLang.Syntax (
   FunBody (..),
   FunDef (..),
   NamedFunDef (..),
+  Program (..),
+
+  -- ** FunCtx
   FunCtx,
   namedFunsToFunCtx,
-  Program (..),
+  programToFunCtx,
+  funCtxToNamedFuns,
 
   -- ** Core
   Core,
@@ -63,6 +67,7 @@ import Lens.Micro.GHC
 import qualified Traq.Data.Context as Ctx
 
 import Traq.Prelude
+import Traq.Utils.ASTRewriting
 import qualified Traq.Utils.Printing as PP
 
 -- | Compile-time constant parameters
@@ -400,6 +405,12 @@ type instance PrecType (Program ext) = PrecType ext
 namedFunsToFunCtx :: (Foldable f) => f (NamedFunDef ext) -> FunCtx ext
 namedFunsToFunCtx fs = Ctx.fromList [(fun_name f, fun_def f) | f <- toList fs]
 
+programToFunCtx :: Program ext -> FunCtx ext
+programToFunCtx (Program fs) = namedFunsToFunCtx fs
+
+funCtxToNamedFuns :: FunCtx ext -> [NamedFunDef ext]
+funCtxToNamedFuns fs = [NamedFunDef{fun_name, fun_def} | (fun_name, fun_def) <- Ctx.toList fs]
+
 instance (Show (SizeType ext), PP.ToCodeString ext) => PP.ToCodeString (Program ext) where
   build (Program fs) = mapM_ (\f -> PP.build f >> PP.endl) fs
 
@@ -416,3 +427,32 @@ type instance PrecType (Core size prec) = prec
 Usage: @p :: Program Core'@
 -}
 type Core' = Core SizeT Double
+
+-- --------------------------------------------------------------------------------
+-- AST traversals
+-- --------------------------------------------------------------------------------
+instance HasAst (Stmt ext) where
+  _ast focus (SeqS ss) = SeqS <$> traverse focus ss
+  _ast focus (IfThenElseS cond s_true s_false) = IfThenElseS cond <$> focus s_true <*> focus s_false
+  _ast _ s = pure s
+
+instance HasStmt (Stmt ext) where
+  type StmtOf (Stmt ext) = Stmt ext
+  _stmt = id
+
+instance HasStmt (FunBody ext) where
+  type StmtOf (FunBody ext) = Stmt ext
+  _stmt focus fbody@FunBody{body_stmt} = (\body_stmt' -> fbody{body_stmt = body_stmt'}) <$> focus body_stmt
+
+instance HasStmt (FunDef ext) where
+  type StmtOf (FunDef ext) = Stmt ext
+  _stmt focus funDef@FunDef{mbody = Just body} = (\body' -> funDef{mbody = Just body'}) <$> _stmt focus body
+  _stmt _ f = pure f
+
+instance HasStmt (NamedFunDef ext) where
+  type StmtOf (NamedFunDef ext) = Stmt ext
+  _stmt focus f@NamedFunDef{fun_def} = _stmt focus fun_def <&> \fun_def' -> f{fun_def = fun_def'}
+
+instance HasStmt (Program ext) where
+  type StmtOf (Program ext) = Stmt ext
+  _stmt focus (Program fs) = Program <$> traverse (_stmt focus) fs
