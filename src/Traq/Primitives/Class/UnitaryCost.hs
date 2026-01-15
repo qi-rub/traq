@@ -132,3 +132,37 @@ instance
 
     -- 2x for compute-uncompute
     return $ (2 :: prec) Alg..* (Alg.sum fn_costs Alg.+ extra_costs)
+
+-- --------------------------------------------------------------------------------
+-- Annotation
+-- --------------------------------------------------------------------------------
+
+instance
+  (UnitaryCostPrim prim size prec) =>
+  A.AnnotateWithErrorBudgetU (Primitive prim)
+  where
+  annEpsU eps (A.AnnFailProb eps_old (Primitive par_funs prim)) = do
+    -- check if any of the functions can error
+    pfuns_may_error <- fmap or $ forM par_funs $ \PartialFun{pfun_name} -> do
+      fn <- use $ P._funCtx . Ctx.at pfun_name . singular _Just
+      A.canError fn
+
+    -- split the overall precision in half if fns can error, otherwise use full.
+    let eps_alg = min eps_old (if pfuns_may_error then A.splitFailProb eps 2 else eps)
+
+    let n_queries_u = map totalWeakUnitaryQueries . shapeToList $ unitaryQueryCosts prim eps_alg
+
+    -- split the other half into equal parts per function
+    let eps_fns = A.splitFailProb (eps - eps_alg) (A.sizeToPrec $ length par_funs)
+
+    forM_ (zip par_funs n_queries_u) $ \(PartialFun{pfun_name}, n_query_u) -> do
+      fn <- use $ P._funCtx . Ctx.at pfun_name . singular _Just
+      let named_fn = P.NamedFunDef pfun_name fn
+
+      -- divide by number of queries to get eps per call
+      let eps_fn = A.splitFailProb eps_fns n_query_u
+      let eps_fn_u = A.unitarySubroutineTVBudget eps_fn
+
+      when (n_query_u > 0) $ void $ A.annEpsU1 eps_fn_u named_fn
+
+    pure $ A.AnnFailProb eps_alg $ Primitive par_funs prim

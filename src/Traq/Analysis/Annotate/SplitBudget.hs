@@ -2,7 +2,8 @@
 {-# OPTIONS_GHC -Wno-name-shadowing #-}
 
 module Traq.Analysis.Annotate.SplitBudget (
-  AnnotateWithErrorBudget (..),
+  AnnotateWithErrorBudgetU (..),
+  AnnotateWithErrorBudgetQ (..),
   annEpsU1,
   annEpsQ1,
   canError,
@@ -70,26 +71,39 @@ instance CanError (FunDef ext) where
 -- ============================================================================
 
 -- | Update the annotation given a total error budget for this primitive call.
-class AnnotateWithErrorBudget ext where
-  annEpsU
-    , annEpsQ ::
-      forall ext' size prec m.
-      ( ext' ~ AnnFailProb ext
-      , size ~ SizeType ext
-      , prec ~ PrecType ext
-      , ErrorReqs size prec
-      , m ~ AnnotateMonad ext ext'
-      ) =>
-      FailProb prec ->
-      ext' ->
-      m ext'
+class AnnotateWithErrorBudgetU ext where
+  annEpsU ::
+    forall ext' size prec m.
+    ( ext' ~ AnnFailProb ext
+    , size ~ SizeType ext
+    , prec ~ PrecType ext
+    , ErrorReqs size prec
+    , m ~ AnnotateMonad ext ext'
+    ) =>
+    FailProb prec ->
+    ext' ->
+    m ext'
+
+class AnnotateWithErrorBudgetQ ext where
+  annEpsQ ::
+    forall ext' size prec m.
+    ( ext' ~ AnnFailProb ext
+    , size ~ SizeType ext
+    , prec ~ PrecType ext
+    , ErrorReqs size prec
+    , m ~ AnnotateMonad ext ext'
+    ) =>
+    FailProb prec ->
+    ext' ->
+    m ext'
 
 -- | Internal class
 class AnnotateWithErrorBudget1 (p :: Type -> Type) where
   annEpsU1
     , annEpsQ1 ::
       forall ext ext' size prec m.
-      ( AnnotateWithErrorBudget ext
+      ( AnnotateWithErrorBudgetU ext
+      , AnnotateWithErrorBudgetQ ext
       , ext' ~ AnnFailProb ext
       , size ~ SizeType ext
       , prec ~ PrecType ext
@@ -178,7 +192,8 @@ data CompilerType = CompilerQ | CompilerU
 
 annotateProgWithErrorBudgetGen ::
   ( m ~ Either String
-  , AnnotateWithErrorBudget ext
+  , AnnotateWithErrorBudgetU ext
+  , AnnotateWithErrorBudgetQ ext
   , size ~ SizeType ext
   , prec ~ PrecType ext
   , ErrorReqs size prec
@@ -212,7 +227,8 @@ annotateProgWithErrorBudgetGen compiler eps prog = do
 annotateProgWithErrorBudget
   , annotateProgWithErrorBudgetU ::
     ( m ~ Either String
-    , AnnotateWithErrorBudget ext
+    , AnnotateWithErrorBudgetU ext
+    , AnnotateWithErrorBudgetQ ext
     , size ~ SizeType ext
     , prec ~ PrecType ext
     , ErrorReqs size prec
