@@ -77,6 +77,8 @@ instance (P.TypingReqs size, Integral size, Floating prec) => UnitaryCostPrim (R
    where
     _N = P.domainSize search_ty
 
+  unitaryExprCosts _ _ = Alg.zero
+
 instance (P.TypingReqs size, Integral size, Floating prec, P.SizeToPrec size prec) => QuantumHavocCostPrim (RandomSearch size prec) size prec where
   -- only classical queries
   quantumQueryCostsQuantum (RandomSearch PrimSearch{search_ty}) eps =

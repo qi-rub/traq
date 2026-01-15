@@ -60,6 +60,8 @@ instance (P.TypingReqs size, Integral size, Num prec) => UnitaryCostPrim (DetSea
    where
     _N = P.domainSize search_ty
 
+  unitaryExprCosts _ _ = Alg.zero
+
 instance (P.TypingReqs size, Integral size, Num prec, P.SizeToPrec size prec) => QuantumHavocCostPrim (DetSearch size prec) size prec where
   -- only classical queries
   quantumQueryCostsQuantum (DetSearch PrimSearch{search_ty}) _ = BooleanPredicate (fromIntegral _N)

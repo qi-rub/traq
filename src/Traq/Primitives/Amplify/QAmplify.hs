@@ -13,6 +13,8 @@ module Traq.Primitives.Amplify.QAmplify (
 
 import GHC.Generics (Generic)
 
+import qualified Numeric.Algebra as Alg
+
 import qualified Traq.Data.Probability as Prob
 import Traq.Data.Subtyping
 
@@ -56,6 +58,7 @@ _FPAA_L eps p_min = acosh (1 / sqrt (A.getFailProb eps)) / acosh (1 / sqrt (1 - 
 
 instance (P.TypingReqs size, Floating prec) => UnitaryCostPrim (QAmplify size prec) size prec where
   unitaryQueryCosts (QAmplify Amplify{p_min}) eps = SamplerFn $ weakQueries $ _FPAA_L eps p_min
+  unitaryExprCosts _ _ = Alg.zero
 
 {- | Cost of quantum search adapted to general amplitude amplification.
 Eq. 4 of https://arxiv.org/abs/2203.04975

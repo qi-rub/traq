@@ -68,16 +68,7 @@ instance (Show size) => SerializePrim (DefaultPrimCollection size prec) where
 -- Generic instances
 instance (P.TypingReqs sizeT) => TypeCheckPrim (DefaultPrimCollection sizeT precT) sizeT
 instance EvalPrim (DefaultPrimCollection sizeT precT) sizeT precT
-
--- Costs
-instance (P.TypingReqs size, Integral size, Floating prec) => UnitaryCostPrim (DefaultPrimCollection size prec) size prec where
-  unitaryQueryCosts (QAny p) = shapeToList . unitaryQueryCosts p
-  unitaryQueryCosts (RAny p) = shapeToList . unitaryQueryCosts p
-  unitaryQueryCosts (DAny p) = shapeToList . unitaryQueryCosts p
-
-  unitaryExprCosts (QAny p) = unitaryExprCosts p
-  unitaryExprCosts (RAny p) = unitaryExprCosts p
-  unitaryExprCosts (DAny p) = unitaryExprCosts p
+instance (P.TypingReqs size, Integral size, Floating prec) => UnitaryCostPrim (DefaultPrimCollection size prec) size prec
 
 instance
   (P.TypingReqs size, Integral size, Floating prec, A.SizeToPrec size prec) =>

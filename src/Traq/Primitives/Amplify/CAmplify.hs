@@ -13,6 +13,8 @@ where
 
 import GHC.Generics (Generic)
 
+import qualified Numeric.Algebra as Alg
+
 import qualified Traq.Data.Probability as Prob
 import Traq.Data.Subtyping
 
@@ -63,6 +65,7 @@ _EQ eps p_min p_good
 
 instance (P.TypingReqs size, Floating prec) => UnitaryCostPrim (CAmplify size prec) size prec where
   unitaryQueryCosts (CAmplify Amplify{p_min}) eps = SamplerFn $ weakQueries $ _QMax eps p_min
+  unitaryExprCosts _ _ = Alg.zero
 
 instance (P.TypingReqs size, A.SizeToPrec size prec, Floating prec) => QuantumHavocCostPrim (CAmplify size prec) size prec where
   quantumQueryCostsQuantum (CAmplify Amplify{p_min}) eps = SamplerFn $ _QMax eps p_min

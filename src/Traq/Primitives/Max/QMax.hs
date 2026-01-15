@@ -22,6 +22,8 @@ import Control.Monad (forM, when)
 import Control.Monad.Except (throwError)
 import Text.Printf (printf)
 
+import qualified Numeric.Algebra as Alg
+
 import qualified Traq.Analysis as P
 import Traq.Prelude
 import Traq.Primitives.Class
@@ -116,6 +118,8 @@ instance
   unitaryQueryCosts QMax{arg_ty} eps = QMaxFunArg{fun = strongQueries $ _WQMax _N eps}
    where
     _N = P.domainSize arg_ty
+
+  unitaryExprCosts _ _ = Alg.zero
 
 instance
   ( Integral sizeT

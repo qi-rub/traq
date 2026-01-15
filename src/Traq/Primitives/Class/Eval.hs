@@ -55,7 +55,7 @@ class
     m [P.Value size]
   evalPrim prim = gevalPrim (from prim)
 
-class GEvalPrim f size prec where
+class GEvalPrim f size prec | f -> size prec where
   gevalPrim ::
     forall ext' shape m p.
     ( P.Evaluatable ext' size prec

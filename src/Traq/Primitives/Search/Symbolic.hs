@@ -15,6 +15,8 @@ module Traq.Primitives.Search.Symbolic (
 import GHC.Generics (Generic)
 import Text.Printf (printf)
 
+import qualified Numeric.Algebra as Alg
+
 import Traq.Data.Subtyping
 import qualified Traq.Data.Symbolic as Sym
 
@@ -78,6 +80,8 @@ instance
   unitaryQueryCosts prim eps = BooleanPredicate $ strongQueries $ _QryQmax _N eps
    where
     _N = domainSizeSym $ getSearchType prim
+
+  unitaryExprCosts _ _ = Alg.zero
 
 instance
   (Eq sizeT, Num sizeT, Num precT, Show sizeT, Show precT, Num precT, Eq precT) =>

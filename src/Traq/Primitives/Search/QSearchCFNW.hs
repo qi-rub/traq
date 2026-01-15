@@ -42,6 +42,7 @@ import Text.Printf (printf)
 
 import Lens.Micro.GHC
 import Lens.Micro.Mtl
+import qualified Numeric.Algebra as Alg
 
 import Traq.Control.Monad
 import qualified Traq.Data.Context as Ctx
@@ -163,6 +164,8 @@ instance
   unitaryQueryCosts prim eps = BooleanPredicate $ strongQueries $ _QSearchZalka _N eps
    where
     _N = P.domainSize $ getSearchType prim
+
+  unitaryExprCosts _ _ = Alg.zero
 
 instance
   (P.TypingReqs sizeT, Integral sizeT, A.SizeToPrec sizeT precT, Floating precT) =>
