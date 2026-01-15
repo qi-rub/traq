@@ -77,10 +77,7 @@ instance (P.TypingReqs sizeT) => TypeCheckPrim (DefaultPrimCollection sizeT prec
     inferRetTypesPrim p fs'
 
 -- Evaluation
-instance EvalPrim (DefaultPrimCollection sizeT precT) sizeT precT where
-  evalPrim (QAny p) fs = evalPrim p (reshapeUnsafe fs)
-  evalPrim (RAny p) fs = evalPrim p (reshapeUnsafe fs)
-  evalPrim (DAny p) fs = evalPrim p (reshapeUnsafe fs)
+instance EvalPrim (DefaultPrimCollection sizeT precT) sizeT precT
 
 -- Costs
 instance (P.TypingReqs size, Integral size, Floating prec) => UnitaryCostPrim (DefaultPrimCollection size prec) size prec where

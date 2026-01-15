@@ -1,4 +1,5 @@
 {-# LANGUAGE AllowAmbiguousTypes #-}
+{-# LANGUAGE DefaultSignatures #-}
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE FunctionalDependencies #-}
 {-# LANGUAGE UndecidableInstances #-}
@@ -6,6 +7,8 @@
 module Traq.Primitives.Class.Eval (
   EvalPrim (..),
 ) where
+
+import GHC.Generics
 
 import Traq.Prelude
 import Traq.Primitives.Class.Prelude
@@ -37,3 +40,40 @@ class
     prim ->
     shape ([P.Value size] -> m [P.Value size]) ->
     m [P.Value size]
+  default evalPrim ::
+    forall ext' shape m.
+    ( Generic prim
+    , GEvalPrim (Rep prim) size prec
+    , P.Evaluatable ext' size prec
+    , m ~ P.Evaluator ext'
+    , SizeType ext' ~ size
+    , PrecType ext' ~ prec
+    , shape ~ PrimFnShape prim
+    ) =>
+    prim ->
+    shape ([P.Value size] -> m [P.Value size]) ->
+    m [P.Value size]
+  evalPrim prim = gevalPrim (from prim)
+
+class GEvalPrim f size prec where
+  gevalPrim ::
+    forall ext' shape m p.
+    ( P.Evaluatable ext' size prec
+    , m ~ P.Evaluator ext'
+    , SizeType ext' ~ size
+    , PrecType ext' ~ prec
+    , ValidPrimShape shape
+    ) =>
+    f p ->
+    shape ([P.Value size] -> m [P.Value size]) ->
+    m [P.Value size]
+
+instance (GEvalPrim a size prec, GEvalPrim b size prec) => GEvalPrim (a :+: b) size prec where
+  gevalPrim (L1 x) fs = gevalPrim x fs
+  gevalPrim (R1 x) fs = gevalPrim x fs
+
+instance (GEvalPrim f size prec) => GEvalPrim (M1 i c f) size prec where
+  gevalPrim (M1 x) = gevalPrim x
+
+instance (EvalPrim a size prec) => GEvalPrim (K1 i a) size prec where
+  gevalPrim (K1 x) fs = evalPrim x (reshapeUnsafe fs)
