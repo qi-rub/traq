@@ -80,7 +80,9 @@ matrixSearchExpt = do
   putStrLn "n, time, qubits"
   forM_ ns $ \n -> do
     let prog = matrixExampleS n n
-    let mat [P.FinV i, P.FinV j] = [P.FinV $ if i == j then 1 else 0]
+    let mat = \case
+          [P.FinV i, P.FinV j] -> [P.FinV $ if i == j then 1 else 0]
+          _ -> undefined
     ExptResult{wallTime, numQubits} <- runExpt' prog eps (Ctx.singleton "Matrix" mat)
     putStrLn $ printf "%d, %.5f, %d" n wallTime numQubits
 
@@ -100,7 +102,9 @@ depth3NAND = do
                   . Sym.subst "M" (Sym.con n)
                   . Sym.subst "K" (Sym.con n)
               )
-    let f [P.FinV i, P.FinV j, P.FinV k] = [P.FinV $ if i == j || j == k then 1 else 0]
+    let f = \case
+          [P.FinV i, P.FinV j, P.FinV k] -> [P.FinV $ if i == j || j == k then 1 else 0]
+          _ -> undefined
     ExptResult{wallTime, numQubits} <- runExpt' prog eps (Ctx.singleton "f" f)
     putStrLn $ printf "%d, %.5f, %d" n wallTime numQubits
 
@@ -115,7 +119,7 @@ hillClimbExpt = do
     let prog = P.mapSize (Sym.unSym . Sym.subst "n" (Sym.con n) . Sym.subst "W" 100) sprog
 
     -- compute the weight of an assignment
-    let phi [P.ArrV xs] = [P.FinV $ 0]
+    let phi _ = [P.FinV 0]
 
     ExptResult{wallTime, numQubits} <- runExpt' prog eps (Ctx.singleton "Phi" phi)
     putStrLn $ printf "%d, %.5f, %d" n wallTime numQubits
