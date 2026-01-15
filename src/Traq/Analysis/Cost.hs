@@ -3,7 +3,6 @@
 {-# LANGUAGE DeriveGeneric #-}
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE FunctionalDependencies #-}
-{-# LANGUAGE TypeApplications #-}
 
 module Traq.Analysis.Cost (
   module Traq.Analysis.Cost.Prelude,
@@ -42,7 +41,6 @@ module Traq.Analysis.Cost (
 
 import Control.Monad (forM, zipWithM)
 import Control.Monad.Reader (MonadReader, ReaderT, runReaderT)
-import Control.Monad.State (execStateT)
 import GHC.Generics hiding (to)
 
 import Lens.Micro.GHC
@@ -52,7 +50,6 @@ import qualified Numeric.Algebra as Alg
 import Traq.Control.Monad
 import qualified Traq.Data.Context as Ctx
 import Traq.Data.Default
-import qualified Traq.Data.Probability as Prob
 
 import Traq.Analysis.Annotate.Prelude
 import Traq.Analysis.Cost.Prelude
@@ -71,17 +68,12 @@ import Traq.ProtoLang.TypeCheck
   , unitaryQueryCostE
   , unitaryQueryCostS
   , unitaryQueryCostF
-  , quantumQueryCost
-  , quantumQueryCostE
-  , quantumQueryCostS
-  , quantumQueryCostF
   , quantumMaxQueryCost
   , quantumMaxQueryCostE
   , quantumMaxQueryCostS
   , quantumMaxQueryCostF
   , UnitaryCost
   , QuantumHavocCost
-  , QuantumExpCost
   "Use the newer versions on annotated programs"
   #-}
 
@@ -532,229 +524,5 @@ quantumMaxQueryCost strat a_eps (Program fs) =
           & (_funCtx .~ namedFunsToFunCtx fs)
           & (_precSplitStrat .~ strat)
    in quantumMaxQueryCostF a_eps (fun_name $ last fs)
-        & (runReaderT ?? env)
-        & (^?! _Just)
-
--- ================================================================================
--- Quantum Cost
--- ================================================================================
-
--- --------------------------------------------------------------------------------
--- Quantum Expected Cost: Primitives
--- --------------------------------------------------------------------------------
-
--- | Primitives that have a input dependent expected quantum cost
-class
-  ( QuantumHavocCost primT sizeT precT
-  , Evaluatable primT sizeT precT
-  ) =>
-  QuantumExpCost primT sizeT precT
-  where
-  quantumExpCost ::
-    forall primsT costT m.
-    ( m ~ CostCalculator primsT
-    , QuantumExpCost primsT sizeT precT
-    , C.CostModel costT
-    , precT ~ PrecType costT
-    , Prob.RVType precT costT
-    , Prob.RVType precT precT
-    , SizeToPrec SizeT precT
-    , Ord costT
-    , SizeType primsT ~ sizeT
-    , PrecType primsT ~ precT
-    ) =>
-    FailProb precT ->
-    primT ->
-    ProgramState sizeT ->
-    m costT
-  default quantumExpCost ::
-    forall primsT costT m.
-    ( m ~ CostCalculator primsT
-    , QuantumExpCost primsT sizeT precT
-    , C.CostModel costT
-    , precT ~ PrecType costT
-    , Prob.RVType precT costT
-    , Prob.RVType precT precT
-    , SizeToPrec SizeT precT
-    , Ord costT
-    , Generic primT
-    , GQuantumExpCost (Rep primT) sizeT precT
-    , PrecType primsT ~ precT
-    ) =>
-    FailProb precT ->
-    primT ->
-    ProgramState sizeT ->
-    m costT
-  quantumExpCost eps p = gquantumExpCost eps (from p)
-
-instance (Show precT, EvalReqs sizeT precT) => QuantumExpCost (Core sizeT precT) sizeT precT where
-  quantumExpCost _ = \case {}
-
-class GQuantumExpCost f sizeT precT where
-  gquantumExpCost ::
-    forall primsT costT m primT.
-    ( m ~ CostCalculator primsT
-    , QuantumExpCost primsT sizeT precT
-    , C.CostModel costT
-    , precT ~ PrecType costT
-    , Prob.RVType precT costT
-    , Prob.RVType precT precT
-    , SizeToPrec SizeT precT
-    , Ord costT
-    ) =>
-    FailProb precT ->
-    f primT ->
-    ProgramState sizeT ->
-    m costT
-
-instance
-  (GQuantumExpCost f1 sizeT precT, GQuantumExpCost f2 sizeT precT) =>
-  GQuantumExpCost (f1 :+: f2) sizeT precT
-  where
-  gquantumExpCost eps (L1 p) = gquantumExpCost eps p
-  gquantumExpCost eps (R1 p) = gquantumExpCost eps p
-
-instance (GQuantumExpCost f sizeT precT) => GQuantumExpCost (M1 i c f) sizeT precT where
-  gquantumExpCost eps (M1 x) = gquantumExpCost eps x
-
-instance
-  (QuantumExpCost f sizeT precT) =>
-  GQuantumExpCost (K1 i f) sizeT precT
-  where
-  gquantumExpCost eps (K1 x) = quantumExpCost eps x
-
--- --------------------------------------------------------------------------------
--- Quantum Expected Cost: Core Language
--- --------------------------------------------------------------------------------
-quantumQueryCostE ::
-  forall primsT precT costT m.
-  ( Floating precT
-  , QuantumExpCost primsT SizeT precT
-  , m ~ CostCalculator primsT
-  , C.CostModel costT
-  , precT ~ PrecType costT
-  , Prob.RVType precT costT
-  , Prob.RVType precT precT
-  , SizeToPrec SizeT precT
-  , Ord costT
-  ) =>
-  -- | failure probability \( \varepsilon \)
-  FailProb precT ->
-  -- | state \( \sigma \)
-  ProgramState SizeT ->
-  -- | statement @S@
-  Expr primsT ->
-  m costT
-quantumQueryCostE eps sigma FunCallE{fname, args} =
-  let vs = args <&> \x -> sigma ^. Ctx.at x . non' (error "invalid arg")
-   in quantumQueryCostF eps vs fname
--- known cost formulas
-quantumQueryCostE eps sigma PrimCallE{prim} = do
-  quantumExpCost eps prim sigma
--- basic expressions
-quantumQueryCostE _ _ BasicExprE{basic_expr} = return $ C.callExpr C.Classical basic_expr
-quantumQueryCostE _ _ RandomSampleE{distr_expr} = return $ C.callDistrExpr C.Classical distr_expr
-quantumQueryCostE _ _ _ = error "TODO"
-
-quantumQueryCostS ::
-  forall primsT precT costT m.
-  ( Floating precT
-  , QuantumExpCost primsT SizeT precT
-  , m ~ CostCalculator primsT
-  , C.CostModel costT
-  , precT ~ PrecType costT
-  , Prob.RVType precT costT
-  , Prob.RVType precT precT
-  , SizeToPrec SizeT precT
-  , Ord costT
-  ) =>
-  -- | failure probability \( \varepsilon \)
-  FailProb precT ->
-  -- | state \( \sigma \)
-  ProgramState SizeT ->
-  -- | statement @S@
-  Stmt primsT ->
-  m costT
-quantumQueryCostS eps sigma ExprS{expr} = quantumQueryCostE eps sigma expr
-quantumQueryCostS eps sigma IfThenElseS{cond, s_true, s_false} =
-  let s = if valueToBool (sigma ^?! Ctx.at cond . singular _Just) then s_true else s_false
-   in quantumQueryCostS eps sigma s
-quantumQueryCostS eps sigma (SeqS ss) = do
-  env <- do
-    funCtx <- view _funCtx
-    interpCtx <- view _funInterpCtx
-    return $
-      default_
-        & (_funCtx .~ funCtx)
-        & (_funInterpCtx .~ interpCtx)
-
-  let stepS s sigma_s =
-        execStmt @primsT @precT s
-          & (execStateT ?? sigma_s)
-          & (runReaderT ?? env)
-  eps_each <- splitEps eps ss
-
-  (_, cs) <- forAccumM (pure sigma) (zip ss eps_each) $ \distr (s, eps_s) -> do
-    c <- Prob.expectationA (\sigma' -> quantumQueryCostS eps_s sigma' s) distr
-    return (distr >>= stepS s, c)
-
-  return $ Alg.sum cs
-
-quantumQueryCostF ::
-  forall primsT precT costT m.
-  ( Floating precT
-  , QuantumExpCost primsT SizeT precT
-  , m ~ CostCalculator primsT
-  , C.CostModel costT
-  , precT ~ PrecType costT
-  , Prob.RVType precT costT
-  , Prob.RVType precT precT
-  , SizeToPrec SizeT precT
-  , Ord costT
-  , SizeType primsT ~ SizeT
-  , PrecType primsT ~ precT
-  ) =>
-  -- | failure probability \( \varepsilon \)
-  FailProb precT ->
-  -- | inputs
-  [Value SizeT] ->
-  -- | function name
-  Ident ->
-  m costT
-quantumQueryCostF eps arg_vals fname = do
-  view (_funCtx . Ctx.at fname . non' (error "invalid function") . to mbody) >>= \case
-    Nothing -> return $ C.query C.Classical fname -- query an external function
-    Just FunBody{param_names, body_stmt} -> do
-      let omega = Ctx.fromList $ zip param_names arg_vals
-      quantumQueryCostS eps omega body_stmt
-
-quantumQueryCost ::
-  forall primsT precT costT.
-  ( Floating precT
-  , QuantumExpCost primsT SizeT precT
-  , C.CostModel costT
-  , precT ~ PrecType costT
-  , Prob.RVType precT costT
-  , Prob.RVType precT precT
-  , SizeToPrec SizeT precT
-  , Ord costT
-  ) =>
-  PrecisionSplittingStrategy ->
-  -- | failure probability \( \varepsilon \)
-  FailProb precT ->
-  -- | program @P@
-  Program primsT ->
-  -- | data Subtypings
-  FunInterpCtx SizeT ->
-  -- | input
-  [Value SizeT] ->
-  costT
-quantumQueryCost strat a_eps (Program fs) interpCtx inp =
-  let env =
-        default_
-          & (_funCtx .~ namedFunsToFunCtx fs)
-          & (_precSplitStrat .~ strat)
-          & (_funInterpCtx .~ interpCtx)
-   in quantumQueryCostF a_eps inp (fun_name $ last fs)
         & (runReaderT ?? env)
         & (^?! _Just)
