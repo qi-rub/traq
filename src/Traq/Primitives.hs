@@ -65,18 +65,8 @@ instance (Show size) => SerializePrim (DefaultPrimCollection size prec) where
   printPrimParams (RAny p) = printPrimParams p
   printPrimParams (DAny p) = printPrimParams p
 
-instance (P.TypingReqs sizeT) => TypeCheckPrim (DefaultPrimCollection sizeT precT) sizeT where
-  inferRetTypesPrim (QAny p) fs = do
-    fs' <- liftEither $ listToShape fs
-    inferRetTypesPrim p fs'
-  inferRetTypesPrim (RAny p) fs = do
-    fs' <- liftEither $ listToShape fs
-    inferRetTypesPrim p fs'
-  inferRetTypesPrim (DAny p) fs = do
-    fs' <- liftEither $ listToShape fs
-    inferRetTypesPrim p fs'
-
--- Evaluation
+-- Generic instances
+instance (P.TypingReqs sizeT) => TypeCheckPrim (DefaultPrimCollection sizeT precT) sizeT
 instance EvalPrim (DefaultPrimCollection sizeT precT) sizeT precT
 
 -- Costs
