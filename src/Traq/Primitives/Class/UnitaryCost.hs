@@ -12,24 +12,13 @@ module Traq.Primitives.Class.UnitaryCost (
   totalWeakUnitaryQueries,
 ) where
 
-import Control.Monad (forM, forM_, void, when)
-import Control.Monad.Reader (runReaderT)
-import Data.Maybe (fromMaybe)
-
-import Lens.Micro.GHC
-import Lens.Micro.Mtl
 import qualified Numeric.Algebra as Alg
-
-import Traq.Control.Monad
-import qualified Traq.Data.Context as Ctx
 
 import qualified Traq.Analysis as A
 import qualified Traq.Analysis.CostModel.Class as C
 import Traq.Prelude
-import Traq.Primitives.Class.Eval
 import Traq.Primitives.Class.Prelude
 import Traq.Primitives.Class.TypeCheck
-import qualified Traq.ProtoLang as P
 
 -- --------------------------------------------------------------------------------
 -- Unitary Compiler: Costs, Error.
