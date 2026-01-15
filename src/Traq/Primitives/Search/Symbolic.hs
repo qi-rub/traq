@@ -92,3 +92,5 @@ instance
     _N = domainSizeSym $ getSearchType prim
 
   quantumQueryCostsQuantum _ _ = BooleanPredicate 0
+
+  quantumExprCosts = Alg.zero

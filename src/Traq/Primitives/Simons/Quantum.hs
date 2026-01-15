@@ -112,3 +112,5 @@ instance
   quantumQueryCostsUnitary prim eps =
     let FindXorPeriod{n, p_0} = extract prim :: FindXorPeriod size prec
      in FindXorPeriodArg{fun = strongQueries $ _SimonsQueries n p_0 eps}
+
+  quantumExprCosts = Alg.zero

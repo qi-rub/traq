@@ -71,6 +71,8 @@ instance (P.TypingReqs size, Integral size, Num prec, P.SizeToPrec size prec) =>
   -- no unitary
   quantumQueryCostsUnitary _ _ = BooleanPredicate $ weakQueries 0
 
+  quantumExprCosts = Alg.zero
+
 instance
   (size ~ SizeT, Floating prec, Alg.Monoidal prec, Alg.Semiring prec) =>
   QuantumExpCostPrim (DetSearch size prec) size prec
@@ -89,3 +91,5 @@ instance
     queried_vals = non_sols ++ take 1 sol_and_rest
 
   quantumExpQueryCostsUnitary _ _ _ = BooleanPredicate $ weakQueries 0
+
+  quantumExpExprCosts = Alg.zero

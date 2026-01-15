@@ -135,6 +135,8 @@ instance
   -- no quantum queries
   quantumQueryCostsQuantum _ _ = QMaxFunArg{fun = 0}
 
+  quantumExprCosts = Alg.zero
+
 instance
   ( Floating precT
   , Integral sizeT
@@ -148,3 +150,5 @@ instance
 
   -- no quantum queries
   quantumExpQueryCostsQuantum _ _ _ = QMaxFunArg{fun = []}
+
+  quantumExpExprCosts = Alg.zero

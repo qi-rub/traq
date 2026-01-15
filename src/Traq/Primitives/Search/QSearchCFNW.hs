@@ -177,6 +177,8 @@ instance
 
   quantumQueryCostsQuantum _ _ = BooleanPredicate 0
 
+  quantumExprCosts = Alg.zero
+
 instance (sizeT ~ SizeT, Floating precT, Prob.RVType precT precT) => QuantumExpCostPrim (QSearchCFNW sizeT precT) sizeT precT where
   quantumExpQueryCostsUnitary prim eps (BooleanPredicate eval_pred) =
     BooleanPredicate $ strongQueries $ _EQSearch _N _K eps
@@ -192,6 +194,8 @@ instance (sizeT ~ SizeT, Floating precT, Prob.RVType precT precT) => QuantumExpC
     _K = length $ filter fromJust flags
 
   quantumExpQueryCostsQuantum _ _ _ = BooleanPredicate []
+
+  quantumExpExprCosts = Alg.zero
 
 -- ================================================================================
 -- Unitary Lowering

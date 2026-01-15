@@ -65,13 +65,15 @@ _EQ eps p_min p_good
 
 instance (P.TypingReqs size, Floating prec) => UnitaryCostPrim (CAmplify size prec) size prec where
   unitaryQueryCosts (CAmplify Amplify{p_min}) eps = SamplerFn $ weakQueries $ _QMax eps p_min
-  unitaryExprCosts _ _ = Alg.zero
+  unitaryExprCosts = Alg.zero
 
 instance (P.TypingReqs size, A.SizeToPrec size prec, Floating prec) => QuantumHavocCostPrim (CAmplify size prec) size prec where
   quantumQueryCostsQuantum (CAmplify Amplify{p_min}) eps = SamplerFn $ _QMax eps p_min
 
   -- no unitary cost for classical algo
   quantumQueryCostsUnitary _ _ = SamplerFn zeroQ
+
+  quantumExprCosts = Alg.zero
 
 instance (P.EvalReqs size prec, Floating prec, Ord prec) => QuantumExpCostPrim (CAmplify size prec) size prec where
   quantumExpQueryCostsQuantum (CAmplify Amplify{p_min}) eps (SamplerFn eval_sample) = SamplerFn [([], _EQ eps p_min p_succ)]
@@ -85,3 +87,5 @@ instance (P.EvalReqs size prec, Floating prec, Ord prec) => QuantumExpCostPrim (
 
   -- no unitary cost for classical algo
   quantumExpQueryCostsUnitary _ _ _ = SamplerFn zeroQ
+
+  quantumExpExprCosts = Alg.zero

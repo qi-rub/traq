@@ -91,6 +91,8 @@ instance (P.TypingReqs size, A.SizeToPrec size prec, Floating prec) => QuantumHa
   quantumQueryCostsUnitary (QAmplify Amplify{p_min}) eps = SamplerFn $ strongQueries $ _WQSearch eps p_min
   quantumQueryCostsQuantum _ _ = SamplerFn 0
 
+  quantumExprCosts = Alg.zero
+
 instance (P.EvalReqs size prec, Floating prec, Ord prec) => QuantumExpCostPrim (QAmplify size prec) size prec where
   quantumExpQueryCostsUnitary (QAmplify Amplify{p_min}) eps (SamplerFn eval_sample) = SamplerFn $ strongQueries $ _EQSearch eps p_min p_good
    where
@@ -102,3 +104,5 @@ instance (P.EvalReqs size prec, Floating prec, Ord prec) => QuantumExpCostPrim (
     success _ = error "invalid predicate output"
 
   quantumExpQueryCostsQuantum _ _ _ = SamplerFn []
+
+  quantumExpExprCosts = Alg.zero

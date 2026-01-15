@@ -61,9 +61,18 @@ class
     PrimFnShape prim (UnitaryQueries prec)
   quantumQueryCostsUnitary prim = reshapeUnsafe . gquantumQueryCostsUnitary (from prim)
 
-  -- | Cost of all additional operations. Defaults to zero.
-  quantumExprCosts :: (C.CostModel cost, precT ~ PrecType cost) => prim -> A.FailProb prec -> cost
-  quantumExprCosts _ _ = Alg.zero
+  -- | Cost of all additional operations.
+  quantumExprCosts :: (C.CostModel cost, prec ~ PrecType cost) => prim -> A.FailProb prec -> cost
+  default quantumExprCosts ::
+    ( Generic prim
+    , GQuantumHavocCostPrim (Rep prim) size prec
+    , C.CostModel cost
+    , prec ~ PrecType cost
+    ) =>
+    prim ->
+    A.FailProb prec ->
+    cost
+  quantumExprCosts prim = gquantumExprCosts (from prim)
 
 class GQuantumHavocCostPrim f size prec | f -> size prec where
   gquantumQueryCostsQuantum :: f prim -> A.FailProb prec -> [prec]
