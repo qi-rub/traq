@@ -1,13 +1,10 @@
 {-# LANGUAGE AllowAmbiguousTypes #-}
 {-# LANGUAGE FlexibleInstances #-}
-{-# LANGUAGE FunctionalDependencies #-}
 {-# LANGUAGE RecordWildCards #-}
-{-# LANGUAGE TypeApplications #-}
 {-# LANGUAGE UndecidableInstances #-}
 
 module Traq.Primitives.Class.Prelude (
   -- * Primitives
-  Primitive (..),
   PrimFnShape,
   ValidPrimShape (..),
   reshapeUnsafe,
@@ -17,9 +14,9 @@ module Traq.Primitives.Class.Prelude (
   placeArgs,
 ) where
 
-import Control.Applicative (Alternative ((<|>)), many)
+import Control.Applicative (Alternative ((<|>)))
 import Data.Kind (Type)
-import Data.Maybe (catMaybes, fromMaybe)
+import Data.Maybe (fromMaybe)
 import Text.Parsec.Token
 import Text.Printf (printf)
 
@@ -44,7 +41,7 @@ instance PP.ToCodeString PartialFun where
 instance P.Parseable PartialFun where
   parseE TokenParser{..} = do
     pfun_name <- identifier
-    pfun_args <- parens $ commaSep ((Nothing <$ symbol "_") <|> (Just <$> identifier))
+    pfun_args <- parens $ commaSep (Nothing <$ symbol "_" <|> Just <$> identifier)
     return PartialFun{..}
 
 instance P.RenameVars PartialFun where
@@ -58,21 +55,6 @@ placeArgs [] [] = []
 placeArgs (Just x : xs) as = x : placeArgs xs as
 placeArgs (Nothing : xs) (a : as) = a : placeArgs xs as
 placeArgs mxs ys = error $ printf "invalid use of placeArgs(%d, %d)" (length mxs) (length ys)
-
-{- | A generic second-order primitive.
-It accepts a sequence of partially applied functions.
-
-Authors are provided with simpler type classes to implement the features:
-typing, semantics and query costs.
--}
-data Primitive prim = Primitive [PartialFun] prim
-  deriving (Eq, Show)
-
-type instance SizeType (Primitive p) = SizeType p
-type instance PrecType (Primitive p) = PrecType p
-
-instance P.RenameVars (Primitive p) where
-  renameVars pref (Primitive par_funs p) = Primitive (map (P.renameVars pref) par_funs) p
 
 {- | The shape of the function arguments that primitive @prim@ expects.
 The type @PrimFnShape prim a@ should be a subtype of @[a]@, for every @a@.
@@ -91,14 +73,3 @@ reshapeUnsafe = either (error "please typecheck first") id . listToShape . shape
 instance ValidPrimShape [] where
   listToShape = Right
   shapeToList = id
-
--- ================================================================================
--- Basic Instances
--- ================================================================================
-
-instance (P.MapSize prim) => P.MapSize (Primitive prim) where
-  type MappedSize (Primitive prim) size' = Primitive (P.MappedSize prim size')
-  mapSize f (Primitive par_funs prim) = Primitive par_funs (P.mapSize f prim)
-
-instance P.HasFreeVars (Primitive prim) where
-  freeVarsList (Primitive par_funs _) = concatMap (catMaybes . pfun_args) par_funs

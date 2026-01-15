@@ -1,7 +1,6 @@
 {-# LANGUAGE AllowAmbiguousTypes #-}
 {-# LANGUAGE FlexibleInstances #-}
-{-# LANGUAGE FunctionalDependencies #-}
-{-# LANGUAGE RecordWildCards #-}
+{-# LANGUAGE MultiParamTypeClasses #-}
 {-# LANGUAGE TypeApplications #-}
 {-# LANGUAGE UndecidableInstances #-}
 
@@ -9,19 +8,12 @@ module Traq.Primitives.Class.Serialize (
   SerializePrim (..),
 ) where
 
-import Control.Applicative (Alternative ((<|>)), many)
-import Control.Monad.Extra (concatMapM)
-import Text.Parsec (try)
 import Text.Parsec.String (Parser)
-import Text.Parsec.Token (GenTokenParser (..), TokenParser)
-import Text.Printf (printf)
+import Text.Parsec.Token (TokenParser)
 
 import qualified Traq.Data.Symbolic as Sym
 
 import Traq.Prelude
-import Traq.Primitives.Class.Prelude
-import qualified Traq.ProtoLang as P
-import qualified Traq.Utils.Printing as PP
 
 -- --------------------------------------------------------------------------------
 -- Printing and Parsing
@@ -45,17 +37,3 @@ class SerializePrim prim where
 
   -- | print the primitives parameters.
   printPrimParams :: prim -> [String]
-
--- Pretty Printing
-instance (SerializePrim prim) => PP.ToCodeString (Primitive prim) where
-  build (Primitive par_funs prim) = do
-    fns <- concatMapM PP.fromBuild par_funs
-    PP.putWord $ printf "@%s<%s>[%s]" (primNameOf prim) (PP.commaList $ printPrimParams prim) fns
-
--- Parsing
-instance (SerializePrim prim, SizeType prim ~ Sym.Sym SizeT) => P.Parseable (Primitive prim) where
-  parseE tp@TokenParser{..} = do
-    ('@' : name) <- foldr1 (<|>) $ map (\s -> try $ symbol $ "@" ++ s) $ primNames @prim
-    prim <- angles $ parsePrimParams tp name
-    par_funs <- brackets $ many $ P.parseE tp
-    return $ Primitive par_funs prim
