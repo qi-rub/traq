@@ -73,22 +73,9 @@ instance
 instance
   (P.TypingReqs size, Integral size, Floating prec, A.SizeToPrec size prec) =>
   QuantumHavocCostPrim (DefaultPrimCollection size prec) size prec
-
 instance
   (size ~ SizeT, P.TypingReqs size, Integral size, Floating prec, A.SizeToPrec size prec, Prob.RVType prec prec) =>
   QuantumExpCostPrim (DefaultPrimCollection size prec) size prec
-  where
-  quantumExpQueryCostsQuantum (QAny p) eps fs = shapeToList $ quantumExpQueryCostsQuantum p eps (reshapeUnsafe fs)
-  quantumExpQueryCostsQuantum (RAny p) eps fs = shapeToList $ quantumExpQueryCostsQuantum p eps (reshapeUnsafe fs)
-  quantumExpQueryCostsQuantum (DAny p) eps fs = shapeToList $ quantumExpQueryCostsQuantum p eps (reshapeUnsafe fs)
-
-  quantumExpQueryCostsUnitary (QAny p) eps fs = shapeToList $ quantumExpQueryCostsUnitary p eps (reshapeUnsafe fs)
-  quantumExpQueryCostsUnitary (RAny p) eps fs = shapeToList $ quantumExpQueryCostsUnitary p eps (reshapeUnsafe fs)
-  quantumExpQueryCostsUnitary (DAny p) eps fs = shapeToList $ quantumExpQueryCostsUnitary p eps (reshapeUnsafe fs)
-
-  quantumExpExprCosts (QAny p) eps fs = quantumExpExprCosts p eps (reshapeUnsafe fs)
-  quantumExpExprCosts (RAny p) eps fs = quantumExpExprCosts p eps (reshapeUnsafe fs)
-  quantumExpExprCosts (DAny p) eps fs = quantumExpExprCosts p eps (reshapeUnsafe fs)
 
 type DefaultPrims sizeT precT = Primitive (DefaultPrimCollection sizeT precT)
 
