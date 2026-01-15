@@ -20,7 +20,7 @@ import Traq.Primitives.Class.UnitaryCost
 import qualified Traq.ProtoLang as P
 
 -- --------------------------------------------------------------------------------
--- Quantum Compiler: Costs, Error.
+-- Quantum Costs
 -- --------------------------------------------------------------------------------
 
 {- | Worst-case Quantum query and operation costs of a primitive.

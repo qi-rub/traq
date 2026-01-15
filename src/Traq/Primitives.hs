@@ -12,7 +12,6 @@ module Traq.Primitives (
   QSearchCFNW (..),
 ) where
 
-import Control.Monad.Except (liftEither)
 import GHC.Generics
 
 import qualified Traq.Data.Probability as Prob
@@ -66,8 +65,8 @@ instance (Show size) => SerializePrim (DefaultPrimCollection size prec) where
   printPrimParams (DAny p) = printPrimParams p
 
 -- Generic instances
-instance (P.TypingReqs sizeT) => TypeCheckPrim (DefaultPrimCollection sizeT precT) sizeT
-instance EvalPrim (DefaultPrimCollection sizeT precT) sizeT precT
+instance (P.TypingReqs size) => TypeCheckPrim (DefaultPrimCollection size prec) size
+instance EvalPrim (DefaultPrimCollection size prec) size prec
 instance (P.TypingReqs size, Integral size, Floating prec) => UnitaryCostPrim (DefaultPrimCollection size prec) size prec
 
 instance

@@ -22,7 +22,7 @@ import Traq.Primitives.Class.Prelude
 import Traq.Primitives.Class.TypeCheck
 
 -- --------------------------------------------------------------------------------
--- Unitary Compiler: Costs, Error.
+-- Unitary Costs
 -- --------------------------------------------------------------------------------
 
 data UnitaryQueries prec = UnitaryQueries {strong, weak :: prec}

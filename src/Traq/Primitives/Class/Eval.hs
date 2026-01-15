@@ -53,19 +53,18 @@ class
     prim ->
     shape ([P.Value size] -> m [P.Value size]) ->
     m [P.Value size]
-  evalPrim prim = gevalPrim (from prim)
+  evalPrim prim = gevalPrim (from prim) . shapeToList
 
 class GEvalPrim f size prec | f -> size prec where
   gevalPrim ::
-    forall ext' shape m p.
+    forall ext' m p.
     ( P.Evaluatable ext' size prec
     , m ~ P.Evaluator ext'
     , SizeType ext' ~ size
     , PrecType ext' ~ prec
-    , ValidPrimShape shape
     ) =>
     f p ->
-    shape ([P.Value size] -> m [P.Value size]) ->
+    [[P.Value size] -> m [P.Value size]] ->
     m [P.Value size]
 
 instance (GEvalPrim a size prec, GEvalPrim b size prec) => GEvalPrim (a :+: b) size prec where
