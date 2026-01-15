@@ -61,14 +61,13 @@ class
     PrimFnShape prim (UnitaryQueries prec)
   unitaryQueryCosts prim = reshapeUnsafe . gunitaryQueryCosts (from prim)
 
-  -- | Cost of all additional operations. Defaults to zero.
-  unitaryExprCosts :: (C.CostModel cost, precT ~ PrecType cost) => prim -> A.FailProb prec -> cost
-  -- unitaryExprCosts _ _ = Alg.zero
+  -- | Cost of all additional operations.
+  unitaryExprCosts :: (C.CostModel cost, prec ~ PrecType cost) => prim -> A.FailProb prec -> cost
   default unitaryExprCosts ::
     ( Generic prim
     , GUnitaryCostPrim (Rep prim) size prec
     , C.CostModel cost
-    , precT ~ PrecType cost
+    , prec ~ PrecType cost
     ) =>
     prim ->
     A.FailProb prec ->
@@ -77,7 +76,7 @@ class
 
 class GUnitaryCostPrim f size prec | f -> size prec where
   gunitaryQueryCosts :: f prim -> A.FailProb prec -> [UnitaryQueries prec]
-  gunitaryExprCosts :: (C.CostModel cost, precT ~ PrecType cost) => f prim -> A.FailProb prec -> cost
+  gunitaryExprCosts :: (C.CostModel cost, prec ~ PrecType cost) => f prim -> A.FailProb prec -> cost
 
 instance (GUnitaryCostPrim a size prec, GUnitaryCostPrim b size prec) => GUnitaryCostPrim (a :+: b) size prec where
   gunitaryQueryCosts (L1 x) = gunitaryQueryCosts x
@@ -88,8 +87,10 @@ instance (GUnitaryCostPrim a size prec, GUnitaryCostPrim b size prec) => GUnitar
 
 instance (GUnitaryCostPrim f size prec) => GUnitaryCostPrim (M1 i c f) size prec where
   gunitaryQueryCosts (M1 x) = gunitaryQueryCosts x
+
   gunitaryExprCosts (M1 x) = gunitaryExprCosts x
 
 instance (UnitaryCostPrim a size prec) => GUnitaryCostPrim (K1 i a) size prec where
   gunitaryQueryCosts (K1 x) = shapeToList . unitaryQueryCosts x
+
   gunitaryExprCosts (K1 x) = unitaryExprCosts x

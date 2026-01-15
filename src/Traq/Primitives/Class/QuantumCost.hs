@@ -1,4 +1,5 @@
 {-# LANGUAGE AllowAmbiguousTypes #-}
+{-# LANGUAGE DefaultSignatures #-}
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE FunctionalDependencies #-}
 {-# LANGUAGE UndecidableInstances #-}
@@ -8,6 +9,8 @@ module Traq.Primitives.Class.QuantumCost (
   QuantumHavocCostPrim (..),
   QuantumExpCostPrim (..),
 ) where
+
+import GHC.Generics
 
 import qualified Numeric.Algebra as Alg
 
@@ -38,13 +41,58 @@ class
   where
   -- | Bound on number of queries made to each function's quantum compilation.
   quantumQueryCostsQuantum :: prim -> A.FailProb prec -> PrimFnShape prim prec
+  default quantumQueryCostsQuantum ::
+    ( Generic prim
+    , GQuantumHavocCostPrim (Rep prim) size prec
+    ) =>
+    prim ->
+    A.FailProb prec ->
+    PrimFnShape prim prec
+  quantumQueryCostsQuantum prim = reshapeUnsafe . gquantumQueryCostsQuantum (from prim)
 
   -- | Bound on number of queries made to each function's unitary compilation.
   quantumQueryCostsUnitary :: prim -> A.FailProb prec -> PrimFnShape prim (UnitaryQueries prec)
+  default quantumQueryCostsUnitary ::
+    ( Generic prim
+    , GQuantumHavocCostPrim (Rep prim) size prec
+    ) =>
+    prim ->
+    A.FailProb prec ->
+    PrimFnShape prim (UnitaryQueries prec)
+  quantumQueryCostsUnitary prim = reshapeUnsafe . gquantumQueryCostsUnitary (from prim)
 
   -- | Cost of all additional operations. Defaults to zero.
   quantumExprCosts :: (C.CostModel cost, precT ~ PrecType cost) => prim -> A.FailProb prec -> cost
   quantumExprCosts _ _ = Alg.zero
+
+class GQuantumHavocCostPrim f size prec | f -> size prec where
+  gquantumQueryCostsQuantum :: f prim -> A.FailProb prec -> [prec]
+  gquantumQueryCostsUnitary :: f prim -> A.FailProb prec -> [UnitaryQueries prec]
+  gquantumExprCosts :: (C.CostModel cost, prec ~ PrecType cost) => f prim -> A.FailProb prec -> cost
+
+instance (GQuantumHavocCostPrim a size prec, GQuantumHavocCostPrim b size prec) => GQuantumHavocCostPrim (a :+: b) size prec where
+  gquantumQueryCostsQuantum (L1 x) = gquantumQueryCostsQuantum x
+  gquantumQueryCostsQuantum (R1 x) = gquantumQueryCostsQuantum x
+
+  gquantumQueryCostsUnitary (L1 x) = gquantumQueryCostsUnitary x
+  gquantumQueryCostsUnitary (R1 x) = gquantumQueryCostsUnitary x
+
+  gquantumExprCosts (L1 x) = gquantumExprCosts x
+  gquantumExprCosts (R1 x) = gquantumExprCosts x
+
+instance (GQuantumHavocCostPrim f size prec) => GQuantumHavocCostPrim (M1 i c f) size prec where
+  gquantumQueryCostsQuantum (M1 x) = gquantumQueryCostsQuantum x
+
+  gquantumQueryCostsUnitary (M1 x) = gquantumQueryCostsUnitary x
+
+  gquantumExprCosts (M1 x) = gquantumExprCosts x
+
+instance (QuantumHavocCostPrim a size prec) => GQuantumHavocCostPrim (K1 i a) size prec where
+  gquantumQueryCostsQuantum (K1 x) = shapeToList . quantumQueryCostsQuantum x
+
+  gquantumQueryCostsUnitary (K1 x) = shapeToList . quantumQueryCostsUnitary x
+
+  gquantumExprCosts (K1 x) = quantumExprCosts x
 
 {- | Expected Quantum query and operation costs of a primitive.
 Represents one level of the call graph.

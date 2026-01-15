@@ -67,23 +67,12 @@ instance (Show size) => SerializePrim (DefaultPrimCollection size prec) where
 -- Generic instances
 instance (P.TypingReqs size) => TypeCheckPrim (DefaultPrimCollection size prec) size
 instance EvalPrim (DefaultPrimCollection size prec) size prec
-instance (P.TypingReqs size, Integral size, Floating prec) => UnitaryCostPrim (DefaultPrimCollection size prec) size prec
-
+instance
+  (P.TypingReqs size, Integral size, Floating prec) =>
+  UnitaryCostPrim (DefaultPrimCollection size prec) size prec
 instance
   (P.TypingReqs size, Integral size, Floating prec, A.SizeToPrec size prec) =>
   QuantumHavocCostPrim (DefaultPrimCollection size prec) size prec
-  where
-  quantumQueryCostsQuantum (QAny p) = shapeToList . quantumQueryCostsQuantum p
-  quantumQueryCostsQuantum (RAny p) = shapeToList . quantumQueryCostsQuantum p
-  quantumQueryCostsQuantum (DAny p) = shapeToList . quantumQueryCostsQuantum p
-
-  quantumQueryCostsUnitary (QAny p) = shapeToList . quantumQueryCostsUnitary p
-  quantumQueryCostsUnitary (RAny p) = shapeToList . quantumQueryCostsUnitary p
-  quantumQueryCostsUnitary (DAny p) = shapeToList . quantumQueryCostsUnitary p
-
-  quantumExprCosts (QAny p) = quantumExprCosts p
-  quantumExprCosts (RAny p) = quantumExprCosts p
-  quantumExprCosts (DAny p) = quantumExprCosts p
 
 instance
   (size ~ SizeT, P.TypingReqs size, Integral size, Floating prec, A.SizeToPrec size prec, Prob.RVType prec prec) =>
