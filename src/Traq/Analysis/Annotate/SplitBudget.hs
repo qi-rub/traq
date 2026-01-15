@@ -97,24 +97,37 @@ class AnnotateWithErrorBudgetQ ext where
     ext' ->
     m ext'
 
--- | Internal class
-class AnnotateWithErrorBudget1 (p :: Type -> Type) where
-  annEpsU1
-    , annEpsQ1 ::
-      forall ext ext' size prec m.
-      ( AnnotateWithErrorBudgetU ext
-      , AnnotateWithErrorBudgetQ ext
-      , ext' ~ AnnFailProb ext
-      , size ~ SizeType ext
-      , prec ~ PrecType ext
-      , ErrorReqs size prec
-      , m ~ AnnotateMonad ext ext'
-      ) =>
-      FailProb prec ->
-      p ext' ->
-      m (p ext')
+-- | Internal class for unitary error budget
+class AnnotateWithErrorBudgetU1 (p :: Type -> Type) where
+  annEpsU1 ::
+    forall ext ext' size prec m.
+    ( AnnotateWithErrorBudgetU ext
+    , ext' ~ AnnFailProb ext
+    , size ~ SizeType ext
+    , prec ~ PrecType ext
+    , ErrorReqs size prec
+    , m ~ AnnotateMonad ext ext'
+    ) =>
+    FailProb prec ->
+    p ext' ->
+    m (p ext')
 
-instance AnnotateWithErrorBudget1 Expr where
+-- | Internal class for quantum error budget
+class AnnotateWithErrorBudgetQ1 (p :: Type -> Type) where
+  annEpsQ1 ::
+    forall ext ext' size prec m.
+    ( AnnotateWithErrorBudgetQ ext
+    , ext' ~ AnnFailProb ext
+    , size ~ SizeType ext
+    , prec ~ PrecType ext
+    , ErrorReqs size prec
+    , m ~ AnnotateMonad ext ext'
+    ) =>
+    FailProb prec ->
+    p ext' ->
+    m (p ext')
+
+instance AnnotateWithErrorBudgetU1 Expr where
   annEpsU1 _ BasicExprE{..} = pure BasicExprE{..}
   annEpsU1 _ RandomSampleE{..} = pure RandomSampleE{..}
   annEpsU1 eps FunCallE{..} = do
@@ -124,6 +137,7 @@ instance AnnotateWithErrorBudget1 Expr where
   annEpsU1 eps (PrimCallE ext') = PrimCallE <$> annEpsU eps ext'
   annEpsU1 _ _ = error "UNSUPPORTED"
 
+instance AnnotateWithErrorBudgetQ1 Expr where
   annEpsQ1 _ BasicExprE{..} = pure BasicExprE{..}
   annEpsQ1 _ RandomSampleE{..} = pure RandomSampleE{..}
   annEpsQ1 eps FunCallE{..} = do
@@ -133,7 +147,7 @@ instance AnnotateWithErrorBudget1 Expr where
   annEpsQ1 eps (PrimCallE ext) = PrimCallE <$> annEpsQ eps ext
   annEpsQ1 _ _ = error "UNSUPPORTED"
 
-instance AnnotateWithErrorBudget1 Stmt where
+instance AnnotateWithErrorBudgetU1 Stmt where
   annEpsU1 eps ExprS{rets, expr} = do
     expr <- annEpsU1 eps expr
     pure ExprS{rets, expr}
@@ -144,6 +158,7 @@ instance AnnotateWithErrorBudget1 Stmt where
     SeqS <$> mapM (annEpsU1 eps') ss
   annEpsU1 _ _ = error "UNSUPPORTED"
 
+instance AnnotateWithErrorBudgetQ1 Stmt where
   annEpsQ1 eps ExprS{rets, expr} = do
     expr <- annEpsQ1 eps expr
     pure ExprS{rets, expr}
@@ -157,52 +172,53 @@ instance AnnotateWithErrorBudget1 Stmt where
         SeqS <$> mapM (annEpsQ1 eps') ss
   annEpsQ1 _ _ = error "UNSUPPORTED"
 
-instance AnnotateWithErrorBudget1 FunBody where
+instance AnnotateWithErrorBudgetU1 FunBody where
   annEpsU1 eps FunBody{..} = do
     body_stmt <- annEpsU1 eps body_stmt
     pure FunBody{..}
 
+instance AnnotateWithErrorBudgetQ1 FunBody where
   annEpsQ1 eps FunBody{..} = do
     body_stmt <- annEpsQ1 eps body_stmt
     pure FunBody{..}
 
-instance AnnotateWithErrorBudget1 FunDef where
+instance AnnotateWithErrorBudgetU1 FunDef where
   annEpsU1 _ FunDef{mbody = Nothing, ..} = pure $ FunDef{mbody = Nothing, ..}
   annEpsU1 eps FunDef{mbody = Just body, ..} = do
     body <- annEpsU1 eps body
     pure FunDef{mbody = Just body, ..}
 
+instance AnnotateWithErrorBudgetQ1 FunDef where
   annEpsQ1 _ FunDef{mbody = Nothing, ..} = pure $ FunDef{mbody = Nothing, ..}
   annEpsQ1 eps FunDef{mbody = Just body, ..} = do
     body <- annEpsQ1 eps body
     pure FunDef{mbody = Just body, ..}
 
-instance AnnotateWithErrorBudget1 NamedFunDef where
+instance AnnotateWithErrorBudgetU1 NamedFunDef where
   annEpsU1 eps NamedFunDef{..} = do
     fun_def <- annEpsU1 eps fun_def
     _funCtx . Ctx.ix fun_name .= fun_def
     pure NamedFunDef{..}
 
+instance AnnotateWithErrorBudgetQ1 NamedFunDef where
   annEpsQ1 eps NamedFunDef{..} = do
     fun_def <- annEpsQ1 eps fun_def
     _funCtx . Ctx.ix fun_name .= fun_def
     pure NamedFunDef{..}
 
-data CompilerType = CompilerQ | CompilerU
-
-annotateProgWithErrorBudgetGen ::
+annotateProgWithErrorBudgetWith ::
   ( m ~ Either String
-  , AnnotateWithErrorBudgetU ext
-  , AnnotateWithErrorBudgetQ ext
+  , ext' ~ AnnFailProb ext
+  , m' ~ AnnotateMonad ext ext'
   , size ~ SizeType ext
   , prec ~ PrecType ext
   , ErrorReqs size prec
   ) =>
-  CompilerType ->
+  (FailProb prec -> NamedFunDef ext' -> m' a) ->
   FailProb prec ->
   Program ext ->
   m (Program (AnnFailProb ext))
-annotateProgWithErrorBudgetGen compiler eps prog = do
+annotateProgWithErrorBudgetWith annotater eps prog = do
   -- start with program with each primitive annotated with fail prob = 1
   prog' <- annotateProgWith (_exts (annFixedEps (failProb 1.0))) prog
 
@@ -215,26 +231,32 @@ annotateProgWithErrorBudgetGen compiler eps prog = do
   -- run the budget splitting on the main function
   let Program fs = prog'
       main_fn = last fs
-  (_, st', ()) <-
-    runRWST
-      ((case compiler of CompilerQ -> annEpsQ1; CompilerU -> annEpsU1) eps main_fn)
-      env
-      st
+  (_, st', ()) <- runRWST (annotater eps main_fn) env st
 
   -- extract program from the final state
   pure $ st' ^. _funCtx . to funCtxToNamedFuns . to Program
 
-annotateProgWithErrorBudget
-  , annotateProgWithErrorBudgetU ::
-    ( m ~ Either String
-    , AnnotateWithErrorBudgetU ext
-    , AnnotateWithErrorBudgetQ ext
-    , size ~ SizeType ext
-    , prec ~ PrecType ext
-    , ErrorReqs size prec
-    ) =>
-    FailProb prec ->
-    Program ext ->
-    m (Program (AnnFailProb ext))
-annotateProgWithErrorBudget = annotateProgWithErrorBudgetGen CompilerQ
-annotateProgWithErrorBudgetU = annotateProgWithErrorBudgetGen CompilerU
+annotateProgWithErrorBudgetU ::
+  ( m ~ Either String
+  , AnnotateWithErrorBudgetU ext
+  , size ~ SizeType ext
+  , prec ~ PrecType ext
+  , ErrorReqs size prec
+  ) =>
+  FailProb prec ->
+  Program ext ->
+  m (Program (AnnFailProb ext))
+annotateProgWithErrorBudgetU = annotateProgWithErrorBudgetWith annEpsU1
+
+annotateProgWithErrorBudget ::
+  ( m ~ Either String
+  , AnnotateWithErrorBudgetU ext
+  , AnnotateWithErrorBudgetQ ext
+  , size ~ SizeType ext
+  , prec ~ PrecType ext
+  , ErrorReqs size prec
+  ) =>
+  FailProb prec ->
+  Program ext ->
+  m (Program (AnnFailProb ext))
+annotateProgWithErrorBudget = annotateProgWithErrorBudgetWith annEpsQ1

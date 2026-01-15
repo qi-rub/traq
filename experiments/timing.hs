@@ -39,7 +39,8 @@ type ValidExt ext =
   , SizeType ext ~ SizeT
   , Traq.Compiler.Quantum.Lowerable ext SizeT Double
   , P.HasFreeVars ext
-  , Traq.AnnotateWithErrorBudget ext
+  , Traq.AnnotateWithErrorBudgetU ext
+  , Traq.AnnotateWithErrorBudgetQ ext
   , Traq.ExpCostQ (Traq.AnnFailProb ext) SizeT Double
   )
 
