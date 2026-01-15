@@ -21,13 +21,6 @@ module Traq.Analysis.Cost (
 
   -- * Quantum Cost
 
-  -- ** Expected cost
-  quantumQueryCost,
-  quantumQueryCostE,
-  quantumQueryCostS,
-  quantumQueryCostF,
-  QuantumExpCost (..),
-
   -- ** Quantum Worst case Cost
   quantumMaxQueryCost,
   quantumMaxQueryCostE,

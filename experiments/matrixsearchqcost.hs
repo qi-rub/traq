@@ -14,7 +14,7 @@ import Text.Printf (printf)
 
 import qualified Traq.Data.Context as Ctx
 
-import qualified Traq.Analysis as P
+import qualified Traq.Analysis as A
 import Traq.Analysis.CostModel.QueryCost (SimpleQueryCost (..))
 import Traq.Examples.MatrixSearch
 import Traq.Prelude
@@ -31,7 +31,9 @@ printDivider = putStrLn $ replicate 80 '='
 data Phantom p = Phantom
 
 class
-  ( P.QuantumExpCost p SizeT Double
+  ( A.ExpCostQ (A.AnnFailProb p) SizeT Double
+  , A.AnnotateWithErrorBudgetU p
+  , A.AnnotateWithErrorBudgetQ p
   , SizeType p ~ SizeT
   , PrecType p ~ Double
   ) =>
@@ -94,7 +96,7 @@ qcost ::
   (MatrixType matT, MyPrim primsT) =>
   Phantom primsT ->
   -- | eps (max. fail probability)
-  P.FailProb Double ->
+  A.FailProb Double ->
   -- | matrix
   matT ->
   Double
@@ -104,10 +106,11 @@ qcost _ eps mat = getCost cost
   m = nCols mat
 
   ex = matrixExample @primsT n m
+  ex' = either error id $ A.annotateProgWithErrorBudget eps ex
 
   dataCtx = Ctx.singleton "Matrix" (toValueFun mat)
 
-  cost = P.quantumQueryCost @_ @Double @(SimpleQueryCost Double) P.SplitUsingNeedsEps eps ex dataCtx []
+  cost = A.expCostQProg ex' [] dataCtx
 
 randomMatrix :: SizeT -> SizeT -> IO [[Value]]
 randomMatrix n m = do
@@ -132,7 +135,7 @@ randomMatrixWith (n, m) g z = do
   let rows = bad_rows ++ replicate g (replicate m (P.FinV 1))
   shuffleM rows
 
-randomStat :: (MyPrim primsT) => Phantom primsT -> SizeT -> P.FailProb Double -> Int -> IO [Double]
+randomStat :: (MyPrim primsT) => Phantom primsT -> SizeT -> A.FailProb Double -> Int -> IO [Double]
 randomStat phantom nruns eps n =
   replicateM nruns $ do
     mat <- randomMatrix n n
@@ -144,7 +147,7 @@ computeStatsForRandomMatrices phantom =
     hPutStrLn h "eps,n,cost"
     forM_ [0.001, 0.0005, 0.0001] $ \eps -> do
       forM_ [10, 20 .. 100] $ \n -> do
-        cs <- randomStat phantom 20 (P.failProb eps) n
+        cs <- randomStat phantom 20 (A.failProb eps) n
         forM cs $ \c -> do
           hPutStrLn h $ printf "%f,%d,%.2f" eps n c
 
@@ -158,7 +161,7 @@ computeStatsForPlantedRandomMatrices phantom =
       forM_ [0 .. n `div` 4 + 1] $ \g -> do
         forM_ [1] $ \z -> do
           mat <- randomMatrixWith (n, m) g z
-          let c = qcost phantom (P.failProb eps) mat
+          let c = qcost phantom (A.failProb eps) mat
           hPutStrLn h $ printf "%f,%d,%d,%d,%d,%.2f" eps n m g z c
 
 computeStatsForWorstCaseMatrices :: (MyPrim primsT) => Phantom primsT -> IO ()
@@ -170,7 +173,7 @@ computeStatsForWorstCaseMatrices phantom =
     forM_ ((10 :: Int) : [20, 40, 100]) $ \n -> do
       putStrLn $ ">> n = " <> show n
       let m = n
-      let c = qcost phantom (P.failProb eps) (n, m, matfun)
+      let c = qcost phantom (A.failProb eps) (n, m, matfun)
       hPutStrLn h $ printf "%d,%.2f" n c
  where
   matfun :: Value -> Value -> Bool
