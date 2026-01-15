@@ -94,6 +94,17 @@ type ErrorAnalysisMonad ext = Reader (FunCtx ext)
 -- | Wrapper for values representing an l2-norm error in [0, 1]
 newtype L2NormError precT = L2NormError precT
   deriving (Eq, Read, Show, Num)
+{-# DEPRECATED
+  L2NormError
+  , l2NormError
+  , getL2NormError
+  , failProbToNormError
+  , normErrorToFailProb
+  , requiredFailProbToNormError
+  , requiredNormErrorToFailProb
+  , DivideError
+  "Use FailProb with newer methods"
+  #-}
 
 -- | Safe constructor
 l2NormError :: (Num precT) => precT -> L2NormError precT

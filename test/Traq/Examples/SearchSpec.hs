@@ -84,7 +84,8 @@ spec = describe "SearchSpec" $ do
       assertRight $ P.typeCheckProg ex
 
     let planted_sols = [2, 4, 5] :: [SizeT]
-    let oracleF = \[P.FinV i] -> [P.toValue $ i `elem` planted_sols]
+    let oracleF [P.FinV i] = [P.toValue $ i `elem` planted_sols]
+        oracleF _ = error "invalid inputs"
     let interpCtx = Ctx.singleton "Oracle" oracleF
 
     it "evaluates" $ do
