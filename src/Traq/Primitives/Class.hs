@@ -20,11 +20,9 @@ import Control.Monad (forM, forM_, void, when)
 import Control.Monad.Except (throwError)
 import Control.Monad.Extra (concatMapM)
 import Control.Monad.Reader (runReaderT)
-import Data.Kind (Type)
 import Data.Maybe (catMaybes, fromMaybe)
 import Text.Parsec (try)
-import Text.Parsec.String (Parser)
-import Text.Parsec.Token (GenTokenParser (..), TokenParser)
+import Text.Parsec.Token (GenTokenParser (..))
 import Text.Printf (printf)
 
 import Lens.Micro.GHC
@@ -36,7 +34,6 @@ import qualified Traq.Data.Context as Ctx
 import qualified Traq.Data.Symbolic as Sym
 
 import qualified Traq.Analysis as A
-import qualified Traq.Analysis.CostModel.Class as C
 import Traq.Prelude
 import Traq.Primitives.Class.Eval
 import Traq.Primitives.Class.Prelude

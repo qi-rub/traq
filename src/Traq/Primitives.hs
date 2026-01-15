@@ -74,7 +74,7 @@ instance
   (P.TypingReqs size, Integral size, Floating prec, A.SizeToPrec size prec) =>
   QuantumHavocCostPrim (DefaultPrimCollection size prec) size prec
 instance
-  (size ~ SizeT, P.TypingReqs size, Integral size, Floating prec, A.SizeToPrec size prec, Prob.RVType prec prec) =>
+  (P.EvalReqs size prec, Floating prec) =>
   QuantumExpCostPrim (DefaultPrimCollection size prec) size prec
 
 type DefaultPrims sizeT precT = Primitive (DefaultPrimCollection sizeT precT)
