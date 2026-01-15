@@ -7,6 +7,7 @@ module Traq.Primitives.Class.Prelude (
   -- * Primitives
   PrimFnShape,
   ValidPrimShape (..),
+  reshape,
   reshapeUnsafe,
 
   -- ** Partial Functions
@@ -67,8 +68,11 @@ class ValidPrimShape shape where
   listToShape :: [a] -> Either String (shape a)
   shapeToList :: shape a -> [a]
 
+reshape :: (ValidPrimShape shape, ValidPrimShape shape') => shape a -> Either String (shape' a)
+reshape = listToShape . shapeToList
+
 reshapeUnsafe :: (ValidPrimShape shape, ValidPrimShape shape') => shape a -> shape' a
-reshapeUnsafe = either (error "please typecheck first") id . listToShape . shapeToList
+reshapeUnsafe = either (error "please typecheck first") id . reshape
 
 instance ValidPrimShape [] where
   listToShape = Right
