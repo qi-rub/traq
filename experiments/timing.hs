@@ -39,7 +39,8 @@ type ValidExt ext =
   , SizeType ext ~ SizeT
   , Traq.Compiler.Quantum.Lowerable ext SizeT Double
   , P.HasFreeVars ext
-  , Traq.QuantumExpCost ext SizeT Double
+  , Traq.AnnotateWithErrorBudget ext
+  , Traq.ExpCostQ (Traq.AnnFailProb ext) SizeT Double
   )
 
 -- | Compute the number of qubits used by the compiled program.
@@ -52,8 +53,9 @@ numQubitsRequired prog eps = do
 traqWallTime :: (ValidExt ext) => P.Program ext -> Double -> P.FunInterpCtx SizeT -> IO Double
 traqWallTime prog eps fs = do
   (t, _) <- timeItT $ do
+    prog' <- either fail pure $ Traq.annotateProgWithErrorBudget (Traq.failProb eps) prog
     let cost :: Traq.SimpleQueryCost Double
-        !cost = Traq.quantumQueryCost Traq.SplitSimple (Traq.failProb eps) prog fs []
+        !cost = Traq.expCostQProg prog' [] fs
     return $ Traq.getCost cost
   return t
 
