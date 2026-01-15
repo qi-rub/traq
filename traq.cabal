@@ -68,11 +68,12 @@ library
       Traq.Primitives.Amplify.Prelude
       Traq.Primitives.Amplify.QAmplify
       Traq.Primitives.Class
-      Traq.Primitives.Class.Cost
       Traq.Primitives.Class.Eval
       Traq.Primitives.Class.Prelude
+      Traq.Primitives.Class.QuantumCost
       Traq.Primitives.Class.Serialize
       Traq.Primitives.Class.TypeCheck
+      Traq.Primitives.Class.UnitaryCost
       Traq.Primitives.Count.QCount
       Traq.Primitives.Max.QMax
       Traq.Primitives.Search.DetSearch
