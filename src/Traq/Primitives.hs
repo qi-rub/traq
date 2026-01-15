@@ -14,8 +14,6 @@ module Traq.Primitives (
 
 import GHC.Generics
 
-import qualified Traq.Data.Probability as Prob
-
 import qualified Traq.Analysis as A
 import qualified Traq.Compiler.Quantum as CompileQ
 import qualified Traq.Compiler.Unitary as CompileU

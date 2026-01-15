@@ -27,7 +27,9 @@ matrixToFun _ _ = error "invalid indices"
 expectedCost ::
   forall primT primT'.
   ( P.Parseable primT'
-  , A.QuantumExpCost primT SizeT Double
+  , A.AnnotateWithErrorBudgetU primT
+  , A.AnnotateWithErrorBudgetQ primT
+  , A.ExpCostQ (A.AnnFailProb primT) SizeT Double
   , SizeType primT' ~ Sym.Sym Int
   , P.MapSize primT'
   , primT ~ P.MappedSize primT' Int
@@ -42,26 +44,20 @@ expectedCost n m matrix eps = do
   -- load the program
   Right loaded_program <- parseFromFile (P.programParser @primT') "examples/matrix_search/matrix_search.qb"
   let program = P.mapSize (Sym.unSym . Sym.subst "M" (Sym.con m) . Sym.subst "N" (Sym.con n)) loaded_program
+  program_annotated <- either fail pure $ A.annotateProgWithErrorBudget (A.failProb eps) program
 
   -- the functionality of Matrix, provided as input data
   let interp = Ctx.singleton "Matrix" (matrixToFun matrix)
 
-  return $
-    getCost $
-      A.quantumQueryCost @primT
-        A.SplitUsingNeedsEps -- precision splitting strategy
-        (A.failProb eps) -- maximum failure probability
-        program
-        interp
-        mempty
+  return $ getCost $ A.expCostQProg program_annotated mempty interp
 
 main :: IO ()
 main = do
   putStrLn "Demo: Matrix Search"
 
-  let (n, m) = (1000, 1000)
+  let (n, m) = (500, 500)
   let sample_matrix _i j = j /= m - 1
-  let eps = 0.01
+  let eps = 0.001
 
   putStrLn "Costs for sample matrix:"
 
