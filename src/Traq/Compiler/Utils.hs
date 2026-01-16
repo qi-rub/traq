@@ -7,6 +7,8 @@ module Traq.Compiler.Utils (
   UniqNamesCtx,
   HasUniqNamesCtx (..),
   newIdent,
+  mkQProcName,
+  mkUProcName,
 
   -- * Compilation Monad
   CompilerT,
@@ -37,7 +39,6 @@ import Lens.Micro.Mtl
 import Traq.Control.Monad
 import Traq.Data.Default
 
-import qualified Traq.Analysis as A
 import qualified Traq.CQPL as CQPL
 import Traq.Prelude
 import qualified Traq.ProtoLang as P
@@ -73,6 +74,14 @@ newIdent prefix = do
     return $ case already_exists of
       Nothing -> Right name
       Just () -> Left $ i + 1
+
+-- | get the name of the compiled (cq) proc given the source fun name
+mkQProcName :: Ident -> Ident
+mkQProcName s = s
+
+-- | get the name of the compiled uproc given the source fun name
+mkUProcName :: Ident -> Ident
+mkUProcName s = s ++ "_U"
 
 -- ================================================================================
 -- Compiler State
@@ -111,7 +120,7 @@ addProc = writeElemAt _loweredProcs
 -- ================================================================================
 
 -- | Read-only compiler env
-type LoweringEnv ext = A.CostEnv ext
+type LoweringEnv ext = P.FunCtx ext
 
 -- ================================================================================
 -- Compiler Monad

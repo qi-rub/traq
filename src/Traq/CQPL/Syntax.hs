@@ -227,7 +227,7 @@ instance (Show sizeT) => PP.ToCodeString (Stmt sizeT) where
    where
     f_str :: FunctionCall -> String
     f_str (FunctionCall fname) = printf "call %s" fname
-    f_str (UProcAndMeas uproc_id) = printf "call_uproc_and_meas %s" uproc_id
+    f_str (UProcAndMeas uproc_id) = printf "meas %s" uproc_id
   build (SeqS ss) = mapM_ PP.build ss
   build IfThenElseS{cond, s_true, s_false} = do
     PP.putLine $ printf "if (%s) {" cond
@@ -289,7 +289,7 @@ buildUProcBody ::
   [String] ->
   m ()
 buildUProcBody UProcDecl name param_tys = do
-  PP.putLine $ printf "uproc %s(%s);" name (PP.commaList param_tys)
+  PP.putLine $ printf "ext uproc %s(%s);" name (PP.commaList param_tys)
 buildUProcBody UProcBody{uproc_param_names, uproc_param_tags, uproc_body_stmt} name param_tys = do
   arg_list <-
     uproc_param_tags
@@ -316,7 +316,7 @@ buildCProcBody ::
   [String] ->
   m ()
 buildCProcBody CProcDecl name param_tys = do
-  PP.putLine $ printf "proc %s(%s);" name (PP.commaList param_tys)
+  PP.putLine $ printf "ext proc %s(%s);" name (PP.commaList param_tys)
 buildCProcBody CProcBody{cproc_param_names, cproc_local_vars, cproc_body_stmt} name param_tys = do
   let arg_list = zipWith (printf "%s : %s") cproc_param_names param_tys
 

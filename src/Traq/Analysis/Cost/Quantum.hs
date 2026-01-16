@@ -167,6 +167,7 @@ costQProg ::
   ) =>
   Program ext ->
   cost
+costQProg (Program []) = Alg.zero
 costQProg (Program fs) =
   costQ main_fn & runReader ?? env
  where
@@ -189,6 +190,7 @@ expCostQProg ::
   -- | external function interpretations
   FunInterpCtx size ->
   cost
+expCostQProg (Program []) _ _ = Alg.zero
 expCostQProg (Program fs) args extern_fns =
   expCostQ main_fn main_sigma & runReader ?? env
  where

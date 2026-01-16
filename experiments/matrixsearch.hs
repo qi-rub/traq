@@ -5,7 +5,6 @@ import Control.Monad (forM_)
 import Data.List (inits)
 import Text.Printf (printf)
 
-import qualified Traq.Data.Context as Ctx
 import qualified Traq.Data.Symbolic as Sym
 
 import qualified Traq.Analysis as A
@@ -58,13 +57,13 @@ concreteEx = do
   printDivider
   putStrLn $ PP.toCodeString ex
 
-  let delta = P.l2NormError (0.001 :: Double)
-  let strat = P.SplitUsingNeedsEps
+  let eps = P.failProb (0.001 :: Double)
+  ex' <- either fail pure $ A.annotateProgWithErrorBudget eps ex
 
-  let u_formula_cost = P.unitaryQueryCost strat delta ex :: QueryCost Double
+  let u_formula_cost = P.costUProg ex' :: QueryCost Double
 
   printDivider
-  Right exU <- return $ CompileU.lowerProgram strat Ctx.empty delta ex
+  Right exU <- return $ CompileU.lowerProgram ex'
   putStrLn $ PP.toCodeString exU
 
   let (u_true_cost, _) = CQPL.programCost exU
@@ -85,10 +84,10 @@ concreteQEx = do
   putStrLn $ PP.toCodeString ex
 
   let eps = P.failProb (0.001 :: Double)
-  let strat = P.SplitUsingNeedsEps
+  ex' <- either fail pure $ A.annotateProgWithErrorBudget eps ex
 
   printDivider
-  Right exU <- return $ CompileQ.lowerProgram strat eps ex
+  Right exU <- return $ CompileQ.lowerProgram ex'
   putStrLn $ PP.toCodeString exU
   return ()
 

@@ -37,7 +37,7 @@ loadProgramFromFile fname = do
 type ValidExt ext =
   ( PrecType ext ~ Double
   , SizeType ext ~ SizeT
-  , Traq.Compiler.Quantum.Lowerable ext SizeT Double
+  , Traq.Compiler.Quantum.Lowerable (Traq.AnnFailProb ext) SizeT Double
   , P.HasFreeVars ext
   , Traq.AnnotateWithErrorBudgetU ext
   , Traq.AnnotateWithErrorBudgetQ ext
@@ -47,7 +47,8 @@ type ValidExt ext =
 -- | Compute the number of qubits used by the compiled program.
 numQubitsRequired :: (ValidExt ext) => P.Program ext -> Double -> Either String SizeT
 numQubitsRequired prog eps = do
-  compiled_prog <- Traq.Compiler.Quantum.lowerProgram Traq.SplitSimple (Traq.failProb eps) prog
+  prog' <- Traq.annotateProgWithErrorBudget (Traq.failProb eps) prog
+  compiled_prog <- Traq.Compiler.Quantum.lowerProgram prog'
   return $ CQPL.numQubits compiled_prog
 
 -- | Compute the wall-time by Traq to run a cost analysis

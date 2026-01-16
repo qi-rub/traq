@@ -13,6 +13,7 @@ import Traq.Examples.MatrixSearch (matrixExampleS, mkMatrixExample)
 import Traq.Prelude
 import Traq.Primitives
 import Traq.Primitives.Search.Prelude
+import Traq.Primitives.Search.QSearchCFNW
 import Traq.ProtoLang.Lenses
 import Traq.ProtoLang.Parser
 import Traq.ProtoLang.Rewrites

@@ -7,7 +7,9 @@ declare D_n(Fin<N>) -> Arr<N, Fin<M>> end
 
 declare Dist(Arr<N, Fin<M>>, Arr<N, Fin<M>>) -> Fin<M> end
 
-def check(dmax : Fin<M>, i: Fin<N>, j: Fin<N>) -> Bool do
+def check(dmax : Fin<M>, ij: Tup<Fin<N>, Fin<N>>) -> Bool do
+    i <- ij.0;
+    j <- ij.1;
     xi <- D_n(i);
     xj <- D_n(j);
     dist' <- Dist(xi, xj);
@@ -22,7 +24,7 @@ def loop_body(i: Fin<N>, j: Fin<N>) -> (Fin<N>, Fin<N>) do
     xj <- D_n(j);
     dmax <- Dist(xi, xj);
 
-    i', j' <- @search<Fin<N>, Fin<N>>[check(dmax, _, _)];
+    i', j' <- @search<Tup<Fin<N>, Fin<N>>>[check(dmax, _)];
     return i', j'
 end
 

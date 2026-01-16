@@ -2,9 +2,6 @@
 
 module Traq.Compiler.UnitarySpec (spec) where
 
-import qualified Traq.Data.Context as Ctx
-
-import qualified Traq.Analysis as P
 import qualified Traq.CQPL as CQPL
 import Traq.Compiler.Unitary
 import qualified Traq.ProtoLang as P
@@ -33,16 +30,12 @@ spec = do
 
         actual <-
           expectRight $
-            lowerProgram
-              P.SplitSimple
-              (Ctx.singleton "x" (P.Fin 10))
-              (P.l2NormError (0 :: Double))
-              (P.Program [P.NamedFunDef "main" main_fun])
+            lowerProgram (P.Program [P.NamedFunDef "main" main_fun])
 
         assertRight $ CQPL.typeCheckProgram actual
         PP.toCodeString actual
           `shouldBe` unlines
-            [ "// main[0.0]"
+            [ "// main"
             , "uproc main(x : IN Fin<10>, y : OUT Fin<10>) {"
             , "  x, y *= Embed[(x) => x];"
             , "}"

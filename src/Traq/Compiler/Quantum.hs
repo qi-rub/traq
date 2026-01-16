@@ -16,7 +16,7 @@ module Traq.Compiler.Quantum (
   Lowerable (..),
 ) where
 
-import Control.Monad (unless, zipWithM)
+import Control.Monad (unless)
 import Control.Monad.Except (throwError)
 import Control.Monad.RWS (RWST (..))
 import GHC.Generics hiding (to)
@@ -29,7 +29,6 @@ import Traq.Control.Monad
 import qualified Traq.Data.Context as Ctx
 import Traq.Data.Default
 
-import qualified Traq.Analysis as A
 import Traq.CQPL.Syntax
 import qualified Traq.Compiler.Unitary as CompileU
 import Traq.Compiler.Utils
@@ -49,15 +48,13 @@ class
     , SizeType ext' ~ sizeT
     , PrecType ext' ~ precT
     ) =>
-    -- | fail prob
-    A.FailProb precT ->
     ext ->
     -- | rets
     [Ident] ->
     m (Stmt sizeT)
 
 instance (P.TypingReqs sizeT) => Lowerable (P.Core sizeT precT) sizeT precT where
-  lowerPrimitive _ = \case {}
+  lowerPrimitive = \case {}
 
 -- | Generic
 class GLowerable f sizeT precT | f -> sizeT precT where
@@ -69,7 +66,6 @@ class GLowerable f sizeT precT | f -> sizeT precT where
     , PrecType ext' ~ precT
     ) =>
     f primT ->
-    A.FailProb precT ->
     -- | rets
     [Ident] ->
     m (Stmt sizeT)
@@ -91,7 +87,7 @@ instance
   (Lowerable f sizeT precT) =>
   GLowerable (K1 i f) sizeT precT
   where
-  glowerPrimitive (K1 x) delta = lowerPrimitive delta x
+  glowerPrimitive (K1 x) = lowerPrimitive x
 
 -- ================================================================================
 -- Compilation
@@ -105,15 +101,13 @@ lowerFunDef ::
   , Show precT
   , Floating precT
   ) =>
-  -- | fail prob
-  A.FailProb precT ->
   -- | source function name
   Ident ->
   -- | source function
   P.FunDef ext ->
   CompilerT ext Ident
 -- lower declarations as-is, ignoring fail prob
-lowerFunDef _ fun_name P.FunDef{P.param_types, P.ret_types, P.mbody = Nothing} = do
+lowerFunDef fun_name P.FunDef{P.param_types, P.ret_types, P.mbody = Nothing} = do
   let proc_def =
         ProcDef
           { info_comment = ""
@@ -124,15 +118,15 @@ lowerFunDef _ fun_name P.FunDef{P.param_types, P.ret_types, P.mbody = Nothing} =
           }
   addProc proc_def
   return fun_name
-lowerFunDef eps fun_name P.FunDef{P.param_types, P.mbody = Just body} = do
-  let info_comment = printf "%s[%s]" fun_name (show $ A.getFailProb eps)
+lowerFunDef fun_name P.FunDef{P.param_types, P.mbody = Just body} = do
+  let info_comment = printf "%s" fun_name
   proc_name <- newIdent fun_name
 
   let P.FunBody{P.param_names, P.ret_names, P.body_stmt} = body
 
   (cproc_body_stmt, proc_typing_ctx) <- withSandbox $ do
     P._typingCtx .= Ctx.fromList (zip param_names param_types)
-    b <- lowerStmt eps body_stmt
+    b <- lowerStmt body_stmt
     c <- use P._typingCtx
     return (b, c)
 
@@ -160,14 +154,12 @@ lowerFunDefByName ::
   , Show precT
   , Floating precT
   ) =>
-  -- | fail prob
-  A.FailProb precT ->
   -- | source function name
   Ident ->
   CompilerT ext Ident
-lowerFunDefByName eps f = do
+lowerFunDefByName f = do
   fun_def <- view $ P._funCtx . Ctx.at f . singular _Just
-  lowerFunDef eps f fun_def
+  lowerFunDef f fun_def
 
 -- | Lower a source expression to a statement.
 lowerExpr ::
@@ -177,30 +169,28 @@ lowerExpr ::
   , Show precT
   , Floating precT
   ) =>
-  -- fail prob
-  A.FailProb precT ->
   -- source expression
   P.Expr ext ->
   -- return variables
   [Ident] ->
   CompilerT ext (Stmt sizeT)
 -- basic expressions
-lowerExpr _ P.BasicExprE{P.basic_expr} rets = return $ AssignS rets basic_expr
+lowerExpr P.BasicExprE{P.basic_expr} rets = return $ AssignS rets basic_expr
 -- random sampling expressions
-lowerExpr _ P.RandomSampleE{P.distr_expr = P.UniformE{}} _rets = do
+lowerExpr P.RandomSampleE{P.distr_expr = P.UniformE{}} _rets = do
   error "TODO uniform random sampling operation"
-lowerExpr _ P.RandomSampleE{P.distr_expr = P.BernoulliE{}} _rets = do
+lowerExpr P.RandomSampleE{P.distr_expr = P.BernoulliE{}} _rets = do
   error "TODO biased coin toss"
 
 -- function call
-lowerExpr eps P.FunCallE{P.fname, P.args} rets = do
-  proc_name <- lowerFunDefByName eps fname
+lowerExpr P.FunCallE{P.fname, P.args} rets = do
+  proc_name <- lowerFunDefByName fname
   return $ CallS{fun = FunctionCall proc_name, args = args ++ rets, meta_params = []}
 
 -- primitive call
-lowerExpr eps P.PrimCallE{P.prim} rets =
-  lowerPrimitive eps prim rets
-lowerExpr _ _ _ = error "TODO: UNSUPPORTED"
+lowerExpr P.PrimCallE{P.prim} rets =
+  lowerPrimitive prim rets
+lowerExpr _ _ = error "TODO: UNSUPPORTED"
 
 -- | Lower a single statement
 lowerStmt ::
@@ -210,21 +200,17 @@ lowerStmt ::
   , Show precT
   , Floating precT
   ) =>
-  A.FailProb precT ->
   P.Stmt ext ->
   CompilerT ext (Stmt sizeT)
 -- single statement
-lowerStmt eps s@P.ExprS{P.rets, P.expr} = do
+lowerStmt s@P.ExprS{P.rets, P.expr} = do
   _ <- ignoreWriter . magnify P._funCtx . zoom P._typingCtx $ P.inferTypes s
-  lowerExpr eps expr rets
+  lowerExpr expr rets
 
 -- compound statements
-lowerStmt eps (P.SeqS ss) = do
-  epss <- A.splitEps eps ss
-  SeqS <$> zipWithM lowerStmt epss ss
-
+lowerStmt (P.SeqS ss) = SeqS <$> mapM lowerStmt ss
 -- unsupported
-lowerStmt _ _ = throwError "lowering: unsupported"
+lowerStmt _ = throwError "lowering: unsupported"
 
 -- | Lower a full program into a CQPL program.
 lowerProgram ::
@@ -235,20 +221,15 @@ lowerProgram ::
   , Floating precT
   , P.HasFreeVars ext
   ) =>
-  A.PrecisionSplittingStrategy ->
-  -- | fail prob \( \varepsilon \)
-  A.FailProb precT ->
-  -- | source program
   P.Program ext ->
   Either String (Program sizeT)
-lowerProgram strat eps prog@(P.Program fs) = do
+lowerProgram prog@(P.Program fs) = do
   unless (P.checkVarsUnique prog) $
     throwError "program does not have unique variables!"
 
   let config =
         default_
           & (P._funCtx .~ P.namedFunsToFunCtx fs)
-          & (A._precSplitStrat .~ strat)
   let lowering_ctx =
         default_
           -- & (P._typingCtx .~ gamma_in)
@@ -257,7 +238,7 @@ lowerProgram strat eps prog@(P.Program fs) = do
   let P.NamedFunDef{P.fun_name = main_name} = last fs
 
   (_, _, output) <-
-    lowerFunDefByName eps main_name
+    lowerFunDefByName main_name
       & (\m -> runRWST m config lowering_ctx)
 
   return Program{proc_defs = output ^. to (Ctx.fromListWith proc_name)}
