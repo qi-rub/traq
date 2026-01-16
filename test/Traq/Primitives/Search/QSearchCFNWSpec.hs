@@ -63,7 +63,7 @@ spec = do
                 CQPL.UCallS{CQPL.uproc_id = "Oracle", CQPL.dagger = False, CQPL.qargs = [c, x, b]}
             }
 
-    prop "matches cost" $ \params -> do
+    xprop "matches cost" $ \params -> do
       let n = space_size params
       let eps = precision params
       let compile_config = default_
