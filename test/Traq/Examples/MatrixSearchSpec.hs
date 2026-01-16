@@ -3,7 +3,6 @@
 module Traq.Examples.MatrixSearchSpec (spec) where
 
 import qualified Traq.Data.Context as Ctx
-import Traq.Data.Default
 import qualified Traq.Data.Symbolic as Sym
 
 import qualified Traq.Analysis as A
@@ -75,29 +74,34 @@ spec = describe "MatrixSearch" $ do
       PP.toCodeString ex `shouldSatisfy` (not . null)
 
     describe "Unitary Compile" $ do
-      let delta = A.l2NormError (0.001 :: Double)
+      let eps = A.failProb (0.001 :: Double)
       it "lowers" $ do
-        assertRight $ CompileU.lowerProgram default_ Ctx.empty delta ex
+        ex' <- expectRight $ A.annotateProgWithErrorBudgetU eps ex
+        assertRight $ CompileU.lowerProgram ex'
 
       it "type checks" $ do
-        ex_uqpl <- expectRight $ CompileU.lowerProgram default_ Ctx.empty delta ex
+        ex' <- expectRight $ A.annotateProgWithErrorBudgetU eps ex
+        ex_uqpl <- expectRight $ CompileU.lowerProgram ex'
         let tc_res = CQPL.typeCheckProgram ex_uqpl
         either print (const $ pure ()) tc_res
         assertRight tc_res
 
       it "preserves cost" $ do
-        ex_uqpl <- expectRight $ CompileU.lowerProgram default_ Ctx.empty delta ex
+        ex' <- expectRight $ A.annotateProgWithErrorBudgetU eps ex
+        ex_uqpl <- expectRight $ CompileU.lowerProgram ex'
         let uqpl_cost = getCost . fst $ CQPL.programCost ex_uqpl
-        let proto_cost = getCost $ A.unitaryQueryCost A.SplitSimple delta ex
+        let proto_cost = getCost $ A.costUProg ex'
         uqpl_cost `shouldSatisfy` (<= proto_cost)
 
     describe "lower to CQPL" $ do
       let eps = A.failProb (0.001 :: Double)
       it "lowers" $ do
-        assertRight $ CompileQ.lowerProgram default_ eps ex
+        ex' <- expectRight $ A.annotateProgWithErrorBudget eps ex
+        assertRight $ CompileQ.lowerProgram ex'
 
       it "type checks" $ do
-        ex_cqpl <- expectRight $ CompileQ.lowerProgram default_ eps ex
+        ex' <- expectRight $ A.annotateProgWithErrorBudget eps ex
+        ex_cqpl <- expectRight $ CompileQ.lowerProgram ex'
         -- case CQPL.typeCheckProgram gamma ex_uqpl of Left e -> putStrLn e; _ -> return ()
         assertRight $ CQPL.typeCheckProgram ex_cqpl
 

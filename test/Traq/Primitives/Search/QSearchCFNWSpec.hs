@@ -43,7 +43,7 @@ spec = do
   describe "Grover circuit" $ do
     it "for simple values" $ do
       let n = 10 :: Int
-      let eps = P.l2NormError (0.001 :: Double)
+      let eps = P.failProb (0.001 :: Double)
       let pred_caller c x b = CQPL.UCallS{CQPL.uproc_id = "Oracle", CQPL.dagger = False, CQPL.qargs = [c, x, b]}
       let lenv = default_
       let lctx = default_

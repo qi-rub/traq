@@ -4,7 +4,6 @@
 module Traq.Examples.SearchSpec (spec) where
 
 import qualified Traq.Data.Context as Ctx
-import Traq.Data.Default
 
 import qualified Traq.Analysis as A
 import Traq.Analysis.CostModel.QueryCost (SimpleQueryCost (..))
@@ -62,18 +61,22 @@ spec = describe "SearchSpec" $ do
       PP.toCodeString ex `shouldSatisfy` (not . null)
 
     describe "Unitary Compile" $ do
-      let delta = A.l2NormError (0.0001 :: Double)
+      let eps = A.failProb (0.0001 :: Double)
+
       it "lowers" $ do
-        assertRight $ CompileU.lowerProgram default_ default_ delta ex
+        ex' <- expectRight $ A.annotateProgWith (P._exts (A.annSinglePrim eps)) ex
+        assertRight $ CompileU.lowerProgram ex'
 
       it "typechecks" $ do
-        ex_uqpl <- expectRight $ CompileU.lowerProgram default_ Ctx.empty delta ex
+        ex' <- expectRight $ A.annotateProgWith (P._exts (A.annSinglePrim eps)) ex
+        ex_uqpl <- expectRight $ CompileU.lowerProgram ex'
         assertRight $ CQPL.typeCheckProgram ex_uqpl
 
       it "preserves cost" $ do
-        ex_uqpl <- expectRight $ CompileU.lowerProgram default_ Ctx.empty delta ex
+        ex' <- expectRight $ A.annotateProgWith (P._exts (A.annSinglePrim eps)) ex
+        ex_uqpl <- expectRight $ CompileU.lowerProgram ex'
         let (uqpl_cost, _) = CQPL.programCost ex_uqpl
-        let proto_cost = A.unitaryQueryCost A.SplitSimple delta ex :: SimpleQueryCost Double
+        let proto_cost = A.costUProg ex' :: SimpleQueryCost Double
         uqpl_cost `shouldSatisfy` (<= proto_cost)
 
   describe "arraySearch (returning solution)" $ do
