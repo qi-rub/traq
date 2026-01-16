@@ -30,7 +30,8 @@ subst vs p = P.mapSize Sym.unSym $ foldl substOne p vs
 
 compileIt :: (ext ~ (Traq.DefaultPrims SizeT Double)) => P.Program ext -> Double -> Either String String
 compileIt prog eps = do
-  compiled_prog <- Traq.Compiler.Quantum.lowerProgram P.SplitSimple (Traq.failProb eps) prog
+  prog_ann <- Traq.annotateProgWithErrorBudget (Traq.failProb eps) prog
+  compiled_prog <- Traq.Compiler.Quantum.lowerProgram P.SplitSimple (error "use annotation") prog_ann
   return $ PP.toCodeString compiled_prog
 
 data ExptConfig = ExptConfig

@@ -5,7 +5,6 @@ module Main (main) where
 import Control.Monad (forM_, guard, when)
 import Control.Monad.Writer (MonadWriter, execWriterT, tell)
 import Data.List (dropWhileEnd)
-import Data.Maybe (fromMaybe)
 import Options.Applicative
 import Text.Printf (printf)
 import Text.Read (readMaybe)

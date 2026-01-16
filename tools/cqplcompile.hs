@@ -9,6 +9,7 @@ import Text.Read (readMaybe)
 import Traq.Data.Default
 import qualified Traq.Data.Symbolic as Sym
 
+import qualified Traq.Analysis as A
 import qualified Traq.Analysis as P
 import qualified Traq.CQPL as CQPL
 import qualified Traq.Compiler.Quantum as CompileQ
@@ -64,7 +65,8 @@ subsNM params s = Sym.unSym $ foldr subsOnce s params
 
 compile :: (RealFloat precT, Show precT) => P.Program (DefaultPrims SizeT precT) -> precT -> IO String
 compile prog eps = do
-  Right cqpl_prog <- return $ CompileQ.lowerProgram default_ (P.failProb eps) prog
+  Right prog' <- return $ A.annotateProgWithErrorBudget (P.failProb eps) prog
+  Right cqpl_prog <- return $ CompileQ.lowerProgram default_ (error "use annotation") prog'
   let nqubits = CQPL.numQubits cqpl_prog
 
   return $ PP.toCodeString cqpl_prog ++ printf "\n// qubits: %d\n" nqubits
