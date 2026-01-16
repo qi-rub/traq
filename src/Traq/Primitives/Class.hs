@@ -181,8 +181,10 @@ instance
       fn <- view $ P._funCtx . Ctx.at pfun_name . non' (error "invalid function")
       A.costU $ P.NamedFunDef pfun_name fn
 
-    -- TODO expression cost
-    return $ Alg.sum $ zipWith (Alg..*) query_costs fn_costs
+    -- all other non-query operations
+    let extra_costs = unitaryExprCosts prim eps
+
+    return $ Alg.sum $ extra_costs : zipWith (Alg..*) query_costs fn_costs
 
 instance
   ( UnitaryCostPrim prim size prec
@@ -309,8 +311,11 @@ instance
 
     let tot_cost_q = Alg.sum $ zipWith (Alg..*) query_costs_q fn_costs_q
     let tot_cost_u = Alg.sum $ zipWith (Alg..*) query_costs_u fn_costs_u
-    -- TODO expression cost
-    return $ Alg.sum [tot_cost_q, tot_cost_u]
+
+    -- all other non-query operations
+    let extra_costs = quantumExprCosts prim eps
+
+    return $ Alg.sum [tot_cost_q, tot_cost_u, extra_costs]
 
 -- --------------------------------------------------------------------------------
 -- Cost (expected)
