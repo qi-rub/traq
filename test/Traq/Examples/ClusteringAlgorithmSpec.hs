@@ -18,6 +18,6 @@ examplePath = "examples/clustering_algorithm.qb"
 
 spec :: Spec
 spec = describe "Clustering Algorithm" $ do
-  xit "parses" $ do
+  it "parses" $ do
     expectRight =<< parseFromFile (P.programParser @(DefaultPrims (Sym.Sym SizeT) Double)) examplePath
     return ()
