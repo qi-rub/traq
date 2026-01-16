@@ -27,7 +27,6 @@ module Traq.Primitives.Search.QSearchCFNW (
   _EQSearch,
   _EQSearchWorst,
   _QSearchZalka,
-  _QSearchZalkaWithNormErr,
 ) where
 
 import Control.Monad (forM, replicateM, when)
@@ -105,14 +104,6 @@ _QSearchZalka n eps = nq_simple
 
   nq_simple :: precT
   nq_simple = fromIntegral max_iter * n_reps
-
--- Eq. TODO REF
-_QSearchZalkaWithNormErr :: forall sizeT precT. (Integral sizeT, Floating precT) => sizeT -> A.L2NormError precT -> precT
-_QSearchZalkaWithNormErr n delta = 2 * _QSearchZalka n eps -- 2x for compute-uncompute
- where
-  eps :: A.FailProb precT
-  eps = A.requiredNormErrorToFailProb delta
-{-# DEPRECATED _QSearchZalkaWithNormErr "use _QSearchZalka" #-}
 
 -- ================================================================================
 -- Primitive Class Implementation
@@ -309,12 +300,12 @@ algoQSearchZalka ::
   , sizeT ~ SizeType ext
   , precT ~ PrecType ext
   ) =>
-  -- | max. norm error @\delta@
-  A.L2NormError precT ->
+  -- | max. error (TV/trace-norm)
+  A.FailProb precT ->
   -- | output bit
   Ident ->
   UQSearchBuilder ext ()
-algoQSearchZalka delta out_bit = do
+algoQSearchZalka eps out_bit = do
   n <- view $ to search_arg_type . singular P._Fin
 
   out_bits <- forM [1 .. n_reps] $ \i -> do
@@ -333,9 +324,6 @@ algoQSearchZalka delta out_bit = do
   max_iter :: sizeT -> sizeT
   max_iter n = ceiling $ (pi / 4) * sqrt (fromIntegral n :: Double)
 
-  eps :: A.FailProb precT
-  eps = A.requiredNormErrorToFailProb delta
-
   n_reps :: Int
   n_reps = ceiling $ logBase (1 - p) (A.getFailProb eps)
    where
@@ -352,9 +340,9 @@ instance
   , P.TypingReqs sizeT
   , A.SizeToPrec sizeT precT
   ) =>
-  CompileU.Lowerable (Primitive (QSearchCFNW sizeT precT)) sizeT precT
+  CompileU.Lowerable (A.AnnFailProb (Primitive (QSearchCFNW sizeT precT))) sizeT precT
   where
-  lowerPrimitive delta (Primitive [PartialFun{pfun_name, pfun_args}] (QSearchCFNW PrimSearch{})) [ret] = do
+  lowerPrimitive _ (A.AnnFailProb eps (Primitive [PartialFun{pfun_name, pfun_args}] (QSearchCFNW PrimSearch{}))) [ret] = do
     -- the predicate
     pred_fun@P.FunDef{P.param_types} <-
       view (P._funCtx . Ctx.at pfun_name)
@@ -364,14 +352,6 @@ instance
     let s_ty = last param_types
     let n = s_ty ^?! P._Fin
 
-    -- split the precision
-    let delta_search = delta `A.divideError` 2
-    let delta_pred = delta - delta_search
-    -- number of predicate queries
-    let qry = _QSearchZalkaWithNormErr n delta_search
-    -- precision per predicate call
-    let delta_per_pred_call = delta_pred `A.divideError` qry
-
     -- compile the predicate
     CompileU.LoweredProc
       { CompileU.lowered_def = pred_proc
@@ -380,7 +360,7 @@ instance
       , CompileU.out_tys = pred_out_tys
       , CompileU.aux_tys = pred_aux_tys
       } <-
-      CompileU.lowerFunDef CompileU.WithControl delta_per_pred_call pfun_name pred_fun
+      CompileU.lowerFunDef CompileU.WithControl (error "use annotation") pfun_name pred_fun
 
     when (pred_out_tys /= [P.tbool]) $ throwError "invalid outputs for predicate"
     when (last pred_inp_tys /= s_ty) $ throwError "mismatched search argument type"
@@ -398,7 +378,7 @@ instance
     -- body:
     (qsearch_body, qsearch_ancilla) <- do
       ini_binds <- use P._typingCtx
-      ((), ss) <- (\m -> evalRWST m UQSearchEnv{search_arg_type = s_ty, pred_call_builder = pred_caller} ()) $ algoQSearchZalka delta_search ret
+      ((), ss) <- (\m -> evalRWST m UQSearchEnv{search_arg_type = s_ty, pred_call_builder = pred_caller} ()) $ algoQSearchZalka eps ret
       fin_binds <- use P._typingCtx
       let ancillas = Ctx.toList $ fin_binds Ctx.\\ ini_binds
       return (CQPL.USeqS ss, ancillas)
@@ -410,7 +390,7 @@ instance
           (printf :: String -> String -> String -> String -> String)
             "QSearch[%s, %s, %s]"
             (show n)
-            (show $ A.getL2NormError delta_search)
+            (show $ A.getFailProb eps)
             (CQPL.proc_name pred_proc)
     let all_params =
           CompileU.withTag CQPL.ParamInp (zip (catMaybes pfun_args) (init pred_inp_tys))
@@ -449,7 +429,7 @@ instance
               (printf :: String -> String -> String -> String -> String)
                 "QSearch_clean[%s, %s, %s]"
                 (show n)
-                (show $ A.getL2NormError delta_search)
+                (show $ A.getFailProb eps)
                 (CQPL.proc_name pred_proc)
 
         out_bit <- CompileU.allocAncilla P.tbool
@@ -672,9 +652,9 @@ instance
   , Show precT
   , P.TypingReqs sizeT
   ) =>
-  CompileQ.Lowerable (Primitive (QSearchCFNW sizeT precT)) sizeT precT
+  CompileQ.Lowerable (A.AnnFailProb (Primitive (QSearchCFNW sizeT precT))) sizeT precT
   where
-  lowerPrimitive eps (Primitive [PartialFun{pfun_name, pfun_args}] (QSearchCFNW (PrimSearch _ s_ty))) (ret : rets) = do
+  lowerPrimitive _ (A.AnnFailProb eps (Primitive [PartialFun{pfun_name, pfun_args}] (QSearchCFNW (PrimSearch _ s_ty)))) (ret : rets) = do
     -- predicate, pred_args = args
     -- the predicate
     pred_fun <-
@@ -684,17 +664,8 @@ instance
     -- size of the search space
     let n = P.domainSize s_ty
 
-    -- fail prob of search
-    let eps_s = eps `A.divideError` 2
-
-    -- fail prob predicate
-    let eps_pred = eps - eps_s
-    let n_max_pred_calls = _EQSearchWorst n eps_pred
-    let eps_per_pred_call = eps_pred `A.divideError` n_max_pred_calls
-    let delta_per_pred_call = A.requiredFailProbToNormError eps_per_pred_call -- norm error in unitary predicate
-
     -- lower the unitary predicate
-    pred_uproc <- CompileU.lowerFunDef @_ CompileU.WithoutControl delta_per_pred_call pfun_name pred_fun
+    pred_uproc <- CompileU.lowerFunDef @_ CompileU.WithoutControl (error "use annotation") pfun_name pred_fun
 
     let CompileU.LoweredProc
           { CompileU.inp_tys = pred_inp_tys
@@ -760,11 +731,11 @@ instance
             , CQPL.args = catMaybes pfun_args ++ [x, b]
             }
 
-    (qsearch_body, qsearch_local_vars) <- execWriterT $ algoQSearch s_ty 0 eps_s grover_k_caller pred_caller ret
+    (qsearch_body, qsearch_local_vars) <- execWriterT $ algoQSearch s_ty 0 eps grover_k_caller pred_caller ret
     qsearch_proc_name <- Compiler.newIdent "QAny"
     Compiler.addProc $
       CQPL.ProcDef
-        { CQPL.info_comment = printf "QAny[%s]" (show $ A.getFailProb eps_s)
+        { CQPL.info_comment = printf "QAny[%s]" (show $ A.getFailProb eps)
         , CQPL.proc_name = qsearch_proc_name
         , CQPL.proc_meta_params = []
         , CQPL.proc_param_types = map snd qsearch_params

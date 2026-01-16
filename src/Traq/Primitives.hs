@@ -88,9 +88,9 @@ instance
   , Show precT
   , A.SizeToPrec sizeT precT
   ) =>
-  CompileU.Lowerable (DefaultPrims sizeT precT) sizeT precT
+  CompileU.Lowerable (A.AnnFailProb (DefaultPrims sizeT precT)) sizeT precT
   where
-  lowerPrimitive delta (Primitive fs (QAny q)) = CompileU.lowerPrimitive delta (Primitive fs q)
+  lowerPrimitive delta (A.AnnFailProb eps (Primitive fs (QAny q))) = CompileU.lowerPrimitive delta (Primitive fs q)
   lowerPrimitive _ _ = error "TODO: lowerPrimitive"
 
 instance
@@ -101,7 +101,7 @@ instance
   , Show precT
   , sizeT ~ SizeT
   ) =>
-  CompileQ.Lowerable (DefaultPrims sizeT precT) sizeT precT
+  CompileQ.Lowerable (A.AnnFailProb (DefaultPrims sizeT precT)) sizeT precT
   where
-  lowerPrimitive eps (Primitive fs (QAny q)) = CompileQ.lowerPrimitive eps (Primitive fs q)
+  lowerPrimitive _ (A.AnnFailProb eps (Primitive fs (QAny q))) = CompileQ.lowerPrimitive undefined (A.AnnFailProb eps (Primitive fs q))
   lowerPrimitive _ _ = error "TODO: lowerPrimitive"

@@ -29,13 +29,13 @@ fst3 (a, _, _) = a
 execRWT :: (Monad m, Monoid w) => r -> RWST r w () m a -> m w
 execRWT r m = snd <$> evalRWST m r ()
 
-data SearchParams = SearchParams {space_size :: Int, precision :: P.L2NormError Double}
+data SearchParams = SearchParams {space_size :: Int, precision :: P.FailProb Double}
   deriving (Show, Eq, Read)
 
 instance Arbitrary SearchParams where
   arbitrary = sized $ \n -> do
     space_size <- chooseInt (1, n + 1)
-    precision <- P.l2NormError <$> genDouble
+    precision <- P.failProb <$> genDouble
     return SearchParams{space_size, precision}
 
 spec :: Spec
@@ -65,11 +65,11 @@ spec = do
 
     prop "matches cost" $ \params -> do
       let n = space_size params
-      let delta = precision params
+      let eps = precision params
       let compile_config = default_
       (n > 1) ==> do
         ss <-
-          algoQSearchZalka @(QSearchCFNW SizeT Double) delta "result"
+          algoQSearchZalka @(QSearchCFNW SizeT Double) eps "result"
             & execRWT (qsearch_env n)
             & (\m -> runRWST m compile_config default_)
             <&> fst3
@@ -104,5 +104,5 @@ spec = do
                 }
 
         let actual_cost = getCost . fst $ CQPL.programCost @_ @(SimpleQueryCost Double) uprog
-        let formula_cost = _QSearchZalkaWithNormErr n delta
+        let formula_cost = _QSearchZalka n eps
         actual_cost `shouldSatisfy` (<= formula_cost)
