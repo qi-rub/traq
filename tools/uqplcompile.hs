@@ -2,7 +2,7 @@
 
 module Main (main) where
 
-import Control.Monad (forM_, guard, when)
+import Control.Monad (forM_, when)
 import Control.Monad.Writer (MonadWriter, execWriterT, tell)
 import Data.List (dropWhileEnd)
 import Options.Applicative
@@ -13,7 +13,6 @@ import Lens.Micro.GHC
 import qualified Numeric.Algebra as Alg
 
 import qualified Traq.Data.Context as Ctx
-import Traq.Data.Default
 import qualified Traq.Data.Symbolic as Sym
 
 import qualified Traq.Analysis as A
@@ -77,7 +76,7 @@ tellLn x = tell $ unlines [x]
 compile :: forall precT. (P.EvalReqs SizeT precT, RealFloat precT, Show precT, Alg.Rig precT) => P.Program (DefaultPrims SizeT precT) -> precT -> IO String
 compile prog delta = do
   Right prog' <- return $ A.annotateProgWithErrorBudgetU (P.failProb delta) prog
-  Right cqpl_prog <- return $ CompileU.lowerProgram default_ Ctx.empty (error "use annotation") prog'
+  Right cqpl_prog <- return $ CompileU.lowerProgram prog'
   -- get costs
   let (_ :: SimpleQueryCost precT, proc_costs) = CQPL.programCost cqpl_prog
 

@@ -48,7 +48,7 @@ type ValidExt ext =
 numQubitsRequired :: (ValidExt ext) => P.Program ext -> Double -> Either String SizeT
 numQubitsRequired prog eps = do
   prog' <- Traq.annotateProgWithErrorBudget (Traq.failProb eps) prog
-  compiled_prog <- Traq.Compiler.Quantum.lowerProgram Traq.SplitSimple (error "use annotation") prog'
+  compiled_prog <- Traq.Compiler.Quantum.lowerProgram prog'
   return $ CQPL.numQubits compiled_prog
 
 -- | Compute the wall-time by Traq to run a cost analysis

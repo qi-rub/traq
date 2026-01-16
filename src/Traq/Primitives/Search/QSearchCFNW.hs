@@ -342,7 +342,7 @@ instance
   ) =>
   CompileU.Lowerable (A.AnnFailProb (Primitive (QSearchCFNW sizeT precT))) sizeT precT
   where
-  lowerPrimitive _ (A.AnnFailProb eps (Primitive [PartialFun{pfun_name, pfun_args}] (QSearchCFNW PrimSearch{}))) [ret] = do
+  lowerPrimitive (A.AnnFailProb eps (Primitive [PartialFun{pfun_name, pfun_args}] (QSearchCFNW PrimSearch{}))) [ret] = do
     -- the predicate
     pred_fun@P.FunDef{P.param_types} <-
       view (P._funCtx . Ctx.at pfun_name)
@@ -360,7 +360,7 @@ instance
       , CompileU.out_tys = pred_out_tys
       , CompileU.aux_tys = pred_aux_tys
       } <-
-      CompileU.lowerFunDef CompileU.WithControl (error "use annotation") pfun_name pred_fun
+      CompileU.lowerFunDef CompileU.WithControl pfun_name pred_fun
 
     when (pred_out_tys /= [P.tbool]) $ throwError "invalid outputs for predicate"
     when (last pred_inp_tys /= s_ty) $ throwError "mismatched search argument type"
@@ -472,7 +472,7 @@ instance
             }
 
   -- fallback
-  lowerPrimitive _ _ _ = throwError "Unsupported"
+  lowerPrimitive _ _ = throwError "Unsupported"
 
 -- ================================================================================
 -- CQ Lowering
@@ -654,7 +654,7 @@ instance
   ) =>
   CompileQ.Lowerable (A.AnnFailProb (Primitive (QSearchCFNW sizeT precT))) sizeT precT
   where
-  lowerPrimitive _ (A.AnnFailProb eps (Primitive [PartialFun{pfun_name, pfun_args}] (QSearchCFNW (PrimSearch _ s_ty)))) (ret : rets) = do
+  lowerPrimitive (A.AnnFailProb eps (Primitive [PartialFun{pfun_name, pfun_args}] (QSearchCFNW (PrimSearch _ s_ty)))) (ret : rets) = do
     -- predicate, pred_args = args
     -- the predicate
     pred_fun <-
@@ -665,7 +665,7 @@ instance
     let n = P.domainSize s_ty
 
     -- lower the unitary predicate
-    pred_uproc <- CompileU.lowerFunDef @_ CompileU.WithoutControl (error "use annotation") pfun_name pred_fun
+    pred_uproc <- CompileU.lowerFunDef @_ CompileU.WithoutControl pfun_name pred_fun
 
     let CompileU.LoweredProc
           { CompileU.inp_tys = pred_inp_tys
@@ -754,4 +754,4 @@ instance
         , CQPL.args = catMaybes pfun_args ++ [ret] ++ rets
         , CQPL.meta_params = []
         }
-  lowerPrimitive _ _ _ = error "Unsupported"
+  lowerPrimitive _ _ = error "Unsupported"

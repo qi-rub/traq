@@ -90,8 +90,8 @@ instance
   ) =>
   CompileU.Lowerable (A.AnnFailProb (DefaultPrims sizeT precT)) sizeT precT
   where
-  lowerPrimitive _ (A.AnnFailProb eps (Primitive fs (QAny q))) = CompileU.lowerPrimitive (error "use annotation") (A.AnnFailProb eps (Primitive fs q))
-  lowerPrimitive _ _ = error "TODO: lowerPrimitive"
+  lowerPrimitive (A.AnnFailProb eps (Primitive fs (QAny q))) = CompileU.lowerPrimitive (A.AnnFailProb eps (Primitive fs q))
+  lowerPrimitive _ = error "TODO: lowerPrimitive"
 
 instance
   ( Integral sizeT
@@ -103,5 +103,5 @@ instance
   ) =>
   CompileQ.Lowerable (A.AnnFailProb (DefaultPrims sizeT precT)) sizeT precT
   where
-  lowerPrimitive _ (A.AnnFailProb eps (Primitive fs (QAny q))) = CompileQ.lowerPrimitive undefined (A.AnnFailProb eps (Primitive fs q))
-  lowerPrimitive _ _ = error "TODO: lowerPrimitive"
+  lowerPrimitive (A.AnnFailProb eps (Primitive fs (QAny q))) = CompileQ.lowerPrimitive (A.AnnFailProb eps (Primitive fs q))
+  lowerPrimitive _ = error "TODO: lowerPrimitive"
