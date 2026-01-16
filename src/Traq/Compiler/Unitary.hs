@@ -227,8 +227,6 @@ lowerStmt _ = error "lowering: unsupported"
  Each invocation will generate a new proc, even if an identical one exists.
 
  This can produce entangled aux registers.
-
- TODO try to cache compiled procs by key (funDefName, Precision).
 -}
 lowerFunDefWithGarbage ::
   forall ext sizeT precT m.

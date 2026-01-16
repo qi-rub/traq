@@ -661,9 +661,6 @@ instance
       view (P._funCtx . Ctx.at pfun_name)
         >>= maybeWithError ("cannot find predicate " <> pfun_name)
 
-    -- size of the search space
-    let n = P.domainSize s_ty
-
     -- lower the unitary predicate
     pred_uproc <- CompileU.lowerFunDef @_ CompileU.WithoutControl pfun_name pred_fun
 
