@@ -66,23 +66,38 @@ import qualified Traq.ProtoLang as P
 -- Cost Formulas
 -- ================================================================================
 
--- https://arxiv.org/pdf/2203.04975v2, Eq. 4
-_EQSearchWorst :: forall sizeT precT. (Integral sizeT, Floating precT) => sizeT -> A.FailProb precT -> precT
-_EQSearchWorst n eps = 9.2 * log (1 / A.getFailProb eps) * sqrt (fromIntegral n)
+-- --------------------------------------------------------------------------------
+-- QSearch: from https://arxiv.org/pdf/2203.04975v2
+-- --------------------------------------------------------------------------------
 
--- https://arxiv.org/pdf/2203.04975v2, Eq. 3
+_QSearch_alpha :: (Floating prec) => prec
+_QSearch_alpha = 9.2
+
+-- | https://arxiv.org/pdf/2203.04975v2, Eq. 4
+_EQSearchWorst :: forall sizeT precT. (Integral sizeT, Floating precT) => sizeT -> A.FailProb precT -> precT
+_EQSearchWorst n eps = (max_iter_per_rep + 1) * n_reps
+ where
+  -- using +1 instead of ceiling
+  max_iter_per_rep = _QSearch_alpha * sqrt (fromIntegral n) + 1
+  n_reps = logBase 3 (1 / A.getFailProb eps) + 1
+
+-- | https://arxiv.org/pdf/2203.04975v2, Eq. 3
 _F :: forall sizeT precT. (Integral sizeT, Floating precT) => sizeT -> sizeT -> precT
 _F n t
   | 4 * t >= n = 2.0344
   | otherwise = 3.1 * sqrt (fromIntegral n / fromIntegral t)
 
--- https://arxiv.org/pdf/2203.04975v2, Eq. 2
+-- | https://arxiv.org/pdf/2203.04975v2, Eq. 2
 _EQSearch :: forall sizeT precT. (Integral sizeT, Floating precT) => sizeT -> sizeT -> A.FailProb precT -> precT
 _EQSearch n t eps
   | t == 0 = _EQSearchWorst n eps
   | otherwise = _F n t * (1 + 1 / (1 - term))
  where
-  term = _F n t / (9.2 * sqrt (fromIntegral n))
+  term = _F n t / (_QSearch_alpha * sqrt (fromIntegral n))
+
+-- --------------------------------------------------------------------------------
+-- QSearch_Zalka: from https://arxiv.org/abs/quant-ph/9711070
+-- --------------------------------------------------------------------------------
 
 _QSearchZalka :: forall sizeT precT. (Integral sizeT, Floating precT) => sizeT -> A.FailProb precT -> precT
 _QSearchZalka n eps = nq_simple
@@ -558,7 +573,7 @@ algoQSearch ty n_samples eps grover_k_caller pred_caller ok = do
  where
   n = ty ^?! P._Fin
 
-  alpha = 9.2
+  alpha = _QSearch_alpha
   lambda = 6 / 5
 
   sqrt_n :: Float

@@ -86,7 +86,7 @@ spec = describe "MatrixSearch" $ do
         either print (const $ pure ()) tc_res
         assertRight tc_res
 
-      fit "preserves cost" $ do
+      it "preserves cost" $ do
         ex' <- expectRight $ A.annotateProgWithErrorBudgetU eps ex
         ex_uqpl <- expectRight $ CompileU.lowerProgram ex'
         let uqpl_cost = getCost . fst $ CQPL.programCost ex_uqpl
