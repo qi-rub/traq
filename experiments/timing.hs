@@ -47,7 +47,7 @@ type ValidExt ext =
 -- | Compute the number of qubits used by the compiled program.
 numQubitsRequired :: (ValidExt ext) => P.Program ext -> Double -> Either String SizeT
 numQubitsRequired prog eps = do
-  compiled_prog <- Traq.Compiler.Quantum.lowerProgram Traq.SplitSimple undefined (Traq.failProb eps) prog
+  compiled_prog <- Traq.Compiler.Quantum.lowerProgram Traq.SplitSimple (Traq.failProb eps) prog
   return $ CQPL.numQubits compiled_prog
 
 -- | Compute the wall-time by Traq to run a cost analysis

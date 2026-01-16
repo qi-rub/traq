@@ -30,7 +30,7 @@ spec = do
     it "assign" $ do
       ex_ <- expectRight $ P.parseProgram @SymCore "def main() -> () do x <- const 0 : Fin<10>; return end"
       let ex = P.mapSize Sym.unSym ex_
-      (cq :: Program SizeT) <- expectRight $ lowerProgram default_ Ctx.empty eps ex
+      (cq :: Program SizeT) <- expectRight $ lowerProgram default_ eps ex
       CProcBody{cproc_body_stmt} <-
         return $
           cq

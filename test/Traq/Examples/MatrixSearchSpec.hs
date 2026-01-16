@@ -94,10 +94,10 @@ spec = describe "MatrixSearch" $ do
     describe "lower to CQPL" $ do
       let eps = A.failProb (0.001 :: Double)
       it "lowers" $ do
-        assertRight $ CompileQ.lowerProgram default_ Ctx.empty eps ex
+        assertRight $ CompileQ.lowerProgram default_ eps ex
 
       it "type checks" $ do
-        ex_cqpl <- expectRight $ CompileQ.lowerProgram default_ Ctx.empty eps ex
+        ex_cqpl <- expectRight $ CompileQ.lowerProgram default_ eps ex
         -- case CQPL.typeCheckProgram gamma ex_uqpl of Left e -> putStrLn e; _ -> return ()
         assertRight $ CQPL.typeCheckProgram ex_cqpl
 

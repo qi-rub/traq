@@ -236,14 +236,12 @@ lowerProgram ::
   , P.HasFreeVars ext
   ) =>
   A.PrecisionSplittingStrategy ->
-  -- | input bindings to the source program
-  P.TypingCtx sizeT ->
   -- | fail prob \( \varepsilon \)
   A.FailProb precT ->
   -- | source program
   P.Program ext ->
   Either String (Program sizeT)
-lowerProgram strat _gamma_in eps prog@(P.Program fs) = do
+lowerProgram strat eps prog@(P.Program fs) = do
   unless (P.checkVarsUnique prog) $
     throwError "program does not have unique variables!"
 

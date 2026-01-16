@@ -88,7 +88,7 @@ concreteQEx = do
   let strat = P.SplitUsingNeedsEps
 
   printDivider
-  Right exU <- return $ CompileQ.lowerProgram strat Ctx.empty eps ex
+  Right exU <- return $ CompileQ.lowerProgram strat eps ex
   putStrLn $ PP.toCodeString exU
   return ()
 
