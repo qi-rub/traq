@@ -106,7 +106,7 @@ _QSearchZalka_max_iter n = ceiling $ (pi / 4) * sqrt (fromIntegral n :: Double)
 
 -- Section 2.1 simple algorithm cost
 _QSearchZalka_n_reps :: forall prec. (Floating prec) => A.FailProb prec -> prec
-_QSearchZalka_n_reps eps = logBase (1 - p) (A.getFailProb eps)
+_QSearchZalka_n_reps eps = 1 + logBase (1 - p) (A.getFailProb eps)
  where
   p = 0.3914 :: prec
 
@@ -313,7 +313,7 @@ algoQSearchZalka ::
 algoQSearchZalka eps out_bit = do
   n <- view $ to search_arg_type . singular P._Fin
 
-  out_bits <- forM [1 :: Int .. (ceiling (_QSearchZalka_n_reps eps))] $ \i -> do
+  out_bits <- forM [1 :: Int .. (floor (_QSearchZalka_n_reps eps))] $ \i -> do
     writeElem $ CQPL.UCommentS " "
     writeElem $ CQPL.UCommentS $ printf "Run %d" i
     writeElem $ CQPL.UCommentS " "

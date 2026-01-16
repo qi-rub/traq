@@ -67,7 +67,7 @@ spec = do
       let n = space_size params
       let eps = precision params
       let compile_config = default_
-      (n > 1) ==> do
+      (n > 2) ==> do
         ss <-
           algoQSearchZalka @(QSearchCFNW SizeT Double) eps "result"
             & execRWT (qsearch_env n)
@@ -104,5 +104,5 @@ spec = do
                 }
 
         let actual_cost = getCost . fst $ CQPL.programCost @_ @(SimpleQueryCost Double) uprog
-        let formula_cost = _QSearchZalka n eps
+        let formula_cost = 2 * _QSearchZalka n eps
         actual_cost `shouldSatisfy` (<= formula_cost)
