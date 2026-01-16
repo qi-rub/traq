@@ -183,7 +183,7 @@ lowerExpr P.RandomSampleE{P.distr_expr = P.BernoulliE{}} rets = do
 -- function call
 lowerExpr P.FunCallE{fname, P.args} rets = do
   fun <- P.lookupFunE fname
-  LoweredProc{lowered_def, inp_tys, out_tys, aux_tys} <- lowerFunDef WithoutControl fname fun
+  LoweredProc{lowered_def, inp_tys, out_tys, aux_tys} <- lowerFunDefWithGarbage fname fun
 
   when (length inp_tys /= length args) $
     throwError "mismatched number of args"

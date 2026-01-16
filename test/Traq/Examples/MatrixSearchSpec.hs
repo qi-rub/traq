@@ -91,7 +91,6 @@ spec = describe "MatrixSearch" $ do
         ex_uqpl <- expectRight $ CompileU.lowerProgram ex'
         let uqpl_cost = getCost . fst $ CQPL.programCost ex_uqpl
         let proto_cost = getCost $ A.costUProg ex'
-        print (uqpl_cost, "<=", proto_cost)
         uqpl_cost `shouldSatisfy` (<= proto_cost)
 
     describe "lower to CQPL" $ do
