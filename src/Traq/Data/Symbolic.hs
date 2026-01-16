@@ -9,11 +9,11 @@ module Traq.Data.Symbolic (
   con,
   subst,
   unSym,
+  simpl,
 ) where
 
 import Data.Char (isAlpha)
 import Data.Maybe (fromMaybe)
-import Text.Printf (printf)
 
 import qualified Numeric.Algebra as Alg
 
@@ -43,6 +43,15 @@ subst x v e@(App x' _ [])
   | otherwise = e
 subst x v (App s f es) =
   case map (subst x v) es of
+    [e] -> unOp (\x' -> f [x']) s e
+    [e1, e2] -> binOp (\x' y' -> f [x', y']) e1 s e2
+    es' -> App s f es'
+
+-- | Simplify by re-assembling the expression
+simpl :: (Num a, Eq a) => Sym a -> Sym a
+simpl e@(Con _) = e
+simpl (App s f es) =
+  case map simpl es of
     [e] -> unOp (\x' -> f [x']) s e
     [e1, e2] -> binOp (\x' y' -> f [x', y']) e1 s e2
     es' -> App s f es'
@@ -117,6 +126,10 @@ binOp _ x "/" (App "/" f [y, z]) = App "/" f [x * z, y]
 binOp f (App "**" _ [x, y]) "**" z = binOp f x "**" (y * z)
 binOp _ _ "**" 0 = 1
 binOp _ 0 "**" _ = 0
+binOp _ 0 ".*" _ = 0
+binOp _ _ ".*" 0 = 0
+binOp _ 1 ".*" x = x
+binOp _ x ".*" 1 = x
 binOp f x op y = App op (\[a, b] -> f a b) [x, y]
 
 unOp :: (Num a) => (a -> a) -> String -> Sym a -> Sym a
@@ -202,11 +215,17 @@ instance {-# OVERLAPPABLE #-} (Show r, Alg.LeftModule r a) => Alg.LeftModule r (
 instance {-# OVERLAPPABLE #-} (Show r, Alg.RightModule r a) => Alg.RightModule r (Sym a) where
   (*.) a r = algUnOp (show r <> "*") (Alg.*. r) a
 
-instance {-# OVERLAPPABLE #-} (Show r, Show a, Alg.Semiring r, Alg.Additive a) => Alg.LeftModule (Sym r) (Sym a) where
-  r .* a = var $ printf "((%s) .* (%s))" (show r) (show a)
+-- instance {-# OVERLAPPABLE #-} (Show r, Show a, Alg.Semiring r, Alg.Additive a) => Alg.LeftModule (Sym r) (Sym a) where
+--   r .* a = var $ printf "((%s) .* (%s))" (show r) (show a)
 
-instance {-# OVERLAPPABLE #-} (Show r, Show a, Alg.Semiring r, Alg.Additive a) => Alg.RightModule (Sym r) (Sym a) where
-  a *. r = var $ printf "((%s) *. (%s))" (show a) (show r)
+-- instance {-# OVERLAPPABLE #-} (Show r, Show a, Alg.Semiring r, Alg.Additive a) => Alg.RightModule (Sym r) (Sym a) where
+--   a *. r = var $ printf "((%s) *. (%s))" (show a) (show r)
+
+instance {-# OVERLAPPABLE #-} (Alg.Semiring Double) => Alg.LeftModule (Sym Double) (Sym Double) where
+  r .* a = binOp (*) r "*" a
+
+instance {-# OVERLAPPABLE #-} (Alg.Semiring Double) => Alg.RightModule (Sym Double) (Sym Double) where
+  a *. r = binOp (*) r "*" a
 
 instance (Alg.Monoidal a) => Alg.Monoidal (Sym a) where
   zero = Con Alg.zero

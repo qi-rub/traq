@@ -61,8 +61,8 @@ instance (P.TypingReqs sizeT) => TypeCheckPrim (QSearchSym sizeT precT) (Sym.Sym
 getSearchType :: QSearchSym size prec -> P.VarType (Sym.Sym size)
 getSearchType (QSearchSym (PrimSearch _ ty)) = ty
 
-_QryU :: forall sizeT precT. (Show sizeT, Show precT) => Sym.Sym sizeT -> P.L2NormError (Sym.Sym precT) -> Sym.Sym precT
-_QryU n delta = Sym.var $ printf "QryU(%s, %s)" (show n) (show $ P.getL2NormError delta)
+_QryU :: forall sizeT precT. (Show sizeT, Show precT) => Sym.Sym sizeT -> P.FailProb (Sym.Sym precT) -> Sym.Sym precT
+_QryU n delta = Sym.var $ printf "QryU(%s, %s)" (show n) (show $ P.getFailProb delta)
 
 _QryQmax :: forall sizeT precT. (Show sizeT, Show precT) => Sym.Sym sizeT -> P.FailProb (Sym.Sym precT) -> Sym.Sym precT
 _QryQmax n eps = Sym.var $ printf "QryQmax(%s, %s)" (show n) (show $ P.getFailProb eps)
@@ -77,7 +77,7 @@ instance
   (Eq sizeT, Num sizeT, Show sizeT, Show precT, Num precT, Eq precT) =>
   UnitaryCostPrim (QSearchSym sizeT precT) (Sym.Sym sizeT) (Sym.Sym precT)
   where
-  unitaryQueryCosts prim eps = BooleanPredicate $ strongQueries $ _QryQmax _N eps
+  unitaryQueryCosts prim eps = BooleanPredicate $ strongQueries $ _QryU _N eps
    where
     _N = domainSizeSym $ getSearchType prim
 

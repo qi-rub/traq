@@ -7,7 +7,6 @@ import Traq.Data.Default
 import qualified Traq.Data.Symbolic as Sym
 
 import qualified Traq.Analysis as A
-import qualified Traq.Analysis as P
 import Traq.Analysis.CostModel.QueryCost (SimpleQueryCost (getCost))
 import qualified Traq.CQPL as CQPL
 import qualified Traq.Compiler.Quantum as CompileQ
@@ -49,34 +48,34 @@ spec = describe "MatrixSearch" $ do
     let ucF = _QSearchZalka
 
     it "unitary cost for delta=0.0001" $ do
-      let eps = P.failProb (0.001 :: Double)
+      let eps = A.failProb (0.001 :: Double)
 
       ex' <- expectRight $ A.annotateProgWithErrorBudgetU eps ex
-      let cu = getCost $ P.costUProg ex'
+      let cu = getCost $ A.costUProg ex'
 
-      let eps_outer = eps `P.divideError` 2
+      let eps_outer = A.splitFailProb eps 2
       let eps_inner = eps - eps_outer
       let nu_outer = 2 * ucF n eps_outer
-      let nu_inner = 2 * ucF m (A.unitarySubroutineTVBudget (eps_inner `P.divideError` nu_outer))
+      let nu_inner = 2 * ucF m (A.unitarySubroutineTVBudget (eps_inner `A.splitFailProb` nu_outer))
       cu `shouldBe` nu_outer * nu_inner
 
     it "quantum cost for eps=0.001" $ do
-      let eps = P.failProb (0.001 :: Double)
+      let eps = A.failProb (0.001 :: Double)
 
       ex' <- expectRight $ A.annotateProgWithErrorBudget eps ex
       let cq = getCost $ A.expCostQProg ex' [] interpCtx
 
-      let eps_outer = eps `P.divideError` 2
+      let eps_outer = eps `A.splitFailProb` 2
       let eps_inner = eps - eps_outer
       let nq_outer = 2 * wcF n eps_outer
-      let nq_inner = 2 * ucF m (A.unitarySubroutineTVBudget (eps_inner `P.divideError` nq_outer))
+      let nq_inner = 2 * ucF m (A.unitarySubroutineTVBudget (eps_inner `A.splitFailProb` nq_outer))
       cq `shouldBe` nq_outer * nq_inner
 
     it "generate code" $ do
       PP.toCodeString ex `shouldSatisfy` (not . null)
 
     describe "Unitary Compile" $ do
-      let delta = P.l2NormError (0.001 :: Double)
+      let delta = A.l2NormError (0.001 :: Double)
       it "lowers" $ do
         assertRight $ CompileU.lowerProgram default_ Ctx.empty delta ex
 
@@ -89,11 +88,11 @@ spec = describe "MatrixSearch" $ do
       it "preserves cost" $ do
         ex_uqpl <- expectRight $ CompileU.lowerProgram default_ Ctx.empty delta ex
         let uqpl_cost = getCost . fst $ CQPL.programCost ex_uqpl
-        let proto_cost = getCost $ P.unitaryQueryCost P.SplitSimple delta ex
+        let proto_cost = getCost $ A.unitaryQueryCost A.SplitSimple delta ex
         uqpl_cost `shouldSatisfy` (<= proto_cost)
 
     describe "lower to CQPL" $ do
-      let eps = P.failProb (0.001 :: Double)
+      let eps = A.failProb (0.001 :: Double)
       it "lowers" $ do
         assertRight $ CompileQ.lowerProgram default_ Ctx.empty eps ex
 
@@ -102,61 +101,53 @@ spec = describe "MatrixSearch" $ do
         -- case CQPL.typeCheckProgram gamma ex_uqpl of Left e -> putStrLn e; _ -> return ()
         assertRight $ CQPL.typeCheckProgram ex_cqpl
 
-  xdescribe "symbolic" $ do
+  describe "symbolic" $ do
     let n = Sym.var "n" :: Sym.Sym Int
     let m = Sym.var "m" :: Sym.Sym Int
-    let ex = mkMatrixExample (\ty f -> P.PrimCallE $ Primitive [f] $ QSearchSym $ PrimSearch AnyK ty) n m
 
-    -- expected, worst, unitary
-    let ucF' = _QryU
-    let wcF = _QryQmax
+    let ex_no_ann = mkMatrixExample (\ty f -> P.PrimCallE $ Primitive [f] $ QSearchSym @Int @Double $ PrimSearch AnyK ty) n m
+    let get_ann_ex = either fail pure $ A.annSymEpsProg ex_no_ann
 
-    -- TODO: update the tests below once symbolic expressions are upgraded.
+    let eps_inner = A.failProb (Sym.var "eps_0" :: Sym.Sym Double)
+    let eps_outer = A.failProb (Sym.var "eps_1" :: Sym.Sym Double)
 
-    it "unitary cost" $ do
-      let delta = P.l2NormError (Sym.var "δ" :: Sym.Sym Double)
-      let cu = getCost $ P.unitaryQueryCost P.SplitSimple delta ex
+    let ucF = _QryU -- unitary
+    let wcF = _QryQmax -- quantum
 
-      let delta_outer = delta `P.divideError` 2
-      let nu_outer = ucF' n delta_outer
-      let nu_inner = 2 * ucF' m ((delta - delta_outer) `P.divideError` (nu_outer * 2 * 2 * 2))
-      let nu_oracle = 2
-      let from_formula = 2 * nu_outer * nu_inner * nu_oracle
-      -- cu `shouldBe` from_formula
-      show cu `shouldBe` "((QryU(n, δ/2.0)) .* (((2.0) .* (0.0+((QryU(m, (δ-δ/2.0)/QryU(n, δ/2.0)/2.0/2.0/2.0)) .* (((2.0) .* (0.0+((2.0) .* (1.0))+0.0))))+0.0))))"
+    -- test the annotated program
+    before get_ann_ex $ do
+      it "unitary cost" $ \ex -> do
+        let cu = Sym.simpl $ getCost $ A.costUProg ex
 
-    it "unitary cost (optimized precision splitting)" $ do
-      let delta = P.l2NormError (Sym.var "δ" :: Sym.Sym Double)
-      let cu = getCost $ P.unitaryQueryCost P.SplitUsingNeedsEps delta ex
+        let nu_inner = 2 * ucF m eps_inner
+        let nu_outer = 2 * ucF n eps_outer
+        let from_formula = nu_outer * nu_inner
 
-      let delta_outer = delta `P.divideError` 2
-      let nu_outer = ucF' n delta_outer
-      let nu_inner = 2 * ucF' m ((delta - delta_outer) `P.divideError` (nu_outer * 2))
-      let nu_oracle = 2
-      let from_formula = 2 * nu_outer * nu_inner * nu_oracle
-      -- cu `shouldBe` from_formula
-      show cu `shouldBe` "((QryU(n, δ/2.0)) .* (((2.0) .* (0.0+((QryU(m, (δ-δ/2.0)/QryU(n, δ/2.0)/2.0)) .* (((2.0) .* (0.0+((2.0) .* (1.0))+0.0))))+0.0))))"
+        cu `shouldBe` from_formula
 
-    it "quantum worst case cost" $ do
-      let eps = P.failProb (Sym.var "ε" :: Sym.Sym Double)
-      let cq = getCost $ P.quantumMaxQueryCost P.SplitSimple eps ex
+      it "unitary error" $ \ex -> do
+        let err_u = A.traceNormErrorUProg ex
 
-      let eps_outer = eps `P.divideError` 2
-      let nq_outer = wcF n eps_outer
-      let nq_inner = 2 * ucF' m (P.requiredFailProbToNormError (eps - eps_outer) `P.divideError` (nq_outer * 2 * 2 * 2))
-      let nq_oracle = 2
-      let from_formula = 2 * nq_outer * nq_inner * nq_oracle
-      -- cq `shouldBe` from_formula
-      show cq `shouldBe` "((QryQmax(n, ε/2.0)) .* (((2.0) .* (0.0+((QryU(m, (ε-ε/2.0)/QryQmax(n, ε/2.0)/2.0/2.0/2.0/2.0)) .* (((2.0) .* (0.0+((2.0) .* (1.0))+0.0))))+0.0))))"
+        let eps_sub = A.unitarySubroutineTVError eps_inner
+        let eps_sub_tot = A.failProb (2.0 * ucF n eps_outer) * eps_sub
+        let from_formula = eps_outer + eps_sub_tot
 
-    it "quantum worst case cost (optimized precision splitting)" $ do
-      let eps = P.failProb (Sym.var "ε" :: Sym.Sym Double)
-      let cq = getCost $ P.quantumMaxQueryCost P.SplitUsingNeedsEps eps ex
+        err_u `shouldBe` from_formula
 
-      let eps_outer = eps `P.divideError` 2
-      let nq_outer = wcF n eps_outer
-      let nq_inner = 2 * ucF' m (P.requiredFailProbToNormError (eps - eps_outer) `P.divideError` (nq_outer * 2))
-      let nq_oracle = 2
-      let from_formula = 2 * nq_outer * nq_inner * nq_oracle
-      -- cq `shouldBe` from_formula
-      show cq `shouldBe` "((QryQmax(n, ε/2.0)) .* (((2.0) .* (0.0+((QryU(m, (ε-ε/2.0)/QryQmax(n, ε/2.0)/2.0/2.0)) .* (((2.0) .* (0.0+((2.0) .* (1.0))+0.0))))+0.0))))"
+      it "quantum worst case cost" $ \ex -> do
+        let cq = Sym.simpl $ getCost $ A.costQProg ex
+
+        let nu_inner = 2 * ucF m eps_inner
+        let nq_outer = 2 * wcF n eps_outer
+        let from_formula = nq_outer * nu_inner
+
+        cq `shouldBe` from_formula
+
+      it "quantum error" $ \ex -> do
+        let err_q = A.tvErrorQProg ex
+
+        let eps_sub = A.unitarySubroutineTVError eps_inner
+        let eps_sub_tot = A.failProb (2.0 * wcF n eps_outer) * eps_sub
+        let from_formula = eps_outer + eps_sub_tot
+
+        err_q `shouldBe` from_formula
