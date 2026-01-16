@@ -28,4 +28,4 @@ spec = describe "annotate-symbolic" $ do
       prog' <- expectRight $ annSymEpsProg @Double prog
       let fn_interps = Ctx.singleton "Matrix" (\case [P.FinV i, P.FinV j] -> [P.toValue (i == j)]; _ -> undefined)
       let cost = getCost $ A.expCostQProg prog' [] fn_interps
-      show cost `shouldBe` "0.0+(0.0+58.18590894709818*log (1.0/eps_1)*(0.0+(0.0+6.0*(1.0+logBase 0.6086 eps_0))+0.0))+0.0"
+      show cost `shouldBe` "0.0+(0.0+58.18590894709818*log (1.0/eps_1)*(0.0+(0.0+8.0*(1.0+logBase 0.6086 eps_0))+0.0))+0.0"

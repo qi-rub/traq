@@ -72,7 +72,7 @@ spec = describe "SearchSpec" $ do
         ex_uqpl <- expectRight $ CompileU.lowerProgram ex'
         assertRight $ CQPL.typeCheckProgram ex_uqpl
 
-      xit "preserves cost" $ do
+      it "preserves cost" $ do
         ex' <- expectRight $ A.annotateProgWith (P._exts (A.annSinglePrim eps)) ex
         ex_uqpl <- expectRight $ CompileU.lowerProgram ex'
         let (uqpl_cost, _) = CQPL.programCost ex_uqpl

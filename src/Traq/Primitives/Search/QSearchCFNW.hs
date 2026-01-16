@@ -88,8 +88,9 @@ _QSearchZalka :: forall sizeT precT. (Integral sizeT, Floating precT) => sizeT -
 _QSearchZalka n eps = nq_simple
  where
   -- Section 2.1 simple algorithm cost
+  -- +1 for extra query at the end to obtain the flag bit (and result)
   nq_simple :: precT
-  nq_simple = fromIntegral (_QSearchZalka_max_iter n) * _QSearchZalka_n_reps eps
+  nq_simple = fromIntegral (_QSearchZalka_max_iter n + 1) * _QSearchZalka_n_reps eps
 
 -- Section 2.2 Improved Algorithm (i.e. sqrt log(1/eps) instead of log(1/eps))
 -- log_fac = ceiling log_fac
