@@ -30,7 +30,7 @@ module Traq.Compiler.Unitary (
   withTag,
 ) where
 
-import Control.Monad (forM, unless, when, zipWithM)
+import Control.Monad (forM, unless, when)
 import Control.Monad.Except (throwError)
 import Control.Monad.RWS (RWST (..))
 import Data.Foldable (Foldable (toList))
@@ -45,7 +45,6 @@ import Traq.Control.Monad
 import qualified Traq.Data.Context as Ctx
 import Traq.Data.Default
 
-import qualified Traq.Analysis as A
 import qualified Traq.CQPL as CQPL
 import Traq.CQPL.Syntax
 import Traq.Compiler.Utils
@@ -68,7 +67,6 @@ class
     , SizeType ext' ~ sizeT
     , PrecType ext' ~ precT
     ) =>
-    A.L2NormError precT ->
     ext ->
     -- | rets
     [Ident] ->
@@ -82,15 +80,14 @@ class
     , SizeType ext' ~ sizeT
     , PrecType ext' ~ precT
     ) =>
-    A.L2NormError precT ->
     ext ->
     -- | rets
     [Ident] ->
     m (UStmt sizeT)
-  lowerPrimitive delta p = glowerPrimitive (from p) delta
+  lowerPrimitive p = glowerPrimitive (from p)
 
 instance (P.TypingReqs sizeT) => Lowerable (P.Core sizeT precT) sizeT precT where
-  lowerPrimitive _ = \case {}
+  lowerPrimitive = \case {}
 
 -- | Generic
 class GLowerable f sizeT precT | f -> sizeT precT where
@@ -102,7 +99,6 @@ class GLowerable f sizeT precT | f -> sizeT precT where
     , PrecType ext' ~ precT
     ) =>
     f primT ->
-    A.L2NormError precT ->
     -- | rets
     [Ident] ->
     m (UStmt sizeT)
@@ -124,7 +120,7 @@ instance
   (Lowerable f sizeT precT) =>
   GLowerable (K1 i f) sizeT precT
   where
-  glowerPrimitive (K1 x) delta = lowerPrimitive delta x
+  glowerPrimitive (K1 x) = lowerPrimitive x
 
 -- ================================================================================
 -- Helpers
@@ -169,26 +165,25 @@ lowerExpr ::
   , Show precT
   , Floating precT
   ) =>
-  A.L2NormError precT ->
   P.Expr ext ->
   -- | returns
   [Ident] ->
   CompilerT ext (UStmt sizeT)
 -- basic expressions are lowered to their unitary embedding
-lowerExpr _ P.BasicExprE{P.basic_expr} rets = do
+lowerExpr P.BasicExprE{P.basic_expr} rets = do
   let args = toList $ P.freeVars basic_expr
   return $ UnitaryS{qargs = args ++ rets, unitary = RevEmbedU args basic_expr}
 
 -- random sampling expressions
-lowerExpr _ P.RandomSampleE{P.distr_expr = P.UniformE{}} rets = do
+lowerExpr P.RandomSampleE{P.distr_expr = P.UniformE{}} rets = do
   return $ UnitaryS{qargs = rets, unitary = Unif}
-lowerExpr _ P.RandomSampleE{P.distr_expr = P.BernoulliE{}} rets = do
+lowerExpr P.RandomSampleE{P.distr_expr = P.BernoulliE{}} rets = do
   return $ UnitaryS{qargs = rets, unitary = error "TODO: Add Ry gate"}
 
 -- function call
-lowerExpr delta P.FunCallE{fname, P.args} rets = do
+lowerExpr P.FunCallE{fname, P.args} rets = do
   fun <- P.lookupFunE fname
-  LoweredProc{lowered_def, inp_tys, out_tys, aux_tys} <- lowerFunDef WithoutControl delta fname fun
+  LoweredProc{lowered_def, inp_tys, out_tys, aux_tys} <- lowerFunDef WithoutControl fname fun
 
   when (length inp_tys /= length args) $
     throwError "mismatched number of args"
@@ -203,10 +198,10 @@ lowerExpr delta P.FunCallE{fname, P.args} rets = do
       , dagger = False
       }
 -- primitive call
-lowerExpr delta P.PrimCallE{prim} rets =
-  lowerPrimitive delta prim rets
+lowerExpr P.PrimCallE{prim} rets =
+  lowerPrimitive prim rets
 -- unsupported
-lowerExpr _ _ _ = error "TODO: unsupported"
+lowerExpr _ _ = error "TODO: unsupported"
 
 -- | Compile a statement (simple or compound)
 lowerStmt ::
@@ -216,21 +211,17 @@ lowerStmt ::
   , Show precT
   , Floating precT
   ) =>
-  A.L2NormError precT ->
   P.Stmt ext ->
   CompilerT ext (UStmt sizeT)
 -- single statement
-lowerStmt delta s@P.ExprS{P.rets, P.expr} = do
+lowerStmt s@P.ExprS{P.rets, P.expr} = do
   _ <- magnify P._funCtx . zoom P._typingCtx . ignoreWriter $ P.inferTypes s
-  lowerExpr delta expr rets
+  lowerExpr expr rets
 
 -- compound statements
-lowerStmt delta (P.SeqS ss) = do
-  deltas <- A.splitEps delta ss
-  USeqS <$> zipWithM lowerStmt deltas ss
-
+lowerStmt (P.SeqS ss) = USeqS <$> mapM lowerStmt ss
 -- unsupported
-lowerStmt _ _ = error "lowering: unsupported"
+lowerStmt _ = error "lowering: unsupported"
 
 {- | Compile a single function definition with the given precision.
  Each invocation will generate a new proc, even if an identical one exists.
@@ -247,14 +238,12 @@ lowerFunDefWithGarbage ::
   , Floating precT
   , m ~ CompilerT ext
   ) =>
-  -- | precision \delta
-  A.L2NormError precT ->
   -- | source function name
   Ident ->
   -- | function
   P.FunDef ext ->
   m (LoweredProc sizeT)
-lowerFunDefWithGarbage _ fun_name P.FunDef{P.param_types, P.ret_types, P.mbody = Nothing} = do
+lowerFunDefWithGarbage fun_name P.FunDef{P.param_types, P.ret_types, P.mbody = Nothing} = do
   proc_name <- newIdent fun_name
 
   let proc_def =
@@ -276,7 +265,6 @@ lowerFunDefWithGarbage _ fun_name P.FunDef{P.param_types, P.ret_types, P.mbody =
       , aux_tys = []
       }
 lowerFunDefWithGarbage
-  delta
   fun_name
   P.FunDef
     { P.param_types
@@ -286,13 +274,13 @@ lowerFunDefWithGarbage
     } =
     withSandboxOf P._typingCtx $ do
       proc_name <- newIdent fun_name
-      let info_comment = printf "%s[%s]" fun_name (show $ A.getL2NormError delta)
+      let info_comment = printf "%s" fun_name
 
       let param_binds = zip param_names param_types
       let ret_binds = zip ret_names ret_types
 
       P._typingCtx .= Ctx.fromList param_binds
-      proc_body <- lowerStmt delta body_stmt
+      proc_body <- lowerStmt body_stmt
       when (param_names `intersect` ret_names /= []) $
         throwError "function should not return parameters!"
 
@@ -344,8 +332,6 @@ lowerFunDef ::
   ) =>
   -- | Controlled?
   ControlFlag ->
-  -- | precision \delta
-  A.L2NormError precT ->
   -- | function name
   Ident ->
   -- | function
@@ -353,7 +339,6 @@ lowerFunDef ::
   m (LoweredProc sizeT)
 lowerFunDef
   with_ctrl
-  delta
   fun_name
   fun@P.FunDef
     { P.param_types
@@ -361,7 +346,7 @@ lowerFunDef
     , P.mbody
     } = withSandboxOf P._typingCtx $ do
     -- get the proc call that computes with garbage
-    LoweredProc{lowered_def, aux_tys = g_aux_tys, out_tys = g_ret_tys} <- lowerFunDefWithGarbage (delta `A.divideError` 2) fun_name fun
+    LoweredProc{lowered_def, aux_tys = g_aux_tys, out_tys = g_ret_tys} <- lowerFunDefWithGarbage fun_name fun
     let g_dirty_name = lowered_def ^. to proc_name
 
     let param_names = case mbody of
@@ -376,7 +361,7 @@ lowerFunDef
 
     P._typingCtx .= Ctx.fromList (param_binds ++ ret_binds)
     proc_name <- newIdent fun_name
-    let info_comment = printf "%sClean[%s, %s]" (case with_ctrl of WithControl -> "Ctrl_"; _ -> "") fun_name (show $ A.getL2NormError delta)
+    let info_comment = printf "%sClean[%s]" (case with_ctrl of WithControl -> "Ctrl_"; _ -> "") fun_name
 
     g_ret_names <- mapM allocAncilla g_ret_tys
 
@@ -435,29 +420,22 @@ lowerProgram ::
   , Floating precT
   , P.HasFreeVars ext
   ) =>
-  A.PrecisionSplittingStrategy ->
-  -- | All variable bindings
-  P.TypingCtx SizeT ->
-  -- | precision \delta
-  A.L2NormError precT ->
   P.Program ext ->
   Either String (CQPL.Program SizeT)
-lowerProgram strat gamma_in delta prog@(P.Program fs) = do
+lowerProgram prog@(P.Program fs) = do
   unless (P.checkVarsUnique prog) $
     throwError "program does not have unique variables!"
 
   let config =
         default_
           & (P._funCtx .~ P.namedFunsToFunCtx fs)
-          & (A._precSplitStrat .~ strat)
   let ctx =
         default_
-          & (P._typingCtx .~ gamma_in)
           & (_uniqNamesCtx .~ P.allNamesP prog)
 
   let P.NamedFunDef{P.fun_name = main_name, P.fun_def = main_def} = last fs
   (_, _, outputU) <-
-    lowerFunDefWithGarbage delta main_name main_def
+    lowerFunDefWithGarbage main_name main_def
       & (\m -> runRWST m config ctx)
   let procs = outputU ^. _loweredProcs . to (Ctx.fromListWith proc_name)
   return CQPL.Program{CQPL.proc_defs = procs}
