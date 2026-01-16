@@ -108,9 +108,9 @@ spec = do
       prog <- loadKnapsack n 20 30 2
       let funInterpCtx =
             Ctx.fromList
-              [ ("Capacity", \_ -> [FinV 20])
-              , ("Profit", \[FinV i] -> [FinV i])
-              , ("Weight", \[FinV i] -> [FinV i])
+              [ ("Capacity", const [FinV 20])
+              , ("Profit", id)
+              , ("Weight", id)
               ]
       let result = runProgram prog funInterpCtx []
 
@@ -127,7 +127,7 @@ spec = do
       p `shouldBe` loopExample (Sym.var "N") (Sym.var "W")
 
     it "evaluates" $ do
-      let funInterpCtx = Ctx.singleton "AddWeight" (\[FinV x1, FinV x2] -> [FinV x1])
+      let funInterpCtx = Ctx.singleton "AddWeight" (take 1)
       let result = runProgram @Core' (loopExample 10 20) funInterpCtx []
 
       result `shouldBeDistribution` [([FinV 10], 1.0)]

@@ -1,9 +1,8 @@
 module Traq.Primitives.Search.RandomSearchSpec (spec) where
 
 import qualified Traq.Data.Context as Ctx
-import Traq.Data.Default
 
-import qualified Traq.Analysis as P
+import qualified Traq.Analysis as A
 import Traq.Analysis.CostModel.QueryCost (SimpleQueryCost (..))
 import Traq.Examples.MatrixSearch (mkMatrixExample)
 import Traq.Prelude
@@ -23,8 +22,9 @@ spec = do
   describe "RandomSearch" $ do
     let mat_prog = mkMatrixExample (\ty f -> P.PrimCallE $ Primitive [f] (RandomSearch $ PrimSearch AnyK ty))
     it "expected cost" $ do
-      let eps = P.failProb 0.001
+      let eps = A.failProb 0.001
       let n = 10
       let fun_interp = Ctx.singleton "Matrix" diagMatrix
-      let c = getCost $ P.quantumQueryCost default_ eps (mat_prog n n) fun_interp default_ :: Double
+      prog' <- either fail pure $ A.annotateProgWithErrorBudget eps $ mat_prog n n
+      let c = getCost $ A.expCostQProg prog' [] fun_interp :: Double
       c `shouldSatisfy` (< (292 :: Double))

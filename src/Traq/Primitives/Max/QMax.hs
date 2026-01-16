@@ -22,6 +22,8 @@ import Control.Monad (forM, when)
 import Control.Monad.Except (throwError)
 import Text.Printf (printf)
 
+import qualified Numeric.Algebra as Alg
+
 import qualified Traq.Analysis as P
 import Traq.Prelude
 import Traq.Primitives.Class
@@ -117,6 +119,8 @@ instance
    where
     _N = P.domainSize arg_ty
 
+  unitaryExprCosts _ _ = Alg.zero
+
 instance
   ( Integral sizeT
   , Floating precT
@@ -131,6 +135,8 @@ instance
   -- no quantum queries
   quantumQueryCostsQuantum _ _ = QMaxFunArg{fun = 0}
 
+  quantumExprCosts = Alg.zero
+
 instance
   ( Floating precT
   , Integral sizeT
@@ -144,3 +150,5 @@ instance
 
   -- no quantum queries
   quantumExpQueryCostsQuantum _ _ _ = QMaxFunArg{fun = []}
+
+  quantumExpExprCosts = Alg.zero

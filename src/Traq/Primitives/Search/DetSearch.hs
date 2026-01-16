@@ -60,6 +60,8 @@ instance (P.TypingReqs size, Integral size, Num prec) => UnitaryCostPrim (DetSea
    where
     _N = P.domainSize search_ty
 
+  unitaryExprCosts _ _ = Alg.zero
+
 instance (P.TypingReqs size, Integral size, Num prec, P.SizeToPrec size prec) => QuantumHavocCostPrim (DetSearch size prec) size prec where
   -- only classical queries
   quantumQueryCostsQuantum (DetSearch PrimSearch{search_ty}) _ = BooleanPredicate (fromIntegral _N)
@@ -68,6 +70,8 @@ instance (P.TypingReqs size, Integral size, Num prec, P.SizeToPrec size prec) =>
 
   -- no unitary
   quantumQueryCostsUnitary _ _ = BooleanPredicate $ weakQueries 0
+
+  quantumExprCosts = Alg.zero
 
 instance
   (size ~ SizeT, Floating prec, Alg.Monoidal prec, Alg.Semiring prec) =>
@@ -87,3 +91,5 @@ instance
     queried_vals = non_sols ++ take 1 sol_and_rest
 
   quantumExpQueryCostsUnitary _ _ _ = BooleanPredicate $ weakQueries 0
+
+  quantumExpExprCosts = Alg.zero

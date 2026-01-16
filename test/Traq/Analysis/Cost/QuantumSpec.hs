@@ -68,7 +68,7 @@ spec :: Spec
 spec = do
   describe "quantum cost analysis" $ do
     it "ex1" $ do
-      let interps = Ctx.singleton "f" (\[x] -> [P.toValue $ (P.fromValue x :: Int) == 3])
+      let interps = Ctx.singleton "f" (\case [x] -> [P.toValue $ (P.fromValue x :: Int) == 3]; _ -> undefined)
       let c = getCost $ A.expCostQProg @(SimpleQueryCost Double) exProg [] interps
       c `shouldBe` 2 * _EQSearch (10 :: Int) 1 (A.failProb 0.1)
     it "probabilistic outcome" $ do

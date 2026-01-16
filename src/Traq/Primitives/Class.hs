@@ -1,36 +1,18 @@
 {-# LANGUAGE AllowAmbiguousTypes #-}
 {-# LANGUAGE FlexibleInstances #-}
-{-# LANGUAGE FunctionalDependencies #-}
+{-# LANGUAGE MultiParamTypeClasses #-}
 {-# LANGUAGE RecordWildCards #-}
 {-# LANGUAGE TypeApplications #-}
 {-# LANGUAGE UndecidableInstances #-}
 
 module Traq.Primitives.Class (
-  -- * Primitives
   Primitive (..),
-  PrimFnShape,
-  ValidPrimShape (..),
-  reshapeUnsafe,
-
-  -- ** Typeclasses
-  SerializePrim (..),
-  TypeCheckPrim (..),
-  EvalPrim (..),
-
-  -- ** Unitary Compilation and Cost
-  UnitaryCostPrim (..),
-  UnitaryQueries (..),
-  strongQueries,
-  weakQueries,
-  zeroQ,
-
-  -- ** Classical-Quantum Compilation and Cost
-  QuantumHavocCostPrim (..),
-  QuantumExpCostPrim (..),
-
-  -- ** Partial Functions
-  PartialFun (..),
-  placeArgs,
+  module Traq.Primitives.Class.Prelude,
+  module Traq.Primitives.Class.Serialize,
+  module Traq.Primitives.Class.TypeCheck,
+  module Traq.Primitives.Class.Eval,
+  module Traq.Primitives.Class.UnitaryCost,
+  module Traq.Primitives.Class.QuantumCost,
 ) where
 
 import Control.Applicative (Alternative ((<|>)), many)
@@ -38,11 +20,9 @@ import Control.Monad (forM, forM_, void, when)
 import Control.Monad.Except (throwError)
 import Control.Monad.Extra (concatMapM)
 import Control.Monad.Reader (runReaderT)
-import Data.Kind (Type)
 import Data.Maybe (catMaybes, fromMaybe)
 import Text.Parsec (try)
-import Text.Parsec.String (Parser)
-import Text.Parsec.Token (GenTokenParser (..), TokenParser)
+import Text.Parsec.Token (GenTokenParser (..))
 import Text.Printf (printf)
 
 import Lens.Micro.GHC
@@ -54,42 +34,15 @@ import qualified Traq.Data.Context as Ctx
 import qualified Traq.Data.Symbolic as Sym
 
 import qualified Traq.Analysis as A
-import qualified Traq.Analysis.CostModel.Class as C
 import Traq.Prelude
+import Traq.Primitives.Class.Eval
+import Traq.Primitives.Class.Prelude
+import Traq.Primitives.Class.QuantumCost
+import Traq.Primitives.Class.Serialize
+import Traq.Primitives.Class.TypeCheck
+import Traq.Primitives.Class.UnitaryCost
 import qualified Traq.ProtoLang as P
 import qualified Traq.Utils.Printing as PP
-
-{- | A partially applied function
-Syntax: @f(a_1, ..., a_n)@ where each @a_i@ is either an identifier, or a blank @_@
--}
-data PartialFun = PartialFun
-  { pfun_name :: Ident
-  , pfun_args :: [Maybe Ident]
-  }
-  deriving (Eq, Show)
-
-instance PP.ToCodeString PartialFun where
-  build PartialFun{pfun_name, pfun_args} = do
-    let args = PP.commaList $ map (fromMaybe "_") pfun_args
-    PP.putWord $ printf "%s(%s)" pfun_name args
-
-instance P.Parseable PartialFun where
-  parseE TokenParser{..} = do
-    pfun_name <- identifier
-    pfun_args <- parens $ commaSep ((Nothing <$ symbol "_") <|> (Just <$> identifier))
-    return PartialFun{..}
-
-instance P.RenameVars PartialFun where
-  renameVars pref f@PartialFun{pfun_args} = f{pfun_args = map (fmap (P.addOnePrefix pref)) pfun_args}
-
-{- | Place a list of concrete values inside a list of incomplete values.
-For example, @placeArgs [Just 0, Nothing, Just 2, Nothing] [1, 3] = [0,1,2,3]@
--}
-placeArgs :: [Maybe a] -> [a] -> [a]
-placeArgs [] [] = []
-placeArgs (Just x : xs) as = x : placeArgs xs as
-placeArgs (Nothing : xs) (a : as) = a : placeArgs xs as
-placeArgs mxs ys = error $ printf "invalid use of placeArgs(%d, %d)" (length mxs) (length ys)
 
 {- | A generic second-order primitive.
 It accepts a sequence of partially applied functions.
@@ -103,30 +56,12 @@ data Primitive prim = Primitive [PartialFun] prim
 type instance SizeType (Primitive p) = SizeType p
 type instance PrecType (Primitive p) = PrecType p
 
+-- ================================================================================
+-- Instances
+-- ================================================================================
+
 instance P.RenameVars (Primitive p) where
   renameVars pref (Primitive par_funs p) = Primitive (map (P.renameVars pref) par_funs) p
-
-{- | The shape of the function arguments that primitive @prim@ expects.
-The type @PrimFnShape prim a@ should be a subtype of @[a]@, for every @a@.
-This type is useful to specify record constructor names for readability.
--}
-type family PrimFnShape prim :: Type -> Type
-
--- | Conversion between shaped information and a list.
-class ValidPrimShape shape where
-  listToShape :: [a] -> Either String (shape a)
-  shapeToList :: shape a -> [a]
-
-reshapeUnsafe :: (ValidPrimShape shape, ValidPrimShape shape') => shape a -> shape' a
-reshapeUnsafe = either (error "please typecheck first") id . listToShape . shapeToList
-
-instance ValidPrimShape [] where
-  listToShape = Right
-  shapeToList = id
-
--- ================================================================================
--- Basic Instances
--- ================================================================================
 
 instance (P.MapSize prim) => P.MapSize (Primitive prim) where
   type MappedSize (Primitive prim) size' = Primitive (P.MappedSize prim size')
@@ -134,33 +69,6 @@ instance (P.MapSize prim) => P.MapSize (Primitive prim) where
 
 instance P.HasFreeVars (Primitive prim) where
   freeVarsList (Primitive par_funs _) = concatMap (catMaybes . pfun_args) par_funs
-
--- ================================================================================
--- Specialized Typeclasses for Primitives.
--- ================================================================================
-
--- --------------------------------------------------------------------------------
--- Printing and Parsing
--- --------------------------------------------------------------------------------
-
-{- | Simple class to print/parse second-order primitives.
-Syntax: `@prim<args, ...>[fns, ...];`
--}
-class SerializePrim prim where
-  -- | all names (variants) used by the primitive
-  primNames :: [Ident]
-
-  -- | name for a specific constructor
-  primNameOf :: prim -> Ident
-  primNameOf _ = case (primNames @prim) of
-    [s] -> s
-    _ -> error "primitive has multiple names, please override primNameOf"
-
-  -- | parse the primitive info given its name
-  parsePrimParams :: (SizeType prim ~ Sym.Sym SizeT) => TokenParser () -> Ident -> Parser prim
-
-  -- | print the primitives parameters.
-  printPrimParams :: prim -> [String]
 
 -- Pretty Printing
 instance (SerializePrim prim) => PP.ToCodeString (Primitive prim) where
@@ -170,38 +78,15 @@ instance (SerializePrim prim) => PP.ToCodeString (Primitive prim) where
 
 -- Parsing
 instance (SerializePrim prim, SizeType prim ~ Sym.Sym SizeT) => P.Parseable (Primitive prim) where
-  parseE tp@TokenParser{..} = parseFindXorPeriod
-   where
-    parseFindXorPeriod = do
-      ('@' : name) <- foldr1 (<|>) $ map (\s -> try $ symbol $ "@" ++ s) $ primNames @prim
-      prim <- angles $ parsePrimParams tp name
-      par_funs <- brackets $ many $ P.parseE tp
-      return $ Primitive par_funs prim
+  parseE tp@TokenParser{..} = do
+    ('@' : name) <- foldr1 (<|>) $ map (\s -> try $ symbol $ "@" ++ s) $ primNames @prim
+    prim <- angles $ parsePrimParams tp name
+    par_funs <- brackets $ many $ P.parseE tp
+    return $ Primitive par_funs prim
 
 -- --------------------------------------------------------------------------------
 -- Typing
 -- --------------------------------------------------------------------------------
-
-{- | Type check a primitive given the types of its function arguments, and infer the return types.
-The typechecker internally checks that the bound arguments are correct,
-and only gives the user the final type of the partial function.
--}
-class
-  ( size ~ SizeType prim
-  , ValidPrimShape (PrimFnShape prim)
-  ) =>
-  TypeCheckPrim prim size
-    | prim -> size
-  where
-  inferRetTypesPrim ::
-    forall ext' shape m.
-    ( m ~ P.TypeChecker ext'
-    , size ~ SizeType ext'
-    , shape ~ PrimFnShape prim
-    ) =>
-    prim ->
-    shape (P.FnType size) ->
-    m [P.VarType size]
 
 instance (TypeCheckPrim prim size, P.TypingReqs size) => P.TypeInferrable (Primitive prim) size where
   inferTypes (Primitive par_funs prim) = do
@@ -228,31 +113,8 @@ instance (TypeCheckPrim prim size, P.TypingReqs size) => P.TypeInferrable (Primi
     inferRetTypesPrim prim shaped_fn_tys
 
 -- --------------------------------------------------------------------------------
--- Evaluation
+-- Eval
 -- --------------------------------------------------------------------------------
-
-{- | Evaluate a primitive given the semantics of each function argument.
-For partial functions, the prefix of arguments are already bound.
--}
-class
-  ( size ~ SizeType prim
-  , prec ~ PrecType prim
-  , ValidPrimShape (PrimFnShape prim)
-  ) =>
-  EvalPrim prim size prec
-    | prim -> size prec
-  where
-  evalPrim ::
-    forall ext' shape m.
-    ( P.Evaluatable ext' size prec
-    , m ~ P.Evaluator ext'
-    , SizeType ext' ~ size
-    , PrecType ext' ~ prec
-    , shape ~ PrimFnShape prim
-    ) =>
-    prim ->
-    shape ([P.Value size] -> m [P.Value size]) ->
-    m [P.Value size]
 
 instance
   ( EvalPrim prim size prec
@@ -279,41 +141,13 @@ instance
 
     evalPrim prim shaped_fns_eval
 
+-- ================================================================================
+-- Analysis (Unitary)
+-- ================================================================================
+
 -- --------------------------------------------------------------------------------
--- Unitary Compiler: Costs, Error.
+-- Error
 -- --------------------------------------------------------------------------------
-
-data UnitaryQueries prec = UnitaryQueries {strong, weak :: prec}
-  deriving (Eq, Read, Show)
-
-strongQueries, weakQueries :: (Num prec) => prec -> UnitaryQueries prec
-strongQueries q = UnitaryQueries{strong = q, weak = 0}
-weakQueries q = UnitaryQueries{strong = 0, weak = q}
-
-zeroQ :: (Num prec) => UnitaryQueries prec
-zeroQ = UnitaryQueries{strong = 0, weak = 0}
-
--- | Total number of queries to a "weak" (i.e. with entangled aux) implementation of the sub-function.
-totalWeakUnitaryQueries :: (Num prec) => UnitaryQueries prec -> prec
-totalWeakUnitaryQueries UnitaryQueries{strong, weak} = 2 * strong + weak
-
-{- | Unitary query and operation costs of a primitive.
-Represents one level of the call graph.
--}
-class
-  ( size ~ SizeType prim
-  , prec ~ PrecType prim
-  , TypeCheckPrim prim size
-  ) =>
-  UnitaryCostPrim prim size prec
-    | prim -> size prec
-  where
-  -- | Bound on number of queries made to each function.
-  unitaryQueryCosts :: prim -> A.FailProb prec -> PrimFnShape prim (UnitaryQueries prec)
-
-  -- | Cost of all additional operations. Defaults to zero.
-  unitaryExprCosts :: (C.CostModel cost, precT ~ PrecType cost) => prim -> A.FailProb prec -> cost
-  unitaryExprCosts _ _ = Alg.zero
 
 instance
   ( UnitaryCostPrim prim size prec
@@ -330,6 +164,10 @@ instance
     let tot_eps_fns = sum $ zipWith A.unitarySubroutineTVErrorTotal query_costs eps_fn
     return $ eps + tot_eps_fns
 
+-- --------------------------------------------------------------------------------
+-- Cost
+-- --------------------------------------------------------------------------------
+
 instance
   ( UnitaryCostPrim prim size prec
   , A.CostReqs size prec
@@ -343,8 +181,10 @@ instance
       fn <- view $ P._funCtx . Ctx.at pfun_name . non' (error "invalid function")
       A.costU $ P.NamedFunDef pfun_name fn
 
-    -- TODO expression cost
-    return $ Alg.sum $ zipWith (Alg..*) query_costs fn_costs
+    -- all other non-query operations
+    let extra_costs = unitaryExprCosts prim eps
+
+    return $ Alg.sum $ extra_costs : zipWith (Alg..*) query_costs fn_costs
 
 instance
   ( UnitaryCostPrim prim size prec
@@ -381,31 +221,46 @@ instance
     return $ (2 :: prec) Alg..* (Alg.sum fn_costs Alg.+ extra_costs)
 
 -- --------------------------------------------------------------------------------
--- Quantum Compiler: Costs, Error.
+-- Annotation
 -- --------------------------------------------------------------------------------
 
-{- | Worst-case Quantum query and operation costs of a primitive.
-Represents one level of the call graph.
-The quantum compiler of the primitive can use both the quantum and unitary compilation of its function arguments.
--}
-class
-  ( size ~ SizeType prim
-  , prec ~ PrecType prim
-  , A.SizeToPrec size prec
-  , TypeCheckPrim prim size
-  ) =>
-  QuantumHavocCostPrim prim size prec
-    | prim -> size prec
+instance
+  (UnitaryCostPrim prim size prec) =>
+  A.AnnotateWithErrorBudgetU (Primitive prim)
   where
-  -- | Bound on number of queries made to each function's quantum compilation.
-  quantumQueryCostsQuantum :: prim -> A.FailProb prec -> PrimFnShape prim prec
+  annEpsU eps (A.AnnFailProb eps_old (Primitive par_funs prim)) = do
+    -- check if any of the functions can error
+    pfuns_may_error <- fmap or $ forM par_funs $ \PartialFun{pfun_name} -> do
+      fn <- use $ P._funCtx . Ctx.at pfun_name . singular _Just
+      A.canError fn
 
-  -- | Bound on number of queries made to each function's unitary compilation.
-  quantumQueryCostsUnitary :: prim -> A.FailProb prec -> PrimFnShape prim (UnitaryQueries prec)
+    -- split the overall precision in half if fns can error, otherwise use full.
+    let eps_alg = min eps_old (if pfuns_may_error then A.splitFailProb eps 2 else eps)
 
-  -- | Cost of all additional operations. Defaults to zero.
-  quantumExprCosts :: (C.CostModel cost, precT ~ PrecType cost) => prim -> A.FailProb prec -> cost
-  quantumExprCosts _ _ = Alg.zero
+    let n_queries_u = map totalWeakUnitaryQueries . shapeToList $ unitaryQueryCosts prim eps_alg
+
+    -- split the other half into equal parts per function
+    let eps_fns = A.splitFailProb (eps - eps_alg) (A.sizeToPrec $ length par_funs)
+
+    forM_ (zip par_funs n_queries_u) $ \(PartialFun{pfun_name}, n_query_u) -> do
+      fn <- use $ P._funCtx . Ctx.at pfun_name . singular _Just
+      let named_fn = P.NamedFunDef pfun_name fn
+
+      -- divide by number of queries to get eps per call
+      let eps_fn = A.splitFailProb eps_fns n_query_u
+      let eps_fn_u = A.unitarySubroutineTVBudget eps_fn
+
+      when (n_query_u > 0) $ void $ A.annEpsU1 eps_fn_u named_fn
+
+    pure $ A.AnnFailProb eps_alg $ Primitive par_funs prim
+
+-- ================================================================================
+-- Analysis (Quantum)
+-- ================================================================================
+
+-- --------------------------------------------------------------------------------
+-- Error
+-- --------------------------------------------------------------------------------
 
 instance
   ( UnitaryCostPrim prim size prec
@@ -432,6 +287,10 @@ instance
     calc_tot_err_q :: prec -> A.FailProb prec -> A.FailProb prec
     calc_tot_err_q n eps' = A.failProb $ n * A.getFailProb eps'
 
+-- --------------------------------------------------------------------------------
+-- Cost (worst/havoc)
+-- --------------------------------------------------------------------------------
+
 instance
   ( UnitaryCostPrim prim size prec
   , QuantumHavocCostPrim prim size prec
@@ -452,90 +311,15 @@ instance
 
     let tot_cost_q = Alg.sum $ zipWith (Alg..*) query_costs_q fn_costs_q
     let tot_cost_u = Alg.sum $ zipWith (Alg..*) query_costs_u fn_costs_u
-    -- TODO expression cost
-    return $ Alg.sum [tot_cost_q, tot_cost_u]
-
-instance
-  ( QuantumHavocCostPrim prim size prec
-  , UnitaryCostPrim prim size prec
-  , P.TypingReqs size
-  , Floating prec
-  , Ord prec
-  ) =>
-  A.QuantumHavocCost (Primitive prim) size prec
-  where
-  quantumHavocCost eps (Primitive par_funs prim) = do
-    -- split the overall precision in half
-    let eps_alg = A.divideError eps 2
-
-    let query_costs_q = shapeToList $ quantumQueryCostsQuantum prim eps_alg
-    let query_costs_u = map (\q -> strong q + weak q) . shapeToList $ quantumQueryCostsUnitary prim eps_alg
-
-    -- split the other half into equal parts per function
-    let eps_fns = A.divideError (eps - eps_alg) (A.sizeToPrec $ length par_funs)
-
-    fn_costs <- forM (zip3 par_funs query_costs_q query_costs_u) $ \(PartialFun{pfun_name}, n_queries_q, n_queries_u) -> do
-      -- divide by number of queries to get cost per call
-      let eps_fn = A.divideError eps_fns (n_queries_u + n_queries_q)
-
-      -- cost per call to f, with the same precision.
-      cost_f_q <- A.quantumMaxQueryCostF eps_fn pfun_name
-      cost_f_u <- A.unitaryQueryCostF (A.requiredFailProbToNormError eps_fn) pfun_name
-
-      return $ (n_queries_q Alg..* cost_f_q) Alg.+ (2 * n_queries_u Alg..* cost_f_u)
 
     -- all other non-query operations
-    let extra_costs = unitaryExprCosts prim eps_alg
+    let extra_costs = quantumExprCosts prim eps
 
-    return $ Alg.sum fn_costs Alg.+ extra_costs
+    return $ Alg.sum [tot_cost_q, tot_cost_u, extra_costs]
 
-{- | Expected Quantum query and operation costs of a primitive.
-Represents one level of the call graph.
-The quantum compiler of the primitive can use both the quantum and unitary compilation of its function arguments.
--}
-class
-  ( size ~ SizeType prim
-  , prec ~ PrecType prim
-  , A.SizeToPrec size prec
-  , TypeCheckPrim prim size
-  ) =>
-  QuantumExpCostPrim prim size prec
-  where
-  {- Bound on the expected number of queries made to each function's quantum compilation.
-  This is a random variable over the inputs to each function.
-  -}
-  quantumExpQueryCostsQuantum ::
-    forall shape m.
-    ( shape ~ PrimFnShape prim
-    , m ~ P.EvaluationMonad prec
-    ) =>
-    prim ->
-    A.FailProb prec ->
-    shape ([P.Value size] -> m [P.Value size]) ->
-    shape [([P.Value size], prec)]
-
-  -- | Bound on the expected number of queries made to each function's unitary compilation.
-  quantumExpQueryCostsUnitary ::
-    forall shape m.
-    (shape ~ PrimFnShape prim, m ~ P.EvaluationMonad prec) =>
-    prim ->
-    A.FailProb prec ->
-    shape ([P.Value size] -> m [P.Value size]) ->
-    shape (UnitaryQueries prec)
-
-  -- | Cost of all additional operations. Defaults to zero.
-  quantumExpExprCosts ::
-    forall shape cost m.
-    ( C.CostModel cost
-    , prec ~ PrecType cost
-    , shape ~ PrimFnShape prim
-    , m ~ P.EvaluationMonad prec
-    ) =>
-    prim ->
-    A.FailProb prec ->
-    shape ([P.Value size] -> m [P.Value size]) ->
-    cost
-  quantumExpExprCosts _ _ _ = Alg.zero
+-- --------------------------------------------------------------------------------
+-- Cost (expected)
+-- --------------------------------------------------------------------------------
 
 instance
   ( UnitaryCostPrim prim size prec
@@ -598,77 +382,6 @@ instance
 
     return $ Alg.sum fn_costs Alg.+ extra_costs
 
-instance
-  ( QuantumExpCostPrim prim size prec
-  , EvalPrim prim size prec
-  , QuantumHavocCostPrim prim size prec
-  , UnitaryCostPrim prim size prec
-  , P.EvalReqs size prec
-  , Floating prec
-  , Ord prec
-  ) =>
-  A.QuantumExpCost (Primitive prim) size prec
-  where
-  quantumExpCost eps (Primitive par_funs prim) sigma = do
-    -- Extract the semantics of each function argument.
-    eval_env <- view P._evaluationEnv
-
-    fns_eval_and_args <- forM par_funs $ \PartialFun{pfun_name, pfun_args} -> do
-      fn <-
-        view $
-          P._funCtx
-            . Ctx.at pfun_name
-            . to (fromMaybe (error "unable to find predicate, please typecheck first!"))
-
-      let vs = flip map pfun_args $ \case
-            Just x -> Just $ sigma ^. Ctx.at x . non (error "ill-formed program")
-            Nothing -> Nothing
-
-      let eval_fn vs' =
-            P.evalFun (placeArgs vs vs') P.NamedFunDef{P.fun_name = pfun_name, P.fun_def = fn}
-              & (runReaderT ?? eval_env)
-
-      return (eval_fn, vs)
-
-    let (fns_eval, fns_args) = unzip fns_eval_and_args
-    let shaped_fns_eval = either (error "please typecheck first") id $ listToShape fns_eval
-
-    -- Compute the expected cost
-    -- split the overall precision in half
-    let eps_alg = A.divideError eps 2
-
-    -- worst case queries
-    let query_costs_q = shapeToList $ quantumQueryCostsQuantum prim eps_alg
-    let query_costs_u = map (\q -> strong q + weak q) . shapeToList $ quantumQueryCostsUnitary prim eps_alg
-
-    -- expected queries
-    let exp_query_costs_q = shapeToList $ quantumExpQueryCostsQuantum prim eps_alg shaped_fns_eval
-    let exp_query_costs_u = map (\q -> strong q + weak q) . shapeToList $ quantumExpQueryCostsUnitary prim eps_alg shaped_fns_eval
-
-    -- split the other half into equal parts per function
-    let eps_fns = A.divideError (eps - eps_alg) (A.sizeToPrec $ length par_funs)
-
-    fn_costs <- forM (zip3 (zip par_funs fns_args) (zip query_costs_q exp_query_costs_q) (zip query_costs_u exp_query_costs_u)) $
-      \((PartialFun{pfun_name}, pref_args), (n_queries_q, exp_queries_q), (n_queries_u, exp_queries_u)) -> do
-        -- divide by number of queries to get cost per call
-        let eps_fn = A.divideError eps_fns (n_queries_u + n_queries_q)
-
-        -- queries to quantum f
-        q_costs <- forM exp_queries_q $ \(vs, eq) -> do
-          q_f <- A.quantumQueryCostF eps_fn (placeArgs pref_args vs) pfun_name
-          return $ eq Alg..* q_f
-
-        -- queries to unitary f
-        cost_f_u <- A.unitaryQueryCostF (A.requiredFailProbToNormError eps_fn) pfun_name
-        let u_cost = 2 * exp_queries_u Alg..* cost_f_u
-
-        return $ Alg.sum q_costs Alg.+ u_cost
-
-    -- all other non-query operations
-    let extra_costs = quantumExpExprCosts prim eps_alg shaped_fns_eval
-
-    return $ Alg.sum fn_costs Alg.+ extra_costs
-
 -- --------------------------------------------------------------------------------
 -- Annotation
 -- --------------------------------------------------------------------------------
@@ -677,34 +390,8 @@ instance
   ( UnitaryCostPrim prim size prec
   , QuantumHavocCostPrim prim size prec
   ) =>
-  A.AnnotateWithErrorBudget (Primitive prim)
+  A.AnnotateWithErrorBudgetQ (Primitive prim)
   where
-  annEpsU eps (A.AnnFailProb eps_old (Primitive par_funs prim)) = do
-    -- check if any of the functions can error
-    pfuns_may_error <- fmap or $ forM par_funs $ \PartialFun{pfun_name} -> do
-      fn <- use $ P._funCtx . Ctx.at pfun_name . singular _Just
-      A.canError fn
-
-    -- split the overall precision in half if fns can error, otherwise use full.
-    let eps_alg = min eps_old (if pfuns_may_error then A.splitFailProb eps 2 else eps)
-
-    let n_queries_u = map totalWeakUnitaryQueries . shapeToList $ unitaryQueryCosts prim eps_alg
-
-    -- split the other half into equal parts per function
-    let eps_fns = A.splitFailProb (eps - eps_alg) (A.sizeToPrec $ length par_funs)
-
-    forM_ (zip par_funs n_queries_u) $ \(PartialFun{pfun_name}, n_query_u) -> do
-      fn <- use $ P._funCtx . Ctx.at pfun_name . singular _Just
-      let named_fn = P.NamedFunDef pfun_name fn
-
-      -- divide by number of queries to get eps per call
-      let eps_fn = A.splitFailProb eps_fns n_query_u
-      let eps_fn_u = A.unitarySubroutineTVBudget eps_fn
-
-      when (n_query_u > 0) $ void $ A.annEpsU1 eps_fn_u named_fn
-
-    pure $ A.AnnFailProb eps_alg $ Primitive par_funs prim
-
   annEpsQ eps (A.AnnFailProb eps_old (Primitive par_funs prim)) = do
     -- check if any of the functions can error
     pfuns_may_error <- fmap or $ forM par_funs $ \PartialFun{pfun_name} -> do

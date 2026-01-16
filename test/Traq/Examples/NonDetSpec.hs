@@ -57,7 +57,8 @@ spec = do
     it "some solutions" $ do
       ex <- load'
       let sols = [1, 4, 6] :: [SizeT]
-      let oracleF = \[P.FinV i] -> [P.toValue $ i `elem` sols]
+      let oracleF [P.FinV i] = [P.toValue $ i `elem` sols]
+          oracleF _ = error "invalid input"
       let out = P.runProgram @_ @Double ex (Ctx.singleton "Oracle" oracleF) []
 
       out

@@ -4,11 +4,15 @@
 
 module Traq.Analysis.Error.Unitary (
   TraceNormErrorU (..),
+  traceNormErrorUProg,
 ) where
 
+import Control.Monad.Reader (runReader)
+
+import Lens.Micro.GHC
 import Lens.Micro.Mtl
 
-import Traq.Control.Monad (non')
+import Traq.Control.Monad (non', (??))
 import qualified Traq.Data.Context as Ctx
 
 import Traq.Analysis.Error.Prelude
@@ -64,3 +68,19 @@ instance (TraceNormErrorU ext size prec) => TraceNormErrorU (NamedFunDef ext) si
 
 instance (ErrorReqs size prec) => TraceNormErrorU (Core size prec) size prec where
   traceNormErrorU = \case {}
+
+-- ================================================================================
+-- Entry Points
+-- ================================================================================
+
+traceNormErrorUProg ::
+  ( TraceNormErrorU ext size prec
+  , SizeType ext ~ size
+  , PrecType ext ~ prec
+  ) =>
+  Program ext ->
+  FailProb prec
+traceNormErrorUProg (Program fs) =
+  traceNormErrorU main_fn & runReader ?? (namedFunsToFunCtx fs)
+ where
+  main_fn = fun_def $ last fs

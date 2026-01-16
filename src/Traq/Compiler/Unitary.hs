@@ -54,7 +54,7 @@ import qualified Traq.ProtoLang as P
 
 -- | Primitives that support a unitary lowering.
 class
-  ( A.UnitaryCost ext sizeT precT
+  ( P.TypeInferrable ext sizeT
   , sizeT ~ SizeType ext
   , precT ~ PrecType ext
   ) =>

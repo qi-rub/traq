@@ -39,21 +39,24 @@ type ValidExt ext =
   , SizeType ext ~ SizeT
   , Traq.Compiler.Quantum.Lowerable ext SizeT Double
   , P.HasFreeVars ext
-  , Traq.QuantumExpCost ext SizeT Double
+  , Traq.AnnotateWithErrorBudgetU ext
+  , Traq.AnnotateWithErrorBudgetQ ext
+  , Traq.ExpCostQ (Traq.AnnFailProb ext) SizeT Double
   )
 
 -- | Compute the number of qubits used by the compiled program.
 numQubitsRequired :: (ValidExt ext) => P.Program ext -> Double -> Either String SizeT
 numQubitsRequired prog eps = do
-  compiled_prog <- Traq.Compiler.Quantum.lowerProgram Traq.SplitSimple undefined (Traq.failProb eps) prog
+  compiled_prog <- Traq.Compiler.Quantum.lowerProgram Traq.SplitSimple (Traq.failProb eps) prog
   return $ CQPL.numQubits compiled_prog
 
 -- | Compute the wall-time by Traq to run a cost analysis
 traqWallTime :: (ValidExt ext) => P.Program ext -> Double -> P.FunInterpCtx SizeT -> IO Double
 traqWallTime prog eps fs = do
   (t, _) <- timeItT $ do
+    prog' <- either fail pure $ Traq.annotateProgWithErrorBudget (Traq.failProb eps) prog
     let cost :: Traq.SimpleQueryCost Double
-        !cost = Traq.quantumQueryCost Traq.SplitSimple (Traq.failProb eps) prog fs []
+        !cost = Traq.expCostQProg prog' [] fs
     return $ Traq.getCost cost
   return t
 
@@ -77,7 +80,9 @@ matrixSearchExpt = do
   putStrLn "n, time, qubits"
   forM_ ns $ \n -> do
     let prog = matrixExampleS n n
-    let mat [P.FinV i, P.FinV j] = [P.FinV $ if i == j then 1 else 0]
+    let mat = \case
+          [P.FinV i, P.FinV j] -> [P.FinV $ if i == j then 1 else 0]
+          _ -> undefined
     ExptResult{wallTime, numQubits} <- runExpt' prog eps (Ctx.singleton "Matrix" mat)
     putStrLn $ printf "%d, %.5f, %d" n wallTime numQubits
 
@@ -97,7 +102,9 @@ depth3NAND = do
                   . Sym.subst "M" (Sym.con n)
                   . Sym.subst "K" (Sym.con n)
               )
-    let f [P.FinV i, P.FinV j, P.FinV k] = [P.FinV $ if i == j || j == k then 1 else 0]
+    let f = \case
+          [P.FinV i, P.FinV j, P.FinV k] -> [P.FinV $ if i == j || j == k then 1 else 0]
+          _ -> undefined
     ExptResult{wallTime, numQubits} <- runExpt' prog eps (Ctx.singleton "f" f)
     putStrLn $ printf "%d, %.5f, %d" n wallTime numQubits
 
@@ -112,7 +119,7 @@ hillClimbExpt = do
     let prog = P.mapSize (Sym.unSym . Sym.subst "n" (Sym.con n) . Sym.subst "W" 100) sprog
 
     -- compute the weight of an assignment
-    let phi [P.ArrV xs] = [P.FinV $ 0]
+    let phi _ = [P.FinV 0]
 
     ExptResult{wallTime, numQubits} <- runExpt' prog eps (Ctx.singleton "Phi" phi)
     putStrLn $ printf "%d, %.5f, %d" n wallTime numQubits

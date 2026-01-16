@@ -42,6 +42,7 @@ import Text.Printf (printf)
 
 import Lens.Micro.GHC
 import Lens.Micro.Mtl
+import qualified Numeric.Algebra as Alg
 
 import Traq.Control.Monad
 import qualified Traq.Data.Context as Ctx
@@ -164,6 +165,8 @@ instance
    where
     _N = P.domainSize $ getSearchType prim
 
+  unitaryExprCosts _ _ = Alg.zero
+
 instance
   (P.TypingReqs sizeT, Integral sizeT, A.SizeToPrec sizeT precT, Floating precT) =>
   QuantumHavocCostPrim (QSearchCFNW sizeT precT) sizeT precT
@@ -173,6 +176,8 @@ instance
     _N = P.domainSize $ getSearchType prim
 
   quantumQueryCostsQuantum _ _ = BooleanPredicate 0
+
+  quantumExprCosts = Alg.zero
 
 instance (sizeT ~ SizeT, Floating precT, Prob.RVType precT precT) => QuantumExpCostPrim (QSearchCFNW sizeT precT) sizeT precT where
   quantumExpQueryCostsUnitary prim eps (BooleanPredicate eval_pred) =
@@ -189,6 +194,8 @@ instance (sizeT ~ SizeT, Floating precT, Prob.RVType precT precT) => QuantumExpC
     _K = length $ filter fromJust flags
 
   quantumExpQueryCostsQuantum _ _ _ = BooleanPredicate []
+
+  quantumExpExprCosts = Alg.zero
 
 -- ================================================================================
 -- Unitary Lowering

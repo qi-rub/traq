@@ -12,6 +12,8 @@ module Traq.Primitives.Simons.Quantum (
 
 import GHC.Generics (Generic)
 
+import qualified Numeric.Algebra as Alg
+
 import Traq.Data.Subtyping
 
 import qualified Traq.Analysis as P
@@ -98,6 +100,8 @@ instance
     let FindXorPeriod{n, p_0} = extract prim :: FindXorPeriod size prec
      in FindXorPeriodArg{fun = strongQueries $ _SimonsQueries n p_0 eps}
 
+  unitaryExprCosts _ _ = Alg.zero
+
 -- | Same as unitary compilation.
 instance
   (P.TypingReqs size, Floating prec, Ord prec, Show prec, P.SizeToPrec size prec) =>
@@ -108,3 +112,5 @@ instance
   quantumQueryCostsUnitary prim eps =
     let FindXorPeriod{n, p_0} = extract prim :: FindXorPeriod size prec
      in FindXorPeriodArg{fun = strongQueries $ _SimonsQueries n p_0 eps}
+
+  quantumExprCosts = Alg.zero

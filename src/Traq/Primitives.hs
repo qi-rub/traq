@@ -12,10 +12,7 @@ module Traq.Primitives (
   QSearchCFNW (..),
 ) where
 
-import Control.Monad.Except (liftEither)
 import GHC.Generics
-
-import qualified Traq.Data.Probability as Prob
 
 import qualified Traq.Analysis as A
 import qualified Traq.Compiler.Quantum as CompileQ
@@ -65,64 +62,18 @@ instance (Show size) => SerializePrim (DefaultPrimCollection size prec) where
   printPrimParams (RAny p) = printPrimParams p
   printPrimParams (DAny p) = printPrimParams p
 
-instance (P.TypingReqs sizeT) => TypeCheckPrim (DefaultPrimCollection sizeT precT) sizeT where
-  inferRetTypesPrim (QAny p) fs = do
-    fs' <- liftEither $ listToShape fs
-    inferRetTypesPrim p fs'
-  inferRetTypesPrim (RAny p) fs = do
-    fs' <- liftEither $ listToShape fs
-    inferRetTypesPrim p fs'
-  inferRetTypesPrim (DAny p) fs = do
-    fs' <- liftEither $ listToShape fs
-    inferRetTypesPrim p fs'
-
--- Evaluation
-instance EvalPrim (DefaultPrimCollection sizeT precT) sizeT precT where
-  evalPrim (QAny p) fs = evalPrim p (reshapeUnsafe fs)
-  evalPrim (RAny p) fs = evalPrim p (reshapeUnsafe fs)
-  evalPrim (DAny p) fs = evalPrim p (reshapeUnsafe fs)
-
--- Costs
-instance (P.TypingReqs size, Integral size, Floating prec) => UnitaryCostPrim (DefaultPrimCollection size prec) size prec where
-  unitaryQueryCosts (QAny p) = shapeToList . unitaryQueryCosts p
-  unitaryQueryCosts (RAny p) = shapeToList . unitaryQueryCosts p
-  unitaryQueryCosts (DAny p) = shapeToList . unitaryQueryCosts p
-
-  unitaryExprCosts (QAny p) = unitaryExprCosts p
-  unitaryExprCosts (RAny p) = unitaryExprCosts p
-  unitaryExprCosts (DAny p) = unitaryExprCosts p
-
+-- Generic instances
+instance (P.TypingReqs size) => TypeCheckPrim (DefaultPrimCollection size prec) size
+instance EvalPrim (DefaultPrimCollection size prec) size prec
+instance
+  (P.TypingReqs size, Integral size, Floating prec) =>
+  UnitaryCostPrim (DefaultPrimCollection size prec) size prec
 instance
   (P.TypingReqs size, Integral size, Floating prec, A.SizeToPrec size prec) =>
   QuantumHavocCostPrim (DefaultPrimCollection size prec) size prec
-  where
-  quantumQueryCostsQuantum (QAny p) = shapeToList . quantumQueryCostsQuantum p
-  quantumQueryCostsQuantum (RAny p) = shapeToList . quantumQueryCostsQuantum p
-  quantumQueryCostsQuantum (DAny p) = shapeToList . quantumQueryCostsQuantum p
-
-  quantumQueryCostsUnitary (QAny p) = shapeToList . quantumQueryCostsUnitary p
-  quantumQueryCostsUnitary (RAny p) = shapeToList . quantumQueryCostsUnitary p
-  quantumQueryCostsUnitary (DAny p) = shapeToList . quantumQueryCostsUnitary p
-
-  quantumExprCosts (QAny p) = quantumExprCosts p
-  quantumExprCosts (RAny p) = quantumExprCosts p
-  quantumExprCosts (DAny p) = quantumExprCosts p
-
 instance
-  (size ~ SizeT, P.TypingReqs size, Integral size, Floating prec, A.SizeToPrec size prec, Prob.RVType prec prec) =>
+  (P.EvalReqs size prec, Floating prec) =>
   QuantumExpCostPrim (DefaultPrimCollection size prec) size prec
-  where
-  quantumExpQueryCostsQuantum (QAny p) eps fs = shapeToList $ quantumExpQueryCostsQuantum p eps (reshapeUnsafe fs)
-  quantumExpQueryCostsQuantum (RAny p) eps fs = shapeToList $ quantumExpQueryCostsQuantum p eps (reshapeUnsafe fs)
-  quantumExpQueryCostsQuantum (DAny p) eps fs = shapeToList $ quantumExpQueryCostsQuantum p eps (reshapeUnsafe fs)
-
-  quantumExpQueryCostsUnitary (QAny p) eps fs = shapeToList $ quantumExpQueryCostsUnitary p eps (reshapeUnsafe fs)
-  quantumExpQueryCostsUnitary (RAny p) eps fs = shapeToList $ quantumExpQueryCostsUnitary p eps (reshapeUnsafe fs)
-  quantumExpQueryCostsUnitary (DAny p) eps fs = shapeToList $ quantumExpQueryCostsUnitary p eps (reshapeUnsafe fs)
-
-  quantumExpExprCosts (QAny p) eps fs = quantumExpExprCosts p eps (reshapeUnsafe fs)
-  quantumExpExprCosts (RAny p) eps fs = quantumExpExprCosts p eps (reshapeUnsafe fs)
-  quantumExpExprCosts (DAny p) eps fs = quantumExpExprCosts p eps (reshapeUnsafe fs)
 
 type DefaultPrims sizeT precT = Primitive (DefaultPrimCollection sizeT precT)
 
