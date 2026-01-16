@@ -5,6 +5,7 @@ import Data.String (fromString)
 import Traq.Prelude
 import Traq.Primitives
 import Traq.Primitives.Search.Prelude
+import Traq.Primitives.Search.QSearchCFNW
 import Traq.ProtoLang.Syntax
 import Traq.ProtoLang.TypeCheck (tbool)
 

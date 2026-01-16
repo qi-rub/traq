@@ -3,6 +3,7 @@ module Traq.Examples.Search where
 import Traq.Prelude
 import Traq.Primitives
 import Traq.Primitives.Search.Prelude
+import Traq.Primitives.Search.QSearchCFNW
 import Traq.ProtoLang.Syntax
 
 arraySearch :: forall precT. SizeT -> Program (DefaultPrims SizeT precT)

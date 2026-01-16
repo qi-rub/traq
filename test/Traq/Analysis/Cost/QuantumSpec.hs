@@ -15,6 +15,7 @@ import Traq.Prelude
 import qualified Traq.Primitives as P
 import qualified Traq.Primitives.Search.Prelude as P
 import Traq.Primitives.Search.QSearchCFNW (_EQSearch)
+import qualified Traq.Primitives.Search.QSearchCFNW as P
 import Traq.ProtoLang
 import qualified Traq.ProtoLang as P
 

@@ -21,6 +21,7 @@ import Traq.Prelude
 import Traq.Primitives
 import Traq.Primitives.Search.DetSearch (DetSearch (..))
 import Traq.Primitives.Search.Prelude
+import Traq.Primitives.Search.QSearchCFNW
 import Traq.Primitives.Search.RandomSearch (RandomSearch (..))
 import qualified Traq.ProtoLang as P
 

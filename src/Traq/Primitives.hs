@@ -5,11 +5,19 @@
 {-# LANGUAGE MultiParamTypeClasses #-}
 
 module Traq.Primitives (
+  -- * Specialized typeclasses
   module Traq.Primitives.Class,
+
+  -- * Collections
+
+  -- ** Default collection (with exp cost + compile)
   DefaultPrimCollection (..),
   DefaultPrims,
   DefaultPrims',
-  QSearchCFNW (..),
+
+  -- ** primitives with worst-case cost support.
+  WorstCasePrims,
+  WorstCasePrims',
 ) where
 
 import GHC.Generics
@@ -23,7 +31,12 @@ import Traq.Primitives.Search.DetSearch
 import Traq.Primitives.Search.Prelude
 import Traq.Primitives.Search.QSearchCFNW
 import Traq.Primitives.Search.RandomSearch
+import Traq.Primitives.Simons.Quantum
 import qualified Traq.ProtoLang as P
+
+-- ================================================================================
+-- Default primitives: Supports exp cost and compile
+-- ================================================================================
 
 data DefaultPrimCollection sizeT precT
   = QAny (QSearchCFNW sizeT precT)
@@ -105,3 +118,51 @@ instance
   where
   lowerPrimitive (A.AnnFailProb eps (Primitive fs (QAny q))) = CompileQ.lowerPrimitive (A.AnnFailProb eps (Primitive fs q))
   lowerPrimitive _ = error "TODO: lowerPrimitive"
+
+-- ================================================================================
+-- Worst-cost prim collection
+-- ================================================================================
+
+data WorstCasePrimCollection size prec
+  = FromDefault (DefaultPrimCollection size prec)
+  | Simon (SimonsFindXorPeriod size prec)
+  deriving (Eq, Show, Generic)
+
+type instance SizeType (WorstCasePrimCollection sizeT precT) = sizeT
+type instance PrecType (WorstCasePrimCollection sizeT precT) = precT
+
+type instance PrimFnShape (WorstCasePrimCollection sizeT precT) = []
+
+instance P.MapSize (WorstCasePrimCollection size prec) where
+  type MappedSize (WorstCasePrimCollection size prec) size' = WorstCasePrimCollection size' prec
+
+  mapSize f (FromDefault p) = FromDefault (P.mapSize f p)
+  mapSize f (Simon p) = Simon (P.mapSize f p)
+
+instance (Show size, prec ~ Double) => SerializePrim (WorstCasePrimCollection size prec) where
+  primNames = ["any", "search", "any_rand", "any_det", "findXorPeriod"]
+
+  primNameOf (FromDefault p) = primNameOf p
+  primNameOf (Simon _) = "findXorPeriod"
+
+  parsePrimParams tp s
+    | s == "findXorPeriod" = Simon <$> parsePrimParams tp ""
+    | otherwise = FromDefault <$> parsePrimParams tp s
+
+  printPrimParams (FromDefault p) = printPrimParams p
+  printPrimParams (Simon p) = printPrimParams p
+
+-- Generic instances
+instance
+  (P.TypingReqs size, Num prec, Ord prec, Show prec) =>
+  TypeCheckPrim (WorstCasePrimCollection size prec) size
+instance
+  (P.TypingReqs size, Integral size, Floating prec, Ord prec, Show prec, A.SizeToPrec size prec) =>
+  UnitaryCostPrim (WorstCasePrimCollection size prec) size prec
+instance
+  (P.TypingReqs size, Integral size, Floating prec, Ord prec, Show prec, A.SizeToPrec size prec) =>
+  QuantumHavocCostPrim (WorstCasePrimCollection size prec) size prec
+
+type WorstCasePrims sizeT precT = Primitive (WorstCasePrimCollection sizeT precT)
+
+type WorstCasePrims' = WorstCasePrims SizeT Double

@@ -4,6 +4,7 @@ import qualified Traq.Analysis as A
 import Traq.Prelude
 import qualified Traq.Primitives as P
 import qualified Traq.Primitives.Search.Prelude as P
+import qualified Traq.Primitives.Search.QSearchCFNW as P
 import qualified Traq.ProtoLang as P
 
 import Test.Hspec
