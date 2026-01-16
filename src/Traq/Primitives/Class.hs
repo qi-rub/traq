@@ -1,6 +1,6 @@
 {-# LANGUAGE AllowAmbiguousTypes #-}
 {-# LANGUAGE FlexibleInstances #-}
-{-# LANGUAGE FunctionalDependencies #-}
+{-# LANGUAGE MultiParamTypeClasses #-}
 {-# LANGUAGE RecordWildCards #-}
 {-# LANGUAGE TypeApplications #-}
 {-# LANGUAGE UndecidableInstances #-}
@@ -311,40 +311,6 @@ instance
     let tot_cost_u = Alg.sum $ zipWith (Alg..*) query_costs_u fn_costs_u
     -- TODO expression cost
     return $ Alg.sum [tot_cost_q, tot_cost_u]
-
-instance
-  ( QuantumHavocCostPrim prim size prec
-  , UnitaryCostPrim prim size prec
-  , P.TypingReqs size
-  , Floating prec
-  , Ord prec
-  ) =>
-  A.QuantumHavocCost (Primitive prim) size prec
-  where
-  quantumHavocCost eps (Primitive par_funs prim) = do
-    -- split the overall precision in half
-    let eps_alg = A.divideError eps 2
-
-    let query_costs_q = shapeToList $ quantumQueryCostsQuantum prim eps_alg
-    let query_costs_u = map (\q -> strong q + weak q) . shapeToList $ quantumQueryCostsUnitary prim eps_alg
-
-    -- split the other half into equal parts per function
-    let eps_fns = A.divideError (eps - eps_alg) (A.sizeToPrec $ length par_funs)
-
-    fn_costs <- forM (zip3 par_funs query_costs_q query_costs_u) $ \(PartialFun{pfun_name}, n_queries_q, n_queries_u) -> do
-      -- divide by number of queries to get cost per call
-      let eps_fn = A.divideError eps_fns (n_queries_u + n_queries_q)
-
-      -- cost per call to f, with the same precision.
-      cost_f_q <- A.quantumMaxQueryCostF eps_fn pfun_name
-      cost_f_u <- A.unitaryQueryCostF (A.requiredFailProbToNormError eps_fn) pfun_name
-
-      return $ (n_queries_q Alg..* cost_f_q) Alg.+ (2 * n_queries_u Alg..* cost_f_u)
-
-    -- all other non-query operations
-    let extra_costs = unitaryExprCosts prim eps_alg
-
-    return $ Alg.sum fn_costs Alg.+ extra_costs
 
 -- --------------------------------------------------------------------------------
 -- Cost (expected)

@@ -16,13 +16,6 @@ module Traq.Analysis.Cost (
   unitaryQueryCostF,
   UnitaryCost (..),
 
-  -- * Quantum Cost
-
-  -- ** Quantum Worst case Cost
-  quantumMaxQueryCost,
-  quantumMaxQueryCostF,
-  QuantumHavocCost (..),
-
   -- * Types and Monad
   CostEnv,
   _costEnv,
