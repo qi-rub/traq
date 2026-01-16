@@ -13,8 +13,6 @@ module Traq.Analysis.Cost (
 
   -- * Unitary Cost
   unitaryQueryCost,
-  unitaryQueryCostE,
-  unitaryQueryCostS,
   unitaryQueryCostF,
   UnitaryCost (..),
 
@@ -22,8 +20,6 @@ module Traq.Analysis.Cost (
 
   -- ** Quantum Worst case Cost
   quantumMaxQueryCost,
-  quantumMaxQueryCostE,
-  quantumMaxQueryCostS,
   quantumMaxQueryCostF,
   QuantumHavocCost (..),
 

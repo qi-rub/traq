@@ -1,5 +1,3 @@
-{-# LANGUAGE TypeApplications #-}
-
 module Main where
 
 import Control.Exception (assert)
@@ -10,10 +8,11 @@ import Text.Printf (printf)
 import qualified Traq.Data.Context as Ctx
 import qualified Traq.Data.Symbolic as Sym
 
+import qualified Traq.Analysis as A
+import qualified Traq.Analysis as P
 import Traq.Analysis.CostModel.QueryCost (QueryCost (..))
 import qualified Traq.CQPL as CQPL
 import qualified Traq.Compiler.Quantum as CompileQ
-import qualified Traq.Analysis as P
 import qualified Traq.Compiler.Unitary as CompileU
 import Traq.Examples.MatrixSearch
 import Traq.Prelude
@@ -35,17 +34,19 @@ symbolicEx = do
   let n = Sym.var "N" :: Sym.Sym SizeT
   let m = Sym.var "M" :: Sym.Sym SizeT
   let P.Program ex_fs = mkMatrixExample (\t f -> P.PrimCallE $ Primitive [f] $ QSearchSym $ PrimSearch AnyK t) n m
-  let strat = P.SplitUsingNeedsEps
 
   forM_ (tail $ inits ex_fs) $ \fs -> do
-    let eps = P.failProb (Sym.var "ε" :: Sym.Sym Double)
-    let delta = P.l2NormError (Sym.var "δ" :: Sym.Sym Double)
+    let eps = A.failProb (Sym.var "ε" :: Sym.Sym Double)
 
     putStrLn $ printf "Worst case cost of %s" (P.fun_name $ last fs)
+
     putStr "  - Unitary: "
-    print (P.unitaryQueryCost @_ @(Sym.Sym SizeT) @(Sym.Sym Double) @_ strat delta (P.Program fs) :: QueryCost (Sym.Sym Double))
+    prog_u <- either fail pure $ A.annotateProgWithErrorBudgetU eps (P.Program fs)
+    print (A.costUProg prog_u :: QueryCost (Sym.Sym Double))
+
     putStr "  - Quantum: "
-    print (P.quantumMaxQueryCost strat eps (P.Program fs) :: QueryCost (Sym.Sym Double))
+    prog_q <- either fail pure $ A.annotateProgWithErrorBudget eps (P.Program fs)
+    print (A.costQProg prog_q :: QueryCost (Sym.Sym Double))
 
 concreteEx :: IO ()
 concreteEx = do
