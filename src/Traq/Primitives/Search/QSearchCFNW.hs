@@ -5,6 +5,9 @@
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE TypeApplications #-}
 {-# LANGUAGE UndecidableInstances #-}
+{-# OPTIONS_GHC -Wno-unrecognised-pragmas #-}
+
+{-# HLINT ignore "Use camelCase" #-}
 
 {- |
 Cost formulas and implementations of the quantum search algorithms in Ref [1].
@@ -63,17 +66,17 @@ import qualified Traq.ProtoLang as P
 -- Cost Formulas
 -- ================================================================================
 
--- Eq. TODO REF
+-- https://arxiv.org/pdf/2203.04975v2, Eq. 4
 _EQSearchWorst :: forall sizeT precT. (Integral sizeT, Floating precT) => sizeT -> A.FailProb precT -> precT
 _EQSearchWorst n eps = 9.2 * log (1 / A.getFailProb eps) * sqrt (fromIntegral n)
 
--- Eq. TODO REF
+-- https://arxiv.org/pdf/2203.04975v2, Eq. 3
 _F :: forall sizeT precT. (Integral sizeT, Floating precT) => sizeT -> sizeT -> precT
 _F n t
   | 4 * t >= n = 2.0344
   | otherwise = 3.1 * sqrt (fromIntegral n / fromIntegral t)
 
--- Eq. TODO REF
+-- https://arxiv.org/pdf/2203.04975v2, Eq. 2
 _EQSearch :: forall sizeT precT. (Integral sizeT, Floating precT) => sizeT -> sizeT -> A.FailProb precT -> precT
 _EQSearch n t eps
   | t == 0 = _EQSearchWorst n eps
@@ -84,26 +87,28 @@ _EQSearch n t eps
 _QSearchZalka :: forall sizeT precT. (Integral sizeT, Floating precT) => sizeT -> A.FailProb precT -> precT
 _QSearchZalka n eps = nq_simple
  where
-  -- Section 2.2 Improved Algorithm (i.e. sqrt log(1/eps) instead of log(1/eps))
-  -- log_fac = ceiling log_fac
-  -- log_fac :: precT
-  -- log_fac = log (1 / eps) / (2 * log (4 / 3))
-
-  -- number of queries of the original algorithm.
-  -- nq :: precT
-  -- nq = 5 * log_fac + pi * sqrt (fromIntegral n * log_fac)
-
   -- Section 2.1 simple algorithm cost
-  max_iter :: sizeT
-  max_iter = ceiling $ (pi / 4) * sqrt (fromIntegral n :: Double)
-
-  n_reps :: precT
-  n_reps = logBase (1 - p) (A.getFailProb eps)
-   where
-    p = 0.3914 :: precT
-
   nq_simple :: precT
-  nq_simple = fromIntegral max_iter * n_reps
+  nq_simple = fromIntegral (_QSearchZalka_max_iter n) * _QSearchZalka_n_reps eps
+
+-- Section 2.2 Improved Algorithm (i.e. sqrt log(1/eps) instead of log(1/eps))
+-- log_fac = ceiling log_fac
+-- log_fac :: precT
+-- log_fac = log (1 / eps) / (2 * log (4 / 3))
+
+-- number of queries of the original algorithm.
+-- nq :: precT
+-- nq = 5 * log_fac + pi * sqrt (fromIntegral n * log_fac)
+
+-- Section 2.1 simple algorithm cost
+_QSearchZalka_max_iter :: forall size. (Integral size) => size -> size
+_QSearchZalka_max_iter n = ceiling $ (pi / 4) * sqrt (fromIntegral n :: Double)
+
+-- Section 2.1 simple algorithm cost
+_QSearchZalka_n_reps :: forall prec. (Floating prec) => A.FailProb prec -> prec
+_QSearchZalka_n_reps eps = logBase (1 - p) (A.getFailProb eps)
+ where
+  p = 0.3914 :: prec
 
 -- ================================================================================
 -- Primitive Class Implementation
@@ -308,11 +313,11 @@ algoQSearchZalka ::
 algoQSearchZalka eps out_bit = do
   n <- view $ to search_arg_type . singular P._Fin
 
-  out_bits <- forM [1 .. n_reps] $ \i -> do
+  out_bits <- forM [1 :: Int .. (ceiling (_QSearchZalka_n_reps eps))] $ \i -> do
     writeElem $ CQPL.UCommentS " "
     writeElem $ CQPL.UCommentS $ printf "Run %d" i
     writeElem $ CQPL.UCommentS " "
-    algoQSearchZalkaRandomIterStep (max_iter n)
+    algoQSearchZalkaRandomIterStep (_QSearchZalka_max_iter n)
 
   let as = ["a" <> show i | i <- [1 .. length out_bits]]
   writeElem $
@@ -320,17 +325,6 @@ algoQSearchZalka eps out_bit = do
       { CQPL.qargs = out_bits ++ [out_bit]
       , CQPL.unitary = CQPL.RevEmbedU as $ P.NAryE P.MultiOrOp (map fromString as)
       }
- where
-  max_iter :: sizeT -> sizeT
-  max_iter n = ceiling $ (pi / 4) * sqrt (fromIntegral n :: Double)
-
-  n_reps :: Int
-  n_reps = ceiling $ logBase (1 - p) (A.getFailProb eps)
-   where
-    p = 0.3914 :: precT
-
-shouldUncomputeQSearch :: Bool
-shouldUncomputeQSearch = False
 
 instance
   ( Integral sizeT
@@ -414,62 +408,12 @@ instance
                 }
         }
 
-    if not shouldUncomputeQSearch
-      then
-        return
-          CQPL.UCallS
-            { CQPL.uproc_id = qsearch_proc_name
-            , CQPL.qargs = catMaybes pfun_args ++ [ret] ++ pred_ancilla ++ map fst qsearch_ancilla
-            , CQPL.dagger = False
-            }
-      else do
-        -- clean version of qsearch: uncompute to clean up ancilla
-        qsearch_clean_proc_name <- Compiler.newIdent "UAny"
-        let info_comment_clean =
-              (printf :: String -> String -> String -> String -> String)
-                "QSearch_clean[%s, %s, %s]"
-                (show n)
-                (show $ A.getFailProb eps)
-                (CQPL.proc_name pred_proc)
-
-        out_bit <- CompileU.allocAncilla P.tbool
-
-        let all_params' =
-              CompileU.withTag CQPL.ParamInp (zip (catMaybes pfun_args) (init pred_inp_tys))
-                ++ CompileU.withTag CQPL.ParamOut [(ret, P.tbool)]
-                ++ CompileU.withTag CQPL.ParamAux (zip pred_ancilla pred_aux_tys)
-                ++ CompileU.withTag CQPL.ParamAux qsearch_ancilla
-                ++ CompileU.withTag CQPL.ParamAux [(out_bit, P.tbool)]
-
-        Compiler.addProc
-          CQPL.ProcDef
-            { CQPL.info_comment = info_comment_clean
-            , CQPL.proc_name = qsearch_clean_proc_name
-            , CQPL.proc_meta_params = []
-            , CQPL.proc_param_types = map (view _3) all_params'
-            , CQPL.proc_body =
-                CQPL.ProcBodyU $
-                  CQPL.UProcBody
-                    { CQPL.uproc_param_names = map (view _1) all_params'
-                    , CQPL.uproc_param_tags = map (view _2) all_params'
-                    , CQPL.uproc_body_stmt =
-                        CQPL.UWithComputedS
-                          ( CQPL.UCallS
-                              { CQPL.uproc_id = qsearch_proc_name
-                              , CQPL.qargs = catMaybes pfun_args ++ [out_bit] ++ pred_ancilla ++ map fst qsearch_ancilla
-                              , CQPL.dagger = False
-                              }
-                          )
-                          (CQPL.UnitaryS [out_bit, ret] (CQPL.RevEmbedU ["a"] "a"))
-                    }
-            }
-
-        return
-          CQPL.UCallS
-            { CQPL.uproc_id = qsearch_clean_proc_name
-            , CQPL.qargs = catMaybes pfun_args ++ [ret] ++ pred_ancilla ++ map fst qsearch_ancilla ++ [out_bit]
-            , CQPL.dagger = False
-            }
+    return
+      CQPL.UCallS
+        { CQPL.uproc_id = qsearch_proc_name
+        , CQPL.qargs = catMaybes pfun_args ++ [ret] ++ pred_ancilla ++ map fst qsearch_ancilla
+        , CQPL.dagger = False
+        }
 
   -- fallback
   lowerPrimitive _ _ = throwError "Unsupported"
