@@ -37,7 +37,6 @@ import Lens.Micro.Mtl
 import Traq.Control.Monad
 import Traq.Data.Default
 
-import qualified Traq.Analysis as A
 import qualified Traq.CQPL as CQPL
 import Traq.Prelude
 import qualified Traq.ProtoLang as P
@@ -111,7 +110,7 @@ addProc = writeElemAt _loweredProcs
 -- ================================================================================
 
 -- | Read-only compiler env
-type LoweringEnv ext = A.CostEnv ext
+type LoweringEnv ext = P.FunCtx ext
 
 -- ================================================================================
 -- Compiler Monad
