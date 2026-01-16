@@ -90,7 +90,7 @@ instance
   ) =>
   CompileU.Lowerable (A.AnnFailProb (DefaultPrims sizeT precT)) sizeT precT
   where
-  lowerPrimitive delta (A.AnnFailProb eps (Primitive fs (QAny q))) = CompileU.lowerPrimitive delta (Primitive fs q)
+  lowerPrimitive _ (A.AnnFailProb eps (Primitive fs (QAny q))) = CompileU.lowerPrimitive (error "use annotation") (A.AnnFailProb eps (Primitive fs q))
   lowerPrimitive _ _ = error "TODO: lowerPrimitive"
 
 instance

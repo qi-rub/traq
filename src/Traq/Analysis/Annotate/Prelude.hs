@@ -60,6 +60,9 @@ instance (TypeInferrable ext size) => (TypeInferrable (AnnFailProb ext) size) wh
 instance (Evaluatable ext size prec) => Evaluatable (AnnFailProb ext) size prec where
   eval (AnnFailProb _ e) = eval e
 
+instance (HasFreeVars ext) => HasFreeVars (AnnFailProb ext) where
+  freeVarsList (AnnFailProb _ e) = freeVarsList e
+
 -- ============================================================================
 -- RS Monad to perform annotation
 -- ============================================================================

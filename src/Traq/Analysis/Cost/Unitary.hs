@@ -82,6 +82,7 @@ costUProg ::
   ) =>
   Program ext ->
   cost
+costUProg (Program []) = Alg.zero
 costUProg (Program fs) =
   costU main_fn & runReader ?? env
  where

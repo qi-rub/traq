@@ -17,6 +17,7 @@ import qualified Traq.Data.Context as Ctx
 import Traq.Data.Default
 import qualified Traq.Data.Symbolic as Sym
 
+import qualified Traq.Analysis as A
 import qualified Traq.Analysis as P
 import Traq.Analysis.CostModel.QueryCost (SimpleQueryCost (..))
 import qualified Traq.CQPL as CQPL
@@ -75,8 +76,9 @@ tellLn :: (MonadWriter String m) => String -> m ()
 tellLn x = tell $ unlines [x]
 
 compile :: forall precT. (P.EvalReqs SizeT precT, RealFloat precT, Show precT, Alg.Rig precT) => P.Program (DefaultPrims SizeT precT) -> precT -> IO String
-compile prog@(P.Program fs) delta = do
-  Right cqpl_prog <- return $ CompileU.lowerProgram default_ Ctx.empty (P.l2NormError delta) prog
+compile prog delta = do
+  Right prog' <- return $ A.annotateProgWithErrorBudgetU (P.failProb delta) prog
+  Right cqpl_prog <- return $ CompileU.lowerProgram default_ Ctx.empty (error "use annotation") prog'
   -- get costs
   let (_ :: SimpleQueryCost precT, proc_costs) = CQPL.programCost cqpl_prog
 
@@ -86,24 +88,10 @@ compile prog@(P.Program fs) delta = do
       let pname = p ^. to CQPL.proc_name
 
       when (pname /= "Oracle") $ do
-        let f_cost =
-              fromMaybe
-                "()"
-                ( do
-                    let fname = pname & takeWhile (/= '[')
-                    let fdelta_s_suf = pname & dropWhile (/= '[') --
-                    guard $ not $ null fdelta_s_suf
-                    let fdelta_s = fdelta_s_suf & tail & takeWhile (/= ']')
-                    fdelta <- readMaybe fdelta_s :: Maybe Double
-                    let prog' = P.Program $ dropWhileEnd (\f -> P.fun_name f /= fname) fs
-                    let cf =
-                          getCost $
-                            P.unitaryQueryCost
-                              P.SplitSimple
-                              (P.l2NormError (realToFrac fdelta))
-                              prog'
-                    return $ show cf
-                )
+        let fname = pname & takeWhile (/= '[')
+        let P.Program fs = prog'
+        let fs' = dropWhileEnd (\f -> P.fun_name f /= fname) fs
+        let f_cost = show $ getCost $ P.costUProg (P.Program fs')
 
         let t_cost = proc_costs ^. at pname
         tellLn $ "// Cost         : " <> maybe "()" (show . getCost) t_cost
