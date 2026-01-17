@@ -19,7 +19,6 @@ module Traq.Compiler.Quantum (
 import Control.Monad (unless)
 import Control.Monad.Except (throwError)
 import Control.Monad.RWS (RWST (..))
-import GHC.Generics hiding (to)
 import Text.Printf (printf)
 
 import Lens.Micro.GHC
@@ -55,39 +54,6 @@ class
 
 instance (P.TypingReqs sizeT) => Lowerable (P.Core sizeT precT) sizeT precT where
   lowerPrimitive = \case {}
-
--- | Generic
-class GLowerable f sizeT precT | f -> sizeT precT where
-  glowerPrimitive ::
-    forall ext' primT m.
-    ( Lowerable ext' sizeT precT
-    , m ~ CompilerT ext'
-    , SizeType ext' ~ sizeT
-    , PrecType ext' ~ precT
-    ) =>
-    f primT ->
-    -- | rets
-    [Ident] ->
-    m (Stmt sizeT)
-
-instance
-  (GLowerable f1 sizeT precT, GLowerable f2 sizeT precT) =>
-  GLowerable (f1 :+: f2) sizeT precT
-  where
-  glowerPrimitive (L1 p) = glowerPrimitive p
-  glowerPrimitive (R1 p) = glowerPrimitive p
-
-instance
-  (GLowerable f sizeT precT) =>
-  GLowerable (M1 i c f) sizeT precT
-  where
-  glowerPrimitive (M1 x) = glowerPrimitive x
-
-instance
-  (Lowerable f sizeT precT) =>
-  GLowerable (K1 i f) sizeT precT
-  where
-  glowerPrimitive (K1 x) = lowerPrimitive x
 
 -- ================================================================================
 -- Compilation
@@ -241,4 +207,4 @@ lowerProgram prog@(P.Program fs) = do
     lowerFunDefByName main_name
       & (\m -> runRWST m config lowering_ctx)
 
-  return Program{proc_defs = output ^. to (Ctx.fromListWith proc_name)}
+  return $ Program $ output ^. _loweredProcs

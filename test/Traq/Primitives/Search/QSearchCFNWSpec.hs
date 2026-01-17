@@ -6,7 +6,6 @@ import Control.Monad.RWS (RWST (..), evalRWST)
 
 import Lens.Micro.GHC
 
-import qualified Traq.Data.Context as Ctx
 import Traq.Data.Default
 
 import qualified Traq.Analysis as P
@@ -77,31 +76,27 @@ spec = do
 
         let uprog =
               CQPL.Program
-                { CQPL.proc_defs =
-                    Ctx.fromListWith
-                      CQPL.proc_name
-                      [ CQPL.ProcDef
-                          { CQPL.info_comment = ""
-                          , CQPL.proc_name = "Oracle"
-                          , CQPL.proc_meta_params = []
-                          , CQPL.proc_param_types = []
-                          , CQPL.proc_body = CQPL.ProcBodyU CQPL.UProcDecl
-                          }
-                      , CQPL.ProcDef
-                          { CQPL.info_comment = ""
-                          , CQPL.proc_name = "main"
-                          , CQPL.proc_meta_params = []
-                          , CQPL.proc_param_types = undefined
-                          , CQPL.proc_body =
-                              CQPL.ProcBodyU $
-                                CQPL.UProcBody
-                                  { CQPL.uproc_body_stmt = CQPL.USeqS ss
-                                  , CQPL.uproc_param_names = undefined
-                                  , CQPL.uproc_param_tags = undefined
-                                  }
-                          }
-                      ]
-                }
+                [ CQPL.ProcDef
+                    { CQPL.info_comment = ""
+                    , CQPL.proc_name = "Oracle"
+                    , CQPL.proc_meta_params = []
+                    , CQPL.proc_param_types = []
+                    , CQPL.proc_body = CQPL.ProcBodyU CQPL.UProcDecl
+                    }
+                , CQPL.ProcDef
+                    { CQPL.info_comment = ""
+                    , CQPL.proc_name = "main"
+                    , CQPL.proc_meta_params = []
+                    , CQPL.proc_param_types = undefined
+                    , CQPL.proc_body =
+                        CQPL.ProcBodyU $
+                          CQPL.UProcBody
+                            { CQPL.uproc_body_stmt = CQPL.USeqS ss
+                            , CQPL.uproc_param_names = undefined
+                            , CQPL.uproc_param_tags = undefined
+                            }
+                    }
+                ]
 
         let actual_cost = getCost . fst $ CQPL.programCost @_ @(SimpleQueryCost Double) uprog
         let formula_cost = 2 * _QSearchZalka n eps

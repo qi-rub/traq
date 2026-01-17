@@ -405,16 +405,14 @@ class HasProcCtx s where
 instance HasProcCtx (ProcCtx sizeT) where _procCtx = id
 
 -- | CQ Program
-newtype Program sizeT = Program
-  { proc_defs :: ProcCtx sizeT
-  }
+newtype Program sizeT = Program [ProcDef sizeT]
   deriving (Eq, Show, Read)
 
 type instance SizeType (Program sizeT) = sizeT
 
 instance (Show sizeT) => PP.ToCodeString (Program sizeT) where
-  build Program{proc_defs} = do
-    mapM_ (PP.build >=> const PP.endl) $ Ctx.elems proc_defs
+  build (Program ps) = do
+    mapM_ (PP.build >=> const PP.endl) ps
 
 -- ================================================================================
 -- Lenses
@@ -443,7 +441,7 @@ instance HasStmt (ProcDef sizeT) where
 
 instance HasStmt (Program sizeT) where
   type StmtOf (Program sizeT) = Stmt sizeT
-  _stmt focus (Program proc_defs) = Program <$> traverse (_stmt focus) proc_defs
+  _stmt focus (Program ps) = Program <$> traverse (_stmt focus) ps
 
 -- ================================================================================
 -- Syntax Sugar

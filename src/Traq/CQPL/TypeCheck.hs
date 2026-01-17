@@ -306,9 +306,9 @@ typeCheckProgram ::
   (P.TypingReqs sizeT) =>
   Program sizeT ->
   Either Err.MyError ()
-typeCheckProgram Program{proc_defs} = do
+typeCheckProgram (Program ps) = do
   let env =
         default_
-          & (_procCtx .~ proc_defs)
+          & (_procCtx .~ Ctx.fromListWith proc_name ps)
   runReaderT ?? env $ do
-    mapM_ typeCheckProc $ Ctx.elems proc_defs
+    mapM_ typeCheckProc ps

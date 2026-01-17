@@ -12,7 +12,6 @@ import Text.Read (readMaybe)
 import Lens.Micro.GHC
 import qualified Numeric.Algebra as Alg
 
-import qualified Traq.Data.Context as Ctx
 import qualified Traq.Data.Symbolic as Sym
 
 import qualified Traq.Analysis as A
@@ -82,7 +81,8 @@ compile prog delta = do
 
   -- print the program with the costs
   execWriterT $ do
-    forM_ (cqpl_prog ^. to CQPL.proc_defs . to Ctx.elems) $ \p -> do
+    let CQPL.Program cqpl_procs = cqpl_prog
+    forM_ cqpl_procs $ \p -> do
       let pname = p ^. to CQPL.proc_name
 
       when (pname /= "Oracle") $ do

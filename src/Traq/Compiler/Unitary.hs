@@ -1,12 +1,13 @@
-{-# LANGUAGE DefaultSignatures #-}
 {-# LANGUAGE DuplicateRecordFields #-}
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE FunctionalDependencies #-}
+{-# LANGUAGE RecordWildCards #-}
 {-# LANGUAGE UndecidableInstances #-}
 
 module Traq.Compiler.Unitary (
   -- * Types
   CompilerT,
+  CompileU (..),
 
   -- ** Compiler State
   LoweringEnv,
@@ -35,7 +36,6 @@ import Control.Monad.Except (throwError)
 import Control.Monad.RWS (RWST (..))
 import Data.Foldable (Foldable (toList))
 import Data.List (intersect)
-import GHC.Generics hiding (to)
 import Text.Printf (printf)
 
 import Lens.Micro.GHC
@@ -71,56 +71,9 @@ class
     -- | rets
     [Ident] ->
     m (UStmt sizeT)
-  default lowerPrimitive ::
-    forall ext' m.
-    ( Lowerable ext' sizeT precT
-    , m ~ CompilerT ext'
-    , Generic ext
-    , GLowerable (Rep ext) sizeT precT
-    , SizeType ext' ~ sizeT
-    , PrecType ext' ~ precT
-    ) =>
-    ext ->
-    -- | rets
-    [Ident] ->
-    m (UStmt sizeT)
-  lowerPrimitive p = glowerPrimitive (from p)
 
 instance (P.TypingReqs sizeT) => Lowerable (P.Core sizeT precT) sizeT precT where
   lowerPrimitive = \case {}
-
--- | Generic
-class GLowerable f sizeT precT | f -> sizeT precT where
-  glowerPrimitive ::
-    forall primT ext' m.
-    ( Lowerable ext' sizeT precT
-    , m ~ CompilerT ext'
-    , SizeType ext' ~ sizeT
-    , PrecType ext' ~ precT
-    ) =>
-    f primT ->
-    -- | rets
-    [Ident] ->
-    m (UStmt sizeT)
-
-instance
-  (GLowerable f1 sizeT precT, GLowerable f2 sizeT precT) =>
-  GLowerable (f1 :+: f2) sizeT precT
-  where
-  glowerPrimitive (L1 p) = glowerPrimitive p
-  glowerPrimitive (R1 p) = glowerPrimitive p
-
-instance
-  (GLowerable f sizeT precT) =>
-  GLowerable (M1 i c f) sizeT precT
-  where
-  glowerPrimitive (M1 x) = glowerPrimitive x
-
-instance
-  (Lowerable f sizeT precT) =>
-  GLowerable (K1 i f) sizeT precT
-  where
-  glowerPrimitive (K1 x) = lowerPrimitive x
 
 -- ================================================================================
 -- Helpers
@@ -410,10 +363,150 @@ lowerFunDef
         , aux_tys = g_ret_tys ++ g_aux_tys
         }
 
+-- ================================================================================
+-- Compiler
+-- ================================================================================
+
+class
+  (size ~ SizeType ext) =>
+  CompileU ext size
+    | ext -> size
+  where
+  compileU ::
+    forall ext' m.
+    (m ~ CompilerT ext') =>
+    ext ->
+    [Ident] ->
+    m (CQPL.UStmt size)
+
+instance CompileU (P.Core size prec) size where
+  compileU = \case {}
+
+class CompileU1 f where
+  -- | all arguments/info provided to compile the given data
+  type CompileArgs f ext
+
+  -- | output of the compilation.
+  type CompileResult f ext
+
+  compileU1 ::
+    forall ext size m.
+    ( CompileU ext size
+    , P.TypeInferrable ext size
+    , m ~ CompilerT ext
+    ) =>
+    CompileArgs f ext ->
+    f ext ->
+    m (CompileResult f ext)
+
+instance CompileU1 P.Expr where
+  type CompileArgs P.Expr ext = [Ident]
+  type CompileResult P.Expr ext = (CQPL.UStmt (SizeType ext))
+
+  compileU1 rets P.BasicExprE{basic_expr} = do
+    let args = toList $ P.freeVars basic_expr
+    return $ UnitaryS{qargs = args ++ rets, unitary = RevEmbedU args basic_expr}
+  compileU1 rets P.RandomSampleE{distr_expr} = error "TODO: compileU1 rets P.RandomSampleE{distr_expr}"
+  compileU1 rets P.FunCallE{fname, args} = do
+    let uproc_id = mkUProcName fname
+    ProcSignature{aux_tys} <- use (_procSignatures . at uproc_id) >>= maybeWithError "cannot find uproc signature"
+
+    -- fresh aux each time.
+    aux_vars <- mapM allocAncilla aux_tys
+    let qargs = args ++ rets ++ aux_vars
+    return UCallS{uproc_id, qargs, dagger = False}
+  compileU1 rets P.PrimCallE{prim} = compileU prim rets
+  compileU1 rets P.LoopE{initial_args, loop_body_fun} = error "TODO: compileU1 rets P.LoopE{initial_args, loop_body_fun}"
+
+instance CompileU1 P.Stmt where
+  type CompileArgs P.Stmt ext = ()
+  type CompileResult P.Stmt ext = (CQPL.UStmt (SizeType ext))
+
+  compileU1 () P.ExprS{rets, expr} = compileU1 rets expr
+  compileU1 () P.IfThenElseS{cond, s_true, s_false} = error "TODO: compileU1 () P.IfThenElseS{cond, s_true, s_false}"
+  compileU1 () (P.SeqS ss) = CQPL.USeqS <$> mapM (compileU1 ()) ss
+
+instance CompileU1 P.FunBody where
+  type CompileArgs P.FunBody ext = ([P.VarType (SizeType ext)], [P.VarType (SizeType ext)])
+  type CompileResult P.FunBody ext = (UProcBody (SizeType ext), [P.VarType (SizeType ext)])
+
+  compileU1 (param_tys, _ret_tys) P.FunBody{param_names, ret_names, body_stmt} = do
+    P._typingCtx .= Ctx.fromList (zip param_names param_tys)
+    magnify P._funCtx . zoom P._typingCtx . ignoreWriter $ P.inferTypes body_stmt
+
+    uproc_body_stmt <- compileU1 () body_stmt
+
+    all_vars <- use $ P._typingCtx . to Ctx.toList
+    P._typingCtx .= mempty
+    let aux_vars = [(x, t) | (x, t) <- all_vars, x `notElem` param_names, x `notElem` ret_names]
+
+    let uproc_body =
+          UProcBody
+            { uproc_param_names =
+                param_names
+                  ++ ret_names
+                  ++ map fst aux_vars
+            , uproc_param_tags =
+                (CQPL.ParamInp <$ param_names)
+                  ++ (CQPL.ParamOut <$ ret_names)
+                  ++ (CQPL.ParamInp <$ aux_vars)
+            , uproc_body_stmt
+            }
+
+    return (uproc_body, map snd aux_vars)
+
+instance CompileU1 P.FunDef where
+  type CompileArgs P.FunDef ext = Ident
+  type CompileResult P.FunDef ext = (CQPL.ProcDef (SizeType ext), ProcSignature (SizeType ext))
+
+  -- ext fn: compile as-is to ext uproc
+  compileU1 proc_name P.FunDef{param_types, ret_types, mbody = Nothing} = do
+    let info_comment = ""
+    let proc_meta_params = []
+    let proc_param_types = param_types ++ ret_types
+    let proc_body = CQPL.ProcBodyU CQPL.UProcDecl
+    let sign = ProcSignature{in_tys = param_types, out_tys = ret_types, aux_tys = []}
+    pure (CQPL.ProcDef{..}, sign)
+
+  -- fn: compile to uproc, and pass aux types.
+  compileU1 proc_name P.FunDef{param_types, ret_types, mbody = Just body} = do
+    let info_comment = ""
+    let proc_meta_params = []
+
+    (body', aux_tys) <- compileU1 (param_types, ret_types) body
+    let proc_body = CQPL.ProcBodyU body'
+
+    let proc_param_types = param_types ++ ret_types ++ aux_tys
+    let sign = ProcSignature{in_tys = param_types, out_tys = ret_types, aux_tys}
+
+    pure (CQPL.ProcDef{..}, sign)
+
+instance CompileU1 P.NamedFunDef where
+  type CompileArgs P.NamedFunDef ext = ()
+  type CompileResult P.NamedFunDef ext = ()
+
+  compileU1 () P.NamedFunDef{fun_name, fun_def} = do
+    let uproc_name = mkUProcName fun_name
+    (uproc, uproc_sign) <- compileU1 uproc_name fun_def
+
+    addProc uproc
+    _procSignatures . at uproc_name ?= uproc_sign
+
+instance CompileU1 P.Program where
+  type CompileArgs P.Program ext = ()
+  type CompileResult P.Program ext = ()
+
+  compileU1 () (P.Program fs) = mapM_ (compileU1 ()) fs
+
+-- ================================================================================
+-- Entry Point
+-- ================================================================================
+
 -- | Lower a full program into a unitary CQPL program.
 lowerProgram ::
   forall ext precT.
   ( Lowerable ext SizeT precT
+  , CompileU ext SizeT
   , Show precT
   , Floating precT
   , P.HasFreeVars ext
@@ -431,9 +524,6 @@ lowerProgram prog@(P.Program fs) = do
         default_
           & (_uniqNamesCtx .~ P.allNamesP prog)
 
-  let P.NamedFunDef{P.fun_name = main_name, P.fun_def = main_def} = last fs
-  (_, _, outputU) <-
-    lowerFunDefWithGarbage main_name main_def
-      & (\m -> runRWST m config ctx)
-  let procs = outputU ^. _loweredProcs . to (Ctx.fromListWith proc_name)
-  return CQPL.Program{CQPL.proc_defs = procs}
+  ((), _, outputU) <- runRWST (compileU1 () prog) config ctx
+  let procs = outputU ^. _loweredProcs
+  return $ CQPL.Program procs

@@ -1,7 +1,5 @@
 module Traq.CQPL.Memory (numQubits) where
 
-import qualified Traq.Data.Context as Ctx
-
 import Traq.CQPL.Syntax
 import Traq.Prelude
 import Traq.ProtoLang (VarType (..))
@@ -21,4 +19,4 @@ numQubitsForProc p@ProcDef{proc_param_types}
 numQubitsForProc _ = 0
 
 numQubits :: Program SizeT -> SizeT
-numQubits Program{proc_defs} = maximum . map numQubitsForProc $ Ctx.elems proc_defs
+numQubits (Program ps) = maximum . map numQubitsForProc $ ps

@@ -87,6 +87,8 @@ instance
 instance
   (P.EvalReqs size prec, Floating prec) =>
   QuantumExpCostPrim (DefaultPrimCollection size prec) size prec
+instance UnitaryCompilePrim (DefaultPrimCollection size prec) size prec where
+  compileUPrim = error "TODO"
 
 type DefaultPrims sizeT precT = Primitive (DefaultPrimCollection sizeT precT)
 
