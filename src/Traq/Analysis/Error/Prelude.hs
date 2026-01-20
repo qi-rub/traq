@@ -21,6 +21,7 @@ module Traq.Analysis.Error.Prelude (
 
 import Control.Monad.Reader (Reader)
 
+import Traq.Analysis.Prelude (SizeToPrec)
 import Traq.ProtoLang.Syntax (FunCtx)
 
 -- ================================================================================
@@ -70,6 +71,7 @@ type ErrorReqs size prec =
   ( Floating prec
   , Num size
   , Ord prec
+  , SizeToPrec size prec
   )
 
 type ErrorAnalysisMonad ext = Reader (FunCtx ext)

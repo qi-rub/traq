@@ -127,7 +127,7 @@ valueToBool = fromValue
 domainSize :: (Integral sizeT) => VarType sizeT -> sizeT
 domainSize (Fin _N) = _N
 domainSize (Bitvec n) = 2 ^ n
-domainSize (Arr n t) = n * domainSize t
+domainSize (Arr n t) = domainSize t ^ n
 domainSize (Tup ts) = product $ map domainSize ts
 
 -- | Set of all values of a given type

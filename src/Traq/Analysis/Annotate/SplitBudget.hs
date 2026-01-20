@@ -25,6 +25,7 @@ import Traq.Data.Default (default_)
 import Traq.Analysis.Annotate.Basic
 import Traq.Analysis.Annotate.Prelude
 import Traq.Analysis.Error.Prelude
+import Traq.Analysis.Prelude (sizeToPrec)
 import Traq.Prelude
 import Traq.ProtoLang
 
@@ -50,6 +51,8 @@ instance CanError (Expr ext) where
   canError FunCallE{fname} = do
     use (_funCtx . Ctx.at fname) >>= maybe (return False) canError
   canError PrimCallE{} = return True
+  canError LoopE{loop_body_fun} = do
+    use (_funCtx . Ctx.at loop_body_fun) >>= maybe (return False) canError
   canError _ = return False
 
 instance CanError (Stmt ext) where
@@ -135,7 +138,12 @@ instance AnnotateWithErrorBudgetU1 Expr where
     annEpsU1 eps (NamedFunDef fname fn)
     pure FunCallE{..}
   annEpsU1 eps (PrimCallE ext') = PrimCallE <$> annEpsU eps ext'
-  annEpsU1 _ _ = error "UNSUPPORTED"
+  annEpsU1 eps LoopE{..} = do
+    fn@FunDef{param_types} <- use (_funCtx . Ctx.at loop_body_fun) >>= maybeWithError "cannot find loop body function"
+    let Fin n_iters = last param_types
+    let eps' = splitFailProb eps (sizeToPrec n_iters)
+    annEpsU1 eps' (NamedFunDef loop_body_fun fn)
+    pure LoopE{..}
 
 instance AnnotateWithErrorBudgetQ1 Expr where
   annEpsQ1 _ BasicExprE{..} = pure BasicExprE{..}
@@ -145,7 +153,12 @@ instance AnnotateWithErrorBudgetQ1 Expr where
     annEpsQ1 eps (NamedFunDef fname fn)
     pure FunCallE{..}
   annEpsQ1 eps (PrimCallE ext) = PrimCallE <$> annEpsQ eps ext
-  annEpsQ1 _ _ = error "UNSUPPORTED"
+  annEpsQ1 eps LoopE{..} = do
+    fn@FunDef{param_types} <- use (_funCtx . Ctx.at loop_body_fun) >>= maybeWithError "cannot find loop body function"
+    let Fin n_iters = last param_types
+    let eps' = splitFailProb eps (sizeToPrec n_iters)
+    annEpsQ1 eps' (NamedFunDef loop_body_fun fn)
+    pure LoopE{..}
 
 instance AnnotateWithErrorBudgetU1 Stmt where
   annEpsU1 eps ExprS{rets, expr} = do

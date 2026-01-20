@@ -13,6 +13,7 @@ type CostReqs size prec =
   ( Floating prec
   , Num size
   , Ord prec
+  , SizeToPrec size prec
   )
 
 type CostModelReqs size prec cost =
