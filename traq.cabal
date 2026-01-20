@@ -15,7 +15,6 @@ license:        MIT
 license-file:   LICENSE
 build-type:     Simple
 extra-doc-files:
-    CHANGELOG.md
     Readme.md
 
 library
