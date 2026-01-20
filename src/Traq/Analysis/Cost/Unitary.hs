@@ -1,5 +1,6 @@
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE FunctionalDependencies #-}
+{-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE UndecidableInstances #-}
 
 module Traq.Analysis.Cost.Unitary (
@@ -19,6 +20,7 @@ import Traq.Data.Default (HasDefault (default_))
 
 import Traq.Analysis.Cost.Prelude
 import Traq.Analysis.CostModel.Class
+import Traq.Analysis.Prelude (sizeToPrec)
 import Traq.Prelude
 import Traq.ProtoLang.Syntax
 
@@ -51,7 +53,11 @@ instance (CostU ext size prec) => CostU (Expr ext) size prec where
     fn <- view $ _funCtx . Ctx.at fname . non' (error $ "unable to find function " ++ fname)
     costU $ NamedFunDef fname fn
   costU PrimCallE{prim} = costU prim
-  costU _ = error "unsupported"
+  costU LoopE{loop_body_fun} = do
+    fn@FunDef{param_types} <- view $ _funCtx . Ctx.at loop_body_fun . non' (error $ "unable to find function " ++ loop_body_fun)
+    body_cost <- costU $ NamedFunDef loop_body_fun fn
+    let Fin n_iters = last param_types
+    return $ (sizeToPrec n_iters :: prec) Alg..* body_cost
 
 instance (CostU ext size prec) => CostU (Stmt ext) size prec where
   costU ExprS{expr} = costU expr

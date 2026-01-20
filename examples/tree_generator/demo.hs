@@ -17,6 +17,7 @@ import Traq.Analysis.CostModel.QueryCost (SimpleQueryCost (..))
 import Traq.Primitives (Primitive)
 import Traq.Primitives.Amplify.CAmplify (CAmplify (..))
 import Traq.Primitives.Amplify.QAmplify (QAmplify (..))
+import qualified Traq.Utils.Printing as PP
 
 type Matrix = SizeT -> SizeT -> Bool
 
@@ -41,6 +42,7 @@ substCtx Ctx{..} =
     . Sym.subst "N" (Sym.con n)
     . Sym.subst "K" (Sym.con num_iter)
     . Sym.subst "W" (Sym.con 1000)
+    . Sym.subst "P" (Sym.con 1000)
 
 expectedCost ::
   forall primT primT'.
@@ -52,6 +54,7 @@ expectedCost ::
   , P.MapSize primT'
   , primT ~ P.MappedSize primT' Int
   , primT' ~ P.MappedSize primT (Sym.Sym Int)
+  , PP.ToCodeString primT
   ) =>
   Ctx ->
   Double ->
@@ -60,7 +63,13 @@ expectedCost ctx@Ctx{..} eps = do
   -- load the program
   loaded_program <- either (fail . show) pure =<< parseFromFile (P.programParser @primT') "examples/tree_generator/tree_generator_01_knapsack.qb"
   let program = P.mapSize (substCtx ctx) loaded_program
+  putStrLn $ replicate 80 '='
+  putStrLn $ PP.toCodeString program
+  putStrLn $ replicate 80 '='
   program_annotated <- either fail pure $ A.annotateProgWithErrorBudget (A.failProb eps) program
+  putStrLn $ replicate 80 '='
+  putStrLn $ PP.toCodeString program_annotated
+  putStrLn $ replicate 80 '='
 
   -- the functionality of Matrix, provided as input data
   let interp =
