@@ -111,12 +111,18 @@ type TypeChecker sizeT = ReaderT (CheckingCtx sizeT) (Either Err.MyError)
 -- ================================================================================
 
 typeCheckUnitary :: forall sizeT. (P.TypingReqs sizeT) => Unitary sizeT -> [P.VarType sizeT] -> TypeChecker sizeT ()
+-- basic gates
 typeCheckUnitary Toffoli tys = verifyArgTys tys [P.tbool, P.tbool, P.tbool]
 typeCheckUnitary CNOT tys = verifyArgTys tys [P.tbool, P.tbool]
 typeCheckUnitary XGate tys = verifyArgTys tys [P.tbool]
 typeCheckUnitary HGate tys = verifyArgTys tys [P.tbool]
+-- general gates
+typeCheckUnitary COPY tys = let n = length tys `div` 2 in verifyArgTys (take n tys) (drop n tys)
+typeCheckUnitary SWAP tys = let n = length tys `div` 2 in verifyArgTys (take n tys) (drop n tys)
 typeCheckUnitary Unif _ = return ()
 typeCheckUnitary Refl0 _ = return ()
+typeCheckUnitary (DistrU (P.UniformE ty)) tys = verifyArgTys tys [ty]
+typeCheckUnitary (DistrU (P.BernoulliE _)) tys = verifyArgTys tys [P.tbool]
 typeCheckUnitary (RevEmbedU xs e) tys = do
   let in_tys = take (length xs) tys
   let gamma = Ctx.fromList $ zip xs in_tys
@@ -130,6 +136,7 @@ typeCheckUnitary (RevEmbedU xs e) tys = do
   case res of
     Left err -> Err.throwErrorMessage err
     Right ret_ty -> verifyArgTys (drop (length xs) tys) [ret_ty]
+-- composite gates
 typeCheckUnitary (Controlled u) tys = do
   verifyArgTys [head tys] [P.tbool]
   typeCheckUnitary u (tail tys)

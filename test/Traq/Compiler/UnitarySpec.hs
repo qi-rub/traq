@@ -35,8 +35,9 @@ spec = do
         assertRight $ CQPL.typeCheckProgram actual
         PP.toCodeString actual
           `shouldBe` unlines
-            [ "uproc main_U(x : IN Fin<10>, y : OUT Fin<10>) {"
-            , "  x, y *= Embed[(x) => x];"
+            [ "uproc main_U(x : IN Fin<10>, y : OUT Fin<10>, y_1 : AUX Fin<10>) {"
+            , "  x, y_1 *= Embed[(x) => x];"
+            , "  y, y_1 *= SWAP;"
             , "}"
             , ""
             ]

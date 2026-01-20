@@ -71,12 +71,15 @@ data Unitary sizeT
   | CNOT
   | XGate
   | HGate
+  | COPY
+  | SWAP
   | LoadData Ident
   | -- | maps \( |0\rangle \) to \( \frac1{\sqrt{|\Sigma_T|}} \sum_{x \in \Sigma_T} |x\rangle \)
     Unif
   | -- | reflect about |0>_T
     Refl0
   | RevEmbedU [Ident] (P.BasicExpr sizeT)
+  | DistrU (P.DistrExpr sizeT)
   | Controlled (Unitary sizeT)
   | Adjoint (Unitary sizeT)
   deriving (Eq, Show, Read)
@@ -87,6 +90,9 @@ instance (Show sizeT) => PP.ToCodeString (Unitary sizeT) where
   build (RevEmbedU xs e) = do
     e_s <- PP.fromBuild e
     PP.putWord $ printf "Embed[(%s) => %s]" (PP.commaList xs) e_s
+  build (DistrU mu) = do
+    e_s <- PP.fromBuild mu
+    PP.putWord $ printf "Distr[%s]" e_s
   build Unif = PP.putWord "Unif"
   build XGate = PP.putWord "X"
   build HGate = PP.putWord "H"

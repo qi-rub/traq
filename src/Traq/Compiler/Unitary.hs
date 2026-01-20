@@ -31,7 +31,7 @@ module Traq.Compiler.Unitary (
   withTag,
 ) where
 
-import Control.Monad (forM, unless, when)
+import Control.Monad (forM, unless, when, zipWithM)
 import Control.Monad.Except (throwError)
 import Control.Monad.RWS (RWST (..))
 import Data.Foldable (Foldable (toList))
@@ -89,6 +89,12 @@ allocAncillaWithPref pref ty = do
 -- | Allocate an ancilla register @aux_<<n>>@, and update the typing context.
 allocAncilla :: (sizeT ~ SizeType ext) => P.VarType sizeT -> CompilerT ext Ident
 allocAncilla = allocAncillaWithPref "aux"
+
+-- | Allocate fresh set of auxiliaries corresponding to the types of given vars.
+freshAux :: (m ~ CompilerT ext) => [Ident] -> m [Ident]
+freshAux xs = do
+  tys <- zoom P._typingCtx $ mapM Ctx.lookup xs
+  zipWithM allocAncillaWithPref xs tys
 
 -- ================================================================================
 -- Lowering
@@ -405,8 +411,14 @@ instance CompileU1 P.Expr where
 
   compileU1 rets P.BasicExprE{basic_expr} = do
     let args = toList $ P.freeVars basic_expr
-    return $ UnitaryS{qargs = args ++ rets, unitary = RevEmbedU args basic_expr}
-  compileU1 rets P.RandomSampleE{distr_expr} = error "TODO: compileU1 rets P.RandomSampleE{distr_expr}"
+    return UnitaryS{qargs = args ++ rets, unitary = RevEmbedU args basic_expr}
+  compileU1 rets P.RandomSampleE{distr_expr} = do
+    rets' <- freshAux rets
+    return $
+      USeqS
+        [ UnitaryS rets (DistrU distr_expr)
+        , UnitaryS (rets ++ rets') COPY
+        ]
   compileU1 rets P.FunCallE{fname, args} = do
     let uproc_id = mkUProcName fname
     ProcSignature{aux_tys} <- use (_procSignatures . at uproc_id) >>= maybeWithError "cannot find uproc signature"
@@ -422,8 +434,36 @@ instance CompileU1 P.Stmt where
   type CompileArgs P.Stmt ext = ()
   type CompileResult P.Stmt ext = (CQPL.UStmt (SizeType ext))
 
-  compileU1 () P.ExprS{rets, expr} = compileU1 rets expr
-  compileU1 () P.IfThenElseS{cond, s_true, s_false} = error "TODO: compileU1 () P.IfThenElseS{cond, s_true, s_false}"
+  compileU1 () P.ExprS{rets, expr} = do
+    -- compute result into a fresh set of vars, and swap at the end.
+    tmp <- freshAux rets
+    compute_expr <- compileU1 tmp expr
+    return $ USeqS [compute_expr, UnitaryS{qargs = rets ++ tmp, unitary = SWAP}]
+  compileU1 () P.IfThenElseS{cond, s_true, s_false} = do
+    let out_t = toList $ P.outVars s_true
+    tmp_t <- freshAux out_t
+
+    let out_f = toList $ P.outVars s_true
+    tmp_f <- freshAux out_f
+
+    compiled_t <- compileU1 () s_true
+    compiled_f <- compileU1 () s_false
+
+    return $
+      USeqS
+        [ -- true branch:
+          UnitaryS{qargs = out_t ++ tmp_t, unitary = COPY}
+        , compiled_t
+        , UnitaryS{qargs = out_t ++ tmp_t, unitary = SWAP}
+        , -- false branch:
+          UnitaryS{qargs = out_f ++ tmp_f, unitary = COPY}
+        , compiled_f
+        , -- when `cond` is true:
+          -- - restore original false branch vars,
+          -- - and then pull in the true branch results.
+          UnitaryS{qargs = cond : out_f ++ tmp_f, unitary = Controlled SWAP}
+        , UnitaryS{qargs = cond : out_t ++ tmp_t, unitary = Controlled SWAP}
+        ]
   compileU1 () (P.SeqS ss) = CQPL.USeqS <$> mapM (compileU1 ()) ss
 
 instance CompileU1 P.FunBody where
@@ -449,7 +489,7 @@ instance CompileU1 P.FunBody where
             , uproc_param_tags =
                 (CQPL.ParamInp <$ param_names)
                   ++ (CQPL.ParamOut <$ ret_names)
-                  ++ (CQPL.ParamInp <$ aux_vars)
+                  ++ (CQPL.ParamAux <$ aux_vars)
             , uproc_body_stmt
             }
 
