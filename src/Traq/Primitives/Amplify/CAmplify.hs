@@ -1,6 +1,7 @@
 {-# LANGUAGE DeriveGeneric #-}
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE MultiParamTypeClasses #-}
+{-# LANGUAGE TypeFamilies #-}
 
 module Traq.Primitives.Amplify.CAmplify (
   CAmplify (..),
@@ -34,6 +35,10 @@ type instance PrecType (CAmplify sizeT precT) = precT
 type instance PrimFnShape (CAmplify size prec) = SamplerFn
 
 instance Amplify sizeT precT :<: CAmplify sizeT precT
+
+instance P.MapSize (CAmplify size prec) where
+  type MappedSize (CAmplify size prec) size' = CAmplify size' prec
+  mapSize f (CAmplify p) = CAmplify (P.mapSize f p)
 
 -- Inherited instances
 instance (Show prec, Fractional prec) => SerializePrim (CAmplify size prec) where

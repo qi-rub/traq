@@ -66,7 +66,11 @@ instance (CostQ ext size prec) => CostQ (Expr ext) size prec where
     fn <- view $ _funCtx . Ctx.at fname . non' (error $ "unable to find function " ++ fname)
     costQ $ NamedFunDef fname fn
   costQ PrimCallE{prim} = costQ prim
-  costQ _ = error "unsupported"
+  costQ LoopE{loop_body_fun} = do
+    fn@FunDef{param_types} <- view $ _funCtx . Ctx.at loop_body_fun . non' (error $ "unable to find function " ++ loop_body_fun)
+    body_cost <- costQ $ NamedFunDef loop_body_fun fn
+    let n_iters = domainSize (last param_types)
+    return $ Alg.times n_iters body_cost
 
 instance (CostQ ext size prec) => CostQ (Stmt ext) size prec where
   costQ ExprS{expr} = costQ expr
@@ -95,7 +99,18 @@ instance (ExpCostQ ext size prec) => ExpCostQ (Expr ext) size prec where
     let sigma_fn = Ctx.fromList $ zip [show i | i <- [0 :: Int ..]] arg_vals
     expCostQ (NamedFunDef fname fn) sigma_fn
   expCostQ PrimCallE{prim} sigma = expCostQ prim sigma
-  expCostQ _ _ = error "unsupported"
+  expCostQ LoopE{initial_args, loop_body_fun} sigma = do
+    fn@FunDef{param_types} <- view $ _funCtx . Ctx.at loop_body_fun . non' (error $ "unable to find function " ++ loop_body_fun)
+    let init_vals = [sigma ^?! Ctx.at x . non (error $ "could not find var " ++ x) | x <- initial_args]
+    let loop_domain = domain (last param_types)
+
+    (_, cs) <- forAccumM (pure init_vals) loop_domain $ \distr i -> do
+      let sigma_fn = fmap (\xs -> Ctx.fromList $ zip [show j | j <- [0 :: Int ..]] (xs ++ [i])) distr
+      iter_cost <- Prob.expectationA (expCostQ (NamedFunDef loop_body_fun fn)) sigma_fn
+      -- ret_vals <- evalFun (args ++ [i]) (NamedFunDef loop_body_fun fn)
+      let ret_vals = undefined
+      return (ret_vals, iter_cost)
+    return $ Alg.sum cs
 
 -- | TODO unify this as a class instance, after unifying evaluation
 expCostQStmt ::
