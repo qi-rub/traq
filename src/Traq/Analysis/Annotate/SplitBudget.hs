@@ -50,6 +50,8 @@ instance CanError (Expr ext) where
   canError FunCallE{fname} = do
     use (_funCtx . Ctx.at fname) >>= maybe (return False) canError
   canError PrimCallE{} = return True
+  canError LoopE{loop_body_fun} = do
+    use (_funCtx . Ctx.at loop_body_fun) >>= maybe (return False) canError
   canError _ = return False
 
 instance CanError (Stmt ext) where
