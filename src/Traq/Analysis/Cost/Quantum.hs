@@ -1,6 +1,7 @@
 {-# LANGUAGE ConstraintKinds #-}
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE FunctionalDependencies #-}
+{-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE TypeApplications #-}
 {-# LANGUAGE UndecidableInstances #-}
 
@@ -29,6 +30,7 @@ import qualified Traq.Data.Probability as Prob
 import Traq.Analysis.Cost.Prelude
 import Traq.Analysis.Cost.Unitary
 import Traq.Analysis.CostModel.Class
+import Traq.Analysis.Prelude
 import Traq.ProtoLang.Eval
 import Traq.ProtoLang.Syntax
 
@@ -69,8 +71,8 @@ instance (CostQ ext size prec) => CostQ (Expr ext) size prec where
   costQ LoopE{loop_body_fun} = do
     fn@FunDef{param_types} <- view $ _funCtx . Ctx.at loop_body_fun . non' (error $ "unable to find function " ++ loop_body_fun)
     body_cost <- costQ $ NamedFunDef loop_body_fun fn
-    let n_iters = domainSize (last param_types)
-    return $ Alg.times n_iters body_cost
+    let Fin n_iters = last param_types
+    return $ (sizeToPrec n_iters :: prec) Alg..* body_cost
 
 instance (CostQ ext size prec) => CostQ (Stmt ext) size prec where
   costQ ExprS{expr} = costQ expr
@@ -104,12 +106,16 @@ instance (ExpCostQ ext size prec) => ExpCostQ (Expr ext) size prec where
     let init_vals = [sigma ^?! Ctx.at x . non (error $ "could not find var " ++ x) | x <- initial_args]
     let loop_domain = domain (last param_types)
 
+    -- evaluate each iteration
+    env <- view _evaluationEnv
+    let run_loop_body i args =
+          evalFun (args ++ [i]) (NamedFunDef loop_body_fun fn)
+            & (runReaderT ?? env)
+
     (_, cs) <- forAccumM (pure init_vals) loop_domain $ \distr i -> do
       let sigma_fn = fmap (\xs -> Ctx.fromList $ zip [show j | j <- [0 :: Int ..]] (xs ++ [i])) distr
       iter_cost <- Prob.expectationA (expCostQ (NamedFunDef loop_body_fun fn)) sigma_fn
-      -- ret_vals <- evalFun (args ++ [i]) (NamedFunDef loop_body_fun fn)
-      let ret_vals = undefined
-      return (ret_vals, iter_cost)
+      return (distr >>= run_loop_body i, iter_cost)
     return $ Alg.sum cs
 
 -- | TODO unify this as a class instance, after unifying evaluation

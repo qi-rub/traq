@@ -20,6 +20,10 @@ import Traq.Primitives.Amplify.QAmplify (QAmplify (..))
 
 type Matrix = SizeT -> SizeT -> Bool
 
+listToFun :: [SizeT] -> [P.Value SizeT] -> [P.Value SizeT]
+listToFun xs [P.FinV i] = [P.toValue $ xs !! i]
+listToFun _ _ = error "invalid index"
+
 matrixToFun :: Matrix -> [P.Value SizeT] -> [P.Value SizeT]
 matrixToFun matrix [P.FinV i, P.FinV j] = [P.toValue $ matrix i j]
 matrixToFun _ _ = error "invalid indices"
@@ -32,7 +36,11 @@ data Ctx = Ctx
   }
 
 substCtx :: Ctx -> Sym.Sym Int -> Int
-substCtx Ctx{..} = Sym.unSym . Sym.subst "N" (Sym.con n)
+substCtx Ctx{..} =
+  Sym.unSym
+    . Sym.subst "N" (Sym.con n)
+    . Sym.subst "K" (Sym.con num_iter)
+    . Sym.subst "W" (Sym.con 1000)
 
 expectedCost ::
   forall primT primT'.
@@ -58,8 +66,8 @@ expectedCost ctx@Ctx{..} eps = do
   let interp =
         Ctx.fromList
           [ ("Capacity", \_ -> [P.toValue capacity])
-          , ("Profit", undefined)
-          , ("Weight", undefined)
+          , ("Profit", listToFun profits)
+          , ("Weight", listToFun weights)
           ]
 
   return $ getCost $ A.expCostQProg program_annotated mempty interp
