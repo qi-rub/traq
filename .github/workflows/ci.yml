@@ -159,5 +159,5 @@ jobs:
         with:
           publish_branch: gh-pages
           github_token: ${{ secrets.GITHUB_TOKEN }}
-          publish_dir: ./dist-newstyle/build/x86_64-linux/ghc-8.6.5/traq-*/doc/html/
+          publish_dir: ./dist-newstyle/build/x86_64-linux/ghc-9.6.7/traq-*/doc/html/traq/
           force_orphan: true
