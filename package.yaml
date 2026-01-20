@@ -99,6 +99,10 @@ executables:
     main: demo.hs
     <<: *expt_opts
     source-dirs: examples/matrix_search
+  knapsackdemo:
+    main: demo.hs
+    <<: *expt_opts
+    source-dirs: examples/tree_generator
   timing:
     main: timing.hs
     <<: *expt_opts
