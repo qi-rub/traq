@@ -10,7 +10,6 @@ module Traq.Compiler.Quantum (
 import Control.Monad (unless)
 import Control.Monad.Except (throwError)
 import Control.Monad.RWS (RWST (..))
-import Text.Printf (printf)
 
 import Lens.Micro.GHC
 import Lens.Micro.Mtl

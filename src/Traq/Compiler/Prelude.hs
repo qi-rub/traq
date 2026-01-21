@@ -4,7 +4,7 @@
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE GeneralisedNewtypeDeriving #-}
 
-module Traq.Compiler.Utils (
+module Traq.Compiler.Prelude (
   -- * Utilities for generating identifiers
   UniqNamesCtx,
   HasUniqNamesCtx (..),
