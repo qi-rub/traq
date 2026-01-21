@@ -19,7 +19,7 @@ import Test.Hspec
 import TestHelpers (assertRight, expectRight)
 
 examplePath :: String
-examplePath = "examples/cryptanalysis/evan_mansour.qb"
+examplePath = "examples/cryptanalysis/evan_mansour.traq"
 
 type SPrim size = Primitive (SimonsFindXorPeriod size Double)
 

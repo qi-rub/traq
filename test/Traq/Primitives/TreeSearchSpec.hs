@@ -72,7 +72,7 @@ spec = do
       p <-
         parseFromFile
           (programParser @(TreeSearch (Sym.Sym SizeT) Double))
-          "examples/primitives/treesearch.qb"
+          "examples/primitives/treesearch.traq"
           >>= expectRight
       p `shouldBe` exampleProgram (Sym.var "N") (Sym.con 2)
 

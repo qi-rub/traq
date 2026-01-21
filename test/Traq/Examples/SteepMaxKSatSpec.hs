@@ -17,7 +17,7 @@ import TestHelpers (expectRight)
 type P = Primitive (QMax (Sym.Sym SizeT) Double)
 
 examplePath :: String
-examplePath = "examples/hillclimb/steep_max_sat.qb"
+examplePath = "examples/hillclimb/steep_max_sat.traq"
 
 spec :: Spec
 spec = describe "Steep max-k-sat" $ do

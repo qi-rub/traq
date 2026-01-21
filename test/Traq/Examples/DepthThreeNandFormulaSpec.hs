@@ -16,7 +16,7 @@ import Test.Hspec
 import TestHelpers (expectRight)
 
 examplePath :: String
-examplePath = "examples/matrix_search/depth3_NAND_formula.qb"
+examplePath = "examples/matrix_search/depth3_NAND_formula.traq"
 
 spec :: Spec
 spec = describe "Depth 3 NAND Formula" $ do

@@ -63,7 +63,7 @@ worstCaseCost
 -- worst case cost (ignores data)
 worstCaseCost ctx eps = do
   -- load the program
-  loaded_program <- either (fail . show) pure =<< parseFromFile (P.programParser @primT') "examples/tree_generator/tree_generator_01_knapsack.qb"
+  loaded_program <- either (fail . show) pure =<< parseFromFile (P.programParser @primT') "examples/tree_generator/tree_generator_01_knapsack.traq"
   let program = P.mapSize (substCtx ctx) loaded_program
   program_annotated <- either fail pure $ A.annotateProgWithErrorBudget (A.failProb eps) program
 
@@ -71,7 +71,7 @@ worstCaseCost ctx eps = do
 -- expected cost (depends on data)
 expectedCost ctx@Ctx{..} eps = do
   -- load the program
-  loaded_program <- either (fail . show) pure =<< parseFromFile (P.programParser @primT') "examples/tree_generator/tree_generator_01_knapsack.qb"
+  loaded_program <- either (fail . show) pure =<< parseFromFile (P.programParser @primT') "examples/tree_generator/tree_generator_01_knapsack.traq"
   let program = P.mapSize (substCtx ctx) loaded_program
   -- putStrLn $ replicate 80 '='
   -- putStrLn $ PP.toCodeString program

@@ -91,7 +91,7 @@ spec = do
 
   describe "parse file" $ do
     it "parses example" $ do
-      e <- parseFromFile (programParser @(DefaultPrims (Sym.Sym SizeT) Double)) "examples/matrix_search/matrix_search.qb" >>= expectRight
+      e <- parseFromFile (programParser @(DefaultPrims (Sym.Sym SizeT) Double)) "examples/matrix_search/matrix_search.traq" >>= expectRight
       let e' = rewriteAST flattenSeq e
       e' `shouldBe` mkMatrixExample (\ty f -> PrimCallE $ Primitive [f] $ QAny $ QSearchCFNW $ PrimSearch AnyK ty) (Sym.var "N") (Sym.var "M")
 
@@ -100,7 +100,7 @@ spec = do
       roundTrip (matrixExampleS 4 5)
       roundTrip (matrixExampleS 10 10)
     it "max_sat_hillclimb" $ do
-      e_sym <- expectRight =<< parseFromFile (programParser @(DefaultPrims (Sym.Sym SizeT) Double)) "examples/hillclimb/max_sat_hillclimb.qb"
+      e_sym <- expectRight =<< parseFromFile (programParser @(DefaultPrims (Sym.Sym SizeT) Double)) "examples/hillclimb/max_sat_hillclimb.traq"
       let e =
             e_sym
               & mapSize (Sym.subst "n" 10)

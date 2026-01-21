@@ -14,7 +14,7 @@ import Test.Hspec
 import TestHelpers (expectRight)
 
 examplePath :: String
-examplePath = "examples/clustering_algorithm.qb"
+examplePath = "examples/clustering_algorithm.traq"
 
 spec :: Spec
 spec = describe "Clustering Algorithm" $ do
