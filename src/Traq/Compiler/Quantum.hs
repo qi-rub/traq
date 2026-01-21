@@ -99,6 +99,7 @@ instance CompileQ1 P.FunBody where
 
     cproc_body_stmt <- compileQ1 () body_stmt
     proc_typing_ctx <- use P._typingCtx
+    P._typingCtx .= mempty
 
     let cproc_param_names = param_names ++ ret_names
     let cproc_local_vars =
@@ -124,7 +125,7 @@ instance CompileQ1 P.FunDef where
         , proc_body = ProcBodyC CProcDecl
         }
   compileQ1 proc_name P.FunDef{P.param_types, P.mbody = Just body} = do
-    (cproc_body, proc_typing_ctx) <- withSandbox $ compileQ1 param_types body
+    (cproc_body, proc_typing_ctx) <- compileQ1 param_types body
 
     let P.FunBody{P.param_names, P.ret_names} = body
     let cproc_param_names = param_names ++ ret_names

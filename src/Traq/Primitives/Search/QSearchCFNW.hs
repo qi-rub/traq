@@ -396,7 +396,7 @@ instance
       ((), ss) <- (\m -> evalRWST m UQSearchEnv{search_arg_type = s_ty, pred_call_builder = pred_caller} ()) $ algoQSearchZalka eps ret
       fin_binds <- use P._typingCtx
       let ancillas = Ctx.toList $ fin_binds Ctx.\\ ini_binds
-      return (CQPL.USeqS ss, ancillas)
+      return (CQPL.USeqS ss, (b', P.tbool) : ancillas)
 
     -- name:
     -- TODO maybe this can be somehow "parametrized" so we don't have to generate each time.

@@ -226,7 +226,7 @@ typeCheckStmt CallS{fun = FunctionCall proc_id, args} = do
   unless (isCProc p) $ Err.throwErrorMessage "expected uproc"
   arg_tys <- forM args $ \var -> do
     view (P._typingCtx . Ctx.at var) >>= maybeWithError (Err.MessageE $ printf "cannot find %s" var)
-  ensureEqual proc_param_types arg_tys "mismatched function args"
+  ensureEqual proc_param_types arg_tys ("mismatched function args for " ++ proc_id)
 
 -- call uproc
 typeCheckStmt CallS{fun = UProcAndMeas uproc_id, args} = do
@@ -301,10 +301,11 @@ typeCheckProc ::
   (P.TypingReqs sizeT) =>
   ProcDef sizeT ->
   TypeChecker sizeT ()
-typeCheckProc ProcDef{proc_param_types, proc_body} =
+typeCheckProc ProcDef{proc_name, proc_param_types, proc_body} =
   case proc_body of
     ProcBodyC cbody -> typeCheckCProcBody cbody proc_param_types
     ProcBodyU ubody -> typeCheckUProcBody ubody proc_param_types
+    `throwFrom` Err.MessageE (printf "failed typecheck proc: %s" proc_name)
 
 -- | Check an entire program given the input bindings.
 typeCheckProgram ::
