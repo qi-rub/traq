@@ -8,6 +8,7 @@ module Traq.ProtoLang.Vars (
   allNamesP,
   RenameVars (..),
   addOnePrefix,
+  outVars,
 ) where
 
 import Control.Monad (foldM, guard)

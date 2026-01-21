@@ -51,6 +51,7 @@ default-extensions:
   - TypeOperators
   - MultiWayIf
   - EmptyCase
+  - ConstraintKinds
 
 library:
   source-dirs: src
@@ -81,11 +82,8 @@ _expt_opts: &expt_opts
 
 executables:
   ### Tools
-  uqplcompile:
-    main: uqplcompile.hs
-    <<: *exe_opts
-  cqplcompile:
-    main: cqplcompile.hs
+  compile:
+    main: compile.hs
     <<: *exe_opts
   ### Experiments & Examples
   matrixsearch:

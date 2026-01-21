@@ -13,7 +13,6 @@ module Traq.CQPL.Cost (
 import Control.Monad.Except (throwError)
 import Control.Monad.Reader (ReaderT, runReaderT)
 import Control.Monad.State (StateT, runStateT)
-import Data.Foldable (Foldable (toList))
 import qualified Data.Map as Map
 import Text.Printf (printf)
 
@@ -133,10 +132,10 @@ programCost ::
   ) =>
   Program sizeT ->
   (c, CostMap c)
-programCost Program{proc_defs} =
+programCost (Program ps) =
   either (\e -> error $ "could not compute cost: " ++ e) id $ do
-    let env = proc_defs
-    let main_name = proc_name $ last $ toList proc_defs
+    let env = Ctx.fromListWith proc_name ps
+    let main_name = proc_name $ last ps
     cachedProcCost main_name
       & (runReaderT ?? env)
       & (runStateT ?? mempty)

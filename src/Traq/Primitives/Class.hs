@@ -1,4 +1,3 @@
-{-# LANGUAGE AllowAmbiguousTypes #-}
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE MultiParamTypeClasses #-}
 {-# LANGUAGE RecordWildCards #-}
@@ -13,6 +12,7 @@ module Traq.Primitives.Class (
   module Traq.Primitives.Class.Eval,
   module Traq.Primitives.Class.UnitaryCost,
   module Traq.Primitives.Class.QuantumCost,
+  module Traq.Primitives.Class.UnitaryCompile,
 ) where
 
 import Control.Applicative (Alternative ((<|>)), many)
@@ -34,12 +34,14 @@ import qualified Traq.Data.Context as Ctx
 import qualified Traq.Data.Symbolic as Sym
 
 import qualified Traq.Analysis as A
+import qualified Traq.Compiler as Compiler
 import Traq.Prelude
 import Traq.Primitives.Class.Eval
 import Traq.Primitives.Class.Prelude
 import Traq.Primitives.Class.QuantumCost
 import Traq.Primitives.Class.Serialize
 import Traq.Primitives.Class.TypeCheck
+import Traq.Primitives.Class.UnitaryCompile
 import Traq.Primitives.Class.UnitaryCost
 import qualified Traq.ProtoLang as P
 import qualified Traq.Utils.Printing as PP
@@ -219,6 +221,17 @@ instance
       when (n_query_u > 0) $ void $ A.annEpsU1 eps_fn_u named_fn
 
     pure $ A.AnnFailProb eps_alg $ Primitive par_funs prim
+
+-- --------------------------------------------------------------------------------
+-- Compilation
+-- --------------------------------------------------------------------------------
+
+-- instance
+--   (UnitaryCompilePrim prim (SizeType prim) (PrecType prim)) =>
+--   Compiler.CompileU (A.AnnFailProb (Primitive prim))
+--   where
+--   compileU (A.AnnFailProb eps (Primitive par_funs prim)) rets = do
+--     error "TODO compileU Prim"
 
 -- ================================================================================
 -- Analysis (Quantum)

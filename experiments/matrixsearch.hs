@@ -11,8 +11,7 @@ import qualified Traq.Analysis as A
 import qualified Traq.Analysis as P
 import Traq.Analysis.CostModel.QueryCost (QueryCost (..))
 import qualified Traq.CQPL as CQPL
-import qualified Traq.Compiler.Quantum as CompileQ
-import qualified Traq.Compiler.Unitary as CompileU
+import qualified Traq.Compiler as Compiler
 import Traq.Examples.MatrixSearch
 import Traq.Prelude
 import Traq.Primitives.Class (Primitive (..))
@@ -63,7 +62,7 @@ concreteEx = do
   let u_formula_cost = P.costUProg ex' :: QueryCost Double
 
   printDivider
-  Right exU <- return $ CompileU.lowerProgram ex'
+  Right exU <- return $ Compiler.lowerProgramU ex'
   putStrLn $ PP.toCodeString exU
 
   let (u_true_cost, _) = CQPL.programCost exU
@@ -87,7 +86,7 @@ concreteQEx = do
   ex' <- either fail pure $ A.annotateProgWithErrorBudget eps ex
 
   printDivider
-  Right exU <- return $ CompileQ.lowerProgram ex'
+  Right exU <- return $ Compiler.lowerProgram ex'
   putStrLn $ PP.toCodeString exU
   return ()
 

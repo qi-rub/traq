@@ -111,12 +111,17 @@ type TypeChecker sizeT = ReaderT (CheckingCtx sizeT) (Either Err.MyError)
 -- ================================================================================
 
 typeCheckUnitary :: forall sizeT. (P.TypingReqs sizeT) => Unitary sizeT -> [P.VarType sizeT] -> TypeChecker sizeT ()
+-- basic gates
 typeCheckUnitary Toffoli tys = verifyArgTys tys [P.tbool, P.tbool, P.tbool]
 typeCheckUnitary CNOT tys = verifyArgTys tys [P.tbool, P.tbool]
 typeCheckUnitary XGate tys = verifyArgTys tys [P.tbool]
 typeCheckUnitary HGate tys = verifyArgTys tys [P.tbool]
-typeCheckUnitary Unif _ = return ()
+-- general gates
+typeCheckUnitary COPY tys = let n = length tys `div` 2 in verifyArgTys (take n tys) (drop n tys)
+typeCheckUnitary SWAP tys = let n = length tys `div` 2 in verifyArgTys (take n tys) (drop n tys)
 typeCheckUnitary Refl0 _ = return ()
+typeCheckUnitary (DistrU (P.UniformE ty)) tys = verifyArgTys tys [ty]
+typeCheckUnitary (DistrU (P.BernoulliE _)) tys = verifyArgTys tys [P.tbool]
 typeCheckUnitary (RevEmbedU xs e) tys = do
   let in_tys = take (length xs) tys
   let gamma = Ctx.fromList $ zip xs in_tys
@@ -130,6 +135,7 @@ typeCheckUnitary (RevEmbedU xs e) tys = do
   case res of
     Left err -> Err.throwErrorMessage err
     Right ret_ty -> verifyArgTys (drop (length xs) tys) [ret_ty]
+-- composite gates
 typeCheckUnitary (Controlled u) tys = do
   verifyArgTys [head tys] [P.tbool]
   typeCheckUnitary u (tail tys)
@@ -220,7 +226,7 @@ typeCheckStmt CallS{fun = FunctionCall proc_id, args} = do
   unless (isCProc p) $ Err.throwErrorMessage "expected uproc"
   arg_tys <- forM args $ \var -> do
     view (P._typingCtx . Ctx.at var) >>= maybeWithError (Err.MessageE $ printf "cannot find %s" var)
-  ensureEqual proc_param_types arg_tys "mismatched function args"
+  ensureEqual proc_param_types arg_tys ("mismatched function args for call proc " ++ proc_id)
 
 -- call uproc
 typeCheckStmt CallS{fun = UProcAndMeas uproc_id, args} = do
@@ -232,7 +238,7 @@ typeCheckStmt CallS{fun = UProcAndMeas uproc_id, args} = do
 
   arg_tys <- forM args $ \var -> do
     view (P._typingCtx . Ctx.at var) >>= maybeWithError (Err.MessageE $ printf "cannot find %s" var)
-  ensureEqual (take (length arg_tys) proc_param_types) arg_tys "mismatched function args"
+  ensureEqual (take (length arg_tys) proc_param_types) arg_tys ("mismatched function args for meas uproc " ++ uproc_id)
 
 -- compound statements
 typeCheckStmt (SeqS ss) = mapM_ typeCheckStmt ss
@@ -295,10 +301,11 @@ typeCheckProc ::
   (P.TypingReqs sizeT) =>
   ProcDef sizeT ->
   TypeChecker sizeT ()
-typeCheckProc ProcDef{proc_param_types, proc_body} =
+typeCheckProc ProcDef{proc_name, proc_param_types, proc_body} =
   case proc_body of
     ProcBodyC cbody -> typeCheckCProcBody cbody proc_param_types
     ProcBodyU ubody -> typeCheckUProcBody ubody proc_param_types
+    `throwFrom` Err.MessageE (printf "failed typecheck proc: %s" proc_name)
 
 -- | Check an entire program given the input bindings.
 typeCheckProgram ::
@@ -306,9 +313,9 @@ typeCheckProgram ::
   (P.TypingReqs sizeT) =>
   Program sizeT ->
   Either Err.MyError ()
-typeCheckProgram Program{proc_defs} = do
+typeCheckProgram (Program ps) = do
   let env =
         default_
-          & (_procCtx .~ proc_defs)
+          & (_procCtx .~ Ctx.fromListWith proc_name ps)
   runReaderT ?? env $ do
-    mapM_ typeCheckProc $ Ctx.elems proc_defs
+    mapM_ typeCheckProc ps

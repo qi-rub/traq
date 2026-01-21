@@ -37,9 +37,9 @@ library
       Traq.Analysis.Error.Unitary
       Traq.Analysis.Prelude
       Traq.Compiler
+      Traq.Compiler.Prelude
       Traq.Compiler.Quantum
       Traq.Compiler.Unitary
-      Traq.Compiler.Utils
       Traq.Control.Monad
       Traq.CQPL
       Traq.CQPL.Cost
@@ -72,6 +72,7 @@ library
       Traq.Primitives.Class.QuantumCost
       Traq.Primitives.Class.Serialize
       Traq.Primitives.Class.TypeCheck
+      Traq.Primitives.Class.UnitaryCompile
       Traq.Primitives.Class.UnitaryCost
       Traq.Primitives.Count.QCount
       Traq.Primitives.Max.QMax
@@ -106,6 +107,7 @@ library
       TypeOperators
       MultiWayIf
       EmptyCase
+      ConstraintKinds
   ghc-options: -Wall -fprint-typechecker-elaboration
   build-depends:
       algebra ==4.3.*
@@ -120,10 +122,10 @@ library
     , transformers >=0.5
   default-language: Haskell2010
 
-executable compile_loc
-  main-is: compile_loc.hs
+executable compile
+  main-is: compile.hs
   hs-source-dirs:
-      experiments
+      tools
   default-extensions:
       LambdaCase
       NamedFieldPuns
@@ -135,6 +137,7 @@ executable compile_loc
       TypeOperators
       MultiWayIf
       EmptyCase
+      ConstraintKinds
       RecordWildCards
   ghc-options: -Wall -fprint-typechecker-elaboration
   build-depends:
@@ -155,10 +158,10 @@ executable compile_loc
     , traq
   default-language: Haskell2010
 
-executable cqplcompile
-  main-is: cqplcompile.hs
+executable compile_loc
+  main-is: compile_loc.hs
   hs-source-dirs:
-      tools
+      experiments
   default-extensions:
       LambdaCase
       NamedFieldPuns
@@ -170,6 +173,7 @@ executable cqplcompile
       TypeOperators
       MultiWayIf
       EmptyCase
+      ConstraintKinds
       RecordWildCards
   ghc-options: -Wall -fprint-typechecker-elaboration
   build-depends:
@@ -205,6 +209,7 @@ executable knapsackdemo
       TypeOperators
       MultiWayIf
       EmptyCase
+      ConstraintKinds
       RecordWildCards
   ghc-options: -Wall -fprint-typechecker-elaboration
   build-depends:
@@ -240,6 +245,7 @@ executable matrixsearch
       TypeOperators
       MultiWayIf
       EmptyCase
+      ConstraintKinds
       RecordWildCards
   ghc-options: -Wall -fprint-typechecker-elaboration
   build-depends:
@@ -275,6 +281,7 @@ executable matrixsearchdemo
       TypeOperators
       MultiWayIf
       EmptyCase
+      ConstraintKinds
       RecordWildCards
   ghc-options: -Wall -fprint-typechecker-elaboration
   build-depends:
@@ -310,6 +317,7 @@ executable matrixsearchqcost
       TypeOperators
       MultiWayIf
       EmptyCase
+      ConstraintKinds
       RecordWildCards
   ghc-options: -Wall -fprint-typechecker-elaboration
   build-depends:
@@ -345,41 +353,7 @@ executable timing
       TypeOperators
       MultiWayIf
       EmptyCase
-      RecordWildCards
-  ghc-options: -Wall -fprint-typechecker-elaboration
-  build-depends:
-      algebra ==4.3.*
-    , base >=4.10 && <5
-    , containers >=0.6 && <1
-    , extra >=1.8 && <2
-    , lens ==5.3.*
-    , microlens-ghc ==0.4.*
-    , microlens-mtl ==0.2.*
-    , mtl >=2.2.2
-    , optparse-applicative ==0.18.*
-    , parsec >=3.1.17 && <3.2
-    , random
-    , random-shuffle
-    , timeit ==2.0.*
-    , transformers >=0.5
-    , traq
-  default-language: Haskell2010
-
-executable uqplcompile
-  main-is: uqplcompile.hs
-  hs-source-dirs:
-      tools
-  default-extensions:
-      LambdaCase
-      NamedFieldPuns
-      ScopedTypeVariables
-      ApplicativeDo
-      RankNTypes
-      FlexibleContexts
-      TypeFamilies
-      TypeOperators
-      MultiWayIf
-      EmptyCase
+      ConstraintKinds
       RecordWildCards
   ghc-options: -Wall -fprint-typechecker-elaboration
   build-depends:
@@ -451,6 +425,7 @@ test-suite spec
       TypeOperators
       MultiWayIf
       EmptyCase
+      ConstraintKinds
   ghc-options: -Wall -fprint-typechecker-elaboration
   cpp-options: -DTEST
   build-tool-depends:

@@ -8,8 +8,7 @@ import qualified Traq.Data.Symbolic as Sym
 import qualified Traq.Analysis as A
 import Traq.Analysis.CostModel.QueryCost (SimpleQueryCost (getCost))
 import qualified Traq.CQPL as CQPL
-import qualified Traq.Compiler.Quantum as CompileQ
-import qualified Traq.Compiler.Unitary as CompileU
+import qualified Traq.Compiler as Compiler
 import Traq.Examples.MatrixSearch
 import Traq.Primitives (Primitive (..))
 import Traq.Primitives.Search.Prelude
@@ -77,18 +76,18 @@ spec = describe "MatrixSearch" $ do
       let eps = A.failProb (0.001 :: Double)
       it "lowers" $ do
         ex' <- expectRight $ A.annotateProgWithErrorBudgetU eps ex
-        assertRight $ CompileU.lowerProgram ex'
+        assertRight $ Compiler.lowerProgramU ex'
 
       it "type checks" $ do
         ex' <- expectRight $ A.annotateProgWithErrorBudgetU eps ex
-        ex_uqpl <- expectRight $ CompileU.lowerProgram ex'
+        ex_uqpl <- expectRight $ Compiler.lowerProgramU ex'
         let tc_res = CQPL.typeCheckProgram ex_uqpl
         either print (const $ pure ()) tc_res
         assertRight tc_res
 
       it "preserves cost" $ do
         ex' <- expectRight $ A.annotateProgWithErrorBudgetU eps ex
-        ex_uqpl <- expectRight $ CompileU.lowerProgram ex'
+        ex_uqpl <- expectRight $ Compiler.lowerProgramU ex'
         let uqpl_cost = getCost . fst $ CQPL.programCost ex_uqpl
         let proto_cost = getCost $ A.costUProg ex'
         uqpl_cost `shouldSatisfy` (<= proto_cost)
@@ -97,12 +96,11 @@ spec = describe "MatrixSearch" $ do
       let eps = A.failProb (0.001 :: Double)
       it "lowers" $ do
         ex' <- expectRight $ A.annotateProgWithErrorBudget eps ex
-        assertRight $ CompileQ.lowerProgram ex'
+        assertRight $ Compiler.lowerProgram ex'
 
       it "type checks" $ do
         ex' <- expectRight $ A.annotateProgWithErrorBudget eps ex
-        ex_cqpl <- expectRight $ CompileQ.lowerProgram ex'
-        -- case CQPL.typeCheckProgram gamma ex_uqpl of Left e -> putStrLn e; _ -> return ()
+        ex_cqpl <- expectRight $ Compiler.lowerProgram ex'
         assertRight $ CQPL.typeCheckProgram ex_cqpl
 
   describe "symbolic" $ do

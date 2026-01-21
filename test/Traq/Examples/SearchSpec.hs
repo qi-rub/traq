@@ -8,7 +8,7 @@ import qualified Traq.Data.Context as Ctx
 import qualified Traq.Analysis as A
 import Traq.Analysis.CostModel.QueryCost (SimpleQueryCost (..))
 import qualified Traq.CQPL as CQPL
-import qualified Traq.Compiler.Unitary as CompileU
+import qualified Traq.Compiler as Compiler
 import Traq.Examples.Search
 import Traq.Prelude
 import Traq.Primitives.Search.QSearchCFNW (_EQSearch, _QSearchZalka)
@@ -65,16 +65,16 @@ spec = describe "SearchSpec" $ do
 
       it "lowers" $ do
         ex' <- expectRight $ A.annotateProgWith (P._exts (A.annSinglePrim eps)) ex
-        assertRight $ CompileU.lowerProgram ex'
+        assertRight $ Compiler.lowerProgramU ex'
 
       it "typechecks" $ do
         ex' <- expectRight $ A.annotateProgWith (P._exts (A.annSinglePrim eps)) ex
-        ex_uqpl <- expectRight $ CompileU.lowerProgram ex'
+        ex_uqpl <- expectRight $ Compiler.lowerProgramU ex'
         assertRight $ CQPL.typeCheckProgram ex_uqpl
 
       it "preserves cost" $ do
         ex' <- expectRight $ A.annotateProgWith (P._exts (A.annSinglePrim eps)) ex
-        ex_uqpl <- expectRight $ CompileU.lowerProgram ex'
+        ex_uqpl <- expectRight $ Compiler.lowerProgramU ex'
         let (uqpl_cost, _) = CQPL.programCost ex_uqpl
         let proto_cost = A.costUProg ex' :: SimpleQueryCost Double
         uqpl_cost `shouldSatisfy` (<= proto_cost)

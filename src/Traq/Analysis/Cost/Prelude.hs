@@ -1,5 +1,3 @@
-{-# LANGUAGE ConstraintKinds #-}
-
 module Traq.Analysis.Cost.Prelude where
 
 import Control.Monad.Reader (Reader)

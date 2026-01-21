@@ -71,12 +71,13 @@ data Unitary sizeT
   | CNOT
   | XGate
   | HGate
+  | COPY
+  | SWAP
   | LoadData Ident
-  | -- | maps \( |0\rangle \) to \( \frac1{\sqrt{|\Sigma_T|}} \sum_{x \in \Sigma_T} |x\rangle \)
-    Unif
   | -- | reflect about |0>_T
     Refl0
   | RevEmbedU [Ident] (P.BasicExpr sizeT)
+  | DistrU (P.DistrExpr sizeT)
   | Controlled (Unitary sizeT)
   | Adjoint (Unitary sizeT)
   deriving (Eq, Show, Read)
@@ -87,7 +88,9 @@ instance (Show sizeT) => PP.ToCodeString (Unitary sizeT) where
   build (RevEmbedU xs e) = do
     e_s <- PP.fromBuild e
     PP.putWord $ printf "Embed[(%s) => %s]" (PP.commaList xs) e_s
-  build Unif = PP.putWord "Unif"
+  build (DistrU mu) = do
+    e_s <- PP.fromBuild mu
+    PP.putWord $ printf "Distr[%s]" e_s
   build XGate = PP.putWord "X"
   build HGate = PP.putWord "H"
   build Refl0 = PP.putWord $ printf "Refl0"
@@ -194,7 +197,7 @@ data Stmt sizeT
   = SkipS
   | CommentS String
   | AssignS {rets :: [Ident], expr :: P.BasicExpr sizeT}
-  | RandomS {ret :: Ident, max_val :: MetaParam sizeT}
+  | RandomS {rets :: [Ident], distr_expr :: P.DistrExpr sizeT}
   | RandomDynS {ret :: Ident, max_var :: Ident}
   | CallS {fun :: FunctionCall, meta_params :: [Either (MetaParam sizeT) Ident], args :: [Ident]}
   | SeqS [Stmt sizeT]
@@ -216,9 +219,9 @@ instance (Show sizeT) => PP.ToCodeString (Stmt sizeT) where
   build AssignS{rets, expr} = do
     e_s <- PP.fromBuild expr
     PP.putLine $ printf "%s := %s;" (PP.commaList rets) e_s
-  build RandomS{ret, max_val} = do
-    max_val_s <- PP.fromBuild max_val
-    PP.putLine $ printf "%s :=$ [1 .. %s];" ret max_val_s
+  build RandomS{rets, distr_expr} = do
+    distr_s <- PP.fromBuild distr_expr
+    PP.putLine $ printf "%s :=$ %s;" (PP.commaList rets) distr_s
   build RandomDynS{ret, max_var} =
     PP.putLine $ printf "%s :=$ [1 .. %s];" ret max_var
   build CallS{fun, meta_params, args} = do
@@ -405,16 +408,14 @@ class HasProcCtx s where
 instance HasProcCtx (ProcCtx sizeT) where _procCtx = id
 
 -- | CQ Program
-newtype Program sizeT = Program
-  { proc_defs :: ProcCtx sizeT
-  }
+newtype Program sizeT = Program [ProcDef sizeT]
   deriving (Eq, Show, Read)
 
 type instance SizeType (Program sizeT) = sizeT
 
 instance (Show sizeT) => PP.ToCodeString (Program sizeT) where
-  build Program{proc_defs} = do
-    mapM_ (PP.build >=> const PP.endl) $ Ctx.elems proc_defs
+  build (Program ps) = do
+    mapM_ (PP.build >=> const PP.endl) ps
 
 -- ================================================================================
 -- Lenses
@@ -443,7 +444,7 @@ instance HasStmt (ProcDef sizeT) where
 
 instance HasStmt (Program sizeT) where
   type StmtOf (Program sizeT) = Stmt sizeT
-  _stmt focus (Program proc_defs) = Program <$> traverse (_stmt focus) proc_defs
+  _stmt focus (Program ps) = Program <$> traverse (_stmt focus) ps
 
 -- ================================================================================
 -- Syntax Sugar

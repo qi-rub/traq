@@ -3,8 +3,6 @@
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE MultiParamTypeClasses #-}
 {-# LANGUAGE OverloadedStrings #-}
-{-# LANGUAGE TypeApplications #-}
-{-# LANGUAGE UndecidableInstances #-}
 {-# OPTIONS_GHC -Wno-unrecognised-pragmas #-}
 
 {-# HLINT ignore "Use camelCase" #-}
@@ -54,8 +52,6 @@ import Traq.Data.Subtyping
 import qualified Traq.Analysis as A
 import qualified Traq.CQPL as CQPL
 import qualified Traq.Compiler as Compiler
-import qualified Traq.Compiler.Quantum as CompileQ
-import qualified Traq.Compiler.Unitary as CompileU
 import Traq.Prelude
 import Traq.Primitives.Class
 import Traq.Primitives.Search.Prelude
@@ -225,12 +221,12 @@ type UQSearchBuilder ext =
     (UQSearchEnv (SizeType ext))
     [CQPL.UStmt (SizeType ext)]
     ()
-    (CompileU.CompilerT ext)
+    (Compiler.CompilerT ext)
 
 allocSearchArgReg :: UQSearchBuilder ext Ident
 allocSearchArgReg = do
   ty <- view $ to search_arg_type
-  lift $ CompileU.allocAncillaWithPref "s_arg" ty
+  lift $ Compiler.allocAncillaWithPref "s_arg" ty
 
 addPredCall :: Ident -> Ident -> Ident -> UQSearchBuilder ext ()
 addPredCall c x b = do
@@ -260,10 +256,12 @@ addGroverIteration ::
   Ident ->
   UQSearchBuilder ext ()
 addGroverIteration c x b = do
+  x_ty <- view $ to search_arg_type
+  let unifX = CQPL.DistrU (P.UniformE x_ty)
   addPredCall c x b
-  writeElem $ CQPL.UnitaryS [x] (CQPL.Adjoint CQPL.Unif)
+  writeElem $ CQPL.UnitaryS [x] (CQPL.Adjoint unifX)
   writeElem $ CQPL.UnitaryS [x] CQPL.Refl0
-  writeElem $ CQPL.UnitaryS [x] CQPL.Unif
+  writeElem $ CQPL.UnitaryS [x] unifX
 
 algoQSearchZalkaRandomIterStep ::
   forall ext sizeT precT.
@@ -279,13 +277,14 @@ algoQSearchZalkaRandomIterStep ::
 algoQSearchZalkaRandomIterStep r = do
   -- time register
   let r_ty = P.Fin r
-  r_reg <- lift $ CompileU.allocAncillaWithPref "n_iter" r_ty
-  ctrl_bit <- lift $ CompileU.allocAncillaWithPref "ctrl" P.tbool
+  r_reg <- lift $ Compiler.allocAncillaWithPref "n_iter" r_ty
+  ctrl_bit <- lift $ Compiler.allocAncillaWithPref "ctrl" P.tbool
   x_reg <- allocSearchArgReg
-  b_reg <- lift $ CompileU.allocAncillaWithPref "pred_out" P.tbool
+  b_reg <- lift $ Compiler.allocAncillaWithPref "pred_out" P.tbool
+  x_ty <- view $ to search_arg_type
 
   -- uniform r
-  let prep_r = CQPL.UnitaryS [r_reg] CQPL.Unif
+  let prep_r = CQPL.UnitaryS [r_reg] (CQPL.DistrU (P.UniformE r_ty))
 
   withComputed prep_r $ do
     -- b in minus state for grover
@@ -296,7 +295,7 @@ algoQSearchZalkaRandomIterStep r = do
             ]
     withComputed prep_b $ do
       -- uniform x
-      writeElem $ CQPL.UnitaryS [x_reg] CQPL.Unif
+      writeElem $ CQPL.UnitaryS [x_reg] (CQPL.DistrU (P.UniformE x_ty))
 
       -- controlled iterate
       let meta_ix_name = "LIM"
@@ -350,39 +349,45 @@ instance
   , P.TypingReqs sizeT
   , A.SizeToPrec sizeT precT
   ) =>
-  CompileU.Lowerable (A.AnnFailProb (Primitive (QSearchCFNW sizeT precT))) sizeT precT
+  Compiler.CompileU (A.AnnFailProb (Primitive (QSearchCFNW sizeT precT)))
   where
-  lowerPrimitive (A.AnnFailProb eps (Primitive [PartialFun{pfun_name, pfun_args}] (QSearchCFNW PrimSearch{}))) [ret] = do
-    -- the predicate
-    pred_fun@P.FunDef{P.param_types} <-
-      view (P._funCtx . Ctx.at pfun_name)
-        >>= maybeWithError ("cannot find predicate " <> pfun_name)
+  compileU (A.AnnFailProb eps (Primitive [PartialFun{pfun_name, pfun_args}] (QSearchCFNW PrimSearch{}))) [ret] = do
+    -- compiled predicate
+    let pred_proc = Compiler.mkUProcName pfun_name
+    Compiler.ProcSignature
+      { Compiler.in_tys = pred_inp_tys
+      , Compiler.out_tys = pred_out_tys
+      , Compiler.aux_tys = pred_aux_tys
+      } <-
+      use (Compiler._procSignatures . at pred_proc) >>= maybeWithError "missing uproc"
 
     -- size of the search space
-    let s_ty = last param_types
+    let s_ty = last pred_inp_tys
     let n = s_ty ^?! P._Fin
-
-    -- compile the predicate
-    CompileU.LoweredProc
-      { CompileU.lowered_def = pred_proc
-      , CompileU.has_ctrl = _
-      , CompileU.inp_tys = pred_inp_tys
-      , CompileU.out_tys = pred_out_tys
-      , CompileU.aux_tys = pred_aux_tys
-      } <-
-      CompileU.lowerFunDef CompileU.WithControl pfun_name pred_fun
 
     when (pred_out_tys /= [P.tbool]) $ throwError "invalid outputs for predicate"
     when (last pred_inp_tys /= s_ty) $ throwError "mismatched search argument type"
 
     -- function to call the predicate, re-using the same aux space each time.
-    pred_ancilla <- mapM CompileU.allocAncilla pred_aux_tys
+    pred_ancilla <- mapM Compiler.allocAncilla pred_aux_tys
+    b' <- Compiler.allocAncilla P.tbool
     let pred_caller ctrl x b =
-          CQPL.UCallS
-            { CQPL.uproc_id = CQPL.proc_name pred_proc
-            , CQPL.dagger = False
-            , CQPL.qargs = ctrl : placeArgs pfun_args [x] ++ [b] ++ pred_ancilla
-            }
+          CQPL.USeqS
+            [ CQPL.UCallS
+                { CQPL.uproc_id = pred_proc
+                , CQPL.dagger = False
+                , CQPL.qargs = placeArgs pfun_args [x] ++ [b'] ++ pred_ancilla
+                }
+            , CQPL.UnitaryS
+                { CQPL.qargs = [ctrl, b', b]
+                , CQPL.unitary = CQPL.Toffoli
+                }
+            , CQPL.UCallS
+                { CQPL.uproc_id = pred_proc
+                , CQPL.dagger = True
+                , CQPL.qargs = placeArgs pfun_args [x] ++ [b'] ++ pred_ancilla
+                }
+            ]
 
     -- Emit the qsearch procedure
     -- body:
@@ -391,7 +396,7 @@ instance
       ((), ss) <- (\m -> evalRWST m UQSearchEnv{search_arg_type = s_ty, pred_call_builder = pred_caller} ()) $ algoQSearchZalka eps ret
       fin_binds <- use P._typingCtx
       let ancillas = Ctx.toList $ fin_binds Ctx.\\ ini_binds
-      return (CQPL.USeqS ss, ancillas)
+      return (CQPL.USeqS ss, (b', P.tbool) : ancillas)
 
     -- name:
     -- TODO maybe this can be somehow "parametrized" so we don't have to generate each time.
@@ -401,12 +406,12 @@ instance
             "QSearch[%s, %s, %s]"
             (show n)
             (show $ A.getFailProb eps)
-            (CQPL.proc_name pred_proc)
+            pred_proc
     let all_params =
-          CompileU.withTag CQPL.ParamInp (zip (catMaybes pfun_args) (init pred_inp_tys))
-            ++ CompileU.withTag CQPL.ParamOut [(ret, P.tbool)]
-            ++ CompileU.withTag CQPL.ParamAux (zip pred_ancilla pred_aux_tys)
-            ++ CompileU.withTag CQPL.ParamAux qsearch_ancilla
+          Compiler.withTag CQPL.ParamInp (zip (catMaybes pfun_args) (init pred_inp_tys))
+            ++ Compiler.withTag CQPL.ParamOut [(ret, P.tbool)]
+            ++ Compiler.withTag CQPL.ParamAux (zip pred_ancilla pred_aux_tys)
+            ++ Compiler.withTag CQPL.ParamAux qsearch_ancilla
 
     -- add the proc:
     Compiler.addProc
@@ -432,7 +437,7 @@ instance
         }
 
   -- fallback
-  lowerPrimitive _ _ = throwError "Unsupported"
+  compileU _ _ = throwError "Unsupported"
 
 -- ================================================================================
 -- CQ Lowering
@@ -442,7 +447,7 @@ instance
 type QSearchCompilerT ext =
   WriterT
     ([CQPL.Stmt (SizeType ext)], [(Ident, P.VarType (SizeType ext))])
-    (CompileQ.CompilerT ext)
+    (Compiler.CompilerT ext)
 
 allocReg ::
   ( m ~ QSearchCompilerT ext
@@ -468,7 +473,7 @@ groverK ::
   -- | run the predicate
   (Ident -> Ident -> CQPL.UStmt sizeT) ->
   CQPL.UStmt sizeT
-groverK k (x, _) b mk_pred =
+groverK k (x, x_ty) b mk_pred =
   CQPL.USeqS
     [ prepb
     , prepx
@@ -476,6 +481,8 @@ groverK k (x, _) b mk_pred =
     , CQPL.adjoint prepb
     ]
  where
+  unifX = CQPL.DistrU (P.UniformE x_ty)
+
   -- map b to |-> and x to uniform
   prepb, prepx :: CQPL.UStmt sizeT
   prepb =
@@ -483,15 +490,15 @@ groverK k (x, _) b mk_pred =
       [ CQPL.UnitaryS [b] CQPL.XGate
       , CQPL.UnitaryS [b] CQPL.HGate
       ]
-  prepx = CQPL.UnitaryS [x] CQPL.Unif
+  prepx = CQPL.UnitaryS [x] unifX
 
   grover_iterate :: CQPL.UStmt sizeT
   grover_iterate =
     CQPL.USeqS
       [ mk_pred x b
-      , CQPL.UnitaryS [x] (CQPL.Adjoint CQPL.Unif)
+      , CQPL.UnitaryS [x] (CQPL.Adjoint unifX)
       , CQPL.UnitaryS [x] CQPL.Refl0
-      , CQPL.UnitaryS [x] CQPL.Unif
+      , CQPL.UnitaryS [x] unifX
       ]
 
 -- | Implementation of the hybrid quantum search algorithm \( \textbf{QSearch} \).
@@ -500,10 +507,11 @@ algoQSearch ::
   ( Integral sizeT
   , RealFloat precT
   , sizeT ~ SizeT
-  , CompileQ.Lowerable ext sizeT precT
+  , Compiler.CompileQ ext
   , Show sizeT
   , Show precT
   , P.TypingReqs sizeT
+  , SizeType ext ~ sizeT
   ) =>
   -- | search elem type
   P.VarType sizeT ->
@@ -518,7 +526,7 @@ algoQSearch ::
   -- | Result register
   Ident ->
   -- | the generated QSearch procedure: body stmts and local vars
-  WriterT ([CQPL.Stmt sizeT], [(Ident, P.VarType sizeT)]) (CompileQ.CompilerT ext) ()
+  WriterT ([CQPL.Stmt sizeT], [(Ident, P.VarType sizeT)]) (Compiler.CompilerT ext) ()
 algoQSearch ty n_samples eps grover_k_caller pred_caller ok = do
   not_done <- allocReg "not_done" P.tbool
   q_sum <- allocReg "Q_sum" j_type
@@ -531,7 +539,7 @@ algoQSearch ty n_samples eps grover_k_caller pred_caller ok = do
     let classicalSampling =
           CQPL.WhileKWithCondExpr (CQPL.MetaSize n_samples) not_done (notE (fromString ok)) $
             CQPL.SeqS
-              [ CQPL.RandomS x (P.MetaSize n)
+              [ CQPL.RandomS [x] (P.UniformE ty)
               , pred_caller x ok
               ]
     writeElemAt _1 classicalSampling
@@ -612,24 +620,16 @@ instance
   , Show precT
   , P.TypingReqs sizeT
   ) =>
-  CompileQ.Lowerable (A.AnnFailProb (Primitive (QSearchCFNW sizeT precT))) sizeT precT
+  Compiler.CompileQ (A.AnnFailProb (Primitive (QSearchCFNW sizeT precT)))
   where
-  lowerPrimitive (A.AnnFailProb eps (Primitive [PartialFun{pfun_name, pfun_args}] (QSearchCFNW (PrimSearch _ s_ty)))) (ret : rets) = do
-    -- predicate, pred_args = args
-    -- the predicate
-    pred_fun <-
-      view (P._funCtx . Ctx.at pfun_name)
-        >>= maybeWithError ("cannot find predicate " <> pfun_name)
-
-    -- lower the unitary predicate
-    pred_uproc <- CompileU.lowerFunDef @_ CompileU.WithoutControl pfun_name pred_fun
-
-    let CompileU.LoweredProc
-          { CompileU.inp_tys = pred_inp_tys
-          , CompileU.aux_tys = pred_aux_tys
-          -- , CQPL.out_tys = pred_out_tys
-          } = pred_uproc
-    let upred_proc_name = pred_uproc ^. to CompileU.lowered_def . to CQPL.proc_name
+  compileQ (A.AnnFailProb eps (Primitive [PartialFun{pfun_name, pfun_args}] (QSearchCFNW (PrimSearch _ s_ty)))) (ret : rets) = do
+    -- lowered unitary predicate
+    let upred_proc_name = Compiler.mkUProcName pfun_name
+    Compiler.ProcSignature
+      { Compiler.in_tys = pred_inp_tys
+      , Compiler.aux_tys = pred_aux_tys
+      } <-
+      use (Compiler._procSignatures . at upred_proc_name) >>= maybeWithError "missing uproc"
 
     -- make the Grover_k uproc
     -- TODO this should ideally be done by algoQSearch, but requires a lot of aux information.
@@ -650,9 +650,9 @@ instance
                   }
             )
     let uproc_grover_k_params =
-          CompileU.withTag CQPL.ParamInp (zip (catMaybes pfun_args ++ [grover_arg_name]) pred_inp_tys)
-            ++ CompileU.withTag CQPL.ParamOut [(ret, P.tbool)]
-            ++ CompileU.withTag CQPL.ParamAux (zip upred_aux_vars pred_aux_tys)
+          Compiler.withTag CQPL.ParamInp (zip (catMaybes pfun_args ++ [grover_arg_name]) pred_inp_tys)
+            ++ Compiler.withTag CQPL.ParamOut [(ret, P.tbool)]
+            ++ Compiler.withTag CQPL.ParamAux (zip upred_aux_vars pred_aux_tys)
     let uproc_grover_k =
           CQPL.ProcDef
             { CQPL.info_comment = "Grover[...]"
@@ -673,7 +673,7 @@ instance
           CQPL.CallS
             { CQPL.fun = CQPL.UProcAndMeas uproc_grover_k_name
             , CQPL.meta_params = [k]
-            , CQPL.args = [x, b]
+            , CQPL.args = catMaybes pfun_args ++ [x, b]
             }
 
     -- emit the QSearch algorithm
@@ -711,4 +711,4 @@ instance
         , CQPL.args = catMaybes pfun_args ++ [ret] ++ rets
         , CQPL.meta_params = []
         }
-  lowerPrimitive _ _ = error "Unsupported"
+  compileQ _ _ = error "Unsupported"

@@ -28,10 +28,11 @@ spec = do
       ex_ <- expectRight $ P.parseProgram @SymCore "def main() -> () do x <- const 0 : Fin<10>; return end"
       let ex = P.mapSize Sym.unSym ex_
       (cq :: Program SizeT) <- expectRight $ lowerProgram ex
+      let Program cq_procs = cq
       CProcBody{cproc_body_stmt} <-
         return $
-          cq
-            ^. to proc_defs
+          cq_procs
+            ^. to (Ctx.fromListWith proc_name)
             . Ctx.at "main"
             . singular _Just
             . to proc_body
