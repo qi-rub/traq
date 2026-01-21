@@ -12,7 +12,7 @@ import Text.Printf (printf)
 import qualified Traq.Analysis as Traq
 import qualified Traq.Analysis.CostModel.QueryCost as Traq
 import qualified Traq.CQPL as CQPL
-import qualified Traq.Compiler.Quantum
+import qualified Traq.Compiler
 import qualified Traq.Data.Context as Ctx
 import qualified Traq.Data.Symbolic as Sym
 import Traq.Examples.MatrixSearch (matrixExampleS)
@@ -36,19 +36,18 @@ loadProgramFromFile fname = do
 type ValidExt ext =
   ( PrecType ext ~ Double
   , SizeType ext ~ SizeT
-  , Traq.Compiler.Quantum.Lowerable (Traq.AnnFailProb ext) SizeT Double
   , P.HasFreeVars ext
   , Traq.AnnotateWithErrorBudgetU ext
   , Traq.AnnotateWithErrorBudgetQ ext
   , Traq.ExpCostQ (Traq.AnnFailProb ext) SizeT Double
-  , Traq.Compiler.Quantum.CompileQ (Traq.AnnFailProb ext)
+  , Traq.Compiler.CompileQ (Traq.AnnFailProb ext)
   )
 
 -- | Compute the number of qubits used by the compiled program.
 numQubitsRequired :: (ValidExt ext) => P.Program ext -> Double -> Either String SizeT
 numQubitsRequired prog eps = do
   prog' <- Traq.annotateProgWithErrorBudget (Traq.failProb eps) prog
-  compiled_prog <- Traq.Compiler.Quantum.lowerProgram prog'
+  compiled_prog <- Traq.Compiler.lowerProgram prog'
   return $ CQPL.numQubits compiled_prog
 
 -- | Compute the wall-time by Traq to run a cost analysis

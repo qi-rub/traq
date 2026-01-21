@@ -30,7 +30,7 @@ spec = do
 
         actual <-
           expectRight $
-            lowerProgram (P.Program [P.NamedFunDef "main" main_fun])
+            lowerProgramU (P.Program [P.NamedFunDef "main" main_fun])
 
         assertRight $ CQPL.typeCheckProgram actual
         PP.toCodeString actual

@@ -23,8 +23,7 @@ module Traq.Primitives (
 import GHC.Generics
 
 import qualified Traq.Analysis as A
-import qualified Traq.Compiler.Quantum as CompileQ
-import qualified Traq.Compiler.Unitary as CompileU
+import qualified Traq.Compiler as Compiler
 import Traq.Prelude
 import Traq.Primitives.Class
 import Traq.Primitives.Search.DetSearch
@@ -103,10 +102,10 @@ instance
   , Show precT
   , A.SizeToPrec sizeT precT
   ) =>
-  CompileU.Lowerable (A.AnnFailProb (DefaultPrims sizeT precT)) sizeT precT
+  Compiler.CompileU (A.AnnFailProb (DefaultPrims sizeT precT))
   where
-  lowerPrimitive (A.AnnFailProb eps (Primitive fs (QAny q))) = CompileU.lowerPrimitive (A.AnnFailProb eps (Primitive fs q))
-  lowerPrimitive _ = error "TODO: lowerPrimitive"
+  compileU (A.AnnFailProb eps (Primitive fs (QAny q))) = Compiler.compileU (A.AnnFailProb eps (Primitive fs q))
+  compileU _ = error "TODO: lowerPrimitive"
 
 instance
   ( Integral sizeT
@@ -116,10 +115,10 @@ instance
   , Show precT
   , sizeT ~ SizeT
   ) =>
-  CompileQ.Lowerable (A.AnnFailProb (DefaultPrims sizeT precT)) sizeT precT
+  Compiler.CompileQ (A.AnnFailProb (DefaultPrims sizeT precT))
   where
-  lowerPrimitive (A.AnnFailProb eps (Primitive fs (QAny q))) = CompileQ.lowerPrimitive (A.AnnFailProb eps (Primitive fs q))
-  lowerPrimitive _ = error "TODO: lowerPrimitive"
+  compileQ (A.AnnFailProb eps (Primitive fs (QAny q))) = Compiler.compileQ (A.AnnFailProb eps (Primitive fs q))
+  compileQ _ = error "TODO: lowerPrimitive"
 
 -- ================================================================================
 -- Worst-cost prim collection

@@ -35,7 +35,6 @@ import qualified Traq.Data.Symbolic as Sym
 
 import qualified Traq.Analysis as A
 import qualified Traq.Compiler as Compiler
-import qualified Traq.Compiler.Unitary as Compiler
 import Traq.Prelude
 import Traq.Primitives.Class.Eval
 import Traq.Primitives.Class.Prelude
@@ -226,12 +225,13 @@ instance
 -- --------------------------------------------------------------------------------
 -- Compilation
 -- --------------------------------------------------------------------------------
-instance
-  (UnitaryCompilePrim prim (SizeType prim) (PrecType prim)) =>
-  Compiler.CompileU (A.AnnFailProb (Primitive prim))
-  where
-  compileU (A.AnnFailProb eps (Primitive par_funs prim)) rets = do
-    error "TODO compileU Prim"
+
+-- instance
+--   (UnitaryCompilePrim prim (SizeType prim) (PrecType prim)) =>
+--   Compiler.CompileU (A.AnnFailProb (Primitive prim))
+--   where
+--   compileU (A.AnnFailProb eps (Primitive par_funs prim)) rets = do
+--     error "TODO compileU Prim"
 
 -- ================================================================================
 -- Analysis (Quantum)

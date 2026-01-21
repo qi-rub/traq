@@ -34,12 +34,13 @@ class (CompileU ext) => CompileQ ext where
     ( m ~ CompilerT ext'
     , SizeType ext ~ SizeType ext'
     , PrecType ext ~ PrecType ext'
+    , CompileQ ext'
     ) =>
     ext ->
     [Ident] ->
     m (Stmt (SizeType ext))
 
-instance CompileQ (P.Core size prec) where
+instance (P.TypingReqs size) => CompileQ (P.Core size prec) where
   compileQ = \case {}
 
 class CompileQ1 f where
@@ -94,6 +95,8 @@ instance CompileQ1 P.FunBody where
 
   compileQ1 param_types P.FunBody{P.param_names, P.ret_names, P.body_stmt} = do
     P._typingCtx .= Ctx.fromList (zip param_names param_types)
+    magnify P._funCtx . zoom P._typingCtx . ignoreWriter $ P.inferTypes body_stmt
+
     cproc_body_stmt <- compileQ1 () body_stmt
     proc_typing_ctx <- use P._typingCtx
 

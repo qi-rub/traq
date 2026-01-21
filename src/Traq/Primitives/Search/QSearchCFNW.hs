@@ -3,7 +3,6 @@
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE MultiParamTypeClasses #-}
 {-# LANGUAGE OverloadedStrings #-}
-{-# LANGUAGE TypeApplications #-}
 {-# OPTIONS_GHC -Wno-unrecognised-pragmas #-}
 
 {-# HLINT ignore "Use camelCase" #-}
@@ -350,39 +349,45 @@ instance
   , P.TypingReqs sizeT
   , A.SizeToPrec sizeT precT
   ) =>
-  Compiler.Lowerable (A.AnnFailProb (Primitive (QSearchCFNW sizeT precT))) sizeT precT
+  Compiler.CompileU (A.AnnFailProb (Primitive (QSearchCFNW sizeT precT)))
   where
-  lowerPrimitive (A.AnnFailProb eps (Primitive [PartialFun{pfun_name, pfun_args}] (QSearchCFNW PrimSearch{}))) [ret] = do
-    -- the predicate
-    pred_fun@P.FunDef{P.param_types} <-
-      view (P._funCtx . Ctx.at pfun_name)
-        >>= maybeWithError ("cannot find predicate " <> pfun_name)
-
-    -- size of the search space
-    let s_ty = last param_types
-    let n = s_ty ^?! P._Fin
-
-    -- compile the predicate
-    Compiler.LoweredProc
-      { Compiler.lowered_def = pred_proc
-      , Compiler.has_ctrl = _
-      , Compiler.inp_tys = pred_inp_tys
+  compileU (A.AnnFailProb eps (Primitive [PartialFun{pfun_name, pfun_args}] (QSearchCFNW PrimSearch{}))) [ret] = do
+    -- compiled predicate
+    let pred_proc = Compiler.mkUProcName pfun_name
+    Compiler.ProcSignature
+      { Compiler.in_tys = pred_inp_tys
       , Compiler.out_tys = pred_out_tys
       , Compiler.aux_tys = pred_aux_tys
       } <-
-      Compiler.lowerFunDef Compiler.WithControl pfun_name pred_fun
+      use (Compiler._procSignatures . at pred_proc) >>= maybeWithError "missing uproc"
+
+    -- size of the search space
+    let s_ty = last pred_inp_tys
+    let n = s_ty ^?! P._Fin
 
     when (pred_out_tys /= [P.tbool]) $ throwError "invalid outputs for predicate"
     when (last pred_inp_tys /= s_ty) $ throwError "mismatched search argument type"
 
     -- function to call the predicate, re-using the same aux space each time.
     pred_ancilla <- mapM Compiler.allocAncilla pred_aux_tys
+    b' <- Compiler.allocAncilla P.tbool
     let pred_caller ctrl x b =
-          CQPL.UCallS
-            { CQPL.uproc_id = CQPL.proc_name pred_proc
-            , CQPL.dagger = False
-            , CQPL.qargs = ctrl : placeArgs pfun_args [x] ++ [b] ++ pred_ancilla
-            }
+          CQPL.USeqS
+            [ CQPL.UCallS
+                { CQPL.uproc_id = pred_proc
+                , CQPL.dagger = False
+                , CQPL.qargs = placeArgs pfun_args [x] ++ [b'] ++ pred_ancilla
+                }
+            , CQPL.UnitaryS
+                { CQPL.qargs = [ctrl, b', b]
+                , CQPL.unitary = CQPL.Toffoli
+                }
+            , CQPL.UCallS
+                { CQPL.uproc_id = pred_proc
+                , CQPL.dagger = True
+                , CQPL.qargs = placeArgs pfun_args [x] ++ [b'] ++ pred_ancilla
+                }
+            ]
 
     -- Emit the qsearch procedure
     -- body:
@@ -401,7 +406,7 @@ instance
             "QSearch[%s, %s, %s]"
             (show n)
             (show $ A.getFailProb eps)
-            (CQPL.proc_name pred_proc)
+            pred_proc
     let all_params =
           Compiler.withTag CQPL.ParamInp (zip (catMaybes pfun_args) (init pred_inp_tys))
             ++ Compiler.withTag CQPL.ParamOut [(ret, P.tbool)]
@@ -432,7 +437,7 @@ instance
         }
 
   -- fallback
-  lowerPrimitive _ _ = throwError "Unsupported"
+  compileU _ _ = throwError "Unsupported"
 
 -- ================================================================================
 -- CQ Lowering
@@ -502,10 +507,11 @@ algoQSearch ::
   ( Integral sizeT
   , RealFloat precT
   , sizeT ~ SizeT
-  , Compiler.Lowerable ext sizeT precT
+  , Compiler.CompileQ ext
   , Show sizeT
   , Show precT
   , P.TypingReqs sizeT
+  , SizeType ext ~ sizeT
   ) =>
   -- | search elem type
   P.VarType sizeT ->
