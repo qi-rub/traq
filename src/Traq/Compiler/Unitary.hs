@@ -371,19 +371,15 @@ lowerFunDef
 -- Compiler
 -- ================================================================================
 
-class
-  (size ~ SizeType ext) =>
-  CompileU ext size
-    | ext -> size
-  where
+class CompileU ext where
   compileU ::
     forall ext' m.
     (m ~ CompilerT ext') =>
     ext ->
     [Ident] ->
-    m (CQPL.UStmt size)
+    m (CQPL.UStmt (SizeType ext))
 
-instance CompileU (P.Core size prec) size where
+instance CompileU (P.Core size prec) where
   compileU = \case {}
 
 class CompileU1 f where
@@ -394,9 +390,9 @@ class CompileU1 f where
   type CompileResult f ext
 
   compileU1 ::
-    forall ext size m.
-    ( CompileU ext size
-    , P.TypeInferrable ext size
+    forall ext m.
+    ( CompileU ext
+    , P.TypeInferrable ext (SizeType ext)
     , m ~ CompilerT ext
     ) =>
     CompileArgs f ext ->
@@ -544,7 +540,7 @@ instance CompileU1 P.Program where
 lowerProgram ::
   forall ext precT.
   ( Lowerable ext SizeT precT
-  , CompileU ext SizeT
+  , CompileU ext
   , Show precT
   , Floating precT
   , P.HasFreeVars ext

@@ -228,8 +228,8 @@ instance
 -- Compilation
 -- --------------------------------------------------------------------------------
 instance
-  (UnitaryCompilePrim prim size (PrecType prim)) =>
-  Compiler.CompileU (A.AnnFailProb (Primitive prim)) size
+  (UnitaryCompilePrim prim (SizeType prim) (PrecType prim)) =>
+  Compiler.CompileU (A.AnnFailProb (Primitive prim))
   where
   compileU (A.AnnFailProb eps (Primitive par_funs prim)) rets = do
     error "TODO compileU Prim"
