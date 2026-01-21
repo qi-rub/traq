@@ -74,8 +74,6 @@ data Unitary sizeT
   | COPY
   | SWAP
   | LoadData Ident
-  | -- | maps \( |0\rangle \) to \( \frac1{\sqrt{|\Sigma_T|}} \sum_{x \in \Sigma_T} |x\rangle \)
-    Unif
   | -- | reflect about |0>_T
     Refl0
   | RevEmbedU [Ident] (P.BasicExpr sizeT)
@@ -93,7 +91,6 @@ instance (Show sizeT) => PP.ToCodeString (Unitary sizeT) where
   build (DistrU mu) = do
     e_s <- PP.fromBuild mu
     PP.putWord $ printf "Distr[%s]" e_s
-  build Unif = PP.putWord "Unif"
   build XGate = PP.putWord "X"
   build HGate = PP.putWord "H"
   build Refl0 = PP.putWord $ printf "Refl0"

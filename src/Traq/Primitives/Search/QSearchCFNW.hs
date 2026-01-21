@@ -260,10 +260,12 @@ addGroverIteration ::
   Ident ->
   UQSearchBuilder ext ()
 addGroverIteration c x b = do
+  x_ty <- view $ to search_arg_type
+  let unifX = CQPL.DistrU (P.UniformE x_ty)
   addPredCall c x b
-  writeElem $ CQPL.UnitaryS [x] (CQPL.Adjoint CQPL.Unif)
+  writeElem $ CQPL.UnitaryS [x] (CQPL.Adjoint unifX)
   writeElem $ CQPL.UnitaryS [x] CQPL.Refl0
-  writeElem $ CQPL.UnitaryS [x] CQPL.Unif
+  writeElem $ CQPL.UnitaryS [x] unifX
 
 algoQSearchZalkaRandomIterStep ::
   forall ext sizeT precT.
@@ -283,9 +285,10 @@ algoQSearchZalkaRandomIterStep r = do
   ctrl_bit <- lift $ CompileU.allocAncillaWithPref "ctrl" P.tbool
   x_reg <- allocSearchArgReg
   b_reg <- lift $ CompileU.allocAncillaWithPref "pred_out" P.tbool
+  x_ty <- view $ to search_arg_type
 
   -- uniform r
-  let prep_r = CQPL.UnitaryS [r_reg] CQPL.Unif
+  let prep_r = CQPL.UnitaryS [r_reg] (CQPL.DistrU (P.UniformE r_ty))
 
   withComputed prep_r $ do
     -- b in minus state for grover
@@ -296,7 +299,7 @@ algoQSearchZalkaRandomIterStep r = do
             ]
     withComputed prep_b $ do
       -- uniform x
-      writeElem $ CQPL.UnitaryS [x_reg] CQPL.Unif
+      writeElem $ CQPL.UnitaryS [x_reg] (CQPL.DistrU (P.UniformE x_ty))
 
       -- controlled iterate
       let meta_ix_name = "LIM"
@@ -468,7 +471,7 @@ groverK ::
   -- | run the predicate
   (Ident -> Ident -> CQPL.UStmt sizeT) ->
   CQPL.UStmt sizeT
-groverK k (x, _) b mk_pred =
+groverK k (x, x_ty) b mk_pred =
   CQPL.USeqS
     [ prepb
     , prepx
@@ -476,6 +479,8 @@ groverK k (x, _) b mk_pred =
     , CQPL.adjoint prepb
     ]
  where
+  unifX = CQPL.DistrU (P.UniformE x_ty)
+
   -- map b to |-> and x to uniform
   prepb, prepx :: CQPL.UStmt sizeT
   prepb =
@@ -483,15 +488,15 @@ groverK k (x, _) b mk_pred =
       [ CQPL.UnitaryS [b] CQPL.XGate
       , CQPL.UnitaryS [b] CQPL.HGate
       ]
-  prepx = CQPL.UnitaryS [x] CQPL.Unif
+  prepx = CQPL.UnitaryS [x] unifX
 
   grover_iterate :: CQPL.UStmt sizeT
   grover_iterate =
     CQPL.USeqS
       [ mk_pred x b
-      , CQPL.UnitaryS [x] (CQPL.Adjoint CQPL.Unif)
+      , CQPL.UnitaryS [x] (CQPL.Adjoint unifX)
       , CQPL.UnitaryS [x] CQPL.Refl0
-      , CQPL.UnitaryS [x] CQPL.Unif
+      , CQPL.UnitaryS [x] unifX
       ]
 
 -- | Implementation of the hybrid quantum search algorithm \( \textbf{QSearch} \).

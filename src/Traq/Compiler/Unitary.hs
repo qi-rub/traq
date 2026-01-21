@@ -134,10 +134,8 @@ lowerExpr P.BasicExprE{P.basic_expr} rets = do
   return $ UnitaryS{qargs = args ++ rets, unitary = RevEmbedU args basic_expr}
 
 -- random sampling expressions
-lowerExpr P.RandomSampleE{P.distr_expr = P.UniformE{}} rets = do
-  return $ UnitaryS{qargs = rets, unitary = Unif}
-lowerExpr P.RandomSampleE{P.distr_expr = P.BernoulliE{}} rets = do
-  return $ UnitaryS{qargs = rets, unitary = error "TODO: Add Ry gate"}
+lowerExpr P.RandomSampleE{P.distr_expr = distr} rets = do
+  return $ UnitaryS{qargs = rets, unitary = DistrU distr}
 
 -- function call
 lowerExpr P.FunCallE{fname, P.args} rets = do

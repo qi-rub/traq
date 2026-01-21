@@ -119,7 +119,6 @@ typeCheckUnitary HGate tys = verifyArgTys tys [P.tbool]
 -- general gates
 typeCheckUnitary COPY tys = let n = length tys `div` 2 in verifyArgTys (take n tys) (drop n tys)
 typeCheckUnitary SWAP tys = let n = length tys `div` 2 in verifyArgTys (take n tys) (drop n tys)
-typeCheckUnitary Unif _ = return ()
 typeCheckUnitary Refl0 _ = return ()
 typeCheckUnitary (DistrU (P.UniformE ty)) tys = verifyArgTys tys [ty]
 typeCheckUnitary (DistrU (P.BernoulliE _)) tys = verifyArgTys tys [P.tbool]
