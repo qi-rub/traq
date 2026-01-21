@@ -121,10 +121,10 @@ library
     , transformers >=0.5
   default-language: Haskell2010
 
-executable compile_loc
-  main-is: compile_loc.hs
+executable compile
+  main-is: compile.hs
   hs-source-dirs:
-      experiments
+      tools
   default-extensions:
       LambdaCase
       NamedFieldPuns
@@ -156,10 +156,10 @@ executable compile_loc
     , traq
   default-language: Haskell2010
 
-executable cqplcompile
-  main-is: cqplcompile.hs
+executable compile_loc
+  main-is: compile_loc.hs
   hs-source-dirs:
-      tools
+      experiments
   default-extensions:
       LambdaCase
       NamedFieldPuns
@@ -335,41 +335,6 @@ executable timing
   main-is: timing.hs
   hs-source-dirs:
       experiments
-  default-extensions:
-      LambdaCase
-      NamedFieldPuns
-      ScopedTypeVariables
-      ApplicativeDo
-      RankNTypes
-      FlexibleContexts
-      TypeFamilies
-      TypeOperators
-      MultiWayIf
-      EmptyCase
-      RecordWildCards
-  ghc-options: -Wall -fprint-typechecker-elaboration
-  build-depends:
-      algebra ==4.3.*
-    , base >=4.10 && <5
-    , containers >=0.6 && <1
-    , extra >=1.8 && <2
-    , lens ==5.3.*
-    , microlens-ghc ==0.4.*
-    , microlens-mtl ==0.2.*
-    , mtl >=2.2.2
-    , optparse-applicative ==0.18.*
-    , parsec >=3.1.17 && <3.2
-    , random
-    , random-shuffle
-    , timeit ==2.0.*
-    , transformers >=0.5
-    , traq
-  default-language: Haskell2010
-
-executable uqplcompile
-  main-is: uqplcompile.hs
-  hs-source-dirs:
-      tools
   default-extensions:
       LambdaCase
       NamedFieldPuns
