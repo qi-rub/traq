@@ -59,16 +59,27 @@ class (CostQ ext size prec, Evaluatable ext size prec) => ExpCostQ ext size prec
 -- Core Language: Havoc Cost
 -- ================================================================================
 
-instance (CostQ ext size prec) => CostQ (Expr ext) size prec where
-  costQ BasicExprE{basic_expr} = return $ callExpr Classical basic_expr
-  costQ RandomSampleE{distr_expr} = return $ callDistrExpr Classical distr_expr
-  costQ FunCallE{fname} = do
+-- | Havoc Cost w.r.t. quantum compiler
+class CostQ1 f where
+  costQ1 ::
+    forall ext size prec cost m.
+    ( m ~ CostAnalysisMonad ext
+    , CostQ ext size prec
+    , CostModelReqs size prec cost
+    ) =>
+    f ext ->
+    m cost
+
+instance CostQ1 Expr where
+  costQ1 BasicExprE{basic_expr} = return $ callExpr Classical basic_expr
+  costQ1 RandomSampleE{distr_expr} = return $ callDistrExpr Classical distr_expr
+  costQ1 FunCallE{fname} = do
     fn <- view $ _funCtx . Ctx.at fname . non' (error $ "unable to find function " ++ fname)
-    costQ $ NamedFunDef fname fn
-  costQ PrimCallE{prim} = costQ prim
-  costQ LoopE{loop_body_fun} = do
+    costQ1 $ NamedFunDef fname fn
+  costQ1 PrimCallE{prim} = costQ prim
+  costQ1 LoopE{loop_body_fun} = do
     fn@FunDef{param_types} <- view $ _funCtx . Ctx.at loop_body_fun . non' (error $ "unable to find function " ++ loop_body_fun)
-    body_cost <- costQ $ NamedFunDef loop_body_fun fn
+    body_cost <- costQ1 $ NamedFunDef loop_body_fun fn
     let Fin n_iters = last param_types
     return $ (sizeToPrec n_iters :: prec) Alg..* body_cost
 
@@ -118,10 +129,9 @@ instance (ExpCostQ ext size prec) => ExpCostQ (Expr ext) size prec where
 
 -- | TODO unify this as a class instance, after unifying evaluation
 expCostQStmt ::
-  forall ext size prec ext' cost m.
-  ( m ~ CostAnalysisMonad ext'
+  forall ext size prec cost m.
+  ( m ~ CostAnalysisMonad ext
   , ExpCostQ ext size prec
-  , ExpCostQ ext' size prec
   , CostModelReqs size prec cost
   ) =>
   Stmt ext ->
@@ -140,7 +150,7 @@ expCostQStmt (SeqS ss) sigma = do
 
   let stepS s sigma_s =
         s
-          & execStmt @_ @_ @_ @ext'
+          & execStmt @ext
           & (execStateT ?? sigma_s)
           & (runReaderT ?? env)
 
