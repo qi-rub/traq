@@ -5,16 +5,17 @@
 module Traq.Compiler.Unitary (
   lowerProgramU,
 
-  -- * Types
-  CompilerT,
+  -- * Class
   CompileU (..),
-  compileU1,
 
   -- ** Helpers
   allocAncillaWithPref,
   allocAncilla,
   ControlFlag (..),
   withTag,
+
+  -- * Internal
+  compileU1,
 ) where
 
 import Control.Monad (unless, zipWithM)

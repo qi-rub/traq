@@ -3,8 +3,9 @@
 
 module Traq.Compiler.Quantum (
   lowerProgram,
+
+  -- * Class
   CompileQ (..),
-  CompileQ1 (..),
 ) where
 
 import Control.Monad (unless)

@@ -5,5 +5,5 @@ module Traq.Compiler (
 ) where
 
 import Traq.Compiler.Prelude
-import Traq.Compiler.Quantum hiding (CompileQ1)
-import Traq.Compiler.Unitary hiding (CompileU1, lowerProgram)
+import Traq.Compiler.Quantum
+import Traq.Compiler.Unitary hiding (compileU1)
