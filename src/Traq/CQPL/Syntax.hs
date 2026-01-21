@@ -200,7 +200,7 @@ data Stmt sizeT
   = SkipS
   | CommentS String
   | AssignS {rets :: [Ident], expr :: P.BasicExpr sizeT}
-  | RandomS {ret :: Ident, max_val :: MetaParam sizeT}
+  | RandomS {rets :: [Ident], distr_expr :: P.DistrExpr sizeT}
   | RandomDynS {ret :: Ident, max_var :: Ident}
   | CallS {fun :: FunctionCall, meta_params :: [Either (MetaParam sizeT) Ident], args :: [Ident]}
   | SeqS [Stmt sizeT]
@@ -222,9 +222,9 @@ instance (Show sizeT) => PP.ToCodeString (Stmt sizeT) where
   build AssignS{rets, expr} = do
     e_s <- PP.fromBuild expr
     PP.putLine $ printf "%s := %s;" (PP.commaList rets) e_s
-  build RandomS{ret, max_val} = do
-    max_val_s <- PP.fromBuild max_val
-    PP.putLine $ printf "%s :=$ [1 .. %s];" ret max_val_s
+  build RandomS{rets, distr_expr} = do
+    distr_s <- PP.fromBuild distr_expr
+    PP.putLine $ printf "%s :=$ %s;" (PP.commaList rets) distr_s
   build RandomDynS{ret, max_var} =
     PP.putLine $ printf "%s :=$ [1 .. %s];" ret max_var
   build CallS{fun, meta_params, args} = do

@@ -531,7 +531,7 @@ algoQSearch ty n_samples eps grover_k_caller pred_caller ok = do
     let classicalSampling =
           CQPL.WhileKWithCondExpr (CQPL.MetaSize n_samples) not_done (notE (fromString ok)) $
             CQPL.SeqS
-              [ CQPL.RandomS x (P.MetaSize n)
+              [ CQPL.RandomS [x] (P.UniformE ty)
               , pred_caller x ok
               ]
     writeElemAt _1 classicalSampling
