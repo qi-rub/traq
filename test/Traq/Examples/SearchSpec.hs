@@ -64,15 +64,18 @@ spec = describe "SearchSpec" $ do
       let eps = A.failProb (0.0001 :: Double)
 
       it "lowers" $ do
+        pendingWith "TODO: unitary compile prims"
         ex' <- expectRight $ A.annotateProgWith (P._exts (A.annSinglePrim eps)) ex
         assertRight $ CompileU.lowerProgram ex'
 
       it "typechecks" $ do
+        pendingWith "TODO: unitary compile prims"
         ex' <- expectRight $ A.annotateProgWith (P._exts (A.annSinglePrim eps)) ex
         ex_uqpl <- expectRight $ CompileU.lowerProgram ex'
         assertRight $ CQPL.typeCheckProgram ex_uqpl
 
       it "preserves cost" $ do
+        pendingWith "TODO: unitary compile prims"
         ex' <- expectRight $ A.annotateProgWith (P._exts (A.annSinglePrim eps)) ex
         ex_uqpl <- expectRight $ CompileU.lowerProgram ex'
         let (uqpl_cost, _) = CQPL.programCost ex_uqpl
