@@ -18,9 +18,7 @@ module Traq.Compiler.Unitary (
   compileU1,
 ) where
 
-import Control.Monad (unless, zipWithM)
-import Control.Monad.Except (throwError)
-import Control.Monad.RWS (RWST (..))
+import Control.Monad (zipWithM)
 import Data.Foldable (Foldable (toList))
 
 import Lens.Micro.GHC
@@ -28,7 +26,6 @@ import Lens.Micro.Mtl
 
 import Traq.Control.Monad
 import qualified Traq.Data.Context as Ctx
-import Traq.Data.Default
 
 import qualified Traq.CQPL as CQPL
 import Traq.CQPL.Syntax
@@ -247,17 +244,4 @@ lowerProgramU ::
   ) =>
   P.Program ext ->
   Either String (CQPL.Program size)
-lowerProgramU prog@(P.Program fs) = do
-  unless (P.checkVarsUnique prog) $
-    throwError "program does not have unique variables!"
-
-  let config =
-        default_
-          & (P._funCtx .~ P.namedFunsToFunCtx fs)
-  let ctx =
-        default_
-          & (_uniqNamesCtx .~ P.allNamesP prog)
-
-  ((), _, outputU) <- runRWST (compileU1 () prog) config ctx
-  let procs = outputU ^. _loweredProcs
-  return $ CQPL.Program procs
+lowerProgramU = compileWith (compileU1 ())

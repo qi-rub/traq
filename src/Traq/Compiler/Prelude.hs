@@ -14,6 +14,7 @@ module Traq.Compiler.Prelude (
 
   -- * Compilation Monad
   CompilerT,
+  compileWith,
 
   -- ** State
   LoweringCtx,
@@ -29,9 +30,10 @@ module Traq.Compiler.Prelude (
   LoweringEnv,
 ) where
 
-import Control.Monad.Except (MonadError)
+import Control.Monad (unless)
+import Control.Monad.Except (MonadError (throwError))
 import Control.Monad.Extra (loopM)
-import Control.Monad.RWS (RWST)
+import Control.Monad.RWS (RWST, runRWST)
 import Control.Monad.State (MonadState)
 import Control.Monad.Writer (MonadWriter)
 import qualified Data.Map as Map
@@ -154,3 +156,28 @@ type CompilerT ext =
     (LoweringOutput (SizeType ext))
     (LoweringCtx (SizeType ext))
     (Either String)
+
+-- | Run the given compiler on a full program.
+compileWith ::
+  forall ext size m.
+  ( m ~ CompilerT ext
+  , size ~ SizeType ext
+  , P.HasFreeVars ext
+  ) =>
+  (P.Program ext -> m ()) ->
+  P.Program ext ->
+  Either String (CQPL.Program size)
+compileWith compiler prog = do
+  unless (P.checkVarsUnique prog) $
+    throwError "program does not have unique variables!"
+
+  let config =
+        default_
+          & (P._funCtx .~ P.programToFunCtx prog)
+  let lowering_ctx =
+        default_
+          & (_uniqNamesCtx .~ P.allNamesP prog)
+
+  (_, _, output) <- runRWST (compiler prog) config lowering_ctx
+
+  return $ CQPL.Program $ output ^. _loweredProcs

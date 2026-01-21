@@ -8,20 +8,15 @@ module Traq.Compiler.Quantum (
   CompileQ (..),
 ) where
 
-import Control.Monad (unless)
-import Control.Monad.Except (throwError)
-import Control.Monad.RWS (RWST (..))
-
 import Lens.Micro.GHC
 import Lens.Micro.Mtl
 
 import Traq.Control.Monad
 import qualified Traq.Data.Context as Ctx
-import Traq.Data.Default
 
 import Traq.CQPL.Syntax
 import Traq.Compiler.Prelude
-import Traq.Compiler.Unitary (CompileU, compileU1)
+import Traq.Compiler.Unitary
 import Traq.Prelude
 import qualified Traq.ProtoLang as P
 
@@ -173,19 +168,4 @@ lowerProgram ::
   ) =>
   P.Program ext ->
   Either String (Program size)
-lowerProgram prog = do
-  unless (P.checkVarsUnique prog) $
-    throwError "program does not have unique variables!"
-
-  let config =
-        default_
-          & (P._funCtx .~ P.programToFunCtx prog)
-  let lowering_ctx =
-        default_
-          & (_uniqNamesCtx .~ P.allNamesP prog)
-
-  (_, _, output) <-
-    compileQ1 () prog
-      & (\m -> runRWST m config lowering_ctx)
-
-  return $ Program $ output ^. _loweredProcs
+lowerProgram = compileWith (compileQ1 ())
