@@ -51,6 +51,7 @@ default-extensions:
   - TypeOperators
   - MultiWayIf
   - EmptyCase
+  - ConstraintKinds
 
 library:
   source-dirs: src

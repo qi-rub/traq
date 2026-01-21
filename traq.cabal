@@ -107,6 +107,7 @@ library
       TypeOperators
       MultiWayIf
       EmptyCase
+      ConstraintKinds
   ghc-options: -Wall -fprint-typechecker-elaboration
   build-depends:
       algebra ==4.3.*
@@ -136,6 +137,7 @@ executable compile
       TypeOperators
       MultiWayIf
       EmptyCase
+      ConstraintKinds
       RecordWildCards
   ghc-options: -Wall -fprint-typechecker-elaboration
   build-depends:
@@ -171,6 +173,7 @@ executable compile_loc
       TypeOperators
       MultiWayIf
       EmptyCase
+      ConstraintKinds
       RecordWildCards
   ghc-options: -Wall -fprint-typechecker-elaboration
   build-depends:
@@ -206,6 +209,7 @@ executable knapsackdemo
       TypeOperators
       MultiWayIf
       EmptyCase
+      ConstraintKinds
       RecordWildCards
   ghc-options: -Wall -fprint-typechecker-elaboration
   build-depends:
@@ -241,6 +245,7 @@ executable matrixsearch
       TypeOperators
       MultiWayIf
       EmptyCase
+      ConstraintKinds
       RecordWildCards
   ghc-options: -Wall -fprint-typechecker-elaboration
   build-depends:
@@ -276,6 +281,7 @@ executable matrixsearchdemo
       TypeOperators
       MultiWayIf
       EmptyCase
+      ConstraintKinds
       RecordWildCards
   ghc-options: -Wall -fprint-typechecker-elaboration
   build-depends:
@@ -311,6 +317,7 @@ executable matrixsearchqcost
       TypeOperators
       MultiWayIf
       EmptyCase
+      ConstraintKinds
       RecordWildCards
   ghc-options: -Wall -fprint-typechecker-elaboration
   build-depends:
@@ -346,6 +353,7 @@ executable timing
       TypeOperators
       MultiWayIf
       EmptyCase
+      ConstraintKinds
       RecordWildCards
   ghc-options: -Wall -fprint-typechecker-elaboration
   build-depends:
@@ -417,6 +425,7 @@ test-suite spec
       TypeOperators
       MultiWayIf
       EmptyCase
+      ConstraintKinds
   ghc-options: -Wall -fprint-typechecker-elaboration
   cpp-options: -DTEST
   build-tool-depends:
