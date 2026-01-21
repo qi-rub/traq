@@ -1,6 +1,7 @@
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE FunctionalDependencies #-}
 {-# LANGUAGE RecordWildCards #-}
+{-# LANGUAGE UndecidableInstances #-}
 
 module Traq.Compiler.Quantum (
   -- * Compilation
@@ -31,6 +32,7 @@ import qualified Traq.Data.Context as Ctx
 import Traq.Data.Default
 
 import Traq.CQPL.Syntax
+import Traq.Compiler.Unitary (CompileU)
 import qualified Traq.Compiler.Unitary as CompileU
 import Traq.Compiler.Utils
 import Traq.Prelude
@@ -48,6 +50,8 @@ class
     , m ~ CompilerT ext'
     , SizeType ext' ~ sizeT
     , PrecType ext' ~ precT
+    , SizeType ext ~ sizeT
+    , PrecType ext ~ precT
     ) =>
     ext ->
     -- | rets
@@ -61,16 +65,24 @@ instance (P.TypingReqs sizeT) => Lowerable (P.Core sizeT precT) sizeT precT wher
 -- Compiler
 -- ================================================================================
 
-class CompileQ ext where
+class (CompileU ext, Lowerable ext (SizeType ext) (PrecType ext)) => CompileQ ext where
   compileQ ::
     forall ext' m.
-    (m ~ CompilerT ext') =>
+    ( m ~ CompilerT ext'
+    , SizeType ext ~ SizeType ext'
+    , PrecType ext ~ PrecType ext'
+    , Lowerable ext' (SizeType ext') (PrecType ext')
+    , Lowerable ext (SizeType ext) (PrecType ext)
+    ) =>
     ext ->
     [Ident] ->
     m (Stmt (SizeType ext))
 
-instance CompileQ (P.Core size prec) where
-  compileQ = \case {}
+instance (CompileU ext, Lowerable ext (SizeType ext) (PrecType ext)) => CompileQ ext where
+  compileQ = lowerPrimitive
+
+-- instance CompileQ (P.Core size prec) where
+--   compileQ = \case {}
 
 class CompileQ1 f where
   -- | all arguments/info provided to compile the given data
@@ -307,6 +319,7 @@ lowerProgram ::
   , Show precT
   , Floating precT
   , P.HasFreeVars ext
+  , CompileQ ext
   ) =>
   P.Program ext ->
   Either String (Program sizeT)
@@ -322,10 +335,13 @@ lowerProgram prog@(P.Program fs) = do
           -- & (P._typingCtx .~ gamma_in)
           & (_uniqNamesCtx .~ P.allNamesP prog)
 
-  let P.NamedFunDef{P.fun_name = main_name} = last fs
+  -- let main_fun = last fs
+  -- (_, _, output) <-
+  --   lowerFunDefByName main_name
+  --     & (\m -> runRWST m config lowering_ctx)
 
   (_, _, output) <-
-    lowerFunDefByName main_name
+    compileQ1 () prog
       & (\m -> runRWST m config lowering_ctx)
 
   return $ Program $ output ^. _loweredProcs

@@ -41,6 +41,7 @@ type ValidExt ext =
   , Traq.AnnotateWithErrorBudgetU ext
   , Traq.AnnotateWithErrorBudgetQ ext
   , Traq.ExpCostQ (Traq.AnnFailProb ext) SizeT Double
+  , Traq.Compiler.Quantum.CompileQ (Traq.AnnFailProb ext)
   )
 
 -- | Compute the number of qubits used by the compiled program.

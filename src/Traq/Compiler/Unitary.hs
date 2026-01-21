@@ -373,7 +373,10 @@ lowerFunDef
 class CompileU ext where
   compileU ::
     forall ext' m.
-    (m ~ CompilerT ext') =>
+    ( m ~ CompilerT ext'
+    , SizeType ext ~ SizeType ext'
+    , PrecType ext ~ PrecType ext'
+    ) =>
     ext ->
     [Ident] ->
     m (CQPL.UStmt (SizeType ext))
