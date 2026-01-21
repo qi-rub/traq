@@ -3702,7 +3702,7 @@ proc QAny(i1 : Fin<20>, j1 : Fin<10>, or_1 : Fin<2>) { locals : (not_done : Fin<
       Q_sum := (Q_sum + j);
       not_done := (not_done && (Q_sum <= j_lim));
       if (not_done) {
-        meas Grover[j](x_1, or_1);
+        meas Grover[j](i1, j1, x_1, or_1);
         meas NOR_0_U(i1, j1, x_1, or_1);
         not_done := (not_done && or_1);
       } else {
@@ -5253,7 +5253,7 @@ proc QAny_1(i2 : Fin<20>, or_2 : Fin<2>) { locals : (not_done_1 : Fin<2>, Q_sum_
       Q_sum_1 := (Q_sum_1 + j_1);
       not_done_1 := (not_done_1 && (Q_sum_1 <= j_lim_1));
       if (not_done_1) {
-        meas Grover_1[j_1](x_3, or_2);
+        meas Grover_1[j_1](i2, x_3, or_2);
         meas NOR_1_U(i2, x_3, or_2);
         not_done_1 := (not_done_1 && or_2);
       } else {

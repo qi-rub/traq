@@ -673,7 +673,7 @@ instance
           CQPL.CallS
             { CQPL.fun = CQPL.UProcAndMeas uproc_grover_k_name
             , CQPL.meta_params = [k]
-            , CQPL.args = [x, b]
+            , CQPL.args = catMaybes pfun_args ++ [x, b]
             }
 
     -- emit the QSearch algorithm

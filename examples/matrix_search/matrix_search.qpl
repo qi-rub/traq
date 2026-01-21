@@ -1527,7 +1527,7 @@ proc QAny(i : Fin<20>, hasZero : Fin<2>) { locals : (not_done : Fin<2>, Q_sum : 
       Q_sum := (Q_sum + j);
       not_done := (not_done && (Q_sum <= j_lim));
       if (not_done) {
-        meas Grover[j](x_1, hasZero);
+        meas Grover[j](i, x_1, hasZero);
         meas IsEntryZero_U(i, x_1, hasZero);
         not_done := (not_done && hasZero);
       } else {

@@ -226,7 +226,7 @@ typeCheckStmt CallS{fun = FunctionCall proc_id, args} = do
   unless (isCProc p) $ Err.throwErrorMessage "expected uproc"
   arg_tys <- forM args $ \var -> do
     view (P._typingCtx . Ctx.at var) >>= maybeWithError (Err.MessageE $ printf "cannot find %s" var)
-  ensureEqual proc_param_types arg_tys ("mismatched function args for " ++ proc_id)
+  ensureEqual proc_param_types arg_tys ("mismatched function args for call proc " ++ proc_id)
 
 -- call uproc
 typeCheckStmt CallS{fun = UProcAndMeas uproc_id, args} = do
@@ -238,7 +238,7 @@ typeCheckStmt CallS{fun = UProcAndMeas uproc_id, args} = do
 
   arg_tys <- forM args $ \var -> do
     view (P._typingCtx . Ctx.at var) >>= maybeWithError (Err.MessageE $ printf "cannot find %s" var)
-  ensureEqual (take (length arg_tys) proc_param_types) arg_tys "mismatched function args"
+  ensureEqual (take (length arg_tys) proc_param_types) arg_tys ("mismatched function args for meas uproc " ++ uproc_id)
 
 -- compound statements
 typeCheckStmt (SeqS ss) = mapM_ typeCheckStmt ss
