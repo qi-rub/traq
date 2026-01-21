@@ -1,22 +1,10 @@
 {-# LANGUAGE FlexibleInstances #-}
-{-# LANGUAGE FunctionalDependencies #-}
 {-# LANGUAGE RecordWildCards #-}
-{-# LANGUAGE UndecidableInstances #-}
 
 module Traq.Compiler.Quantum (
-  -- * Compilation
   lowerProgram,
   CompileQ (..),
   CompileQ1 (..),
-
-  -- * Types
-  CompilerT,
-  LoweringEnv,
-  LoweringCtx,
-  LoweringOutput,
-
-  -- * Primitive implementations
-  Lowerable (..),
 ) where
 
 import Control.Monad (unless)
@@ -32,57 +20,28 @@ import qualified Traq.Data.Context as Ctx
 import Traq.Data.Default
 
 import Traq.CQPL.Syntax
-import Traq.Compiler.Unitary (CompileU)
-import qualified Traq.Compiler.Unitary as CompileU
-import Traq.Compiler.Utils
+import Traq.Compiler.Prelude
+import Traq.Compiler.Unitary (CompileU, compileU1)
 import Traq.Prelude
 import qualified Traq.ProtoLang as P
-
--- | Primitives that support a classical-quantum lowering.
-class
-  (CompileU.Lowerable ext sizeT precT) =>
-  Lowerable ext sizeT precT
-    | ext -> sizeT precT
-  where
-  lowerPrimitive ::
-    forall ext' m.
-    ( Lowerable ext' sizeT precT
-    , m ~ CompilerT ext'
-    , SizeType ext' ~ sizeT
-    , PrecType ext' ~ precT
-    , SizeType ext ~ sizeT
-    , PrecType ext ~ precT
-    ) =>
-    ext ->
-    -- | rets
-    [Ident] ->
-    m (Stmt sizeT)
-
-instance (P.TypingReqs sizeT) => Lowerable (P.Core sizeT precT) sizeT precT where
-  lowerPrimitive = \case {}
 
 -- ================================================================================
 -- Compiler
 -- ================================================================================
 
-class (CompileU ext, Lowerable ext (SizeType ext) (PrecType ext)) => CompileQ ext where
+class (CompileU ext) => CompileQ ext where
   compileQ ::
     forall ext' m.
     ( m ~ CompilerT ext'
     , SizeType ext ~ SizeType ext'
     , PrecType ext ~ PrecType ext'
-    , Lowerable ext' (SizeType ext') (PrecType ext')
-    , Lowerable ext (SizeType ext) (PrecType ext)
     ) =>
     ext ->
     [Ident] ->
     m (Stmt (SizeType ext))
 
-instance (CompileU ext, Lowerable ext (SizeType ext) (PrecType ext)) => CompileQ ext where
-  compileQ = lowerPrimitive
-
--- instance CompileQ (P.Core size prec) where
---   compileQ = \case {}
+instance CompileQ (P.Core size prec) where
+  compileQ = \case {}
 
 class CompileQ1 f where
   -- | all arguments/info provided to compile the given data
@@ -181,7 +140,8 @@ instance CompileQ1 P.NamedFunDef where
   type CompileQArgs P.NamedFunDef ext = ()
   type CompileQResult P.NamedFunDef ext = ()
 
-  compileQ1 () P.NamedFunDef{P.fun_name, P.fun_def} = do
+  compileQ1 () fn@P.NamedFunDef{P.fun_name, P.fun_def} = do
+    compileU1 () fn
     let proc_name = mkQProcName fun_name
     proc_def <- compileQ1 proc_name fun_def
     addProc proc_def
@@ -193,152 +153,32 @@ instance CompileQ1 P.Program where
   compileQ1 () (P.Program fs) = mapM_ (compileQ1 ()) fs
 
 -- ================================================================================
--- Compilation (Legacy Functions)
+-- Entry Point
 -- ================================================================================
-
--- | Lower a source function to a procedure call.
-lowerFunDef ::
-  forall ext sizeT precT.
-  ( Lowerable ext sizeT precT
-  , P.TypingReqs sizeT
-  , Show precT
-  , Floating precT
-  ) =>
-  -- | source function name
-  Ident ->
-  -- | source function
-  P.FunDef ext ->
-  CompilerT ext Ident
--- lower declarations as-is, ignoring fail prob
-lowerFunDef fun_name P.FunDef{P.param_types, P.ret_types, P.mbody = Nothing} = do
-  let proc_def =
-        ProcDef
-          { info_comment = ""
-          , proc_name = fun_name
-          , proc_meta_params = []
-          , proc_param_types = param_types ++ ret_types
-          , proc_body = ProcBodyC CProcDecl
-          }
-  addProc proc_def
-  return fun_name
-lowerFunDef fun_name P.FunDef{P.param_types, P.mbody = Just body} = do
-  let info_comment = printf "%s" fun_name
-  proc_name <- newIdent fun_name
-
-  let P.FunBody{P.param_names, P.ret_names, P.body_stmt} = body
-
-  (cproc_body_stmt, proc_typing_ctx) <- withSandbox $ do
-    P._typingCtx .= Ctx.fromList (zip param_names param_types)
-    b <- lowerStmt body_stmt
-    c <- use P._typingCtx
-    return (b, c)
-
-  let cproc_param_names = param_names ++ ret_names
-  let cproc_local_vars =
-        proc_typing_ctx
-          & Ctx.toList
-          & filter ((`notElem` cproc_param_names) . fst)
-
-  addProc
-    ProcDef
-      { info_comment
-      , proc_name
-      , proc_meta_params = []
-      , proc_param_types = map (\x -> proc_typing_ctx ^?! Ctx.at x . _Just) cproc_param_names
-      , proc_body = ProcBodyC $ CProcBody{cproc_param_names, cproc_local_vars, cproc_body_stmt}
-      }
-  return proc_name
-
--- | Lookup a source function by name, and lower it to a procedure call.
-lowerFunDefByName ::
-  forall ext sizeT precT.
-  ( Lowerable ext sizeT precT
-  , P.TypingReqs sizeT
-  , Show precT
-  , Floating precT
-  ) =>
-  -- | source function name
-  Ident ->
-  CompilerT ext Ident
-lowerFunDefByName f = do
-  fun_def <- view $ P._funCtx . Ctx.at f . singular _Just
-  lowerFunDef f fun_def
-
--- | Lower a source expression to a statement.
-lowerExpr ::
-  forall ext sizeT precT.
-  ( Lowerable ext sizeT precT
-  , P.TypingReqs sizeT
-  , Show precT
-  , Floating precT
-  ) =>
-  -- source expression
-  P.Expr ext ->
-  -- return variables
-  [Ident] ->
-  CompilerT ext (Stmt sizeT)
--- basic expressions
-lowerExpr P.BasicExprE{P.basic_expr} rets = return $ AssignS rets basic_expr
--- random sampling expressions
-lowerExpr P.RandomSampleE{P.distr_expr} rets = return $ RandomS rets distr_expr
--- function call
-lowerExpr P.FunCallE{P.fname, P.args} rets = do
-  proc_name <- lowerFunDefByName fname
-  return $ CallS{fun = FunctionCall proc_name, args = args ++ rets, meta_params = []}
-
--- primitive call
-lowerExpr P.PrimCallE{P.prim} rets =
-  lowerPrimitive prim rets
-lowerExpr _ _ = error "TODO: UNSUPPORTED"
-
--- | Lower a single statement
-lowerStmt ::
-  forall ext sizeT precT.
-  ( Lowerable ext sizeT precT
-  , P.TypingReqs sizeT
-  , Show precT
-  , Floating precT
-  ) =>
-  P.Stmt ext ->
-  CompilerT ext (Stmt sizeT)
--- single statement
-lowerStmt s@P.ExprS{P.rets, P.expr} = do
-  _ <- ignoreWriter . magnify P._funCtx . zoom P._typingCtx $ P.inferTypes s
-  lowerExpr expr rets
-
--- compound statements
-lowerStmt (P.SeqS ss) = SeqS <$> mapM lowerStmt ss
--- unsupported
-lowerStmt _ = throwError "lowering: unsupported"
 
 -- | Lower a full program into a CQPL program.
 lowerProgram ::
-  forall ext sizeT precT.
-  ( Lowerable ext sizeT precT
-  , P.TypingReqs sizeT
-  , Show precT
-  , Floating precT
+  forall ext size prec.
+  ( P.TypingReqs size
+  , Floating prec
   , P.HasFreeVars ext
   , CompileQ ext
+  , P.TypeInferrable ext size
+  , PrecType ext ~ prec
+  , SizeType ext ~ size
   ) =>
   P.Program ext ->
-  Either String (Program sizeT)
-lowerProgram prog@(P.Program fs) = do
+  Either String (Program size)
+lowerProgram prog = do
   unless (P.checkVarsUnique prog) $
     throwError "program does not have unique variables!"
 
   let config =
         default_
-          & (P._funCtx .~ P.namedFunsToFunCtx fs)
+          & (P._funCtx .~ P.programToFunCtx prog)
   let lowering_ctx =
         default_
-          -- & (P._typingCtx .~ gamma_in)
           & (_uniqNamesCtx .~ P.allNamesP prog)
-
-  -- let main_fun = last fs
-  -- (_, _, output) <-
-  --   lowerFunDefByName main_name
-  --     & (\m -> runRWST m config lowering_ctx)
 
   (_, _, output) <-
     compileQ1 () prog

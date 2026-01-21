@@ -7,11 +7,7 @@ module Traq.Compiler.Unitary (
   -- * Types
   CompilerT,
   CompileU (..),
-
-  -- ** Compiler State
-  LoweringEnv,
-  LoweringCtx,
-  LoweringOutput,
+  compileU1,
 
   -- ** Helpers
   allocAncillaWithPref,
@@ -24,7 +20,7 @@ module Traq.Compiler.Unitary (
   lowerExpr,
   lowerStmt,
   lowerFunDef,
-  lowerProgram,
+  lowerProgramU,
 
   -- * extra
   withTag,
@@ -46,7 +42,7 @@ import Traq.Data.Default
 
 import qualified Traq.CQPL as CQPL
 import Traq.CQPL.Syntax
-import Traq.Compiler.Utils
+import Traq.Compiler.Prelude
 import Traq.Prelude
 import qualified Traq.ProtoLang as P
 
@@ -539,7 +535,7 @@ instance CompileU1 P.Program where
 -- ================================================================================
 
 -- | Lower a full program into a unitary CQPL program.
-lowerProgram ::
+lowerProgramU ::
   forall ext precT.
   ( Lowerable ext SizeT precT
   , CompileU ext
@@ -549,7 +545,7 @@ lowerProgram ::
   ) =>
   P.Program ext ->
   Either String (CQPL.Program SizeT)
-lowerProgram prog@(P.Program fs) = do
+lowerProgramU prog@(P.Program fs) = do
   unless (P.checkVarsUnique prog) $
     throwError "program does not have unique variables!"
 

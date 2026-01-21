@@ -11,13 +11,13 @@ module Traq.Primitives.Class.UnitaryCompile (
 import Control.Monad.RWS (RWST (..))
 import Control.Monad.Trans (lift)
 import GHC.Generics
+import Traq.Compiler.Utils (CompilerT)
 
 import Lens.Micro.GHC
 import Lens.Micro.Mtl
 
 import qualified Traq.Analysis as A
 import qualified Traq.CQPL as CQPL
-import Traq.Compiler.Utils (CompilerT)
 import Traq.Prelude
 import Traq.Primitives.Class.Prelude
 import qualified Traq.ProtoLang as P

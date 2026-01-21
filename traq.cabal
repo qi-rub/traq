@@ -37,9 +37,9 @@ library
       Traq.Analysis.Error.Unitary
       Traq.Analysis.Prelude
       Traq.Compiler
+      Traq.Compiler.Prelude
       Traq.Compiler.Quantum
       Traq.Compiler.Unitary
-      Traq.Compiler.Utils
       Traq.Control.Monad
       Traq.CQPL
       Traq.CQPL.Cost
