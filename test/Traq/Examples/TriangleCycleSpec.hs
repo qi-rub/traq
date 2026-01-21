@@ -16,7 +16,7 @@ import TestHelpers
 type P = DefaultPrims (Sym.Sym SizeT) Double
 
 examplePath :: String
-examplePath = "examples/triangle_finding.qb"
+examplePath = "examples/triangle_finding.traq"
 
 spec :: Spec
 spec = describe "Triangle Cycle Finding" $ do

@@ -42,7 +42,7 @@ expectedCost ::
   IO Double
 expectedCost n m matrix eps = do
   -- load the program
-  Right loaded_program <- parseFromFile (P.programParser @primT') "examples/matrix_search/matrix_search.qb"
+  Right loaded_program <- parseFromFile (P.programParser @primT') "examples/matrix_search/matrix_search.traq"
   let program = P.mapSize (Sym.unSym . Sym.subst "M" (Sym.con m) . Sym.subst "N" (Sym.con n)) loaded_program
   program_annotated <- either fail pure $ A.annotateProgWithErrorBudget (A.failProb eps) program
 

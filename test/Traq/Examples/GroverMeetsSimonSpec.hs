@@ -16,7 +16,7 @@ import Test.Hspec
 import TestHelpers
 
 examplePath :: String
-examplePath = "examples/cryptanalysis/grover_meets_simon.qb"
+examplePath = "examples/cryptanalysis/grover_meets_simon.traq"
 
 type P = WorstCasePrims (Sym.Sym SizeT) Double
 

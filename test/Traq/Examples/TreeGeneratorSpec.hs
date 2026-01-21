@@ -80,7 +80,7 @@ loadKnapsack ::
   SizeT ->
   IO (Program Prim')
 loadKnapsack n w p k = do
-  Right prog <- parseFromFile (programParser @Prim) "examples/tree_generator/tree_generator_01_knapsack.qb"
+  Right prog <- parseFromFile (programParser @Prim) "examples/tree_generator/tree_generator_01_knapsack.traq"
   return $
     prog
       & mapSize (Sym.subst "N" (Sym.con n))
@@ -93,13 +93,13 @@ spec :: Spec
 spec = do
   describe "Tree Generator Example" $ do
     it "parses" $ do
-      expectRight =<< parseFromFile (programParser @Prim) "examples/tree_generator/tree_generator_01_knapsack.qb"
+      expectRight =<< parseFromFile (programParser @Prim) "examples/tree_generator/tree_generator_01_knapsack.traq"
       -- p `shouldBe` treeGeneratorExample (Sym.var "N") (Sym.var "W") (Sym.var "P")
       return ()
 
     it "typechecks" $ do
       p <-
-        parseFromFile (programParser @Prim) "examples/tree_generator/tree_generator_01_knapsack.qb"
+        parseFromFile (programParser @Prim) "examples/tree_generator/tree_generator_01_knapsack.traq"
           >>= expectRight
       assertRight $ (typeCheckProg @Prim) p
 
@@ -122,7 +122,7 @@ spec = do
   describe "Loop example" $ do
     it "parses" $ do
       p <-
-        parseFromFile (programParser @(Core (Sym.Sym SizeT) Double)) "examples/tree_generator/loop_example.qb"
+        parseFromFile (programParser @(Core (Sym.Sym SizeT) Double)) "examples/tree_generator/loop_example.traq"
           >>= expectRight
       p `shouldBe` loopExample (Sym.var "N") (Sym.var "W")
 

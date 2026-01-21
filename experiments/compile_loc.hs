@@ -55,7 +55,7 @@ matSearch n eps =
   runExpt
     ExptConfig
       { expt_name = "Matrix Search"
-      , fname = "examples/matrix_search/matrix_search.qb"
+      , fname = "examples/matrix_search/matrix_search.traq"
       , params = [("N", n), ("M", n)]
       , precision = eps
       , show_qpl = False
@@ -66,7 +66,7 @@ listSearch n eps =
   runExpt
     ExptConfig
       { expt_name = "List Search"
-      , fname = "examples/primitives/search.qb"
+      , fname = "examples/primitives/search.traq"
       , params = [("N", n)]
       , precision = eps
       , show_qpl = False

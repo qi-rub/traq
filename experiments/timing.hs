@@ -89,7 +89,7 @@ matrixSearchExpt = do
 depth3NAND :: IO ()
 depth3NAND = do
   putStrLn "\nDepth 3 NAND Tree:"
-  sprog <- loadProgramFromFile "examples/matrix_search/depth3_NAND_formula.qb"
+  sprog <- loadProgramFromFile "examples/matrix_search/depth3_NAND_formula.traq"
   let eps = 0.001 :: Double
   let ns = [10, 20 .. 120]
   putStrLn "n, time, qubits"
@@ -111,7 +111,7 @@ depth3NAND = do
 hillClimbExpt :: IO ()
 hillClimbExpt = do
   putStrLn "\nHillclimb:"
-  sprog <- loadProgramFromFile "examples/hillclimb/max_sat_hillclimb.qb"
+  sprog <- loadProgramFromFile "examples/hillclimb/max_sat_hillclimb.traq"
   let eps = 0.001 :: Double
   let ns = [10, 20 .. 100] ++ [200, 300 .. 1000]
   putStrLn "n, time, qubits"
@@ -127,7 +127,7 @@ hillClimbExpt = do
 triangleFinding :: IO ()
 triangleFinding = do
   putStrLn "\nTriangle Finding:"
-  sprog <- loadProgramFromFile "examples/triangle_finding.qb"
+  sprog <- loadProgramFromFile "examples/triangle_finding.traq"
   let eps = 0.001 :: Double
   let ns = [10, 20 .. 120]
   putStrLn "N, time, qubits"

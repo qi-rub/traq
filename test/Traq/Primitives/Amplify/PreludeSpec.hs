@@ -237,7 +237,7 @@ spec = describe "amplify" $ do
       p <-
         parseFromFile
           P.programParser
-          "examples/primitives/amplify/amplify1.qb"
+          "examples/primitives/amplify/amplify1.traq"
           >>= expectRight
       p `shouldBe` exampleProgram1 @(Sym.Sym Int) @Double (Sym.var "N")
 
@@ -263,7 +263,7 @@ spec = describe "amplify" $ do
       p <-
         parseFromFile
           P.programParser
-          "examples/primitives/amplify/amplify2.qb"
+          "examples/primitives/amplify/amplify2.traq"
           >>= expectRight
       p `shouldBe` exampleProgram2 @(Sym.Sym Int) @Double (Sym.var "N")
 
@@ -286,7 +286,7 @@ spec = describe "amplify" $ do
       p <-
         parseFromFile
           P.programParser
-          "examples/primitives/amplify/amplify3.qb"
+          "examples/primitives/amplify/amplify3.traq"
           >>= expectRight
       p `shouldBe` exampleProgram3 @(Sym.Sym Int) @Double (Sym.var "N")
 

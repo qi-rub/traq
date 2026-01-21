@@ -21,7 +21,7 @@ import TestHelpers
 type SPrim size = Primitive (SimonsFindXorPeriod size Double)
 
 examplePath :: String
-examplePath = "examples/cryptanalysis/period_finding.qb"
+examplePath = "examples/cryptanalysis/period_finding.traq"
 
 loadPeriodFinding ::
   -- | bitsize @n@ of the inputs/outputs

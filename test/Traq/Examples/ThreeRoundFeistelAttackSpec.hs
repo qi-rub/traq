@@ -17,7 +17,7 @@ import TestHelpers (expectRight)
 type P = Primitive (SimonsFindXorPeriod (Sym.Sym SizeT) Double)
 
 examplePath :: String
-examplePath = "examples/cryptanalysis/3_round_feistel.qb"
+examplePath = "examples/cryptanalysis/3_round_feistel.traq"
 
 spec :: Spec
 spec = describe "3 round feistel attack" $ do

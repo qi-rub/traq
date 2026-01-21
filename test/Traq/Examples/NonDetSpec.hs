@@ -21,7 +21,7 @@ import TestHelpers
 spec :: Spec
 spec = do
   describe "SimpleExample" $ do
-    let load = parseFromFile (PP.programParser @(DefaultPrims (Sym.Sym SizeT) Double)) "examples/primitives/nondet.qb"
+    let load = parseFromFile (PP.programParser @(DefaultPrims (Sym.Sym SizeT) Double)) "examples/primitives/nondet.traq"
     it "parses" $ do
       mEx <- load
       assertRight mEx
