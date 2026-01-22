@@ -136,7 +136,7 @@ instance
             Just x -> Just $ sigma ^. Ctx.at x . non (error "ill-formed program")
             Nothing -> Nothing
 
-      let eval_fn vs' = P.evalFun (placeArgs vs vs') P.NamedFunDef{P.fun_name = pfun_name, P.fun_def = fn}
+      let eval_fn vs' = P.eval1 P.NamedFunDef{P.fun_name = pfun_name, P.fun_def = fn} (placeArgs vs vs')
       return eval_fn
 
     let shaped_fns_eval = either (error "please typecheck first") id $ listToShape fns_eval
@@ -326,7 +326,7 @@ instance
             Nothing -> Nothing
 
       let eval_fn vs' =
-            P.evalFun (placeArgs vs vs') P.NamedFunDef{P.fun_name = pfun_name, P.fun_def = fn}
+            P.eval1 P.NamedFunDef{P.fun_name = pfun_name, P.fun_def = fn} (placeArgs vs vs')
               & (runReaderT ?? eval_env)
 
       return ((P.NamedFunDef pfun_name fn, vs), eval_fn)
