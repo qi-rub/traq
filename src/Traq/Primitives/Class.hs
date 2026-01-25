@@ -181,7 +181,7 @@ instance
 
     fn_costs <- forM par_funs $ \PartialFun{pfun_name} -> do
       fn <- view $ P._funCtx . Ctx.at pfun_name . non' (error "invalid function")
-      A.costU $ P.NamedFunDef pfun_name fn
+      A.costU1 $ P.NamedFunDef pfun_name fn
 
     -- all other non-query operations
     let extra_costs = unitaryExprCosts prim eps
@@ -283,7 +283,7 @@ instance
 
     fn_costs_uq <- forM par_funs $ \PartialFun{pfun_name} -> do
       fn <- view $ P._funCtx . Ctx.at pfun_name . non' (error "invalid function")
-      cost_u <- A.costU $ P.NamedFunDef pfun_name fn
+      cost_u <- A.costU1 $ P.NamedFunDef pfun_name fn
       cost_q <- A.costQ1 $ P.NamedFunDef pfun_name fn
       return (cost_u, cost_q)
     let (fn_costs_u, fn_costs_q) = unzip fn_costs_uq
@@ -346,7 +346,7 @@ instance
           return $ eq Alg..* q_f
 
         -- queries to unitary f
-        cost_f_u <- A.costU fn
+        cost_f_u <- A.costU1 fn
         let u_cost = exp_queries_u Alg..* cost_f_u
 
         return $ Alg.sum q_costs Alg.+ u_cost

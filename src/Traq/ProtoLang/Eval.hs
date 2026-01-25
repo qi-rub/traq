@@ -228,7 +228,7 @@ type FunInterp sizeT = [Value sizeT] -> [Value sizeT]
 
 type instance SizeType (FunInterp sizeT) = sizeT
 
--- | A mapping of data Subtypings
+-- | A mapping of data intepretations
 type FunInterpCtx sizeT = Ctx.Context (FunInterp sizeT)
 
 class HasFunInterpCtx p where
@@ -261,7 +261,7 @@ instance HasFunInterpCtx (EvaluationEnv ext) where
 -- | Base probability monad to evaluate the program.
 type EvaluationMonad precT = Prob.ExpMonad precT
 
--- | Non-deterministic Execution Monad (i.e. no state)
+-- | Non-deterministic evaluation monad (i.e. no state)
 type Evaluator ext = ReaderT (EvaluationEnv ext) (EvaluationMonad (PrecType ext))
 
 -- --------------------------------------------------------------------------------
