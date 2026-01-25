@@ -2,7 +2,8 @@
 
 module Traq.Examples.MatrixSearchSpec (spec) where
 
-import qualified Traq.Data.Context as Ctx
+import qualified Data.Map as Map
+
 import qualified Traq.Data.Symbolic as Sym
 
 import qualified Traq.Analysis as A
@@ -35,7 +36,7 @@ spec = describe "MatrixSearch" $ do
     let oracleF = \case
           [P.FinV i, P.FinV j] -> [P.toValue $ i == j]
           _ -> undefined
-    let interpCtx = Ctx.singleton "Matrix" oracleF
+    let interpCtx = Map.singleton "Matrix" oracleF
 
     it "evaluates" $ do
       let res = P.runProgram @_ @Double ex interpCtx []

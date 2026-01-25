@@ -3,11 +3,11 @@
 module Traq.Examples.NonDetSpec (spec) where
 
 import Data.Either (fromRight, isRight)
+import qualified Data.Map as Map
 import Text.Parsec.String (parseFromFile)
 
 import Lens.Micro.GHC
 
-import qualified Traq.Data.Context as Ctx
 import qualified Traq.Data.Symbolic as Sym
 
 import Traq.Prelude
@@ -35,7 +35,7 @@ spec = do
     it "all solutions" $ do
       ex <- load'
       let oracleF = const [P.FinV 1]
-      let out = P.runProgram ex (Ctx.singleton "Oracle" oracleF) []
+      let out = P.runProgram ex (Map.singleton "Oracle" oracleF) []
 
       out
         `shouldBeDistribution` [ (sigma, 0.1 :: Double)
@@ -46,7 +46,7 @@ spec = do
     it "no solutions" $ do
       ex <- load'
       let oracleF = const [P.FinV 0]
-      let out = P.runProgram ex (Ctx.singleton "Oracle" oracleF) []
+      let out = P.runProgram ex (Map.singleton "Oracle" oracleF) []
 
       out
         `shouldBeDistribution` [ (sigma, 0.1 :: Double)
@@ -59,7 +59,7 @@ spec = do
       let sols = [1, 4, 6] :: [SizeT]
       let oracleF [P.FinV i] = [P.toValue $ i `elem` sols]
           oracleF _ = error "invalid input"
-      let out = P.runProgram @_ @Double ex (Ctx.singleton "Oracle" oracleF) []
+      let out = P.runProgram @_ @Double ex (Map.singleton "Oracle" oracleF) []
 
       out
         `shouldBeDistribution` [ (sigma, 1 / 3 :: Double)

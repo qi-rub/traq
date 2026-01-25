@@ -1,6 +1,6 @@
 module Traq.Primitives.Search.RandomSearchSpec (spec) where
 
-import qualified Traq.Data.Context as Ctx
+import qualified Data.Map as Map
 
 import qualified Traq.Analysis as A
 import Traq.Analysis.CostModel.QueryCost (SimpleQueryCost (..))
@@ -24,7 +24,7 @@ spec = do
     it "expected cost" $ do
       let eps = A.failProb 0.001
       let n = 10
-      let fun_interp = Ctx.singleton "Matrix" diagMatrix
+      let fun_interp = Map.singleton "Matrix" diagMatrix
       prog' <- either fail pure $ A.annotateProgWithErrorBudget eps $ mat_prog n n
       let c = getCost $ A.expCostQProg prog' [] fun_interp :: Double
       c `shouldSatisfy` (< (292 :: Double))

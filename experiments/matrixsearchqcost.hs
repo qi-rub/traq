@@ -11,7 +11,7 @@ import System.Random.Shuffle (shuffleM)
 import System.TimeIt (timeIt)
 import Text.Printf (printf)
 
-import qualified Traq.Data.Context as Ctx
+import Lens.Micro.GHC
 
 import qualified Traq.Analysis as A
 import Traq.Analysis.CostModel.QueryCost (SimpleQueryCost (..))
@@ -108,7 +108,7 @@ qcost _ eps mat = getCost cost
   ex = matrixExample @primsT n m
   ex' = either error id $ A.annotateProgWithErrorBudget eps ex
 
-  dataCtx = Ctx.singleton "Matrix" (toValueFun mat)
+  dataCtx = mempty & at "Matrix" ?~ toValueFun mat
 
   cost = A.expCostQProg ex' [] dataCtx
 

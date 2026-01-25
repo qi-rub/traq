@@ -1,8 +1,8 @@
 module Traq.Analysis.Annotate.SplitBudgetSpec (spec) where
 
-import Lens.Micro.GHC
+import qualified Data.Map as Map
 
-import qualified Traq.Data.Context as Ctx
+import Lens.Micro.GHC
 
 import qualified Traq.Analysis as A
 import Traq.Analysis.CostModel.QueryCost (SimpleQueryCost (getCost))
@@ -31,7 +31,7 @@ spec = describe "annotate-budget" $ do
       eps_ann `shouldSatisfy` (<= eps_tot)
     it "computes cost" $ do
       prog' <- expectRight $ A.annotateProgWithErrorBudget eps_tot prog
-      let fn_interps = Ctx.singleton "Matrix" (\case [P.FinV i, P.FinV j] -> [P.toValue (i == j)]; _ -> undefined)
+      let fn_interps = Map.singleton "Matrix" (\case [P.FinV i, P.FinV j] -> [P.toValue (i == j)]; _ -> undefined)
       let cost = getCost $ A.expCostQProg prog' [] fn_interps
 
       let eps_outer = eps_tot `A.splitFailProb` 2 :: A.FailProb Double

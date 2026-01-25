@@ -96,7 +96,7 @@ instance CostQ1 Expr where
   costQ1 LoopE{loop_body_fun} = do
     fn@FunDef{param_types} <- view $ _funCtx . Ctx.at loop_body_fun . non' (error $ "unable to find function " ++ loop_body_fun)
     body_cost <- costQ1 $ NamedFunDef loop_body_fun fn
-    let Fin n_iters = last param_types
+    let n_iters = last param_types ^?! _Fin
     return $ (sizeToPrec n_iters :: prec) Alg..* body_cost
 
 instance CostQ1 Stmt where

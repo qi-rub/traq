@@ -5,8 +5,9 @@
 module Main where
 
 import Text.Parsec.String (parseFromFile)
-import qualified Traq.Data.Context as Ctx
 import qualified Traq.Data.Symbolic as Sym
+
+import Lens.Micro.GHC
 
 import qualified Traq.Analysis as A
 import Traq.Prelude
@@ -47,7 +48,7 @@ expectedCost n m matrix eps = do
   program_annotated <- either fail pure $ A.annotateProgWithErrorBudget (A.failProb eps) program
 
   -- the functionality of Matrix, provided as input data
-  let interp = Ctx.singleton "Matrix" (matrixToFun matrix)
+  let interp = mempty & at "Matrix" ?~ matrixToFun matrix
 
   return $ getCost $ A.expCostQProg program_annotated mempty interp
 

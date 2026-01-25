@@ -45,6 +45,7 @@ import Control.Monad (foldM, replicateM, when)
 import Control.Monad.Reader (MonadReader, ReaderT, runReaderT)
 import Control.Monad.State (MonadState, evalStateT)
 import Data.Bits (Bits (xor))
+import qualified Data.Map as Map
 import Data.Maybe (fromJust)
 import GHC.Generics
 import Text.Printf (printf)
@@ -229,7 +230,7 @@ type FunInterp sizeT = [Value sizeT] -> [Value sizeT]
 type instance SizeType (FunInterp sizeT) = sizeT
 
 -- | A mapping of data intepretations
-type FunInterpCtx sizeT = Ctx.Context (FunInterp sizeT)
+type FunInterpCtx sizeT = Map.Map Ident (FunInterp sizeT)
 
 class HasFunInterpCtx p where
   _funInterpCtx :: (sizeT ~ SizeType p) => Lens' p (FunInterpCtx sizeT)
@@ -431,7 +432,7 @@ instance Eval1 NamedFunDef where
 
   -- external function: lookup and run the provided interpretation
   eval1 NamedFunDef{fun_name, fun_def = FunDef{mbody = Nothing}} vals_in = do
-    fn_interp <- view $ _funInterpCtx . Ctx.at fun_name . non' (error $ "could not find fun interp for " ++ fun_name)
+    fn_interp <- view $ _funInterpCtx . at fun_name . non' (error $ "could not find fun interp for " ++ fun_name)
     return $ fn_interp vals_in
 
 instance Eval1 Program where

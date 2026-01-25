@@ -74,7 +74,7 @@ domainSizeSym (P.Arr n t) = n * domainSizeSym t
 domainSizeSym (P.Tup ts) = product $ map domainSizeSym ts
 
 instance
-  (Eq sizeT, Num sizeT, Show sizeT, Show precT, Num precT, Eq precT) =>
+  (P.TypingReqs sizeT, Show precT, Num precT, Eq precT) =>
   UnitaryCostPrim (QSearchSym sizeT precT) (Sym.Sym sizeT) (Sym.Sym precT)
   where
   unitaryQueryCosts prim eps = BooleanPredicate $ strongQueries $ _QryU _N eps
@@ -84,7 +84,7 @@ instance
   unitaryExprCosts _ _ = Alg.zero
 
 instance
-  (Eq sizeT, Num sizeT, Num precT, Show sizeT, Show precT, Num precT, Eq precT) =>
+  (P.TypingReqs sizeT, Show precT, Num precT, Eq precT) =>
   QuantumHavocCostPrim (QSearchSym sizeT precT) (Sym.Sym sizeT) (Sym.Sym precT)
   where
   quantumQueryCostsUnitary prim eps = BooleanPredicate $ strongQueries $ _QryQmax _N eps
