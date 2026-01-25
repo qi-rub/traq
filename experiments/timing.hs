@@ -4,17 +4,20 @@
 module Main where
 
 import Control.Monad (forM_, replicateM, when)
-import Lens.Micro.GHC
 import System.Random (randomIO)
 import System.TimeIt (timeItT)
 import Text.Parsec.String (parseFromFile)
 import Text.Printf (printf)
+
+import Lens.Micro.GHC
+
+import qualified Traq.Data.Context as Ctx
+import qualified Traq.Data.Symbolic as Sym
+
 import qualified Traq.Analysis as Traq
 import qualified Traq.Analysis.CostModel.QueryCost as Traq
 import qualified Traq.CQPL as CQPL
 import qualified Traq.Compiler
-import qualified Traq.Data.Context as Ctx
-import qualified Traq.Data.Symbolic as Sym
 import Traq.Examples.MatrixSearch (matrixExampleS)
 import Traq.Prelude
 import qualified Traq.Primitives as Traq

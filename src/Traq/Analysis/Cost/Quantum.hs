@@ -1,5 +1,6 @@
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE FunctionalDependencies #-}
+{-# LANGUAGE InstanceSigs #-}
 {-# LANGUAGE UndecidableInstances #-}
 
 module Traq.Analysis.Cost.Quantum (
@@ -7,6 +8,8 @@ module Traq.Analysis.Cost.Quantum (
   costQProg,
   ExpCostQ (..),
   expCostQProg,
+  costQ1,
+  expCostQ1,
 
   -- * Types
   CostModelReqs,
@@ -76,6 +79,14 @@ class CostQ1 f where
     m cost
 
 instance CostQ1 Expr where
+  costQ1 ::
+    forall ext size prec cost m.
+    ( m ~ CostAnalysisMonad ext
+    , CostQ ext size prec
+    , CostModelReqs size prec cost
+    ) =>
+    Expr ext ->
+    m cost
   costQ1 BasicExprE{basic_expr} = return $ callExpr Classical basic_expr
   costQ1 RandomSampleE{distr_expr} = return $ callDistrExpr Classical distr_expr
   costQ1 FunCallE{fname} = do
@@ -98,6 +109,9 @@ instance CostQ1 NamedFunDef where
   costQ1 NamedFunDef{fun_name, fun_def = FunDef{mbody = Nothing}} = return $ query Classical fun_name
   -- def: compute using body
   costQ1 NamedFunDef{fun_def = FunDef{mbody = Just FunBody{body_stmt}}} = costQ1 body_stmt
+
+instance CostQ1 Program where
+  costQ1 (Program fs) = costQ1 $ last fs
 
 -- ================================================================================
 -- Core Language: Expected Cost
@@ -136,8 +150,8 @@ instance ExpCostQ1 Expr where
             & (runReaderT ?? env)
 
     (_, cs) <- forAccumM (pure init_vals) loop_domain $ \distr i -> do
-      let sigma_fn = fmap (\xs -> Ctx.fromList $ zip [show j | j <- [0 :: Int ..]] (xs ++ [i])) distr
-      iter_cost <- Prob.expectationA (expCostQ (NamedFunDef loop_body_fun fn)) sigma_fn
+      let sigma_fn = fmap (++ [i]) distr
+      iter_cost <- Prob.expectationA (expCostQ1 (NamedFunDef loop_body_fun fn)) sigma_fn
       return (distr >>= run_loop_body i, iter_cost)
     return $ Alg.sum cs
 
@@ -151,7 +165,7 @@ expCostQStmt ::
   Stmt ext ->
   ProgramState size ->
   m cost
-expCostQStmt ExprS{expr} sigma = expCostQ expr sigma
+expCostQStmt ExprS{expr} sigma = expCostQ1 expr sigma
 expCostQStmt IfThenElseS{cond, s_true, s_false} sigma = do
   let b =
         sigma
@@ -205,13 +219,11 @@ costQProg ::
   Program ext ->
   cost
 costQProg (Program []) = Alg.zero
-costQProg (Program fs) =
-  costQ main_fn & runReader ?? env
+costQProg p = costQ1 p & runReader ?? env
  where
-  main_fn = last fs
   env =
     default_
-      & (_funCtx .~ namedFunsToFunCtx fs)
+      & (_funCtx .~ programToFunCtx p)
 
 -- | Expected quantum cost of the entire program (i.e. last function as entry-point)
 expCostQProg ::

@@ -25,7 +25,7 @@ import Traq.Data.Default (default_)
 import Traq.Analysis.Annotate.Basic
 import Traq.Analysis.Annotate.Prelude
 import Traq.Analysis.Error.Prelude
-import Traq.Analysis.Prelude (sizeToPrec)
+import Traq.Analysis.Prelude
 import Traq.Prelude
 import Traq.ProtoLang
 

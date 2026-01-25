@@ -208,7 +208,7 @@ instance
     let n_queries_u = map totalWeakUnitaryQueries . shapeToList $ unitaryQueryCosts prim eps_alg
 
     -- split the other half into equal parts per function
-    let eps_fns = A.splitFailProb (eps - eps_alg) (A.sizeToPrec $ length par_funs)
+    let eps_fns = A.splitFailProb (eps - eps_alg) (fromIntegral $ length par_funs)
 
     forM_ (zip par_funs n_queries_u) $ \(PartialFun{pfun_name}, n_query_u) -> do
       fn <- use $ P._funCtx . Ctx.at pfun_name . singular _Just
@@ -284,7 +284,7 @@ instance
     fn_costs_uq <- forM par_funs $ \PartialFun{pfun_name} -> do
       fn <- view $ P._funCtx . Ctx.at pfun_name . non' (error "invalid function")
       cost_u <- A.costU $ P.NamedFunDef pfun_name fn
-      cost_q <- A.costQ $ P.NamedFunDef pfun_name fn
+      cost_q <- A.costQ1 $ P.NamedFunDef pfun_name fn
       return (cost_u, cost_q)
     let (fn_costs_u, fn_costs_q) = unzip fn_costs_uq
 
@@ -342,12 +342,7 @@ instance
       \((fn, pref_args), exp_queries_q, exp_queries_u) -> do
         -- queries to quantum f
         q_costs <- forM exp_queries_q $ \(vs, eq) -> do
-          let sigma_fn =
-                Ctx.fromList $
-                  zip
-                    [show i | i <- [0 :: Int ..]]
-                    (placeArgs pref_args vs)
-          q_f <- A.expCostQ fn sigma_fn
+          q_f <- A.expCostQ1 fn (placeArgs pref_args vs)
           return $ eq Alg..* q_f
 
         -- queries to unitary f
@@ -384,7 +379,7 @@ instance
     let n_queries_u = map totalWeakUnitaryQueries . shapeToList $ quantumQueryCostsUnitary prim eps_alg
 
     -- split the other half into equal parts per function
-    let eps_fns = A.splitFailProb (eps - eps_alg) (A.sizeToPrec $ length par_funs)
+    let eps_fns = A.splitFailProb (eps - eps_alg) (fromIntegral $ length par_funs)
 
     forM_ (zip3 par_funs n_queries_q n_queries_u) $ \(PartialFun{pfun_name}, n_query_q, n_query_u) -> do
       fn <- use $ P._funCtx . Ctx.at pfun_name . singular _Just
