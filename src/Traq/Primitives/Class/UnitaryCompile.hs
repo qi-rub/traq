@@ -26,13 +26,12 @@ import qualified Traq.ProtoLang as P
 -- --------------------------------------------------------------------------------
 
 type UCallBuilder size = [Ident] -> CQPL.UStmt size
-type UProcBuilder size = [(Ident, P.VarType size)] -> CQPL.UStmt size -> CQPL.ProcDef size
+
+-- type UProcBuilder size = [(Ident, P.VarType size)] -> CQPL.UStmt size -> CQPL.ProcDef size
 
 data UnitaryCompilePrimBuilder shape size = UnitaryCompilePrimBuilder
   { mk_ucall :: shape (UCallBuilder size)
   -- ^ helper to generate a call to a unitary function argument.
-  , mk_uproc :: UProcBuilder size
-  -- ^ helper to generate a unitary procedure (by passing the relevant aux from outside)
   , ret_vars :: [Ident]
   }
 
@@ -41,8 +40,8 @@ reshapeBuilder ::
   UnitaryCompilePrimBuilder shape size ->
   Either String (UnitaryCompilePrimBuilder shape' size)
 reshapeBuilder UnitaryCompilePrimBuilder{..} = do
-  mk_ucall <- reshape mk_ucall
-  return UnitaryCompilePrimBuilder{..}
+  mk_ucall' <- reshape mk_ucall
+  return UnitaryCompilePrimBuilder{mk_ucall = mk_ucall', ..}
 
 type UnitaryCompilePrimMonad ext' prim =
   RWST
@@ -69,7 +68,7 @@ class
     ) =>
     prim ->
     A.FailProb prec ->
-    m (CQPL.UStmt size)
+    m (CQPL.ProcDef size)
   default compileUPrim ::
     forall ext' m shape.
     ( Generic prim
@@ -81,7 +80,7 @@ class
     ) =>
     prim ->
     A.FailProb prec ->
-    m (CQPL.UStmt size)
+    m (CQPL.ProcDef size)
   compileUPrim prim eps = do
     builder <- view id
     lift $ do
@@ -98,7 +97,7 @@ class GUnitaryCompilePrim f size prec | f -> size prec where
     f p ->
     A.FailProb prec ->
     UnitaryCompilePrimBuilder [] size ->
-    m (CQPL.UStmt size)
+    m (CQPL.ProcDef size)
 
 instance (GUnitaryCompilePrim a size prec, GUnitaryCompilePrim b size prec) => GUnitaryCompilePrim (a :+: b) size prec where
   gcompileUPrim (L1 x) = gcompileUPrim x

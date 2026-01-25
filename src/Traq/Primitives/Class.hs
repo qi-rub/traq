@@ -19,7 +19,9 @@ import Control.Applicative (Alternative ((<|>)), many)
 import Control.Monad (forM, forM_, void, when)
 import Control.Monad.Except (throwError)
 import Control.Monad.Extra (concatMapM)
+import Control.Monad.RWS (RWST (runRWST))
 import Control.Monad.Reader (runReaderT)
+import Control.Monad.Writer (censor)
 import Data.Maybe (catMaybes, fromMaybe)
 import Text.Parsec (try)
 import Text.Parsec.Token (GenTokenParser (..))
@@ -34,6 +36,7 @@ import qualified Traq.Data.Context as Ctx
 import qualified Traq.Data.Symbolic as Sym
 
 import qualified Traq.Analysis as A
+import qualified Traq.CQPL as CQPL
 import qualified Traq.Compiler as Compiler
 import Traq.Prelude
 import Traq.Primitives.Class.Eval
@@ -226,12 +229,33 @@ instance
 -- Compilation
 -- --------------------------------------------------------------------------------
 
--- instance
---   (UnitaryCompilePrim prim (SizeType prim) (PrecType prim)) =>
---   Compiler.CompileU (A.AnnFailProb (Primitive prim))
---   where
---   compileU (A.AnnFailProb eps (Primitive par_funs prim)) rets = do
---     error "TODO compileU Prim"
+instance
+  ( TypeCheckPrim prim (SizeType prim)
+  , P.TypingReqs (SizeType prim)
+  , UnitaryCompilePrim prim (SizeType prim) (PrecType prim)
+  ) =>
+  Compiler.CompileU (A.AnnFailProb (Primitive prim))
+  where
+  compileU (A.AnnFailProb eps (Primitive par_funs prim)) rets = do
+    xss <- forM par_funs $ \PartialFun{pfun_name, pfun_args} -> do
+      let xs = catMaybes pfun_args
+      return xs
+
+    let bound_args = concat xss
+
+    let builder = undefined
+    (prim_proc, (), ()) <-
+      runRWST (compileUPrim prim eps) builder ()
+        & censor (Compiler._loweredProcs . each %~ _)
+    Compiler.addProc prim_proc
+
+    let prim_aux = prim_proc & CQPL.proc_param_types
+    return $
+      CQPL.UCallS
+        { CQPL.uproc_id = CQPL.proc_name prim_proc
+        , CQPL.qargs = bound_args ++ rets ++ prim_aux
+        , CQPL.dagger = False
+        }
 
 -- ================================================================================
 -- Analysis (Quantum)
