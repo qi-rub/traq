@@ -229,6 +229,20 @@ instance
 -- Compilation
 -- --------------------------------------------------------------------------------
 
+prependBoundArgs ::
+  [Ident] ->
+  [(Ident, P.VarType size)] ->
+  CQPL.ProcDef size ->
+  CQPL.ProcDef size
+prependBoundArgs pfun_names bound_args CQPL.ProcDef{..} =
+  CQPL.ProcDef
+    { CQPL.proc_param_types = map snd bound_args ++ proc_param_types
+    , CQPL.proc_body = go proc_body
+    , ..
+    }
+ where
+  go = error "TODO"
+
 instance
   ( TypeCheckPrim prim (SizeType prim)
   , P.TypingReqs (SizeType prim)
@@ -237,23 +251,26 @@ instance
   Compiler.CompileU (A.AnnFailProb (Primitive prim))
   where
   compileU (A.AnnFailProb eps (Primitive par_funs prim)) rets = do
-    xss <- forM par_funs $ \PartialFun{pfun_name, pfun_args} -> do
-      let xs = catMaybes pfun_args
-      return xs
-
-    let bound_args = concat xss
+    let pfun_names = map pfun_name par_funs
+    let bound_args_names = concatMap (catMaybes . pfun_args) par_funs
+    let bound_args_tys = undefined
+    let bound_args = zip bound_args_names bound_args_tys
 
     let builder = undefined
     (prim_proc, (), ()) <-
       runRWST (compileUPrim prim eps) builder ()
-        & censor (Compiler._loweredProcs . each %~ _)
+        & censor (Compiler._loweredProcs . each %~ prependBoundArgs pfun_names bound_args)
     Compiler.addProc prim_proc
 
-    let prim_aux = prim_proc & CQPL.proc_param_types
+    let prim_aux_tys =
+          prim_proc
+            & CQPL.proc_param_types
+            & drop (length bound_args + length rets)
+    prim_aux_vars <- mapM (Compiler.allocAncillaWithPref "aux_prim") prim_aux_tys
     return $
       CQPL.UCallS
         { CQPL.uproc_id = CQPL.proc_name prim_proc
-        , CQPL.qargs = bound_args ++ rets ++ prim_aux
+        , CQPL.qargs = bound_args ++ rets ++ prim_aux_vars
         , CQPL.dagger = False
         }
 
