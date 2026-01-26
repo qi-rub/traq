@@ -241,7 +241,50 @@ prependBoundArgs pfun_names bound_args CQPL.ProcDef{..} =
     , ..
     }
  where
-  go = error "TODO"
+  bound_arg_names = map fst bound_args
+
+  go :: CQPL.ProcBody size -> CQPL.ProcBody size
+  go (CQPL.ProcBodyU CQPL.UProcBody{..}) =
+    CQPL.ProcBodyU $
+      CQPL.UProcBody
+        { CQPL.uproc_param_names = bound_arg_names ++ uproc_param_names
+        , CQPL.uproc_param_tags = replicate (length bound_args) CQPL.ParamUnk ++ uproc_param_tags
+        , CQPL.uproc_body_stmt = goUStmt uproc_body_stmt
+        }
+  go (CQPL.ProcBodyC CQPL.CProcBody{..}) =
+    CQPL.ProcBodyC $
+      CQPL.CProcBody
+        { CQPL.cproc_param_names = bound_arg_names ++ cproc_param_names
+        , CQPL.cproc_body_stmt = goStmt cproc_body_stmt
+        , ..
+        }
+  go _ = error "invalid procs"
+
+  goUStmt :: CQPL.UStmt size -> CQPL.UStmt size
+  goUStmt (CQPL.USeqS ss) = CQPL.USeqS (map goUStmt ss)
+  goUStmt s@CQPL.UCallS{CQPL.uproc_id, CQPL.qargs}
+    | uproc_id `notElem` pfun_names = s{CQPL.qargs = bound_arg_names ++ qargs}
+  goUStmt (CQPL.URepeatS n body) = CQPL.URepeatS n (goUStmt body)
+  goUStmt s@CQPL.UForInRangeS{CQPL.uloop_body} = s{CQPL.uloop_body = goUStmt uloop_body}
+  goUStmt s@CQPL.UWithComputedS{CQPL.with_ustmt, CQPL.body_ustmt} =
+    s{CQPL.with_ustmt = goUStmt with_ustmt, CQPL.body_ustmt = goUStmt body_ustmt}
+  goUStmt s = s
+
+  goStmt :: CQPL.Stmt size -> CQPL.Stmt size
+  goStmt (CQPL.SeqS ss) = CQPL.SeqS (map goStmt ss)
+  goStmt s@CQPL.CallS{CQPL.fun, CQPL.args}
+    | callTarget fun `notElem` pfun_names = s{CQPL.args = bound_arg_names ++ args}
+  goStmt s@CQPL.IfThenElseS{CQPL.s_true, CQPL.s_false} =
+    s{CQPL.s_true = goStmt s_true, CQPL.s_false = goStmt s_false}
+  goStmt s@CQPL.RepeatS{CQPL.loop_body} = s{CQPL.loop_body = goStmt loop_body}
+  goStmt s@CQPL.WhileK{CQPL.loop_body} = s{CQPL.loop_body = goStmt loop_body}
+  goStmt s@CQPL.WhileKWithCondExpr{CQPL.loop_body} = s{CQPL.loop_body = goStmt loop_body}
+  goStmt s@CQPL.ForInArray{CQPL.loop_body} = s{CQPL.loop_body = goStmt loop_body}
+  goStmt s = s
+
+  callTarget :: CQPL.FunctionCall -> Ident
+  callTarget (CQPL.FunctionCall name) = name
+  callTarget (CQPL.UProcAndMeas name) = name
 
 instance
   ( TypeCheckPrim prim (SizeType prim)
@@ -253,10 +296,14 @@ instance
   compileU (A.AnnFailProb eps (Primitive par_funs prim)) rets = do
     let pfun_names = map pfun_name par_funs
     let bound_args_names = concatMap (catMaybes . pfun_args) par_funs
-    let bound_args_tys = undefined
+    bound_args_tys <- forM bound_args_names $ \x -> use $ P._typingCtx . Ctx.at x . non' (error $ "invalid arg " ++ x)
     let bound_args = zip bound_args_names bound_args_tys
 
-    let builder = undefined
+    let builder =
+          UnitaryCompilePrimBuilder
+            { mk_ucall = error "TODO"
+            , ret_vars = rets
+            }
     (prim_proc, (), ()) <-
       runRWST (compileUPrim prim eps) builder ()
         & censor (Compiler._loweredProcs . each %~ prependBoundArgs pfun_names bound_args)
@@ -270,7 +317,7 @@ instance
     return $
       CQPL.UCallS
         { CQPL.uproc_id = CQPL.proc_name prim_proc
-        , CQPL.qargs = bound_args ++ rets ++ prim_aux_vars
+        , CQPL.qargs = map fst bound_args ++ rets ++ prim_aux_vars
         , CQPL.dagger = False
         }
 

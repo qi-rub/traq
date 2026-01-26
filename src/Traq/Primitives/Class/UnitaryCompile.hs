@@ -6,6 +6,7 @@
 
 module Traq.Primitives.Class.UnitaryCompile (
   UnitaryCompilePrim (..),
+  UnitaryCompilePrimBuilder (..),
 ) where
 
 import Control.Monad.RWS (RWST (..))
