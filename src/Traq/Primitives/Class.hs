@@ -12,7 +12,7 @@ module Traq.Primitives.Class (
   module Traq.Primitives.Class.Eval,
   module Traq.Primitives.Class.UnitaryCost,
   module Traq.Primitives.Class.QuantumCost,
-  module Traq.Primitives.Class.UnitaryCompile,
+  module Traq.Primitives.Class.Compile,
 ) where
 
 import Control.Applicative (Alternative ((<|>)), many)
@@ -38,12 +38,12 @@ import qualified Traq.Analysis as A
 import qualified Traq.CQPL as CQPL
 import qualified Traq.Compiler as Compiler
 import Traq.Prelude
+import Traq.Primitives.Class.Compile
 import Traq.Primitives.Class.Eval
 import Traq.Primitives.Class.Prelude
 import Traq.Primitives.Class.QuantumCost
 import Traq.Primitives.Class.Serialize
 import Traq.Primitives.Class.TypeCheck
-import Traq.Primitives.Class.UnitaryCompile
 import Traq.Primitives.Class.UnitaryCost
 import qualified Traq.ProtoLang as P
 import qualified Traq.Utils.Printing as PP
@@ -316,7 +316,14 @@ instance
               >>= maybeWithError (printf "could not find uproc `%s` for fun `%s`" uproc_name pfun_name)
           return $ Compiler.aux_tys sign
 
-    let builder = UnitaryCompilePrimBuilder{mk_ucall, uproc_aux_types, ret_vars = rets}
+    let builder =
+          PrimCompileEnv
+            { mk_ucall
+            , mk_call = reshapeUnsafe $ replicate (length par_funs) (error "cannot call proc from UPrim")
+            , mk_meas = reshapeUnsafe $ replicate (length par_funs) (error "cannot meas uproc from UPrim")
+            , uproc_aux_types
+            , ret_vars = rets
+            }
     let arg_bounder = prependBoundArgs (map Compiler.mkUProcName pfun_names) bound_args
     prim_proc_raw <-
       runReaderT (compileUPrim prim eps) builder
@@ -496,3 +503,83 @@ instance
       when (n_query_u > 0) $ void $ A.annEpsU1 eps_fn_u named_fn
 
     pure $ A.AnnFailProb eps_alg $ Primitive par_funs prim
+
+-- --------------------------------------------------------------------------------
+-- Compilation
+-- --------------------------------------------------------------------------------
+
+instance
+  {-# OVERLAPPABLE #-}
+  ( TypeCheckPrim prim (SizeType prim)
+  , P.TypingReqs (SizeType prim)
+  , UnitaryCompilePrim prim (SizeType prim) (PrecType prim)
+  , QuantumCompilePrim prim (SizeType prim) (PrecType prim)
+  ) =>
+  Compiler.CompileQ (A.AnnFailProb (Primitive prim))
+  where
+  compileQ (A.AnnFailProb eps (Primitive par_funs prim)) rets = do
+    let pfun_names = map pfun_name par_funs
+    let bound_args_names = concatMap (catMaybes . pfun_args) par_funs
+    bound_args_tys <- forM bound_args_names $ \x -> use $ P._typingCtx . Ctx.at x . non' (error $ "invalid arg " ++ x)
+    let bound_args = zip bound_args_names bound_args_tys
+
+    mk_ucall <-
+      reshape $
+        par_funs <&> \PartialFun{pfun_name, pfun_args} xs ->
+          CQPL.UCallS
+            { uproc_id = Compiler.mkUProcName pfun_name
+            , dagger = False
+            , qargs = placeArgsWithExcess pfun_args xs
+            }
+
+    uproc_aux_types <-
+      reshape =<< do
+        forM par_funs $ \PartialFun{pfun_name} -> do
+          let uproc_name = Compiler.mkUProcName pfun_name
+          sign <-
+            use (Compiler._procSignatures . at uproc_name)
+              >>= maybeWithError (printf "could not find uproc `%s` for fun `%s`" uproc_name pfun_name)
+          return $ Compiler.aux_tys sign
+
+    mk_call <-
+      reshape $
+        par_funs <&> \PartialFun{pfun_name, pfun_args} xs ->
+          CQPL.CallS
+            { fun = CQPL.FunctionCall $ Compiler.mkQProcName pfun_name
+            , meta_params = []
+            , args = placeArgsWithExcess pfun_args xs
+            }
+
+    mk_meas <-
+      reshape $
+        par_funs <&> \PartialFun{pfun_name, pfun_args} xs ->
+          CQPL.CallS
+            { fun = CQPL.UProcAndMeas $ Compiler.mkUProcName pfun_name
+            , meta_params = []
+            , args = placeArgsWithExcess pfun_args xs
+            }
+
+    let builder =
+          PrimCompileEnv
+            { mk_ucall
+            , mk_call
+            , mk_meas
+            , uproc_aux_types
+            , ret_vars = rets
+            }
+    let arg_bounder =
+          prependBoundArgs
+            (map Compiler.mkUProcName pfun_names ++ map Compiler.mkQProcName pfun_names)
+            bound_args
+    prim_proc_raw <-
+      runReaderT (compileQPrim prim eps) builder
+        & censor (Compiler._loweredProcs . each %~ arg_bounder)
+    let prim_proc = arg_bounder prim_proc_raw
+    Compiler.addProc prim_proc
+
+    return $
+      CQPL.CallS
+        { fun = CQPL.FunctionCall $ CQPL.proc_name prim_proc
+        , meta_params = []
+        , args = map fst bound_args ++ rets
+        }
