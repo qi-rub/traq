@@ -318,7 +318,7 @@ instance
           return $ Compiler.aux_tys sign
 
     let builder = UnitaryCompilePrimBuilder{mk_ucall, uproc_aux_types, ret_vars = rets}
-    let arg_bounder = prependBoundArgs pfun_names bound_args
+    let arg_bounder = prependBoundArgs (map Compiler.mkUProcName pfun_names) bound_args
     (prim_proc_raw, (), ()) <-
       runRWST (compileUPrim prim eps) builder ()
         & censor (Compiler._loweredProcs . each %~ arg_bounder)
