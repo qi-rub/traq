@@ -1504,7 +1504,7 @@ uproc IsRowAllOnes_U(i : IN Fin<20>, okr : OUT Fin<2>, hasZero : AUX Fin<2>, has
 }
 
 // Grover[...]
-uproc Grover[k](i : IN Fin<20>, x : IN Fin<10>, hasZero : OUT Fin<2>, aux_4 : AUX Fin<2>, aux_5 : AUX Fin<2>, aux_6 : AUX Fin<2>) {
+uproc Grover[k](i : Fin<20>, x : IN Fin<10>, hasZero : OUT Fin<2>, aux_4 : AUX Fin<2>, aux_5 : AUX Fin<2>, aux_6 : AUX Fin<2>) {
   hasZero *= X;
   hasZero *= H;
   x *= Distr[uniform : Fin<10>];

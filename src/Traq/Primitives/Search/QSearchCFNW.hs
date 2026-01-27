@@ -35,7 +35,7 @@ import Control.Monad.Except (throwError)
 import Control.Monad.RWS (RWST, evalRWST)
 import Control.Monad.Trans (lift)
 import Control.Monad.Writer (WriterT (..), censor, execWriterT, listen)
-import Data.Maybe (catMaybes, fromJust)
+import Data.Maybe (fromJust)
 import Data.String (fromString)
 import GHC.Generics (Generic)
 import Text.Printf (printf)
@@ -474,7 +474,6 @@ algoQSearch ::
   ( Integral sizeT
   , RealFloat precT
   , sizeT ~ SizeT
-  , Compiler.CompileQ ext
   , Show sizeT
   , Show precT
   , P.TypingReqs sizeT
@@ -580,32 +579,17 @@ algoQSearch ty n_samples eps grover_k_caller pred_caller ok = do
     nxt m = min (lambda * m) sqrt_n
 
 instance
-  (P.TypingReqs size, Integral size, RealFloat prec, Show prec) =>
-  QuantumCompilePrim (QSearchCFNW size prec) size prec
+  (RealFloat prec, Show prec) =>
+  QuantumCompilePrim (QSearchCFNW SizeT prec) SizeT prec
   where
   compileQPrim (QSearchCFNW PrimSearch{search_kind = AnyK, search_ty}) eps = do
-    error "TODO"
-  compileQPrim _ _ = error "unsupported"
-
-instance
-  {-# OVERLAPPABLE #-}
-  ( Integral sizeT
-  , RealFloat precT
-  , sizeT ~ SizeT
-  , Show sizeT
-  , Show precT
-  , P.TypingReqs sizeT
-  ) =>
-  Compiler.CompileQ (A.AnnFailProb (Primitive (QSearchCFNW sizeT precT)))
-  where
-  compileQ (A.AnnFailProb eps (Primitive [PartialFun{pfun_name, pfun_args}] (QSearchCFNW (PrimSearch _ s_ty)))) (ret : rets) = do
     -- lowered unitary predicate
-    let upred_proc_name = Compiler.mkUProcName pfun_name
-    Compiler.ProcSignature
-      { Compiler.in_tys = pred_inp_tys
-      , Compiler.aux_tys = pred_aux_tys
-      } <-
-      use (Compiler._procSignatures . at upred_proc_name) >>= maybeWithError "missing uproc"
+    (BooleanPredicate call_upred) <- view $ to mk_ucall
+    (BooleanPredicate pred_aux_tys) <- view $ to uproc_aux_types
+    ret <-
+      view (to ret_vars) >>= \case
+        [b] -> pure b
+        _ -> throwError "bool predicate must return single bool"
 
     -- make the Grover_k uproc
     -- TODO this should ideally be done by algoQSearch, but requires a lot of aux information.
@@ -616,17 +600,11 @@ instance
     let uproc_grover_k_body =
           groverK
             meta_k
-            (grover_arg_name, s_ty)
+            (grover_arg_name, search_ty)
             ret
-            ( \x b ->
-                CQPL.UCallS
-                  { CQPL.uproc_id = upred_proc_name
-                  , CQPL.dagger = False
-                  , CQPL.qargs = catMaybes pfun_args ++ [x, b] ++ upred_aux_vars
-                  }
-            )
+            (\x b -> call_upred ([x, b] ++ upred_aux_vars))
     let uproc_grover_k_params =
-          Compiler.withTag CQPL.ParamInp (zip (catMaybes pfun_args ++ [grover_arg_name]) pred_inp_tys)
+          Compiler.withTag CQPL.ParamInp [(grover_arg_name, search_ty)]
             ++ Compiler.withTag CQPL.ParamOut [(ret, P.tbool)]
             ++ Compiler.withTag CQPL.ParamAux (zip upred_aux_vars pred_aux_tys)
     let uproc_grover_k =
@@ -649,24 +627,21 @@ instance
           CQPL.CallS
             { CQPL.fun = CQPL.UProcAndMeas uproc_grover_k_name
             , CQPL.meta_params = [k]
-            , CQPL.args = catMaybes pfun_args ++ [x, b]
+            , CQPL.args = [x, b]
             }
 
     -- emit the QSearch algorithm
-    qsearch_params <- forM (catMaybes pfun_args ++ [ret]) $ \x -> do
-      ty <- use $ P._typingCtx . Ctx.at x . singular _Just
-      return (x, ty)
+    let qsearch_params = [(ret, P.tbool)]
 
-    let pred_caller x b =
-          CQPL.CallS
-            { CQPL.fun = CQPL.UProcAndMeas upred_proc_name
-            , CQPL.meta_params = []
-            , CQPL.args = catMaybes pfun_args ++ [x, b]
-            }
+    (BooleanPredicate meas_upred) <- view $ to mk_meas
+    let pred_caller x b = meas_upred [x, b]
 
-    (qsearch_body, qsearch_local_vars) <- execWriterT $ algoQSearch s_ty 0 eps grover_k_caller pred_caller ret
+    (qsearch_body, qsearch_local_vars) <-
+      lift $
+        execWriterT $
+          algoQSearch search_ty 0 eps grover_k_caller pred_caller ret
     qsearch_proc_name <- Compiler.newIdent "QAny"
-    Compiler.addProc $
+    return
       CQPL.ProcDef
         { CQPL.info_comment = printf "QAny[%s]" (show $ A.getFailProb eps)
         , CQPL.proc_name = qsearch_proc_name
@@ -681,10 +656,5 @@ instance
                 }
         }
 
-    return
-      CQPL.CallS
-        { CQPL.fun = CQPL.FunctionCall qsearch_proc_name
-        , CQPL.args = catMaybes pfun_args ++ [ret] ++ rets
-        , CQPL.meta_params = []
-        }
-  compileQ _ _ = error "Unsupported"
+  -- TODO variants
+  compileQPrim _ _ = error "unsupported"

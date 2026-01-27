@@ -36,6 +36,8 @@ data PrimCompileEnv shape size = PrimCompileEnv
   -- ^ helper to generate a call to a unitary function argument.
   , mk_call :: shape (CallBuilder size)
   -- ^ helper to generate a call to a classical function argument.
+  , mk_meas :: shape (CallBuilder size)
+  -- ^ helper to generate a call-and-meas to a unitary proc arg.
   , uproc_aux_types :: shape [P.VarType size]
   -- ^ auxiliary variables for each unitary function argument.
   , ret_vars :: [Ident]
@@ -49,6 +51,7 @@ reshapeBuilder ::
 reshapeBuilder PrimCompileEnv{..} = do
   mk_ucall <- reshape mk_ucall
   mk_call <- reshape mk_call
+  mk_meas <- reshape mk_meas
   uproc_aux_types <- reshape uproc_aux_types
   return PrimCompileEnv{..}
 

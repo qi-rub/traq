@@ -320,6 +320,7 @@ instance
           PrimCompileEnv
             { mk_ucall
             , mk_call = reshapeUnsafe $ replicate (length par_funs) (error "cannot call proc from UPrim")
+            , mk_meas = reshapeUnsafe $ replicate (length par_funs) (error "cannot meas uproc from UPrim")
             , uproc_aux_types
             , ret_vars = rets
             }
@@ -549,10 +550,20 @@ instance
             , args = placeArgsWithExcess pfun_args xs
             }
 
+    mk_meas <-
+      reshape $
+        par_funs <&> \PartialFun{pfun_name, pfun_args} xs ->
+          CQPL.CallS
+            { fun = CQPL.UProcAndMeas $ Compiler.mkUProcName pfun_name
+            , meta_params = []
+            , args = placeArgsWithExcess pfun_args xs
+            }
+
     let builder =
           PrimCompileEnv
             { mk_ucall
             , mk_call
+            , mk_meas
             , uproc_aux_types
             , ret_vars = rets
             }
