@@ -299,9 +299,17 @@ instance
     bound_args_tys <- forM bound_args_names $ \x -> use $ P._typingCtx . Ctx.at x . non' (error $ "invalid arg " ++ x)
     let bound_args = zip bound_args_names bound_args_tys
 
+    let callers =
+          par_funs <&> \PartialFun{pfun_name, pfun_args} xs ->
+            CQPL.UCallS
+              { uproc_id = Compiler.mkUProcName pfun_name
+              , dagger = False
+              , qargs = placeArgsWithExcess pfun_args xs
+              }
+
     let builder =
           UnitaryCompilePrimBuilder
-            { mk_ucall = error "TODO"
+            { mk_ucall = reshapeUnsafe callers
             , ret_vars = rets
             }
     (prim_proc, (), ()) <-

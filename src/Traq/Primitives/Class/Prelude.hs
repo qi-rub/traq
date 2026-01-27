@@ -10,6 +10,7 @@ module Traq.Primitives.Class.Prelude (
   -- ** Partial Functions
   PartialFun (..),
   placeArgs,
+  placeArgsWithExcess,
 ) where
 
 import Control.Applicative (Alternative ((<|>)))
@@ -53,6 +54,13 @@ placeArgs [] [] = []
 placeArgs (Just x : xs) as = x : placeArgs xs as
 placeArgs (Nothing : xs) (a : as) = a : placeArgs xs as
 placeArgs mxs ys = error $ printf "invalid use of placeArgs(%d, %d)" (length mxs) (length ys)
+
+-- | Place arguments, with the excess at tail position.
+placeArgsWithExcess :: [Maybe a] -> [a] -> [a]
+placeArgsWithExcess [] as = as
+placeArgsWithExcess (Just x : xs) as = x : placeArgsWithExcess xs as
+placeArgsWithExcess (Nothing : xs) (a : as) = a : placeArgsWithExcess xs as
+placeArgsWithExcess mxs [] = error $ printf "invalid use of placeArgsWithExcess(%d)" (length mxs)
 
 {- | The shape of the function arguments that primitive @prim@ expects.
 The type @PrimFnShape prim a@ should be a subtype of @[a]@, for every @a@.
