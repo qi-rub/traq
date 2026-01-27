@@ -89,23 +89,13 @@ instance
 instance
   (P.TypingReqs size, Integral size, RealFloat prec, Show prec) =>
   UnitaryCompilePrim (DefaultPrimCollection size prec) size prec
+instance
+  (P.TypingReqs size, Integral size, RealFloat prec, Show prec) =>
+  QuantumCompilePrim (DefaultPrimCollection size prec) size prec
 
 type DefaultPrims sizeT precT = Primitive (DefaultPrimCollection sizeT precT)
 
 type DefaultPrims' = DefaultPrims SizeT Double
-
-instance
-  ( Integral sizeT
-  , Floating precT
-  , RealFloat precT
-  , P.TypingReqs sizeT
-  , Show precT
-  , sizeT ~ SizeT
-  ) =>
-  Compiler.CompileQ (A.AnnFailProb (DefaultPrims sizeT precT))
-  where
-  compileQ (A.AnnFailProb eps (Primitive fs (QAny q))) = Compiler.compileQ (A.AnnFailProb eps (Primitive fs q))
-  compileQ _ = error "TODO: lowerPrimitive"
 
 -- ================================================================================
 -- Worst-cost prim collection

@@ -580,6 +580,15 @@ algoQSearch ty n_samples eps grover_k_caller pred_caller ok = do
     nxt m = min (lambda * m) sqrt_n
 
 instance
+  (P.TypingReqs size, Integral size, RealFloat prec, Show prec) =>
+  QuantumCompilePrim (QSearchCFNW size prec) size prec
+  where
+  compileQPrim (QSearchCFNW PrimSearch{search_kind = AnyK, search_ty}) eps = do
+    error "TODO"
+  compileQPrim _ _ = error "unsupported"
+
+instance
+  {-# OVERLAPPABLE #-}
   ( Integral sizeT
   , RealFloat precT
   , sizeT ~ SizeT
