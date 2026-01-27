@@ -6,9 +6,9 @@
 module Main where
 
 import Text.Parsec.String (parseFromFile)
-import qualified Traq.Data.Context as Ctx
 import qualified Traq.Data.Symbolic as Sym
 
+import Lens.Micro.GHC
 import qualified Traq.Analysis as A
 import Traq.Prelude
 import qualified Traq.ProtoLang as P
@@ -83,11 +83,10 @@ expectedCost ctx@Ctx{..} eps = do
 
   -- the functionality of Matrix, provided as input data
   let interp =
-        Ctx.fromList
-          [ ("Capacity", \_ -> [P.toValue capacity])
-          , ("Profit", listToFun profits)
-          , ("Weight", listToFun weights)
-          ]
+        mempty
+          & (at "Capacity" ?~ \_ -> [P.toValue capacity])
+          & (at "Profit" ?~ listToFun profits)
+          & (at "Weight" ?~ listToFun weights)
 
   return $ getCost $ A.expCostQProg program_annotated mempty interp
 

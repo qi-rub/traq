@@ -6,9 +6,10 @@
 
 module Traq.Primitives.Class.UnitaryCompile (
   UnitaryCompilePrim (..),
+  UnitaryCompilePrimBuilder (..),
 ) where
 
-import Control.Monad.RWS (RWST (..))
+import Control.Monad.Reader (ReaderT (..))
 import Control.Monad.Trans (lift)
 import GHC.Generics
 
@@ -26,14 +27,16 @@ import qualified Traq.ProtoLang as P
 -- --------------------------------------------------------------------------------
 
 type UCallBuilder size = [Ident] -> CQPL.UStmt size
-type UProcBuilder size = [(Ident, P.VarType size)] -> CQPL.UStmt size -> CQPL.ProcDef size
+
+-- type UProcBuilder size = [(Ident, P.VarType size)] -> CQPL.UStmt size -> CQPL.ProcDef size
 
 data UnitaryCompilePrimBuilder shape size = UnitaryCompilePrimBuilder
   { mk_ucall :: shape (UCallBuilder size)
   -- ^ helper to generate a call to a unitary function argument.
-  , mk_uproc :: UProcBuilder size
-  -- ^ helper to generate a unitary procedure (by passing the relevant aux from outside)
+  , uproc_aux_types :: shape [P.VarType size]
+  -- ^ auxiliary variables for each unitary function argument.
   , ret_vars :: [Ident]
+  -- ^ return variables to store the result in.
   }
 
 reshapeBuilder ::
@@ -41,15 +44,19 @@ reshapeBuilder ::
   UnitaryCompilePrimBuilder shape size ->
   Either String (UnitaryCompilePrimBuilder shape' size)
 reshapeBuilder UnitaryCompilePrimBuilder{..} = do
-  mk_ucall <- reshape mk_ucall
-  return UnitaryCompilePrimBuilder{..}
+  mk_ucall' <- reshape mk_ucall
+  uproc_aux_types' <- reshape uproc_aux_types
+  return
+    UnitaryCompilePrimBuilder
+      { mk_ucall = mk_ucall'
+      , uproc_aux_types = uproc_aux_types'
+      , ..
+      }
 
-type UnitaryCompilePrimMonad ext' prim =
-  RWST
+type UnitaryCompilePrimMonad ext prim =
+  ReaderT
     (UnitaryCompilePrimBuilder (PrimFnShape prim) (SizeType prim))
-    ()
-    ()
-    (CompilerT ext')
+    (CompilerT ext)
 
 -- | Compile a primitive to a unitary statement.
 class
@@ -69,7 +76,7 @@ class
     ) =>
     prim ->
     A.FailProb prec ->
-    m (CQPL.UStmt size)
+    m (CQPL.ProcDef size)
   default compileUPrim ::
     forall ext' m shape.
     ( Generic prim
@@ -81,7 +88,7 @@ class
     ) =>
     prim ->
     A.FailProb prec ->
-    m (CQPL.UStmt size)
+    m (CQPL.ProcDef size)
   compileUPrim prim eps = do
     builder <- view id
     lift $ do
@@ -98,7 +105,7 @@ class GUnitaryCompilePrim f size prec | f -> size prec where
     f p ->
     A.FailProb prec ->
     UnitaryCompilePrimBuilder [] size ->
-    m (CQPL.UStmt size)
+    m (CQPL.ProcDef size)
 
 instance (GUnitaryCompilePrim a size prec, GUnitaryCompilePrim b size prec) => GUnitaryCompilePrim (a :+: b) size prec where
   gcompileUPrim (L1 x) = gcompileUPrim x
@@ -110,5 +117,4 @@ instance (GUnitaryCompilePrim f size prec) => GUnitaryCompilePrim (M1 i c f) siz
 instance (UnitaryCompilePrim a size prec) => GUnitaryCompilePrim (K1 i a) size prec where
   gcompileUPrim (K1 x) eps builder = do
     builder' <- lift $ reshapeBuilder builder
-    (a, (), ()) <- runRWST (compileUPrim x eps) builder' ()
-    pure a
+    runReaderT (compileUPrim x eps) builder'

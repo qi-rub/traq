@@ -2,9 +2,9 @@
 
 module Traq.Primitives.Amplify.PreludeSpec (spec) where
 
+import qualified Data.Map as Map
 import Text.Parsec.String
 
-import qualified Traq.Data.Context as Ctx
 import qualified Traq.Data.Symbolic as Sym
 
 import Traq.Primitives.Amplify.Prelude (Amplify (..))
@@ -253,7 +253,7 @@ spec = describe "amplify" $ do
       assertRight $ P.typeCheckProg program1
 
     it "evaluates" $ do
-      let funInterpCtx = Ctx.singleton "sampler" (\inp -> P.toValue True : inp)
+      let funInterpCtx = Map.singleton "sampler" (\inp -> P.toValue True : inp)
       let result = P.runProgram program1 funInterpCtx []
 
       result `shouldBeDistribution` [([P.FinV 1, P.FinV 1], 1 :: Double)]
@@ -273,7 +273,7 @@ spec = describe "amplify" $ do
       assertRight $ P.typeCheckProg program2
 
     it "evaluates" $ do
-      let funInterpCtx = Ctx.singleton "sampler" (\case [P.FinV x1, P.FinV _] -> [P.toValue True, P.FinV x1]; _ -> undefined)
+      let funInterpCtx = Map.singleton "sampler" (\case [P.FinV x1, P.FinV _] -> [P.toValue True, P.FinV x1]; _ -> undefined)
       let result = P.runProgram program2 funInterpCtx []
 
       result
@@ -296,7 +296,7 @@ spec = describe "amplify" $ do
       assertRight $ P.typeCheckProg program3
 
     it "evaluates" $ do
-      let funInterpCtx = Ctx.singleton "sampler" (\case [P.FinV x1, P.FinV _] -> [P.toValue True, P.FinV x1]; _ -> undefined)
+      let funInterpCtx = Map.singleton "sampler" (\case [P.FinV x1, P.FinV _] -> [P.toValue True, P.FinV x1]; _ -> undefined)
 
       let result = P.runProgram program3 funInterpCtx []
 

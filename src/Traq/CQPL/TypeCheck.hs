@@ -112,13 +112,13 @@ type TypeChecker sizeT = ReaderT (CheckingCtx sizeT) (Either Err.MyError)
 
 typeCheckUnitary :: forall sizeT. (P.TypingReqs sizeT) => Unitary sizeT -> [P.VarType sizeT] -> TypeChecker sizeT ()
 -- basic gates
-typeCheckUnitary Toffoli tys = verifyArgTys tys [P.tbool, P.tbool, P.tbool]
-typeCheckUnitary CNOT tys = verifyArgTys tys [P.tbool, P.tbool]
-typeCheckUnitary XGate tys = verifyArgTys tys [P.tbool]
-typeCheckUnitary HGate tys = verifyArgTys tys [P.tbool]
+typeCheckUnitary (BasicGateU Toffoli) tys = verifyArgTys tys [P.tbool, P.tbool, P.tbool]
+typeCheckUnitary (BasicGateU CNOT) tys = verifyArgTys tys [P.tbool, P.tbool]
+typeCheckUnitary (BasicGateU XGate) tys = verifyArgTys tys [P.tbool]
+typeCheckUnitary (BasicGateU HGate) tys = verifyArgTys tys [P.tbool]
 -- general gates
-typeCheckUnitary COPY tys = let n = length tys `div` 2 in verifyArgTys (take n tys) (drop n tys)
-typeCheckUnitary SWAP tys = let n = length tys `div` 2 in verifyArgTys (take n tys) (drop n tys)
+typeCheckUnitary (BasicGateU COPY) tys = let n = length tys `div` 2 in verifyArgTys (take n tys) (drop n tys)
+typeCheckUnitary (BasicGateU SWAP) tys = let n = length tys `div` 2 in verifyArgTys (take n tys) (drop n tys)
 typeCheckUnitary Refl0 _ = return ()
 typeCheckUnitary (DistrU (P.UniformE ty)) tys = verifyArgTys tys [ty]
 typeCheckUnitary (DistrU (P.BernoulliE _)) tys = verifyArgTys tys [P.tbool]
@@ -140,13 +140,6 @@ typeCheckUnitary (Controlled u) tys = do
   verifyArgTys [head tys] [P.tbool]
   typeCheckUnitary u (tail tys)
 typeCheckUnitary (Adjoint u) tys = typeCheckUnitary u tys
-typeCheckUnitary (LoadData f) tys = do
-  proc_def@ProcDef{proc_param_types} <-
-    view (_procCtx . Ctx.at f)
-      >>= maybeWithError (Err.MessageE "cannot find function")
-  unless (isUProc proc_def) $ Err.throwErrorMessage "expected uproc"
-
-  verifyArgTys tys proc_param_types
 
 typeCheckUStmt :: forall sizeT. (P.TypingReqs sizeT) => UStmt sizeT -> TypeChecker sizeT ()
 -- single statements

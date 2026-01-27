@@ -4,17 +4,20 @@
 module Main where
 
 import Control.Monad (forM_, replicateM, when)
-import Lens.Micro.GHC
+import qualified Data.Map as Map
 import System.Random (randomIO)
 import System.TimeIt (timeItT)
 import Text.Parsec.String (parseFromFile)
 import Text.Printf (printf)
+
+import Lens.Micro.GHC
+
+import qualified Traq.Data.Symbolic as Sym
+
 import qualified Traq.Analysis as Traq
 import qualified Traq.Analysis.CostModel.QueryCost as Traq
 import qualified Traq.CQPL as CQPL
 import qualified Traq.Compiler
-import qualified Traq.Data.Context as Ctx
-import qualified Traq.Data.Symbolic as Sym
 import Traq.Examples.MatrixSearch (matrixExampleS)
 import Traq.Prelude
 import qualified Traq.Primitives as Traq
@@ -83,7 +86,7 @@ matrixSearchExpt = do
     let mat = \case
           [P.FinV i, P.FinV j] -> [P.FinV $ if i == j then 1 else 0]
           _ -> undefined
-    ExptResult{wallTime, numQubits} <- runExpt' prog eps (Ctx.singleton "Matrix" mat)
+    ExptResult{wallTime, numQubits} <- runExpt' prog eps (Map.singleton "Matrix" mat)
     putStrLn $ printf "%d, %.5f, %d" n wallTime numQubits
 
 depth3NAND :: IO ()
@@ -105,7 +108,7 @@ depth3NAND = do
     let f = \case
           [P.FinV i, P.FinV j, P.FinV k] -> [P.FinV $ if i == j || j == k then 1 else 0]
           _ -> undefined
-    ExptResult{wallTime, numQubits} <- runExpt' prog eps (Ctx.singleton "f" f)
+    ExptResult{wallTime, numQubits} <- runExpt' prog eps (Map.singleton "f" f)
     putStrLn $ printf "%d, %.5f, %d" n wallTime numQubits
 
 hillClimbExpt :: IO ()
@@ -121,7 +124,7 @@ hillClimbExpt = do
     -- compute the weight of an assignment
     let phi _ = [P.FinV 0]
 
-    ExptResult{wallTime, numQubits} <- runExpt' prog eps (Ctx.singleton "Phi" phi)
+    ExptResult{wallTime, numQubits} <- runExpt' prog eps (Map.singleton "Phi" phi)
     putStrLn $ printf "%d, %.5f, %d" n wallTime numQubits
 
 triangleFinding :: IO ()
@@ -137,7 +140,7 @@ triangleFinding = do
     let f = \case
           [P.FinV u, P.FinV v] -> [P.toValue $ adj !! u !! v]
           _ -> undefined
-    ExptResult{wallTime, numQubits} <- runExpt' prog eps (Ctx.singleton "Adj" f)
+    ExptResult{wallTime, numQubits} <- runExpt' prog eps (Map.singleton "Adj" f)
     putStrLn $ printf "%d, %.5f, %d" n wallTime numQubits
 main :: IO ()
 main = do

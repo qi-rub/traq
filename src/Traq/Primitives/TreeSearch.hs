@@ -125,12 +125,12 @@ instance (P.EvalReqs SizeT precT) => P.Evaluatable (TreeSearch SizeT precT) Size
 
     let nxt u =
           ( do
-              cs <- P.evalFun (child_args ++ [u]) (P.NamedFunDef getChildren child_fun)
+              cs <- P.eval1 (P.NamedFunDef getChildren child_fun) (child_args ++ [u])
               return (head cs, cs !! 1)
           )
     let chk u =
           ( do
-              vs <- P.evalFun (check_args ++ [u]) (P.NamedFunDef checkNode check_fun)
+              vs <- P.eval1 (P.NamedFunDef checkNode check_fun) (check_args ++ [u])
               let ok = head vs
               return $ P.valueToBool ok
           )

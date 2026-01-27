@@ -1,6 +1,6 @@
 module Traq.Primitives.Amplify.CAmplifySpec where
 
-import qualified Traq.Data.Context as Ctx
+import qualified Data.Map as Map
 
 import qualified Traq.Analysis as A
 import Traq.Analysis.CostModel.QueryCost (SimpleQueryCost (..))
@@ -87,7 +87,7 @@ spec = describe "CAmplify" $ do
 
     it "calculates quantum query cost correctly - sampler always succeeds" $ do
       let eps = A.failProb (0.001 :: Double)
-      let funInterpCtx = Ctx.singleton "sampler" (const [P.toValue True, P.FinV 1])
+      let funInterpCtx = Map.singleton "sampler" (const [P.toValue True, P.FinV 1])
 
       prog' <- expectRight $ A.annotateProgWith (P._exts (A.annSinglePrim eps)) program
       let actualCost = getCost $ A.expCostQProg prog' [] funInterpCtx
@@ -96,7 +96,7 @@ spec = describe "CAmplify" $ do
 
     it "calculates quantum query cost correctly - sampler always fails" $ do
       let eps = A.failProb (0.001 :: Double)
-      let funInterpCtx = Ctx.singleton "sampler" (const [P.toValue False, P.FinV 1])
+      let funInterpCtx = Map.singleton "sampler" (const [P.toValue False, P.FinV 1])
 
       prog' <- expectRight $ A.annotateProgWith (P._exts (A.annSinglePrim eps)) program
       let actualCost = getCost $ A.expCostQProg prog' [] funInterpCtx

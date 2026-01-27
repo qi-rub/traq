@@ -1,10 +1,12 @@
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE FunctionalDependencies #-}
+{-# LANGUAGE InstanceSigs #-}
 {-# LANGUAGE UndecidableInstances #-}
 
 module Traq.Analysis.Cost.Unitary (
   CostU (..),
   costUProg,
+  costU1,
 ) where
 
 import Control.Monad.Reader (runReader)
@@ -19,7 +21,7 @@ import Traq.Data.Default (HasDefault (default_))
 
 import Traq.Analysis.Cost.Prelude
 import Traq.Analysis.CostModel.Class
-import Traq.Analysis.Prelude (sizeToPrec)
+import Traq.Analysis.Prelude
 import Traq.Prelude
 import Traq.ProtoLang.Syntax
 
@@ -41,39 +43,64 @@ class
     ext ->
     m costT
 
+instance (CostReqs size prec) => CostU (Core size prec) size prec where
+  costU = \case {}
+
 -- ================================================================================
 -- Core Language
 -- ================================================================================
 
-instance (CostU ext size prec) => CostU (Expr ext) size prec where
-  costU BasicExprE{basic_expr} = return $ callExpr Unitary basic_expr
-  costU RandomSampleE{distr_expr} = return $ callDistrExpr Unitary distr_expr
-  costU FunCallE{fname} = do
+class CostU1 f where
+  costU1 ::
+    forall ext cost size prec m.
+    ( m ~ CostAnalysisMonad ext
+    , size ~ SizeType ext
+    , prec ~ PrecType ext
+    , CostU ext size prec
+    , CostModelReqs size prec cost
+    ) =>
+    f ext ->
+    m cost
+
+instance CostU1 Expr where
+  costU1 ::
+    forall ext cost size prec m.
+    ( m ~ CostAnalysisMonad ext
+    , size ~ SizeType ext
+    , prec ~ PrecType ext
+    , CostU ext size prec
+    , CostModelReqs size prec cost
+    ) =>
+    Expr ext ->
+    m cost
+  costU1 BasicExprE{basic_expr} = return $ callExpr Unitary basic_expr
+  costU1 RandomSampleE{distr_expr} = return $ callDistrExpr Unitary distr_expr
+  costU1 FunCallE{fname} = do
     fn <- view $ _funCtx . Ctx.at fname . non' (error $ "unable to find function " ++ fname)
-    costU $ NamedFunDef fname fn
-  costU PrimCallE{prim} = costU prim
-  costU LoopE{loop_body_fun} = do
+    costU1 $ NamedFunDef fname fn
+  costU1 PrimCallE{prim} = costU prim
+  costU1 LoopE{loop_body_fun} = do
     fn@FunDef{param_types} <- view $ _funCtx . Ctx.at loop_body_fun . non' (error $ "unable to find function " ++ loop_body_fun)
-    body_cost <- costU $ NamedFunDef loop_body_fun fn
-    let Fin n_iters = last param_types
+    body_cost <- costU1 $ NamedFunDef loop_body_fun fn
+    let n_iters = last param_types ^?! _Fin
     return $ (sizeToPrec n_iters :: prec) Alg..* body_cost
 
-instance (CostU ext size prec) => CostU (Stmt ext) size prec where
-  costU ExprS{expr} = costU expr
-  costU IfThenElseS{s_true, s_false} = do
-    cost_t <- costU s_true
-    cost_f <- costU s_false
+instance CostU1 Stmt where
+  costU1 ExprS{expr} = costU1 expr
+  costU1 IfThenElseS{s_true, s_false} = do
+    cost_t <- costU1 s_true
+    cost_f <- costU1 s_false
     return $ cost_t Alg.+ cost_f
-  costU (SeqS ss) = Alg.sum <$> mapM costU ss
+  costU1 (SeqS ss) = Alg.sum <$> mapM costU1 ss
 
-instance (CostU ext size prec) => CostU (NamedFunDef ext) size prec where
+instance CostU1 NamedFunDef where
   -- query an external function
-  costU NamedFunDef{fun_name, fun_def = FunDef{mbody = Nothing}} = return $ query Unitary fun_name
+  costU1 NamedFunDef{fun_name, fun_def = FunDef{mbody = Nothing}} = return $ query Unitary fun_name
   -- def: compute using body
-  costU NamedFunDef{fun_def = FunDef{mbody = Just FunBody{body_stmt}}} = costU body_stmt
+  costU1 NamedFunDef{fun_def = FunDef{mbody = Just FunBody{body_stmt}}} = costU1 body_stmt
 
-instance (CostReqs size prec) => CostU (Core size prec) size prec where
-  costU = \case {}
+instance CostU1 Program where
+  costU1 (Program fs) = costU1 $ last fs
 
 -- ================================================================================
 -- Entry Points
@@ -87,11 +114,8 @@ costUProg ::
   ) =>
   Program ext ->
   cost
-costUProg (Program []) = Alg.zero
-costUProg (Program fs) =
-  costU main_fn & runReader ?? env
+costUProg p = costU1 p & runReader ?? env
  where
-  main_fn = last fs
   env =
     default_
-      & (_funCtx .~ namedFunsToFunCtx fs)
+      & (_funCtx .~ programToFunCtx p)

@@ -5,9 +5,11 @@ module Main where
 import Control.Monad (when)
 import Text.Parsec.String (parseFromFile)
 import Text.Printf (printf)
+
+import qualified Traq.Data.Symbolic as Sym
+
 import qualified Traq.Analysis as Traq
 import qualified Traq.Compiler.Quantum
-import qualified Traq.Data.Symbolic as Sym
 import Traq.Prelude
 import qualified Traq.Primitives as Traq
 import qualified Traq.ProtoLang as P

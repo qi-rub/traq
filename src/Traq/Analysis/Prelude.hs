@@ -5,8 +5,8 @@ module Traq.Analysis.Prelude where
 
 import qualified Traq.Data.Symbolic as Sym
 
-class SizeToPrec sizeT precT where
-  sizeToPrec :: sizeT -> precT
+class SizeToPrec size prec where
+  sizeToPrec :: size -> prec
 
 instance (Floating precT) => SizeToPrec Integer precT where sizeToPrec = fromIntegral
 instance (Floating precT) => SizeToPrec Int precT where sizeToPrec = fromIntegral

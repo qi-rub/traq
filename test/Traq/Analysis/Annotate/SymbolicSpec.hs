@@ -3,8 +3,8 @@
 module Traq.Analysis.Annotate.SymbolicSpec (spec) where
 
 import Control.Monad (forM_)
+import qualified Data.Map as Map
 
-import qualified Traq.Data.Context as Ctx
 import qualified Traq.Data.Symbolic as Sym
 
 import qualified Traq.Analysis as A
@@ -51,7 +51,7 @@ spec = describe "annotate-symbolic" $ do
           let prog = matrixExampleS n n
           prog' <- expectRight $ annSymEpsProg @Double prog
 
-          let fn_interps = Ctx.singleton "Matrix" (\case [P.FinV i, P.FinV j] -> [P.toValue $ fn i j]; _ -> undefined)
+          let fn_interps = Map.singleton "Matrix" (\case [P.FinV i, P.FinV j] -> [P.toValue $ fn i j]; _ -> undefined)
           let cost = Sym.simpl $ getCost $ A.expCostQProg prog' [] fn_interps
 
           let nq_outer = 2 * _EQSearch n t eps_1

@@ -10,9 +10,12 @@ module Traq.Primitives.Class.Prelude (
   -- ** Partial Functions
   PartialFun (..),
   placeArgs,
+  placeArgsWithExcess,
 ) where
 
 import Control.Applicative (Alternative ((<|>)))
+import Control.Monad.Except (MonadError, liftEither)
+import Control.Monad.Trans (lift)
 import Data.Kind (Type)
 import Data.Maybe (fromMaybe)
 import Text.Parsec.Token
@@ -54,6 +57,13 @@ placeArgs (Just x : xs) as = x : placeArgs xs as
 placeArgs (Nothing : xs) (a : as) = a : placeArgs xs as
 placeArgs mxs ys = error $ printf "invalid use of placeArgs(%d, %d)" (length mxs) (length ys)
 
+-- | Place arguments, with the excess at tail position.
+placeArgsWithExcess :: [Maybe a] -> [a] -> [a]
+placeArgsWithExcess [] as = as
+placeArgsWithExcess (Just x : xs) as = x : placeArgsWithExcess xs as
+placeArgsWithExcess (Nothing : xs) (a : as) = a : placeArgsWithExcess xs as
+placeArgsWithExcess mxs [] = error $ printf "invalid use of placeArgsWithExcess(%d)" (length mxs)
+
 {- | The shape of the function arguments that primitive @prim@ expects.
 The type @PrimFnShape prim a@ should be a subtype of @[a]@, for every @a@.
 This type is useful to specify record constructor names for readability.
@@ -65,8 +75,8 @@ class ValidPrimShape shape where
   listToShape :: [a] -> Either String (shape a)
   shapeToList :: shape a -> [a]
 
-reshape :: (ValidPrimShape shape, ValidPrimShape shape') => shape a -> Either String (shape' a)
-reshape = listToShape . shapeToList
+reshape :: (MonadError String m, ValidPrimShape shape, ValidPrimShape shape') => shape a -> m (shape' a)
+reshape = liftEither . listToShape . shapeToList
 
 reshapeUnsafe :: (ValidPrimShape shape, ValidPrimShape shape') => shape a -> shape' a
 reshapeUnsafe = either (error "please typecheck first") id . reshape

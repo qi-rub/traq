@@ -2,11 +2,11 @@
 
 module Traq.Examples.TreeGeneratorSpec where
 
+import qualified Data.Map as Map
 import Text.Parsec.String
 
 import Lens.Micro.GHC
 
-import qualified Traq.Data.Context as Ctx
 import qualified Traq.Data.Symbolic as Sym
 
 import Traq.Prelude
@@ -107,7 +107,7 @@ spec = do
       let n = 2
       prog <- loadKnapsack n 20 30 2
       let funInterpCtx =
-            Ctx.fromList
+            Map.fromList
               [ ("Capacity", const [FinV 20])
               , ("Profit", id)
               , ("Weight", id)
@@ -127,7 +127,7 @@ spec = do
       p `shouldBe` loopExample (Sym.var "N") (Sym.var "W")
 
     it "evaluates" $ do
-      let funInterpCtx = Ctx.singleton "AddWeight" (take 1)
+      let funInterpCtx = Map.singleton "AddWeight" (take 1)
       let result = runProgram @Core' (loopExample 10 20) funInterpCtx []
 
       result `shouldBeDistribution` [([FinV 10], 1.0)]

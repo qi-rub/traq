@@ -4,7 +4,8 @@ module Traq.Analysis.Cost.QuantumSpec (spec) where
 
 import Prelude
 
-import qualified Traq.Data.Context as Ctx
+import qualified Data.Map as Map
+
 import Traq.Data.Default
 
 import Traq.Analysis
@@ -69,7 +70,7 @@ spec :: Spec
 spec = do
   describe "quantum cost analysis" $ do
     it "ex1" $ do
-      let interps = Ctx.singleton "f" (\case [x] -> [P.toValue $ (P.fromValue x :: Int) == 3]; _ -> undefined)
+      let interps = Map.singleton "f" (\case [x] -> [P.toValue $ (P.fromValue x :: Int) == 3]; _ -> undefined)
       let c = getCost $ A.expCostQProg @(SimpleQueryCost Double) exProg [] interps
       c `shouldBe` 2 * _EQSearch (10 :: Int) 1 (A.failProb 0.1)
     it "probabilistic outcome" $ do

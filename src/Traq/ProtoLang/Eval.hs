@@ -12,8 +12,6 @@ module Traq.ProtoLang.Eval (
   evalBasicExpr,
 
   -- * Evaluations
-  execStmt,
-  evalFun,
   runProgram,
 
   -- * Values
@@ -31,6 +29,8 @@ module Traq.ProtoLang.Eval (
   EvaluationMonad,
   Evaluatable (..),
   EvalReqs,
+  EvalArgs,
+  eval1,
 
   -- ** Evaluation
   FunInterp,
@@ -39,17 +39,13 @@ module Traq.ProtoLang.Eval (
   EvaluationEnv,
   HasEvaluationEnv (..),
   Evaluator,
-
-  -- ** Execution (state updating)
-  ExecutionState,
-  Executor,
 ) where
 
-import Control.Monad (foldM, replicateM, when, zipWithM_)
+import Control.Monad (foldM, replicateM, when)
 import Control.Monad.Reader (MonadReader, ReaderT, runReaderT)
-import Control.Monad.State (MonadState, StateT, evalStateT)
-import Control.Monad.Trans (lift)
+import Control.Monad.State (MonadState, evalStateT)
 import Data.Bits (Bits (xor))
+import qualified Data.Map as Map
 import Data.Maybe (fromJust)
 import GHC.Generics
 import Text.Printf (printf)
@@ -233,8 +229,8 @@ type FunInterp sizeT = [Value sizeT] -> [Value sizeT]
 
 type instance SizeType (FunInterp sizeT) = sizeT
 
--- | A mapping of data Subtypings
-type FunInterpCtx sizeT = Ctx.Context (FunInterp sizeT)
+-- | A mapping of data intepretations
+type FunInterpCtx sizeT = Map.Map Ident (FunInterp sizeT)
 
 class HasFunInterpCtx p where
   _funInterpCtx :: (sizeT ~ SizeType p) => Lens' p (FunInterpCtx sizeT)
@@ -266,7 +262,7 @@ instance HasFunInterpCtx (EvaluationEnv ext) where
 -- | Base probability monad to evaluate the program.
 type EvaluationMonad precT = Prob.ExpMonad precT
 
--- | Non-deterministic Execution Monad (i.e. no state)
+-- | Non-deterministic evaluation monad (i.e. no state)
 type Evaluator ext = ReaderT (EvaluationEnv ext) (EvaluationMonad (PrecType ext))
 
 -- --------------------------------------------------------------------------------
@@ -360,105 +356,94 @@ evalRandomSampleExpr ::
 evalRandomSampleExpr UniformE{sample_ty} = Prob.uniform (domain sample_ty)
 evalRandomSampleExpr BernoulliE{prob_one} = toValue <$> Prob.bernoulli (realToFrac prob_one)
 
-instance (Evaluatable ext sizeT precT) => Evaluatable (Expr ext) sizeT precT where
+class Eval1 f where
+  type EvalArgs f ext
+  type EvalRets f ext
+
+  eval1 ::
+    forall ext size prec m.
+    ( Evaluatable ext size prec
+    , m ~ Evaluator ext
+    ) =>
+    f ext ->
+    EvalArgs f ext ->
+    m (EvalRets f ext)
+
+instance Eval1 Expr where
+  type EvalArgs Expr ext = ProgramState (SizeType ext)
+  type EvalRets Expr ext = [Value (SizeType ext)]
+
   -- deterministic expressions
-  eval BasicExprE{basic_expr} sigma = do
+  eval1 BasicExprE{basic_expr} sigma = do
     val <- runReaderT ?? sigma $ evalBasicExpr basic_expr
     return [val]
 
   -- probabilistic expressions
-  eval RandomSampleE{distr_expr} sigma = do
+  eval1 RandomSampleE{distr_expr} sigma = do
     val <- runReaderT ?? sigma $ evalRandomSampleExpr distr_expr
     return [val]
 
   -- function calls
-  eval FunCallE{fname, args} sigma = do
+  eval1 FunCallE{fname, args} sigma = do
     arg_vals <- evalStateT ?? sigma $ mapM lookupS args
     fun_def <- view $ _funCtx . Ctx.at fname . singular _Just
-    evalFun arg_vals (NamedFunDef fname fun_def)
+    eval1 (NamedFunDef fname fun_def) arg_vals
 
   -- subroutines
-  eval PrimCallE{prim} sigma = do eval prim sigma
+  eval1 PrimCallE{prim} sigma = do eval prim sigma
 
   -- loop
-  eval LoopE{initial_args, loop_body_fun} sigma = do
+  eval1 LoopE{initial_args, loop_body_fun} sigma = do
     fun_def <- view $ _funCtx . Ctx.at loop_body_fun . singular _Just
     init_vals <- evalStateT ?? sigma $ mapM lookupS initial_args
-    foldM (\args i -> evalFun (args ++ [i]) (NamedFunDef loop_body_fun fun_def)) init_vals (domain (last (param_types fun_def)))
+    foldM (\args i -> eval1 (NamedFunDef loop_body_fun fun_def) (args ++ [i])) init_vals (domain (last (param_types fun_def)))
 
--- Evaluate a named function
--- Pass the arguments as a mapping from 0.. to values, i.e. {0: v_0, 1: v_1, ...}
-instance (Evaluatable ext sizeT precT) => Evaluatable (NamedFunDef ext) sizeT precT where
+instance Eval1 Stmt where
+  type EvalArgs Stmt ext = ProgramState (SizeType ext)
+  type EvalRets Stmt ext = ProgramState (SizeType ext)
+
+  eval1 ExprS{rets, expr} sigma = do
+    vals <- eval1 expr sigma
+    let sigma' = foldr (\(x, v) -> Ctx.ins x .~ v) sigma (zip rets vals)
+    return sigma'
+  eval1 IfThenElseS{cond, s_true, s_false} sigma = do
+    let cond_val = sigma ^. Ctx.at cond . non' (error $ "cannot find " <> cond)
+    let s = if fromValue cond_val then s_true else s_false
+    eval1 s sigma
+  eval1 (SeqS ss) sigma = foldM (flip eval1) sigma ss
+
+instance Eval1 FunBody where
+  type EvalArgs FunBody ext = [Value (SizeType ext)]
+  type EvalRets FunBody ext = [Value (SizeType ext)]
+
+  eval1 FunBody{param_names, ret_names, body_stmt} vals_in = do
+    when (length param_names /= length vals_in) $ error (printf "incorrect number of args: expected %s, got %s" (show param_names) (show vals_in))
+    let params = Ctx.fromList $ zip param_names vals_in
+    sigma' <- eval1 body_stmt params
+    (evalStateT ?? sigma') $ mapM lookupS ret_names
+
+instance Eval1 NamedFunDef where
+  type EvalArgs NamedFunDef ext = [Value (SizeType ext)]
+  type EvalRets NamedFunDef ext = [Value (SizeType ext)]
+
   -- defined function: run the body
-  eval
-    NamedFunDef
-      { fun_def =
-        FunDef{mbody = Just FunBody{param_names, ret_names, body_stmt}}
-      , fun_name
-      }
-    sigma_fn = do
-      let vals_in = Ctx.toAscList sigma_fn & map snd
-
-      when (length param_names /= length vals_in) $ error (printf "incorrect number of fun `%s` args: expected %s, got %s" fun_name (show param_names) (show vals_in))
-      let params = Ctx.fromList $ zip param_names vals_in
-      (evalStateT ?? params) $ do
-        execStmt body_stmt
-        mapM lookupS ret_names
+  eval1 NamedFunDef{fun_def = FunDef{mbody = Just body}} vals_in = do
+    eval1 body vals_in
 
   -- external function: lookup and run the provided interpretation
-  eval NamedFunDef{fun_name, fun_def = FunDef{mbody = Nothing}} sigma_fn = do
-    let vals_in = Ctx.toAscList sigma_fn & map snd
-
-    fn_interp <- view $ _funInterpCtx . Ctx.at fun_name . non' (error $ "could not find fun interp for " ++ fun_name)
+  eval1 NamedFunDef{fun_name, fun_def = FunDef{mbody = Nothing}} vals_in = do
+    fn_interp <- view $ _funInterpCtx . at fun_name . non' (error $ "could not find fun interp for " ++ fun_name)
     return $ fn_interp vals_in
 
-evalFun ::
-  forall ext sizeT precT m.
-  ( Evaluatable ext sizeT precT
-  , m ~ Evaluator ext
-  , SizeType ext ~ sizeT
-  , PrecType ext ~ precT
-  , EvalReqs sizeT precT
-  ) =>
-  -- | arguments
-  [Value SizeT] ->
-  -- | function
-  NamedFunDef ext ->
-  m [Value SizeT]
-evalFun vals_in fn = eval fn sigma_fn
- where
-  sigma_fn = Ctx.fromList $ zip [show i | i <- [0 :: Int ..]] vals_in
+instance Eval1 Program where
+  type EvalArgs Program ext = [Value (SizeType ext)]
+  type EvalRets Program ext = [Value (SizeType ext)]
+
+  eval1 (Program fs) = eval1 (last fs)
 
 -- ================================================================================
--- Program Execution
+-- Entry Points
 -- ================================================================================
-
-type ExecutionState sizeT = ProgramState sizeT
-
--- | Non-deterministic Execution Monad
-type Executor ext = StateT (ExecutionState (SizeType ext)) (Evaluator ext)
-
-{- | Execute a statement, updating the state.
-TODO unify this as a class instance, after unifying evaluation
--}
-execStmt ::
-  forall ext precT m ext'.
-  ( EvalReqs SizeT precT
-  , Evaluatable ext' SizeT precT
-  , Evaluatable ext SizeT precT
-  , m ~ Executor ext'
-  ) =>
-  Stmt ext ->
-  m ()
-execStmt ExprS{rets, expr} = do
-  sigma <- use _state
-  vals <- lift $ eval expr sigma
-  zipWithM_ (\x v -> _state . Ctx.ins x .= v) rets vals
-execStmt IfThenElseS{cond, s_true, s_false} = do
-  cond_val <- lookupS cond
-  let s = if fromValue cond_val then s_true else s_false
-  execStmt s
-execStmt (SeqS ss) = mapM_ execStmt ss
 
 -- | Entry-point: run the program (i.e. last function)
 runProgram ::
@@ -471,10 +456,9 @@ runProgram ::
   FunInterpCtx SizeT ->
   [Value SizeT] ->
   m [Value SizeT]
-runProgram (Program fs) funInterpCtx inp =
-  evalFun inp (last fs) & (runReaderT ?? env)
+runProgram p funInterpCtx inp = eval1 p inp & (runReaderT ?? env)
  where
   env =
     default_
-      & (_funCtx .~ namedFunsToFunCtx fs)
+      & (_funCtx .~ programToFunCtx p)
       & (_funInterpCtx .~ funInterpCtx)

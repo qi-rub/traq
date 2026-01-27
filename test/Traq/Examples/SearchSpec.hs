@@ -3,7 +3,7 @@
 
 module Traq.Examples.SearchSpec (spec) where
 
-import qualified Traq.Data.Context as Ctx
+import qualified Data.Map as Map
 
 import qualified Traq.Analysis as A
 import Traq.Analysis.CostModel.QueryCost (SimpleQueryCost (..))
@@ -30,7 +30,7 @@ spec = describe "SearchSpec" $ do
       assertRight $ P.typeCheckProg ex
 
     let oracleF = const [P.FinV 0]
-    let interpCtx = Ctx.singleton "Oracle" oracleF
+    let interpCtx = Map.singleton "Oracle" oracleF
 
     it "evaluates" $ do
       let res = P.runProgram @_ @Double ex interpCtx []
@@ -89,7 +89,7 @@ spec = describe "SearchSpec" $ do
     let planted_sols = [2, 4, 5] :: [SizeT]
     let oracleF [P.FinV i] = [P.toValue $ i `elem` planted_sols]
         oracleF _ = error "invalid inputs"
-    let interpCtx = Ctx.singleton "Oracle" oracleF
+    let interpCtx = Map.singleton "Oracle" oracleF
 
     it "evaluates" $ do
       let res = P.runProgram @_ @Double ex interpCtx []

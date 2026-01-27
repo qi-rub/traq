@@ -106,7 +106,7 @@ instance CompileU1 P.Expr where
     return $
       USeqS
         [ UnitaryS rets (DistrU distr_expr)
-        , UnitaryS (rets ++ rets') COPY
+        , UnitaryS (rets ++ rets') (BasicGateU COPY)
         ]
   compileU1 rets P.FunCallE{fname, args} = do
     let uproc_id = mkUProcName fname
@@ -127,7 +127,7 @@ instance CompileU1 P.Stmt where
     -- compute result into a fresh set of vars, and swap at the end.
     tmp <- freshAux rets
     compute_expr <- compileU1 tmp expr
-    return $ USeqS [compute_expr, UnitaryS{qargs = rets ++ tmp, unitary = SWAP}]
+    return $ USeqS [compute_expr, UnitaryS{qargs = rets ++ tmp, unitary = BasicGateU SWAP}]
   compileU1 () P.IfThenElseS{cond, s_true, s_false} = do
     let out_t = toList $ P.outVars s_true
     tmp_t <- freshAux out_t
@@ -141,17 +141,17 @@ instance CompileU1 P.Stmt where
     return $
       USeqS
         [ -- true branch:
-          UnitaryS{qargs = out_t ++ tmp_t, unitary = COPY}
+          UnitaryS{qargs = out_t ++ tmp_t, unitary = BasicGateU COPY}
         , compiled_t
-        , UnitaryS{qargs = out_t ++ tmp_t, unitary = SWAP}
+        , UnitaryS{qargs = out_t ++ tmp_t, unitary = BasicGateU SWAP}
         , -- false branch:
-          UnitaryS{qargs = out_f ++ tmp_f, unitary = COPY}
+          UnitaryS{qargs = out_f ++ tmp_f, unitary = BasicGateU COPY}
         , compiled_f
         , -- when `cond` is true:
           -- - restore original false branch vars,
           -- - and then pull in the true branch results.
-          UnitaryS{qargs = cond : out_f ++ tmp_f, unitary = Controlled SWAP}
-        , UnitaryS{qargs = cond : out_t ++ tmp_t, unitary = Controlled SWAP}
+          UnitaryS{qargs = cond : out_f ++ tmp_f, unitary = Controlled (BasicGateU SWAP)}
+        , UnitaryS{qargs = cond : out_t ++ tmp_t, unitary = Controlled (BasicGateU SWAP)}
         ]
   compileU1 () (P.SeqS ss) = CQPL.USeqS <$> mapM (compileU1 ()) ss
 
