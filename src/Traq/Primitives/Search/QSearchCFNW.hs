@@ -356,22 +356,14 @@ instance
   ) =>
   Compiler.CompileU (A.AnnFailProb (Primitive (QSearchCFNW sizeT precT)))
   where
-  compileU (A.AnnFailProb eps (Primitive [PartialFun{pfun_name, pfun_args}] (QSearchCFNW PrimSearch{}))) [ret] = do
+  compileU (A.AnnFailProb eps (Primitive [PartialFun{pfun_name, pfun_args}] (QSearchCFNW PrimSearch{search_ty}))) [ret] = do
     -- compiled predicate
     let pred_proc = Compiler.mkUProcName pfun_name
     Compiler.ProcSignature
       { Compiler.in_tys = pred_inp_tys
-      , Compiler.out_tys = pred_out_tys
       , Compiler.aux_tys = pred_aux_tys
       } <-
       use (Compiler._procSignatures . at pred_proc) >>= maybeWithError "missing uproc"
-
-    -- size of the search space
-    let s_ty = last pred_inp_tys
-    let n = s_ty ^?! P._Fin
-
-    when (pred_out_tys /= [P.tbool]) $ throwError "invalid outputs for predicate"
-    when (last pred_inp_tys /= s_ty) $ throwError "mismatched search argument type"
 
     -- function to call the predicate, re-using the same aux space each time.
     pred_ancilla <- mapM Compiler.allocAncilla pred_aux_tys
@@ -398,7 +390,7 @@ instance
     -- body:
     (qsearch_body, qsearch_ancilla) <- do
       ini_binds <- use P._typingCtx
-      ((), ss) <- (\m -> evalRWST m UQSearchEnv{search_arg_type = s_ty, pred_call_builder = pred_caller} ()) $ algoQSearchZalka eps ret
+      ((), ss) <- (\m -> evalRWST m UQSearchEnv{search_arg_type = search_ty, pred_call_builder = pred_caller} ()) $ algoQSearchZalka eps ret
       fin_binds <- use P._typingCtx
       let ancillas = Ctx.toList $ fin_binds Ctx.\\ ini_binds
       return (CQPL.USeqS ss, (b', P.tbool) : ancillas)
@@ -409,7 +401,7 @@ instance
     let info_comment =
           (printf :: String -> String -> String -> String -> String)
             "QSearch[%s, %s, %s]"
-            (show n)
+            (show search_ty)
             (show $ A.getFailProb eps)
             pred_proc
     let all_params =

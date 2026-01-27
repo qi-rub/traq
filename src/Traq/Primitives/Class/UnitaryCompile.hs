@@ -33,7 +33,10 @@ type UCallBuilder size = [Ident] -> CQPL.UStmt size
 data UnitaryCompilePrimBuilder shape size = UnitaryCompilePrimBuilder
   { mk_ucall :: shape (UCallBuilder size)
   -- ^ helper to generate a call to a unitary function argument.
+  , uproc_aux_types :: shape [P.VarType size]
+  -- ^ auxiliary variables for each unitary function argument.
   , ret_vars :: [Ident]
+  -- ^ return variables to store the result in.
   }
 
 reshapeBuilder ::
