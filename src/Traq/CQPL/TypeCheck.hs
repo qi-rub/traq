@@ -140,13 +140,6 @@ typeCheckUnitary (Controlled u) tys = do
   verifyArgTys [head tys] [P.tbool]
   typeCheckUnitary u (tail tys)
 typeCheckUnitary (Adjoint u) tys = typeCheckUnitary u tys
-typeCheckUnitary (LoadData f) tys = do
-  proc_def@ProcDef{proc_param_types} <-
-    view (_procCtx . Ctx.at f)
-      >>= maybeWithError (Err.MessageE "cannot find function")
-  unless (isUProc proc_def) $ Err.throwErrorMessage "expected uproc"
-
-  verifyArgTys tys proc_param_types
 
 typeCheckUStmt :: forall sizeT. (P.TypingReqs sizeT) => UStmt sizeT -> TypeChecker sizeT ()
 -- single statements

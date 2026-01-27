@@ -73,7 +73,6 @@ data Unitary sizeT
   | HGate
   | COPY
   | SWAP
-  | LoadData Ident
   | -- | reflect about |0>_T
     Refl0
   | RevEmbedU [Ident] (P.BasicExpr sizeT)
@@ -94,7 +93,6 @@ instance (Show sizeT) => PP.ToCodeString (Unitary sizeT) where
   build XGate = PP.putWord "X"
   build HGate = PP.putWord "H"
   build Refl0 = PP.putWord $ printf "Refl0"
-  build (LoadData f) = PP.putWord f
   build (Controlled u) = PP.putWord . ("Ctrl-" <>) =<< PP.fromBuild u
   build (Adjoint u) = PP.putWord . ("Adj-" <>) =<< PP.fromBuild u
   build u = PP.putWord $ show u
@@ -104,7 +102,6 @@ instance HasAdjoint (Unitary sizeT) where
   adjoint CNOT = CNOT
   adjoint HGate = HGate
   adjoint XGate = XGate
-  adjoint (LoadData f) = LoadData f
   adjoint Refl0 = Refl0
   adjoint u@(RevEmbedU _ _) = u
   adjoint (Controlled u) = Controlled (adjoint u)
