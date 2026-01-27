@@ -341,9 +341,70 @@ algoQSearchZalka eps out_bit = do
       , CQPL.unitary = CQPL.RevEmbedU as $ P.NAryE P.MultiOrOp (map fromString as)
       }
 
-instance UnitaryCompilePrim (QSearchCFNW size prec) size prec where
-  compileUPrim (QSearchCFNW PrimSearch{search_kind, search_ty}) eps = do
-    error "TODO: CompileU QSearchCFNW"
+instance
+  (P.TypingReqs size, Integral size, RealFloat prec, Show prec) =>
+  UnitaryCompilePrim (QSearchCFNW size prec) size prec
+  where
+  compileUPrim (QSearchCFNW PrimSearch{search_kind = AnyK, search_ty}) eps = do
+    -- info to call the predicate
+    (BooleanPredicate call_pred) <- view $ to mk_ucall
+    (BooleanPredicate pred_aux_tys) <- view $ to uproc_aux_types
+    ret <-
+      view (to ret_vars) >>= \case
+        [b] -> pure b
+        _ -> throwError "bool predicate must return single bool"
+
+    -- function to call the predicate, re-using the same aux space each time.
+    pred_ancilla <- lift $ mapM Compiler.allocAncilla pred_aux_tys
+    b' <- lift $ Compiler.allocAncilla P.tbool
+    let pred_caller ctrl x b =
+          CQPL.USeqS
+            [ call_pred (x : b' : pred_ancilla)
+            , CQPL.UnitaryS
+                { CQPL.qargs = [ctrl, b', b]
+                , CQPL.unitary = CQPL.Toffoli
+                }
+            , CQPL.adjoint $ call_pred (x : b' : pred_ancilla)
+            ]
+
+    -- Emit the qsearch procedure
+    -- body:
+    (qsearch_body, qsearch_ancilla) <- lift $ do
+      ini_binds <- use P._typingCtx
+      ((), ss) <- (\m -> evalRWST m UQSearchEnv{search_arg_type = search_ty, pred_call_builder = pred_caller} ()) $ algoQSearchZalka eps ret
+      fin_binds <- use P._typingCtx
+      let ancillas = Ctx.toList $ fin_binds Ctx.\\ ini_binds
+      return (CQPL.USeqS ss, (b', P.tbool) : ancillas)
+
+    -- name:
+    qsearch_proc_name <- lift $ Compiler.newIdent "UAny"
+    let info_comment =
+          (printf :: String -> String -> String -> String)
+            "QSearch[%s, %s, %s]"
+            (show search_ty)
+            (show $ A.getFailProb eps)
+    let all_params =
+          Compiler.withTag CQPL.ParamOut [(ret, P.tbool)]
+            ++ Compiler.withTag CQPL.ParamAux (zip pred_ancilla pred_aux_tys)
+            ++ Compiler.withTag CQPL.ParamAux qsearch_ancilla
+
+    return
+      CQPL.ProcDef
+        { CQPL.info_comment = info_comment
+        , CQPL.proc_name = qsearch_proc_name
+        , CQPL.proc_meta_params = []
+        , CQPL.proc_param_types = map (view _3) all_params
+        , CQPL.proc_body =
+            CQPL.ProcBodyU $
+              CQPL.UProcBody
+                { CQPL.uproc_param_names = map (view _1) all_params
+                , CQPL.uproc_param_tags = map (view _2) all_params
+                , CQPL.uproc_body_stmt = qsearch_body
+                }
+        }
+
+  -- fallback
+  compileUPrim _ _ = error "TODO: CompileU QSearchCFNW"
 
 instance
   {-# OVERLAPPABLE #-}

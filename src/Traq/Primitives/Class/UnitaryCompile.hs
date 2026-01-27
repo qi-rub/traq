@@ -53,12 +53,12 @@ reshapeBuilder UnitaryCompilePrimBuilder{..} = do
       , ..
       }
 
-type UnitaryCompilePrimMonad ext' prim =
+type UnitaryCompilePrimMonad ext prim =
   RWST
     (UnitaryCompilePrimBuilder (PrimFnShape prim) (SizeType prim))
     ()
     ()
-    (CompilerT ext')
+    (CompilerT ext)
 
 -- | Compile a primitive to a unitary statement.
 class

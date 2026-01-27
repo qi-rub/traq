@@ -21,7 +21,6 @@ import Control.Monad.Except (throwError)
 import Control.Monad.Extra (concatMapM)
 import Control.Monad.RWS (RWST (runRWST))
 import Control.Monad.Reader (runReaderT)
-import Control.Monad.Trans (lift)
 import Control.Monad.Writer (censor)
 import Data.Maybe (catMaybes, fromMaybe)
 import Text.Parsec (try)
@@ -301,7 +300,7 @@ instance
     bound_args_tys <- forM bound_args_names $ \x -> use $ P._typingCtx . Ctx.at x . non' (error $ "invalid arg " ++ x)
     let bound_args = zip bound_args_names bound_args_tys
 
-    callers <-
+    mk_ucall <-
       reshape $
         par_funs <&> \PartialFun{pfun_name, pfun_args} xs ->
           CQPL.UCallS
@@ -313,18 +312,18 @@ instance
     uproc_aux_types <-
       reshape =<< do
         forM par_funs $ \PartialFun{pfun_name} -> do
-          sign <- use (Compiler._procSignatures . at pfun_name) >>= maybeWithError ""
+          let uproc_name = Compiler.mkUProcName pfun_name
+          sign <-
+            use (Compiler._procSignatures . at uproc_name)
+              >>= maybeWithError (printf "could not find uproc `%s` for fun `%s`" uproc_name pfun_name)
           return $ Compiler.aux_tys sign
 
-    let builder =
-          UnitaryCompilePrimBuilder
-            { mk_ucall = callers
-            , uproc_aux_types
-            , ret_vars = rets
-            }
-    (prim_proc, (), ()) <-
+    let builder = UnitaryCompilePrimBuilder{mk_ucall, uproc_aux_types, ret_vars = rets}
+    let arg_bounder = prependBoundArgs pfun_names bound_args
+    (prim_proc_raw, (), ()) <-
       runRWST (compileUPrim prim eps) builder ()
-        & censor (Compiler._loweredProcs . each %~ prependBoundArgs pfun_names bound_args)
+        & censor (Compiler._loweredProcs . each %~ arg_bounder)
+    let prim_proc = arg_bounder prim_proc_raw
     Compiler.addProc prim_proc
 
     let prim_aux_tys =

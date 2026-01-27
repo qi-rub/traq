@@ -86,7 +86,9 @@ instance
 instance
   (P.EvalReqs size prec, Floating prec) =>
   QuantumExpCostPrim (DefaultPrimCollection size prec) size prec
-instance UnitaryCompilePrim (DefaultPrimCollection size prec) size prec
+instance
+  (P.TypingReqs size, Integral size, RealFloat prec, Show prec) =>
+  UnitaryCompilePrim (DefaultPrimCollection size prec) size prec
 
 type DefaultPrims sizeT precT = Primitive (DefaultPrimCollection sizeT precT)
 
