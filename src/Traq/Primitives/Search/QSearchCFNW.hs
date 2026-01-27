@@ -290,8 +290,8 @@ algoQSearchZalkaRandomIterStep r = do
     -- b in minus state for grover
     let prep_b =
           CQPL.USeqS
-            [ CQPL.UnitaryS [b_reg] CQPL.XGate
-            , CQPL.UnitaryS [b_reg] CQPL.HGate
+            [ CQPL.UnitaryS [b_reg] (CQPL.BasicGateU CQPL.XGate)
+            , CQPL.UnitaryS [b_reg] (CQPL.BasicGateU CQPL.HGate)
             ]
     withComputed prep_b $ do
       -- uniform x
@@ -308,7 +308,7 @@ algoQSearchZalkaRandomIterStep r = do
               addGroverIteration ctrl_bit x_reg b_reg
       writeElem $ CQPL.mkForInRangeS meta_ix_name (P.MetaSize r) (CQPL.USeqS grover_body)
 
-  withComputed (CQPL.UnitaryS [ctrl_bit] CQPL.XGate) $
+  withComputed (CQPL.UnitaryS [ctrl_bit] (CQPL.BasicGateU CQPL.XGate)) $
     addPredCall ctrl_bit x_reg b_reg
   return b_reg
 
@@ -362,7 +362,7 @@ instance
             [ call_pred (x : b' : pred_ancilla)
             , CQPL.UnitaryS
                 { CQPL.qargs = [ctrl, b', b]
-                , CQPL.unitary = CQPL.Toffoli
+                , CQPL.unitary = CQPL.BasicGateU CQPL.Toffoli
                 }
             , CQPL.adjoint $ call_pred (x : b' : pred_ancilla)
             ]
@@ -454,8 +454,8 @@ groverK k (x, x_ty) b mk_pred =
   prepb, prepx :: CQPL.UStmt sizeT
   prepb =
     CQPL.USeqS
-      [ CQPL.UnitaryS [b] CQPL.XGate
-      , CQPL.UnitaryS [b] CQPL.HGate
+      [ CQPL.UnitaryS [b] (CQPL.BasicGateU CQPL.XGate)
+      , CQPL.UnitaryS [b] (CQPL.BasicGateU CQPL.HGate)
       ]
   prepx = CQPL.UnitaryS [x] unifX
 
