@@ -9,7 +9,7 @@ module Traq.Primitives.Class.UnitaryCompile (
   UnitaryCompilePrimBuilder (..),
 ) where
 
-import Control.Monad.RWS (RWST (..))
+import Control.Monad.Reader (ReaderT (..))
 import Control.Monad.Trans (lift)
 import GHC.Generics
 
@@ -54,10 +54,8 @@ reshapeBuilder UnitaryCompilePrimBuilder{..} = do
       }
 
 type UnitaryCompilePrimMonad ext prim =
-  RWST
+  ReaderT
     (UnitaryCompilePrimBuilder (PrimFnShape prim) (SizeType prim))
-    ()
-    ()
     (CompilerT ext)
 
 -- | Compile a primitive to a unitary statement.
@@ -119,5 +117,4 @@ instance (GUnitaryCompilePrim f size prec) => GUnitaryCompilePrim (M1 i c f) siz
 instance (UnitaryCompilePrim a size prec) => GUnitaryCompilePrim (K1 i a) size prec where
   gcompileUPrim (K1 x) eps builder = do
     builder' <- lift $ reshapeBuilder builder
-    (a, (), ()) <- runRWST (compileUPrim x eps) builder' ()
-    pure a
+    runReaderT (compileUPrim x eps) builder'

@@ -19,7 +19,6 @@ import Control.Applicative (Alternative ((<|>)), many)
 import Control.Monad (forM, forM_, void, when)
 import Control.Monad.Except (throwError)
 import Control.Monad.Extra (concatMapM)
-import Control.Monad.RWS (RWST (runRWST))
 import Control.Monad.Reader (runReaderT)
 import Control.Monad.Writer (censor)
 import Data.Maybe (catMaybes, fromMaybe)
@@ -319,8 +318,8 @@ instance
 
     let builder = UnitaryCompilePrimBuilder{mk_ucall, uproc_aux_types, ret_vars = rets}
     let arg_bounder = prependBoundArgs (map Compiler.mkUProcName pfun_names) bound_args
-    (prim_proc_raw, (), ()) <-
-      runRWST (compileUPrim prim eps) builder ()
+    prim_proc_raw <-
+      runReaderT (compileUPrim prim eps) builder
         & censor (Compiler._loweredProcs . each %~ arg_bounder)
     let prim_proc = arg_bounder prim_proc_raw
     Compiler.addProc prim_proc
