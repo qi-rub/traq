@@ -8,6 +8,7 @@ module Traq.CQPL.Syntax (
 
   -- ** Unitary Fragment
   HasAdjoint (..),
+  BasicGate (..),
   Unitary (..),
   UStmt (..),
 
@@ -65,14 +66,26 @@ class HasAdjoint a where
 -- Unitary Operators
 -- --------------------------------------------------------------------------------
 
--- | Unitary operators in CQPL
-data Unitary sizeT
+data BasicGate
   = Toffoli
   | CNOT
   | XGate
   | HGate
   | COPY
   | SWAP
+  deriving (Eq, Show, Read)
+
+instance PP.ToCodeString BasicGate where
+  build XGate = PP.putWord "X"
+  build HGate = PP.putWord "H"
+  build g = PP.putWord $ show g
+
+isSelfAdjoint :: BasicGate -> Bool
+isSelfAdjoint _ = True
+
+-- | Unitary operators in CQPL
+data Unitary sizeT
+  = BasicGateU BasicGate
   | -- | reflect about |0>_T
     Refl0
   | RevEmbedU [Ident] (P.BasicExpr sizeT)
@@ -84,24 +97,19 @@ data Unitary sizeT
 type instance SizeType (Unitary sizeT) = sizeT
 
 instance (Show sizeT) => PP.ToCodeString (Unitary sizeT) where
+  build (BasicGateU g) = PP.build g
   build (RevEmbedU xs e) = do
     e_s <- PP.fromBuild e
     PP.putWord $ printf "Embed[(%s) => %s]" (PP.commaList xs) e_s
   build (DistrU mu) = do
     e_s <- PP.fromBuild mu
     PP.putWord $ printf "Distr[%s]" e_s
-  build XGate = PP.putWord "X"
-  build HGate = PP.putWord "H"
   build Refl0 = PP.putWord $ printf "Refl0"
   build (Controlled u) = PP.putWord . ("Ctrl-" <>) =<< PP.fromBuild u
   build (Adjoint u) = PP.putWord . ("Adj-" <>) =<< PP.fromBuild u
-  build u = PP.putWord $ show u
 
 instance HasAdjoint (Unitary sizeT) where
-  adjoint Toffoli = Toffoli
-  adjoint CNOT = CNOT
-  adjoint HGate = HGate
-  adjoint XGate = XGate
+  adjoint u@(BasicGateU g) | isSelfAdjoint g = u
   adjoint Refl0 = Refl0
   adjoint u@(RevEmbedU _ _) = u
   adjoint (Controlled u) = Controlled (adjoint u)
