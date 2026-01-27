@@ -4,7 +4,7 @@
 {-# LANGUAGE RecordWildCards #-}
 {-# LANGUAGE UndecidableInstances #-}
 
-module Traq.Primitives.Class.UnitaryCompile (
+module Traq.Primitives.Class.Compile (
   UnitaryCompilePrim (..),
   PrimCompileEnv (..),
 ) where
