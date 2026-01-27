@@ -14,6 +14,8 @@ module Traq.Primitives.Class.Prelude (
 ) where
 
 import Control.Applicative (Alternative ((<|>)))
+import Control.Monad.Except (MonadError, liftEither)
+import Control.Monad.Trans (lift)
 import Data.Kind (Type)
 import Data.Maybe (fromMaybe)
 import Text.Parsec.Token
@@ -73,8 +75,8 @@ class ValidPrimShape shape where
   listToShape :: [a] -> Either String (shape a)
   shapeToList :: shape a -> [a]
 
-reshape :: (ValidPrimShape shape, ValidPrimShape shape') => shape a -> Either String (shape' a)
-reshape = listToShape . shapeToList
+reshape :: (MonadError String m, ValidPrimShape shape, ValidPrimShape shape') => shape a -> m (shape' a)
+reshape = liftEither . listToShape . shapeToList
 
 reshapeUnsafe :: (ValidPrimShape shape, ValidPrimShape shape') => shape a -> shape' a
 reshapeUnsafe = either (error "please typecheck first") id . reshape

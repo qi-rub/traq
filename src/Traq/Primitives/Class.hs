@@ -21,6 +21,7 @@ import Control.Monad.Except (throwError)
 import Control.Monad.Extra (concatMapM)
 import Control.Monad.RWS (RWST (runRWST))
 import Control.Monad.Reader (runReaderT)
+import Control.Monad.Trans (lift)
 import Control.Monad.Writer (censor)
 import Data.Maybe (catMaybes, fromMaybe)
 import Text.Parsec (try)
@@ -300,17 +301,25 @@ instance
     bound_args_tys <- forM bound_args_names $ \x -> use $ P._typingCtx . Ctx.at x . non' (error $ "invalid arg " ++ x)
     let bound_args = zip bound_args_names bound_args_tys
 
-    let callers =
-          par_funs <&> \PartialFun{pfun_name, pfun_args} xs ->
-            CQPL.UCallS
-              { uproc_id = Compiler.mkUProcName pfun_name
-              , dagger = False
-              , qargs = placeArgsWithExcess pfun_args xs
-              }
+    callers <-
+      reshape $
+        par_funs <&> \PartialFun{pfun_name, pfun_args} xs ->
+          CQPL.UCallS
+            { uproc_id = Compiler.mkUProcName pfun_name
+            , dagger = False
+            , qargs = placeArgsWithExcess pfun_args xs
+            }
+
+    uproc_aux_types <-
+      reshape =<< do
+        forM par_funs $ \PartialFun{pfun_name} -> do
+          sign <- use (Compiler._procSignatures . at pfun_name) >>= maybeWithError ""
+          return $ Compiler.aux_tys sign
 
     let builder =
           UnitaryCompilePrimBuilder
-            { mk_ucall = reshapeUnsafe callers
+            { mk_ucall = callers
+            , uproc_aux_types
             , ret_vars = rets
             }
     (prim_proc, (), ()) <-

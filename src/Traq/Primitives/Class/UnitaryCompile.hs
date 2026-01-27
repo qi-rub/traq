@@ -45,7 +45,13 @@ reshapeBuilder ::
   Either String (UnitaryCompilePrimBuilder shape' size)
 reshapeBuilder UnitaryCompilePrimBuilder{..} = do
   mk_ucall' <- reshape mk_ucall
-  return UnitaryCompilePrimBuilder{mk_ucall = mk_ucall', ..}
+  uproc_aux_types' <- reshape uproc_aux_types
+  return
+    UnitaryCompilePrimBuilder
+      { mk_ucall = mk_ucall'
+      , uproc_aux_types = uproc_aux_types'
+      , ..
+      }
 
 type UnitaryCompilePrimMonad ext' prim =
   RWST
