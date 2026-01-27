@@ -6,7 +6,7 @@
 
 module Traq.Primitives.Class.UnitaryCompile (
   UnitaryCompilePrim (..),
-  UnitaryCompilePrimBuilder (..),
+  PrimCompileEnv (..),
 ) where
 
 import Control.Monad.Reader (ReaderT (..))
@@ -27,12 +27,15 @@ import qualified Traq.ProtoLang as P
 -- --------------------------------------------------------------------------------
 
 type UCallBuilder size = [Ident] -> CQPL.UStmt size
+type CallBuilder size = [Ident] -> CQPL.Stmt size
 
 -- type UProcBuilder size = [(Ident, P.VarType size)] -> CQPL.UStmt size -> CQPL.ProcDef size
 
-data UnitaryCompilePrimBuilder shape size = UnitaryCompilePrimBuilder
+data PrimCompileEnv shape size = PrimCompileEnv
   { mk_ucall :: shape (UCallBuilder size)
   -- ^ helper to generate a call to a unitary function argument.
+  , mk_call :: shape (CallBuilder size)
+  -- ^ helper to generate a call to a classical function argument.
   , uproc_aux_types :: shape [P.VarType size]
   -- ^ auxiliary variables for each unitary function argument.
   , ret_vars :: [Ident]
@@ -41,21 +44,17 @@ data UnitaryCompilePrimBuilder shape size = UnitaryCompilePrimBuilder
 
 reshapeBuilder ::
   (ValidPrimShape shape, ValidPrimShape shape') =>
-  UnitaryCompilePrimBuilder shape size ->
-  Either String (UnitaryCompilePrimBuilder shape' size)
-reshapeBuilder UnitaryCompilePrimBuilder{..} = do
-  mk_ucall' <- reshape mk_ucall
-  uproc_aux_types' <- reshape uproc_aux_types
-  return
-    UnitaryCompilePrimBuilder
-      { mk_ucall = mk_ucall'
-      , uproc_aux_types = uproc_aux_types'
-      , ..
-      }
+  PrimCompileEnv shape size ->
+  Either String (PrimCompileEnv shape' size)
+reshapeBuilder PrimCompileEnv{..} = do
+  mk_ucall <- reshape mk_ucall
+  mk_call <- reshape mk_call
+  uproc_aux_types <- reshape uproc_aux_types
+  return PrimCompileEnv{..}
 
 type UnitaryCompilePrimMonad ext prim =
   ReaderT
-    (UnitaryCompilePrimBuilder (PrimFnShape prim) (SizeType prim))
+    (PrimCompileEnv (PrimFnShape prim) (SizeType prim))
     (CompilerT ext)
 
 -- | Compile a primitive to a unitary statement.
@@ -104,7 +103,7 @@ class GUnitaryCompilePrim f size prec | f -> size prec where
     ) =>
     f p ->
     A.FailProb prec ->
-    UnitaryCompilePrimBuilder [] size ->
+    PrimCompileEnv [] size ->
     m (CQPL.ProcDef size)
 
 instance (GUnitaryCompilePrim a size prec, GUnitaryCompilePrim b size prec) => GUnitaryCompilePrim (a :+: b) size prec where

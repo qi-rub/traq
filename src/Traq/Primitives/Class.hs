@@ -316,7 +316,13 @@ instance
               >>= maybeWithError (printf "could not find uproc `%s` for fun `%s`" uproc_name pfun_name)
           return $ Compiler.aux_tys sign
 
-    let builder = UnitaryCompilePrimBuilder{mk_ucall, uproc_aux_types, ret_vars = rets}
+    let builder =
+          PrimCompileEnv
+            { mk_ucall
+            , mk_call = reshapeUnsafe $ replicate (length par_funs) (error "cannot call proc from UPrim")
+            , uproc_aux_types
+            , ret_vars = rets
+            }
     let arg_bounder = prependBoundArgs (map Compiler.mkUProcName pfun_names) bound_args
     prim_proc_raw <-
       runReaderT (compileUPrim prim eps) builder
