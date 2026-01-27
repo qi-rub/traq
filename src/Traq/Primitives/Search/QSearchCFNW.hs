@@ -341,7 +341,12 @@ algoQSearchZalka eps out_bit = do
       , CQPL.unitary = CQPL.RevEmbedU as $ P.NAryE P.MultiOrOp (map fromString as)
       }
 
+instance UnitaryCompilePrim (QSearchCFNW size prec) size prec where
+  compileUPrim (QSearchCFNW PrimSearch{search_kind, search_ty}) eps = do
+    error "TODO: CompileU QSearchCFNW"
+
 instance
+  {-# OVERLAPPABLE #-}
   ( Integral sizeT
   , RealFloat precT
   , Show sizeT

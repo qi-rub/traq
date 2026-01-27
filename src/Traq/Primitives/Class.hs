@@ -287,6 +287,7 @@ prependBoundArgs pfun_names bound_args CQPL.ProcDef{..} =
   callTarget (CQPL.UProcAndMeas name) = name
 
 instance
+  {-# OVERLAPPABLE #-}
   ( TypeCheckPrim prim (SizeType prim)
   , P.TypingReqs (SizeType prim)
   , UnitaryCompilePrim prim (SizeType prim) (PrecType prim)

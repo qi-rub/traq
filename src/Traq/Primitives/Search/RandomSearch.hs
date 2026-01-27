@@ -114,3 +114,11 @@ instance
   quantumExpQueryCostsUnitary _ _ _ = BooleanPredicate $ weakQueries 0
 
   quantumExpExprCosts = Alg.zero
+
+-- ================================================================================
+-- Compilation
+-- ================================================================================
+
+instance UnitaryCompilePrim (RandomSearch size prec) size prec where
+  compileUPrim (RandomSearch PrimSearch{search_kind, search_ty}) eps = do
+    error "TODO: CompileU andomSearch"

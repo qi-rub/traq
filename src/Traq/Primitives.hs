@@ -86,26 +86,11 @@ instance
 instance
   (P.EvalReqs size prec, Floating prec) =>
   QuantumExpCostPrim (DefaultPrimCollection size prec) size prec
-instance UnitaryCompilePrim (DefaultPrimCollection size prec) size prec where
-  compileUPrim = error "TODO"
+instance UnitaryCompilePrim (DefaultPrimCollection size prec) size prec
 
 type DefaultPrims sizeT precT = Primitive (DefaultPrimCollection sizeT precT)
 
 type DefaultPrims' = DefaultPrims SizeT Double
-
--- Lowering
-instance
-  ( Integral sizeT
-  , Floating precT
-  , RealFloat precT
-  , P.TypingReqs sizeT
-  , Show precT
-  , A.SizeToPrec sizeT precT
-  ) =>
-  Compiler.CompileU (A.AnnFailProb (DefaultPrims sizeT precT))
-  where
-  compileU (A.AnnFailProb eps (Primitive fs (QAny q))) = Compiler.compileU (A.AnnFailProb eps (Primitive fs q))
-  compileU _ = error "TODO: lowerPrimitive"
 
 instance
   ( Integral sizeT
