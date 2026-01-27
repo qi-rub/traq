@@ -380,7 +380,7 @@ instance
     qsearch_proc_name <- lift $ Compiler.newIdent "UAny"
     let info_comment =
           (printf :: String -> String -> String -> String)
-            "QSearch[%s, %s, %s]"
+            "QSearch[%s, %s]"
             (show search_ty)
             (show $ A.getFailProb eps)
     let all_params =
@@ -405,97 +405,6 @@ instance
 
   -- fallback
   compileUPrim _ _ = error "TODO: CompileU QSearchCFNW"
-
-instance
-  {-# OVERLAPPABLE #-}
-  ( Integral sizeT
-  , RealFloat precT
-  , Show sizeT
-  , Show precT
-  , P.TypingReqs sizeT
-  , A.SizeToPrec sizeT precT
-  ) =>
-  Compiler.CompileU (A.AnnFailProb (Primitive (QSearchCFNW sizeT precT)))
-  where
-  compileU (A.AnnFailProb eps (Primitive [PartialFun{pfun_name, pfun_args}] (QSearchCFNW PrimSearch{search_ty}))) [ret] = do
-    -- compiled predicate
-    let pred_proc = Compiler.mkUProcName pfun_name
-    Compiler.ProcSignature
-      { Compiler.in_tys = pred_inp_tys
-      , Compiler.aux_tys = pred_aux_tys
-      } <-
-      use (Compiler._procSignatures . at pred_proc) >>= maybeWithError "missing uproc"
-
-    -- function to call the predicate, re-using the same aux space each time.
-    pred_ancilla <- mapM Compiler.allocAncilla pred_aux_tys
-    b' <- Compiler.allocAncilla P.tbool
-    let pred_caller ctrl x b =
-          CQPL.USeqS
-            [ CQPL.UCallS
-                { CQPL.uproc_id = pred_proc
-                , CQPL.dagger = False
-                , CQPL.qargs = placeArgs pfun_args [x] ++ [b'] ++ pred_ancilla
-                }
-            , CQPL.UnitaryS
-                { CQPL.qargs = [ctrl, b', b]
-                , CQPL.unitary = CQPL.Toffoli
-                }
-            , CQPL.UCallS
-                { CQPL.uproc_id = pred_proc
-                , CQPL.dagger = True
-                , CQPL.qargs = placeArgs pfun_args [x] ++ [b'] ++ pred_ancilla
-                }
-            ]
-
-    -- Emit the qsearch procedure
-    -- body:
-    (qsearch_body, qsearch_ancilla) <- do
-      ini_binds <- use P._typingCtx
-      ((), ss) <- (\m -> evalRWST m UQSearchEnv{search_arg_type = search_ty, pred_call_builder = pred_caller} ()) $ algoQSearchZalka eps ret
-      fin_binds <- use P._typingCtx
-      let ancillas = Ctx.toList $ fin_binds Ctx.\\ ini_binds
-      return (CQPL.USeqS ss, (b', P.tbool) : ancillas)
-
-    -- name:
-    -- TODO maybe this can be somehow "parametrized" so we don't have to generate each time.
-    qsearch_proc_name <- Compiler.newIdent "UAny"
-    let info_comment =
-          (printf :: String -> String -> String -> String -> String)
-            "QSearch[%s, %s, %s]"
-            (show search_ty)
-            (show $ A.getFailProb eps)
-            pred_proc
-    let all_params =
-          Compiler.withTag CQPL.ParamInp (zip (catMaybes pfun_args) (init pred_inp_tys))
-            ++ Compiler.withTag CQPL.ParamOut [(ret, P.tbool)]
-            ++ Compiler.withTag CQPL.ParamAux (zip pred_ancilla pred_aux_tys)
-            ++ Compiler.withTag CQPL.ParamAux qsearch_ancilla
-
-    -- add the proc:
-    Compiler.addProc
-      CQPL.ProcDef
-        { CQPL.info_comment = info_comment
-        , CQPL.proc_name = qsearch_proc_name
-        , CQPL.proc_meta_params = []
-        , CQPL.proc_param_types = map (view _3) all_params
-        , CQPL.proc_body =
-            CQPL.ProcBodyU $
-              CQPL.UProcBody
-                { CQPL.uproc_param_names = map (view _1) all_params
-                , CQPL.uproc_param_tags = map (view _2) all_params
-                , CQPL.uproc_body_stmt = qsearch_body
-                }
-        }
-
-    return
-      CQPL.UCallS
-        { CQPL.uproc_id = qsearch_proc_name
-        , CQPL.qargs = catMaybes pfun_args ++ [ret] ++ pred_ancilla ++ map fst qsearch_ancilla
-        , CQPL.dagger = False
-        }
-
-  -- fallback
-  compileU _ _ = throwError "Unsupported"
 
 -- ================================================================================
 -- CQ Lowering
