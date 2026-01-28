@@ -509,7 +509,6 @@ instance
 -- --------------------------------------------------------------------------------
 
 instance
-  {-# OVERLAPPABLE #-}
   ( TypeCheckPrim prim (SizeType prim)
   , P.TypingReqs (SizeType prim)
   , UnitaryCompilePrim prim (SizeType prim) (PrecType prim)
