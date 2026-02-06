@@ -24,6 +24,7 @@ import GHC.Generics
 
 import qualified Traq.Analysis as A
 import Traq.Prelude
+import Traq.Primitives.Amplify.CAmplify
 import Traq.Primitives.Class
 import Traq.Primitives.Search.DetSearch
 import Traq.Primitives.Search.Prelude
@@ -40,6 +41,7 @@ data DefaultPrimCollection sizeT precT
   = QAny (QSearchCFNW sizeT precT)
   | RAny (RandomSearch sizeT precT)
   | DAny (DetSearch sizeT precT)
+  | CAmp (CAmplify sizeT precT)
   deriving (Eq, Show, Generic)
 
 type instance SizeType (DefaultPrimCollection sizeT precT) = sizeT
@@ -53,8 +55,9 @@ instance P.MapSize (DefaultPrimCollection size prec) where
   mapSize f (QAny p) = QAny (P.mapSize f p)
   mapSize f (RAny p) = RAny (P.mapSize f p)
   mapSize f (DAny p) = DAny (P.mapSize f p)
+  mapSize f (CAmp p) = CAmp (P.mapSize f p)
 
-instance (Show size) => SerializePrim (DefaultPrimCollection size prec) where
+instance (Show size, Show prec, Fractional prec) => SerializePrim (DefaultPrimCollection size prec) where
   primNames = ["any", "search", "any_rand", "any_det"]
 
   primNameOf (QAny (QSearchCFNW (PrimSearch AnyK _))) = "any"
@@ -72,10 +75,11 @@ instance (Show size) => SerializePrim (DefaultPrimCollection size prec) where
   printPrimParams (QAny p) = printPrimParams p
   printPrimParams (RAny p) = printPrimParams p
   printPrimParams (DAny p) = printPrimParams p
+  printPrimParams (CAmp p) = printPrimParams p
 
 -- Generic instances
 instance (P.TypingReqs size) => TypeCheckPrim (DefaultPrimCollection size prec) size
-instance EvalPrim (DefaultPrimCollection size prec) size prec
+instance (Ord prec) => EvalPrim (DefaultPrimCollection size prec) size prec
 instance
   (P.TypingReqs size, Integral size, Floating prec) =>
   UnitaryCostPrim (DefaultPrimCollection size prec) size prec
@@ -83,7 +87,7 @@ instance
   (P.TypingReqs size, Integral size, Floating prec, A.SizeToPrec size prec) =>
   QuantumHavocCostPrim (DefaultPrimCollection size prec) size prec
 instance
-  (P.EvalReqs size prec, Floating prec) =>
+  (P.EvalReqs size prec, Floating prec, Ord prec) =>
   QuantumExpCostPrim (DefaultPrimCollection size prec) size prec
 instance
   (P.TypingReqs size, Integral size, RealFloat prec, Show prec) =>

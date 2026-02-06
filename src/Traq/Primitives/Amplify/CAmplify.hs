@@ -93,3 +93,15 @@ instance (P.EvalReqs size prec, Floating prec, Ord prec) => QuantumExpCostPrim (
   quantumExpQueryCostsUnitary _ _ _ = SamplerFn zeroQ
 
   quantumExpExprCosts = Alg.zero
+
+-- ================================================================================
+-- Compilation
+-- ================================================================================
+
+instance UnitaryCompilePrim (CAmplify size prec) size prec where
+  compileUPrim (CAmplify Amplify{}) eps = do
+    error "TODO: CompileU CAmplify"
+
+instance QuantumCompilePrim (CAmplify size prec) size prec where
+  compileQPrim (CAmplify Amplify{}) eps = do
+    error "TODO: CompileQ CAmplify"
