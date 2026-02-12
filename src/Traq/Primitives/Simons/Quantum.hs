@@ -114,3 +114,19 @@ instance
      in FindXorPeriodArg{fun = strongQueries $ _SimonsQueries n p_0 eps}
 
   quantumExprCosts = Alg.zero
+
+-- ================================================================================
+-- Compiler
+-- ================================================================================
+
+instance
+  (size ~ SizeT, RealFloat prec, Show prec) =>
+  UnitaryCompilePrim (SimonsFindXorPeriod size prec) size prec
+  where
+  compileUPrim = undefined
+
+instance
+  (size ~ SizeT, RealFloat prec, Show prec) =>
+  QuantumCompilePrim (SimonsFindXorPeriod size prec) size prec
+  where
+  compileQPrim = undefined

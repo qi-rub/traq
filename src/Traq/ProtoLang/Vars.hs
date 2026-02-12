@@ -1,14 +1,19 @@
 {-# LANGUAGE DefaultSignatures #-}
 
 module Traq.ProtoLang.Vars (
+  -- * Program Variables
   VarSet,
   HasFreeVars (..),
   freeVars,
-  checkVarsUnique,
+  outVars,
   allNamesP,
+
+  -- * Checks
+  checkVarsUnique,
+
+  -- * Renaming
   RenameVars (..),
   addOnePrefix,
-  outVars,
 ) where
 
 import Control.Monad (foldM, guard)
@@ -124,6 +129,9 @@ checkVarsUnique (Program fs) =
 -- | Make all variable names in the program unique
 class RenameVars p where
   renameVars :: Ident -> p -> p
+
+  renameVars' :: p -> p
+  renameVars' = renameVars ""
 
 addOnePrefix :: Ident -> Ident -> Ident
 addOnePrefix prefix s = prefix ++ "_" ++ s

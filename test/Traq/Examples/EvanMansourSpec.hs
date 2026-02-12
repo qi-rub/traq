@@ -10,6 +10,8 @@ import qualified Traq.Data.Symbolic as Sym
 
 import qualified Traq.Analysis as A
 import Traq.Analysis.CostModel.QueryCost (SimpleQueryCost (..))
+import qualified Traq.CQPL as CQPL
+import qualified Traq.Compiler as Compiler
 import Traq.Prelude
 import Traq.Primitives.Class
 import Traq.Primitives.Simons.Quantum
@@ -71,3 +73,15 @@ spec = describe "FindXorPeriod" $ do
       let formulaCost = 2 + 4 * _SimonsQueries n p0 eps
 
       actualCost `shouldBe` formulaCost
+
+    describe "Compile" $ do
+      let eps = A.failProb (0.0001 :: Double)
+
+      it "lowers" $ \program -> do
+        ex' <- expectRight $ A.annotateProgWith (P._exts (A.annSinglePrim eps)) program
+        assertRight $ Compiler.lowerProgram ex'
+
+      it "typechecks" $ \program -> do
+        ex' <- expectRight $ A.annotateProgWith (P._exts (A.annSinglePrim eps)) program
+        ex_uqpl <- expectRight $ Compiler.lowerProgram ex'
+        assertRight $ CQPL.typeCheckProgram ex_uqpl

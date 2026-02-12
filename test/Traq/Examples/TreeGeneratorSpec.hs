@@ -9,9 +9,11 @@ import Lens.Micro.GHC
 
 import qualified Traq.Data.Symbolic as Sym
 
+import qualified Traq.Analysis as A
+import qualified Traq.CQPL as CQPL
+import qualified Traq.Compiler as Compiler
 import Traq.Prelude
-import Traq.Primitives.Amplify.Prelude (Amplify)
-import Traq.Primitives.Class
+import Traq.Primitives
 import Traq.ProtoLang
 
 import Test.Hspec
@@ -66,8 +68,8 @@ loopExample n w =
         }
     ]
 
-type Prim = Primitive (Amplify (Sym.Sym SizeT) Double)
-type Prim' = Primitive (Amplify SizeT Double)
+type Prim = DefaultPrims (Sym.Sym SizeT) Double
+type Prim' = DefaultPrims SizeT Double
 
 loadKnapsack ::
   -- | number of elements
@@ -118,6 +120,20 @@ spec = do
         `shouldBeDistribution` [ ([ArrV [FinV 0, FinV 1]], 0.8)
                                , ([ArrV [FinV 1, FinV 1]], 0.2)
                                ]
+
+    describe "Compile" $ do
+      let eps = A.failProb (0.0001 :: Double)
+
+      it "lowers" $ do
+        ex <- loadKnapsack 2 20 30 2
+        ex' <- expectRight $ A.annotateProgWith (_exts (A.annSinglePrim eps)) ex
+        assertRight $ Compiler.lowerProgram ex'
+
+      it "typechecks" $ do
+        ex <- loadKnapsack 2 20 30 2
+        ex' <- expectRight $ A.annotateProgWith (_exts (A.annSinglePrim eps)) ex
+        ex_uqpl <- expectRight $ Compiler.lowerProgram ex'
+        assertRight $ CQPL.typeCheckProgram ex_uqpl
 
   describe "Loop example" $ do
     it "parses" $ do

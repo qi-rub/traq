@@ -10,6 +10,9 @@ import Lens.Micro.GHC
 
 import qualified Traq.Data.Symbolic as Sym
 
+import qualified Traq.Analysis as A
+import qualified Traq.CQPL as CQPL
+import qualified Traq.Compiler as Compiler
 import Traq.Prelude
 import Traq.Primitives (DefaultPrims)
 import qualified Traq.ProtoLang as P
@@ -66,3 +69,17 @@ spec = do
                                | x <- sols
                                , let sigma = [P.FinV 1, P.FinV x]
                                ]
+
+    describe "Compile" $ do
+      let eps = A.failProb (0.0001 :: Double)
+
+      it "lowers" $ do
+        ex <- load'
+        ex' <- expectRight $ A.annotateProgWith (P._exts (A.annSinglePrim eps)) ex
+        assertRight $ Compiler.lowerProgram ex'
+
+      it "typechecks" $ do
+        ex <- load'
+        ex' <- expectRight $ A.annotateProgWith (P._exts (A.annSinglePrim eps)) ex
+        ex_uqpl <- expectRight $ Compiler.lowerProgram ex'
+        assertRight $ CQPL.typeCheckProgram ex_uqpl

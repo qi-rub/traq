@@ -143,6 +143,12 @@ instance
 instance
   (P.TypingReqs size, Integral size, Floating prec, Ord prec, Show prec, A.SizeToPrec size prec) =>
   QuantumHavocCostPrim (WorstCasePrimCollection size prec) size prec
+instance
+  (size ~ SizeT, RealFloat prec, Show prec) =>
+  UnitaryCompilePrim (WorstCasePrimCollection size prec) size prec
+instance
+  (size ~ SizeT, RealFloat prec, Show prec) =>
+  QuantumCompilePrim (WorstCasePrimCollection size prec) size prec
 
 type WorstCasePrims sizeT precT = Primitive (WorstCasePrimCollection sizeT precT)
 
