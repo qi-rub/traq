@@ -3,6 +3,7 @@
 {-# LANGUAGE DuplicateRecordFields #-}
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE MultiParamTypeClasses #-}
+{-# LANGUAGE TypeApplications #-}
 
 module Traq.Primitives (
   -- * Specialized typeclasses
@@ -71,18 +72,27 @@ instance (Show size, Show prec, Fractional prec) => SerializePrim (DefaultPrimCo
     , "any_det"
     , "amplify"
     , "camplify"
+    , "max"
     ]
 
   primNameOf (QAny (QSearchCFNW (PrimSearch AnyK _))) = "any"
   primNameOf (QAny (QSearchCFNW (PrimSearch SearchK _))) = "search"
+  primNameOf (QAny _) = error "unsupported QAny"
   primNameOf (RAny (RandomSearch (PrimSearch AnyK _))) = "any_rand"
+  primNameOf (RAny _) = error "unsupported QAny"
   primNameOf (DAny (DetSearch (PrimSearch AnyK _))) = "any_det"
-  primNameOf _ = error "unsupported"
+  primNameOf (DAny _) = error "unsupported QAny"
+  primNameOf (QAmp _) = "amplify"
+  primNameOf (CAmp _) = "camplify"
+  primNameOf (QMax' _) = "max"
 
   parsePrimParams tp s
     | s == "any" || s == "search" = QAny <$> parsePrimParams tp s
     | s == "any_rand" = RAny <$> parsePrimParams tp s
     | s == "any_det" = DAny <$> parsePrimParams tp s
+    | s == "amplify" = QAmp <$> parsePrimParams tp s
+    | s == "camplify" = CAmp <$> parsePrimParams tp s
+    | s == "max" = QMax' <$> parsePrimParams tp s
     | otherwise = fail $ "unsupported primitive: " ++ s
 
   printPrimParams (QAny p) = printPrimParams p
@@ -90,12 +100,13 @@ instance (Show size, Show prec, Fractional prec) => SerializePrim (DefaultPrimCo
   printPrimParams (DAny p) = printPrimParams p
   printPrimParams (CAmp p) = printPrimParams p
   printPrimParams (QAmp p) = printPrimParams p
+  printPrimParams (QMax' p) = printPrimParams p
 
 -- Generic instances
 instance (P.TypingReqs size) => TypeCheckPrim (DefaultPrimCollection size prec) size
 instance (Ord prec) => EvalPrim (DefaultPrimCollection size prec) size prec
 instance
-  (P.TypingReqs size, Integral size, Floating prec) =>
+  (P.TypingReqs size, Integral size, Floating prec, A.SizeToPrec size prec) =>
   UnitaryCostPrim (DefaultPrimCollection size prec) size prec
 instance
   (P.TypingReqs size, Integral size, Floating prec, A.SizeToPrec size prec) =>
@@ -135,7 +146,7 @@ instance P.MapSize (WorstCasePrimCollection size prec) where
   mapSize f (Simon p) = Simon (P.mapSize f p)
 
 instance (Show size, prec ~ Double) => SerializePrim (WorstCasePrimCollection size prec) where
-  primNames = ["any", "search", "any_rand", "any_det", "findXorPeriod"]
+  primNames = primNames @(DefaultPrimCollection size prec) ++ ["findXorPeriod"]
 
   primNameOf (FromDefault p) = primNameOf p
   primNameOf (Simon _) = "findXorPeriod"

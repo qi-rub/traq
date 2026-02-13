@@ -16,7 +16,7 @@ do
 end
 
 def hillclimb_iter(x: Arr<n, Bool>) -> Arr<n, Bool> do
-	i <- @max<Fin<n>>[good(x)];
+	i <- @max<Fin<n>>[good(x, _)];
 	b <- x[i];
 	b' <- not b;
 	x' <- update x[i] = b;
