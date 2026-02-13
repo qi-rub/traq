@@ -8,6 +8,7 @@ module Traq.Primitives.Class.Compile (
   PrimCompileEnv (..),
   UnitaryCompilePrim (..),
   QuantumCompilePrim (..),
+  PrimCompileMonad,
 ) where
 
 import Control.Monad.Reader (ReaderT (..))

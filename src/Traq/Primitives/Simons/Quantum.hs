@@ -10,13 +10,18 @@ module Traq.Primitives.Simons.Quantum (
   _SimonsQueries,
 ) where
 
+import Control.Monad.Trans (lift)
 import GHC.Generics (Generic)
 
+import Lens.Micro.GHC
+import Lens.Micro.Mtl
 import qualified Numeric.Algebra as Alg
 
 import Traq.Data.Subtyping
 
 import qualified Traq.Analysis as P
+import qualified Traq.CQPL as CQPL
+import qualified Traq.Compiler as Compiler
 import Traq.Prelude
 import Traq.Primitives.Class
 import Traq.Primitives.Simons.Prelude
@@ -119,6 +124,46 @@ instance
 -- Compiler
 -- ================================================================================
 
+simonsOneRound ::
+  forall ext size prec m.
+  (size ~ SizeType ext, m ~ PrimCompileMonad ext (SimonsFindXorPeriod size prec)) =>
+  m (CQPL.ProcDef size)
+simonsOneRound = do
+  (FindXorPeriodArg call_upred) <- view $ to mk_ucall
+  (FindXorPeriodArg pred_aux_tys) <- view $ to uproc_aux_types
+
+  proc_name <- lift $ Compiler.newIdent "SimonOneRound_U"
+
+  aux <- lift $ mapM Compiler.allocAncilla pred_aux_tys
+
+  let had_x = undefined
+  let call_g = undefined
+  let copy_out = undefined
+
+  let body =
+        CQPL.USeqS
+          [ had_x
+          , call_g
+          , copy_out
+          , CQPL.adjoint call_g
+          , CQPL.adjoint had_x
+          ]
+
+  return
+    CQPL.ProcDef
+      { CQPL.info_comment = ""
+      , CQPL.proc_name
+      , CQPL.proc_meta_params = []
+      , CQPL.proc_param_types = undefined
+      , CQPL.proc_body =
+          CQPL.ProcBodyU $
+            CQPL.UProcBody
+              { CQPL.uproc_param_names = undefined
+              , CQPL.uproc_param_tags = undefined
+              , CQPL.uproc_body_stmt = undefined
+              }
+      }
+
 instance
   (size ~ SizeT, RealFloat prec, Show prec) =>
   UnitaryCompilePrim (SimonsFindXorPeriod size prec) size prec
@@ -129,4 +174,6 @@ instance
   (size ~ SizeT, RealFloat prec, Show prec) =>
   QuantumCompilePrim (SimonsFindXorPeriod size prec) size prec
   where
-  compileQPrim = undefined
+  compileQPrim (SimonsFindXorPeriod FindXorPeriod{n, p_0}) eps = do
+    simons_uproc <- simonsOneRound
+    undefined

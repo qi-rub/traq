@@ -536,7 +536,7 @@ algoQSearch ::
   -- | output value
   Ident ->
   -- | the generated QSearch procedure: body stmts and local vars
-  WriterT ([CQPL.Stmt sizeT], [(Ident, P.VarType sizeT)]) (Compiler.CompilerT ext) ()
+  QSearchCompilerT ext ()
 algoQSearch ty n_samples eps grover_k_caller pred_caller ok x = do
   not_done <- allocReg "not_done" P.tbool
   q_sum <- allocReg "Q_sum" j_type

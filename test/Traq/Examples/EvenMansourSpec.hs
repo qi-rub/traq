@@ -74,7 +74,7 @@ spec = describe "FindXorPeriod" $ do
 
       actualCost `shouldBe` formulaCost
 
-    xdescribe "Compile" $ do
+    fdescribe "Compile" $ do
       let eps = A.failProb (0.0001 :: Double)
 
       it "lowers" $ \program -> do
