@@ -262,7 +262,7 @@ prependBoundArgs pfun_names bound_args CQPL.ProcDef{..} =
   goUStmt :: CQPL.UStmt size -> CQPL.UStmt size
   goUStmt (CQPL.USeqS ss) = CQPL.USeqS (map goUStmt ss)
   goUStmt s@CQPL.UCallS{CQPL.uproc_id, CQPL.qargs}
-    | uproc_id `notElem` pfun_names = s{CQPL.qargs = bound_arg_names ++ qargs}
+    | uproc_id `notElem` pfun_names = s{CQPL.qargs = map CQPL.Arg bound_arg_names ++ qargs}
   goUStmt (CQPL.URepeatS n body) = CQPL.URepeatS n (goUStmt body)
   goUStmt s@CQPL.UForInRangeS{CQPL.uloop_body} = s{CQPL.uloop_body = goUStmt uloop_body}
   goUStmt s@CQPL.UWithComputedS{CQPL.with_ustmt, CQPL.body_ustmt} =
@@ -304,7 +304,7 @@ instance
           CQPL.UCallS
             { uproc_id = Compiler.mkUProcName pfun_name
             , dagger = False
-            , qargs = placeArgsWithExcess pfun_args xs
+            , qargs = placeArgsWithExcess (map (fmap CQPL.Arg) pfun_args) xs
             }
 
     uproc_aux_types <-
@@ -339,7 +339,7 @@ instance
     return $
       CQPL.UCallS
         { CQPL.uproc_id = CQPL.proc_name prim_proc
-        , CQPL.qargs = map fst bound_args ++ rets ++ prim_aux_vars
+        , CQPL.qargs = map (CQPL.Arg . fst) bound_args ++ map CQPL.Arg rets ++ map CQPL.Arg prim_aux_vars
         , CQPL.dagger = False
         }
 
@@ -528,7 +528,7 @@ instance
           CQPL.UCallS
             { uproc_id = Compiler.mkUProcName pfun_name
             , dagger = False
-            , qargs = placeArgsWithExcess pfun_args xs
+            , qargs = placeArgsWithExcess (map (fmap CQPL.Arg) pfun_args) xs
             }
 
     uproc_aux_types <-

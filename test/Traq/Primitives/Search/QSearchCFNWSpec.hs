@@ -43,7 +43,7 @@ spec = do
     it "for simple values" $ do
       let n = 10 :: Int
       let eps = P.failProb (0.001 :: Double)
-      let pred_caller c x b = CQPL.UCallS{CQPL.uproc_id = "Oracle", CQPL.dagger = False, CQPL.qargs = [c, x, b]}
+      let pred_caller c x b = CQPL.UCallS{CQPL.uproc_id = "Oracle", CQPL.dagger = False, CQPL.qargs = map CQPL.Arg [c, x, b]}
       let lenv = default_
       let lctx = default_
       circ <-
@@ -59,7 +59,7 @@ spec = do
           UQSearchEnv
             { search_arg_type = P.Fin n
             , pred_call_builder = \c x b ->
-                CQPL.UCallS{CQPL.uproc_id = "Oracle", CQPL.dagger = False, CQPL.qargs = [c, x, b]}
+                CQPL.UCallS{CQPL.uproc_id = "Oracle", CQPL.dagger = False, CQPL.qargs = map CQPL.Arg [c, x, b]}
             }
 
     prop "matches cost" $ \params -> do

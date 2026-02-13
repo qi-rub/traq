@@ -259,9 +259,9 @@ addGroverIteration c x b = do
   x_ty <- view $ to search_arg_type
   let unifX = CQPL.DistrU (P.UniformE x_ty)
   addPredCall c x b
-  writeElem $ CQPL.UnitaryS [x] (CQPL.Adjoint unifX)
-  writeElem $ CQPL.UnitaryS [x] CQPL.Refl0
-  writeElem $ CQPL.UnitaryS [x] unifX
+  writeElem $ CQPL.UnitaryS [CQPL.Arg x] (CQPL.Adjoint unifX)
+  writeElem $ CQPL.UnitaryS [CQPL.Arg x] CQPL.Refl0
+  writeElem $ CQPL.UnitaryS [CQPL.Arg x] unifX
 
 algoQSearchZalkaRandomIterStep ::
   forall ext sizeT precT.
@@ -284,23 +284,23 @@ algoQSearchZalkaRandomIterStep r = do
   x_ty <- view $ to search_arg_type
 
   -- uniform r
-  let prep_r = CQPL.UnitaryS [r_reg] (CQPL.DistrU (P.UniformE r_ty))
+  let prep_r = CQPL.UnitaryS [CQPL.Arg r_reg] (CQPL.DistrU (P.UniformE r_ty))
 
   withComputed prep_r $ do
     -- b in minus state for grover
     let prep_b =
           CQPL.USeqS
-            [ CQPL.UnitaryS [b_reg] (CQPL.BasicGateU CQPL.XGate)
-            , CQPL.UnitaryS [b_reg] (CQPL.BasicGateU CQPL.HGate)
+            [ CQPL.UnitaryS [CQPL.Arg b_reg] (CQPL.BasicGateU CQPL.XGate)
+            , CQPL.UnitaryS [CQPL.Arg b_reg] (CQPL.BasicGateU CQPL.HGate)
             ]
     withComputed prep_b $ do
       -- uniform x
-      writeElem $ CQPL.UnitaryS [x_reg] (CQPL.DistrU (P.UniformE x_ty))
+      writeElem $ CQPL.UnitaryS [CQPL.Arg x_reg] (CQPL.DistrU (P.UniformE x_ty))
 
       -- controlled iterate
       let meta_ix_name = "LIM"
       let calc_ctrl =
-            CQPL.UnitaryS [r_reg, ctrl_bit] $ CQPL.RevEmbedU ["a"] $ "a" .<=. "#LIM"
+            CQPL.UnitaryS [CQPL.Arg r_reg, CQPL.Arg ctrl_bit] $ CQPL.RevEmbedU ["a"] $ "a" .<=. "#LIM"
       ((), grover_body) <-
         censor (const mempty) $
           listen $
@@ -308,7 +308,7 @@ algoQSearchZalkaRandomIterStep r = do
               addGroverIteration ctrl_bit x_reg b_reg
       writeElem $ CQPL.mkForInRangeS meta_ix_name (P.MetaSize r) (CQPL.USeqS grover_body)
 
-  withComputed (CQPL.UnitaryS [ctrl_bit] (CQPL.BasicGateU CQPL.XGate)) $
+  withComputed (CQPL.UnitaryS [CQPL.Arg ctrl_bit] (CQPL.BasicGateU CQPL.XGate)) $
     addPredCall ctrl_bit x_reg b_reg
   return b_reg
 
@@ -337,7 +337,7 @@ algoQSearchZalka eps out_bit = do
   let as = ["a" <> show i | i <- [1 .. length out_bits]]
   writeElem $
     CQPL.UnitaryS
-      { CQPL.qargs = out_bits ++ [out_bit]
+      { CQPL.qargs = map CQPL.Arg out_bits ++ [CQPL.Arg out_bit]
       , CQPL.unitary = CQPL.RevEmbedU as $ P.NAryE P.MultiOrOp (map fromString as)
       }
 
@@ -359,12 +359,12 @@ instance
     b' <- lift $ Compiler.allocAncilla P.tbool
     let pred_caller ctrl x b =
           CQPL.USeqS
-            [ call_pred (x : b' : pred_ancilla)
+            [ call_pred (map CQPL.Arg (x : b' : pred_ancilla))
             , CQPL.UnitaryS
-                { CQPL.qargs = [ctrl, b', b]
+                { CQPL.qargs = map CQPL.Arg [ctrl, b', b]
                 , CQPL.unitary = CQPL.BasicGateU CQPL.Toffoli
                 }
-            , CQPL.adjoint $ call_pred (x : b' : pred_ancilla)
+            , CQPL.adjoint $ call_pred (map CQPL.Arg (x : b' : pred_ancilla))
             ]
 
     -- Emit the qsearch procedure
@@ -454,18 +454,18 @@ groverK k (x, x_ty) b mk_pred =
   prepb, prepx :: CQPL.UStmt sizeT
   prepb =
     CQPL.USeqS
-      [ CQPL.UnitaryS [b] (CQPL.BasicGateU CQPL.XGate)
-      , CQPL.UnitaryS [b] (CQPL.BasicGateU CQPL.HGate)
+      [ CQPL.UnitaryS [CQPL.Arg b] (CQPL.BasicGateU CQPL.XGate)
+      , CQPL.UnitaryS [CQPL.Arg b] (CQPL.BasicGateU CQPL.HGate)
       ]
-  prepx = CQPL.UnitaryS [x] unifX
+  prepx = CQPL.UnitaryS [CQPL.Arg x] unifX
 
   grover_iterate :: CQPL.UStmt sizeT
   grover_iterate =
     CQPL.USeqS
       [ mk_pred x b
-      , CQPL.UnitaryS [x] (CQPL.Adjoint unifX)
-      , CQPL.UnitaryS [x] CQPL.Refl0
-      , CQPL.UnitaryS [x] unifX
+      , CQPL.UnitaryS [CQPL.Arg x] (CQPL.Adjoint unifX)
+      , CQPL.UnitaryS [CQPL.Arg x] CQPL.Refl0
+      , CQPL.UnitaryS [CQPL.Arg x] unifX
       ]
 
 -- | Implementation of the hybrid quantum search algorithm \( \textbf{QSearch} \).
@@ -602,7 +602,7 @@ instance
             meta_k
             (grover_arg_name, search_ty)
             ret
-            (\x b -> call_upred ([x, b] ++ upred_aux_vars))
+            (\x b -> call_upred (map CQPL.Arg ([x, b] ++ upred_aux_vars)))
     let uproc_grover_k_params =
           Compiler.withTag CQPL.ParamInp [(grover_arg_name, search_ty)]
             ++ Compiler.withTag CQPL.ParamOut [(ret, P.tbool)]

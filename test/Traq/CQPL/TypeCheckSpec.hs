@@ -33,7 +33,7 @@ spec = do
           checker
             (Ctx.fromList [("a", tb), ("b", tb), ("c", tb)])
             CQPL.UnitaryS
-              { CQPL.qargs = ["a", "b", "c"]
+              { CQPL.qargs = map CQPL.Arg ["a", "b", "c"]
               , CQPL.unitary = CQPL.RevEmbedU ["a0", "a1"] ("a0" .&&. "a1")
               }
       it "MultiOrOp" $
@@ -43,6 +43,6 @@ spec = do
             checker
               (Ctx.fromList $ map (,tb) ("out" : xs))
               CQPL.UnitaryS
-                { CQPL.qargs = xs ++ ["out"]
+                { CQPL.qargs = map CQPL.Arg xs ++ [CQPL.Arg "out"]
                 , CQPL.unitary = CQPL.RevEmbedU xs (P.NAryE P.MultiOrOp $ map P.VarE xs)
                 }

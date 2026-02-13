@@ -5,6 +5,7 @@
 module Traq.CQPL.Syntax (
   -- * Syntax
   MetaParam (..),
+  Arg (..),
 
   -- ** Unitary Fragment
   HasAdjoint (..),
@@ -53,14 +54,27 @@ import Traq.Utils.ASTRewriting
 import qualified Traq.Utils.Printing as PP
 
 -- ================================================================================
--- Transformers
+-- Common
 -- ================================================================================
-class HasAdjoint a where
-  adjoint :: a -> a
+
+-- | An argument (to ops/procs)
+data Arg size
+  = Arg Ident -- variable
+  | ArrElem (Arg size) (MetaParam size) -- array element
+  deriving (Eq, Read, Show)
+
+instance (Show size) => PP.ToCodeString (Arg size) where
+  build (Arg x) = PP.putWord x
+  build (ArrElem arg i) = do
+    x <- PP.fromBuild arg
+    i' <- PP.fromBuild i
+    PP.putWord $ x ++ "[" ++ i' ++ "]"
 
 -- ================================================================================
 -- Unitary Fragment
 -- ================================================================================
+class HasAdjoint a where
+  adjoint :: a -> a
 
 -- --------------------------------------------------------------------------------
 -- Unitary Operators
@@ -123,8 +137,8 @@ instance HasAdjoint (Unitary sizeT) where
 -- | Unitary Statement
 data UStmt sizeT
   = USkipS
-  | UnitaryS {qargs :: [Ident], unitary :: Unitary sizeT} -- q... *= U
-  | UCallS {uproc_id :: Ident, dagger :: Bool, qargs :: [Ident]} -- call F(q...)
+  | UnitaryS {qargs :: [Arg sizeT], unitary :: Unitary sizeT} -- q... *= U
+  | UCallS {uproc_id :: Ident, dagger :: Bool, qargs :: [Arg sizeT]} -- call F(q...)
   | USeqS [UStmt sizeT] -- W1; W2; ...
   | -- placeholders
     UCommentS String
@@ -162,14 +176,16 @@ instance (Show sizeT) => PP.ToCodeString (UStmt sizeT) where
   build USkipS = PP.putLine "skip;"
   build (UCommentS c) = PP.putComment c
   build UnitaryS{qargs, unitary} = PP.concatenated $ do
-    PP.putWord $ PP.commaList qargs
+    qs <- mapM PP.fromBuild qargs
+    PP.putWord $ PP.commaList qs
     PP.putWord " *= "
     PP.build unitary
     PP.putWord ";"
   build UCallS{uproc_id, dagger, qargs} = PP.concatenated $ do
+    qs <- mapM PP.fromBuild qargs
     PP.putWord "call"
     PP.putWord $ showDagger dagger
-    PP.putWord $ printf " %s(%s);" uproc_id $ PP.commaList qargs
+    PP.putWord $ printf " %s(%s);" uproc_id $ PP.commaList qs
   build (USeqS ps) = mapM_ PP.build ps
   -- syntax sugar
   build (URepeatS k s) = do
