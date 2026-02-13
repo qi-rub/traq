@@ -30,7 +30,7 @@ module Traq.Primitives.Search.QSearchCFNW (
   _QSearchZalka,
 ) where
 
-import Control.Monad (forM, replicateM, when)
+import Control.Monad (forM_, replicateM, when)
 import Control.Monad.Except (throwError)
 import Control.Monad.RWS (RWST, evalRWST)
 import Control.Monad.Trans (lift)
@@ -326,33 +326,36 @@ algoQSearchZalka ::
 algoQSearchZalka eps out_bit = do
   n <- view $ to search_arg_type . singular P._Fin
 
-  let n_iter = floor (_QSearchZalka_n_reps eps)
-  out_bits <- forM [1 :: Int .. n_iter] $ \i -> do
+  let n_iter = floor (_QSearchZalka_n_reps eps) :: sizeT
+
+  ctrl_bits <- lift $ Compiler.allocAncillaWithPref "ctrl" (P.Arr n_iter P.tbool)
+  b_regs <- lift $ Compiler.allocAncillaWithPref "pred_out" (P.Arr n_iter P.tbool)
+
+  let r = _QSearchZalka_max_iter n
+  let r_ty = P.Fin r
+  r_regs <- lift $ Compiler.allocAncillaWithPref "n_iter" (P.Arr n_iter r_ty)
+
+  s_ty <- view $ to search_arg_type
+  x_regs <- lift $ Compiler.allocAncillaWithPref "s_arg" (P.Arr n_iter s_ty)
+
+  forM_ [0 :: Int .. fromIntegral n_iter - 1] $ \i -> do
     writeElem $ CQPL.UCommentS " "
-    writeElem $ CQPL.UCommentS $ printf "Run %d" i
+    writeElem $ CQPL.UCommentS $ printf "Run %d" (i + 1)
     writeElem $ CQPL.UCommentS " "
 
-    let r = _QSearchZalka_max_iter n
-    let r_ty = P.Fin r
-    r_reg <- lift $ Compiler.allocAncillaWithPref "n_iter" r_ty
-    ctrl_bit <- lift $ Compiler.allocAncillaWithPref "ctrl" P.tbool
-    x_reg <- allocSearchArgReg
-    b_reg <- lift $ Compiler.allocAncillaWithPref "pred_out" P.tbool
+    let b_reg = CQPL.ArrElemArg (CQPL.Arg b_regs) (P.MetaValue $ fromIntegral i)
 
     algoQSearchZalkaRandomIterStep
       r
-      (CQPL.Arg r_reg)
-      (CQPL.Arg ctrl_bit)
-      (CQPL.Arg x_reg)
-      (CQPL.Arg b_reg)
+      (CQPL.ArrElemArg (CQPL.Arg r_regs) (P.MetaValue $ fromIntegral i))
+      (CQPL.ArrElemArg (CQPL.Arg ctrl_bits) (P.MetaValue $ fromIntegral i))
+      (CQPL.ArrElemArg (CQPL.Arg x_regs) (P.MetaValue $ fromIntegral i))
+      b_reg
 
-    return b_reg
-
-  let as = ["a" <> show i | i <- [1 .. length out_bits]]
   writeElem $
     CQPL.UnitaryS
-      { CQPL.qargs = map CQPL.Arg out_bits ++ [CQPL.Arg out_bit]
-      , CQPL.unitary = CQPL.RevEmbedU as $ P.NAryE P.MultiOrOp (map fromString as)
+      { CQPL.qargs = [CQPL.Arg b_regs, CQPL.Arg out_bit]
+      , CQPL.unitary = CQPL.RevEmbedU ["a"] $ P.UnOpE P.AnyOp "a"
       }
 
 instance
