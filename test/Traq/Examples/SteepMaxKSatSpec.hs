@@ -39,6 +39,10 @@ spec = describe "Steep max-k-sat" $ do
     expectRight =<< parseFromFile (P.programParser @SymPrims) examplePath
     return ()
 
+  it "typechecks" $ do
+    ex <- loadExample
+    assertRight $ P.typeCheckProg ex
+
   xdescribe "Compile" $ do
     let eps = A.failProb (0.0001 :: Double)
 

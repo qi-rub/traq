@@ -38,6 +38,10 @@ spec = describe "Triangle Cycle Finding" $ do
     expectRight =<< parseFromFile (P.programParser @P) examplePath
     return ()
 
+  it "typechecks" $ do
+    ex <- loadExample
+    assertRight $ P.typeCheckProg ex
+
   describe "Compile" $ do
     let eps = A.failProb (0.0001 :: Double)
 

@@ -26,7 +26,7 @@ def innerAttack(k: BitVec<n>) -> Bool do
     return res
 end
 
-def outerAttack() -> Bool do
-    k0 <- @search<BitVec<n>>[innerAttack(_)];
+def outerAttack() -> BitVec<n> do
+    ok, k0 <- @search<BitVec<n>>[innerAttack(_)];
     return k0
 end
