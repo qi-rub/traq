@@ -25,7 +25,9 @@ import GHC.Generics
 import qualified Traq.Analysis as A
 import Traq.Prelude
 import Traq.Primitives.Amplify.CAmplify
+import Traq.Primitives.Amplify.QAmplify
 import Traq.Primitives.Class
+import Traq.Primitives.Max.QMax
 import Traq.Primitives.Search.DetSearch
 import Traq.Primitives.Search.Prelude
 import Traq.Primitives.Search.QSearchCFNW
@@ -42,6 +44,8 @@ data DefaultPrimCollection sizeT precT
   | RAny (RandomSearch sizeT precT)
   | DAny (DetSearch sizeT precT)
   | CAmp (CAmplify sizeT precT)
+  | QAmp (QAmplify sizeT precT)
+  | QMax' (QMax sizeT precT)
   deriving (Eq, Show, Generic)
 
 type instance SizeType (DefaultPrimCollection sizeT precT) = sizeT
@@ -56,9 +60,18 @@ instance P.MapSize (DefaultPrimCollection size prec) where
   mapSize f (RAny p) = RAny (P.mapSize f p)
   mapSize f (DAny p) = DAny (P.mapSize f p)
   mapSize f (CAmp p) = CAmp (P.mapSize f p)
+  mapSize f (QAmp p) = QAmp (P.mapSize f p)
+  mapSize f (QMax' p) = QMax' (P.mapSize f p)
 
 instance (Show size, Show prec, Fractional prec) => SerializePrim (DefaultPrimCollection size prec) where
-  primNames = ["any", "search", "any_rand", "any_det"]
+  primNames =
+    [ "any"
+    , "search"
+    , "any_rand"
+    , "any_det"
+    , "amplify"
+    , "camplify"
+    ]
 
   primNameOf (QAny (QSearchCFNW (PrimSearch AnyK _))) = "any"
   primNameOf (QAny (QSearchCFNW (PrimSearch SearchK _))) = "search"
@@ -76,6 +89,7 @@ instance (Show size, Show prec, Fractional prec) => SerializePrim (DefaultPrimCo
   printPrimParams (RAny p) = printPrimParams p
   printPrimParams (DAny p) = printPrimParams p
   printPrimParams (CAmp p) = printPrimParams p
+  printPrimParams (QAmp p) = printPrimParams p
 
 -- Generic instances
 instance (P.TypingReqs size) => TypeCheckPrim (DefaultPrimCollection size prec) size

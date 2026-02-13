@@ -67,6 +67,11 @@ instance ValidPrimShape QMaxFunArg where
 
   shapeToList QMaxFunArg{fun} = [fun]
 
+instance P.MapSize (QMax size prec) where
+  type MappedSize (QMax size prec) size' = QMax size' prec
+
+  mapSize f (QMax t) = QMax (P.mapSize f t)
+
 instance (Show sizeT) => SerializePrim (QMax sizeT precT) where
   primNames = ["max"]
   parsePrimParams tp _ = QMax <$> P.varType tp
@@ -152,3 +157,15 @@ instance
   quantumExpQueryCostsQuantum _ _ _ = QMaxFunArg{fun = []}
 
   quantumExpExprCosts = Alg.zero
+
+-- ================================================================================
+-- Compilation
+-- ================================================================================
+
+instance UnitaryCompilePrim (QMax size prec) size prec where
+  compileUPrim QMax{} eps = do
+    error "TODO: CompileU QMax"
+
+instance QuantumCompilePrim (QMax size prec) size prec where
+  compileQPrim QMax{} eps = do
+    error "TODO: CompileQ QMax"
