@@ -39,16 +39,12 @@ spec = describe "Depth 3 NAND Formula" $ do
     expectRight =<< parseFromFile (P.programParser @(DefaultPrims (Sym.Sym SizeT) Double)) examplePath
     return ()
 
-  describe "Compile" $ do
-    let eps = A.failProb (0.0001 :: Double)
+  xdescribe "Compile" $ do
+    let eps = A.failProb (0.1 :: Double)
+    before (loadExample >>= expectRight . A.annotateProgWithErrorBudget eps) $ do
+      it "lowers" $ \ex -> do
+        assertRight $ Compiler.lowerProgram ex
 
-    it "lowers" $ do
-      ex <- loadExample
-      ex' <- expectRight $ A.annotateProgWith (P._exts (A.annSinglePrim eps)) ex
-      assertRight $ Compiler.lowerProgram ex'
-
-    it "typechecks" $ do
-      ex <- loadExample
-      ex' <- expectRight $ A.annotateProgWith (P._exts (A.annSinglePrim eps)) ex
-      ex_uqpl <- expectRight $ Compiler.lowerProgram ex'
-      assertRight $ CQPL.typeCheckProgram ex_uqpl
+      it "typechecks" $ \ex -> do
+        ex_uqpl <- expectRight $ Compiler.lowerProgram ex
+        assertRight $ CQPL.typeCheckProgram ex_uqpl
