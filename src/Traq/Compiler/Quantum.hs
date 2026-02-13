@@ -9,7 +9,6 @@ module Traq.Compiler.Quantum (
 ) where
 
 import Control.Monad (forM_)
-import Text.Printf (printf)
 
 import Lens.Micro.GHC
 import Lens.Micro.Mtl
