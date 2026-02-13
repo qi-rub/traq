@@ -52,6 +52,8 @@ protoLangDef =
         , -- functions
           "def"
         , "declare"
+        , "fn"
+        , "ext"
         , "do"
         , "end"
         , "return"
@@ -277,7 +279,7 @@ stmtP = parseE
 
 namedFunDef :: (Parseable ext, SizeType ext ~ SymbSize) => TokenParser () -> Parser (NamedFunDef ext)
 namedFunDef tp@TokenParser{..} = do
-  reserved "def"
+  reserved "def" <|> reserved "fn"
   fun_name <- identifier
   (param_names, param_types) <- unzip <$> parens (commaSep (typedTerm tp identifier))
   reserved "->"
@@ -293,7 +295,7 @@ namedFunDef tp@TokenParser{..} = do
 
 funDecl :: (SizeType ext ~ SymbSize) => TokenParser () -> Parser (NamedFunDef ext)
 funDecl tp@TokenParser{..} = do
-  reserved "declare"
+  reserved "declare" <|> (reserved "ext" >> reserved "fn")
   fun_name <- identifier
   param_types <- parens (commaSep (varType tp))
   reservedOp "->"
