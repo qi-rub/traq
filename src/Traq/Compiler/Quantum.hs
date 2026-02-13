@@ -8,6 +8,9 @@ module Traq.Compiler.Quantum (
   CompileQ (..),
 ) where
 
+import Control.Monad (forM_)
+import Text.Printf (printf)
+
 import Lens.Micro.GHC
 import Lens.Micro.Mtl
 
@@ -66,10 +69,8 @@ instance CompileQ1 P.Expr where
   compileQ1 rets P.RandomSampleE{P.distr_expr} = return $ RandomS rets distr_expr
   -- function call
   compileQ1 rets P.FunCallE{P.fname, P.args} = do
-    fun_def <- P.lookupFunE fname
-    proc_def <- compileQ1 fname fun_def
-    addProc proc_def
-    return $ CallS{fun = FunctionCall (proc_name proc_def), args = args ++ rets, meta_params = []}
+    let proc_id = mkQProcName fname
+    return $ CallS{fun = FunctionCall proc_id, args = args ++ rets, meta_params = []}
   -- primitive call
   compileQ1 rets P.PrimCallE{P.prim} = compileQ prim rets
   compileQ1 _ _ = error "TODO: UNSUPPORTED"
@@ -86,10 +87,10 @@ instance CompileQ1 P.Stmt where
     pure IfThenElseS{..}
 
 instance CompileQ1 P.FunBody where
-  type CompileQArgs P.FunBody ext = [P.VarType (SizeType ext)]
-  type CompileQResult P.FunBody ext = (CProcBody (SizeType ext), P.TypingCtx (SizeType ext))
+  type CompileQArgs P.FunBody ext = ([P.VarType (SizeType ext)], [P.VarType (SizeType ext)])
+  type CompileQResult P.FunBody ext = CProcBody (SizeType ext)
 
-  compileQ1 param_types P.FunBody{P.param_names, P.ret_names, P.body_stmt} = do
+  compileQ1 (param_types, _ret_types) P.FunBody{P.param_names, P.ret_names, P.body_stmt} = do
     P._typingCtx .= Ctx.fromList (zip param_names param_types)
     magnify P._funCtx . zoom P._typingCtx . ignoreWriter $ P.inferTypes body_stmt
 
@@ -104,7 +105,7 @@ instance CompileQ1 P.FunBody where
             & filter ((`notElem` cproc_param_names) . fst)
 
     let cproc_body = CProcBody{cproc_param_names, cproc_local_vars, cproc_body_stmt}
-    return (cproc_body, proc_typing_ctx)
+    return cproc_body
 
 instance CompileQ1 P.FunDef where
   type CompileQArgs P.FunDef ext = Ident
@@ -120,18 +121,15 @@ instance CompileQ1 P.FunDef where
         , proc_param_types = param_types ++ ret_types
         , proc_body = ProcBodyC CProcDecl
         }
-  compileQ1 proc_name P.FunDef{P.param_types, P.mbody = Just body} = do
-    (cproc_body, proc_typing_ctx) <- compileQ1 param_types body
-
-    let P.FunBody{P.param_names, P.ret_names} = body
-    let cproc_param_names = param_names ++ ret_names
+  compileQ1 proc_name P.FunDef{P.param_types, P.ret_types, P.mbody = Just body} = do
+    cproc_body <- compileQ1 (param_types, ret_types) body
 
     return
       ProcDef
         { info_comment = ""
         , proc_name
         , proc_meta_params = []
-        , proc_param_types = map (\x -> proc_typing_ctx ^?! Ctx.at x . _Just) cproc_param_names
+        , proc_param_types = param_types ++ ret_types
         , proc_body = ProcBodyC cproc_body
         }
 
@@ -139,8 +137,7 @@ instance CompileQ1 P.NamedFunDef where
   type CompileQArgs P.NamedFunDef ext = ()
   type CompileQResult P.NamedFunDef ext = ()
 
-  compileQ1 () fn@P.NamedFunDef{P.fun_name, P.fun_def} = do
-    compileU1 () fn
+  compileQ1 () P.NamedFunDef{P.fun_name, P.fun_def} = do
     let proc_name = mkQProcName fun_name
     proc_def <- compileQ1 proc_name fun_def
     addProc proc_def
@@ -149,7 +146,7 @@ instance CompileQ1 P.Program where
   type CompileQArgs P.Program ext = ()
   type CompileQResult P.Program ext = ()
 
-  compileQ1 () (P.Program fs) = mapM_ (compileQ1 ()) fs
+  compileQ1 () (P.Program fs) = forM_ fs $ \f -> compileU1 () f >> compileQ1 () f
 
 -- ================================================================================
 -- Entry Point

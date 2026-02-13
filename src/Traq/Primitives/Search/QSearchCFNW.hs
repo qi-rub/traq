@@ -317,8 +317,10 @@ algoQSearchZalka ::
   A.FailProb precT ->
   -- | output bit
   Ident ->
+  -- | output value of search
+  Ident ->
   UQSearchBuilder ext ()
-algoQSearchZalka eps out_bit = do
+algoQSearchZalka eps out_bit out_val = do
   s_ty <- view $ to search_arg_type
   let n = P.domainSize s_ty
 
@@ -358,51 +360,76 @@ algoQSearchZalka eps out_bit = do
       , CQPL.unitary = CQPL.RevEmbedU ["a"] $ P.UnOpE P.AnyOp "a"
       }
 
+  writeElem $
+    CQPL.UnitaryS
+      { CQPL.qargs = [CQPL.Arg x_regs, CQPL.Arg b_regs, CQPL.Arg out_val]
+      , CQPL.unitary = CQPL.RevEmbedU ["a", "f"] $ P.BinOpE P.VecSelectOp "a" "f"
+      }
+
 instance
   (P.TypingReqs size, Integral size, RealFloat prec, Show prec) =>
   UnitaryCompilePrim (QSearchCFNW size prec) size prec
   where
-  compileUPrim (QSearchCFNW PrimSearch{search_kind = AnyK, search_ty}) eps = do
+  compileUPrim (QSearchCFNW PrimSearch{search_kind, search_ty}) eps = do
     -- info to call the predicate
     (BooleanPredicate call_pred) <- view $ to mk_ucall
     (BooleanPredicate pred_aux_tys) <- view $ to uproc_aux_types
-    ret <-
-      view (to ret_vars) >>= \case
-        [b] -> pure b
-        _ -> throwError "bool predicate must return single bool"
+
+    (ret, x_out) <- case search_kind of
+      SearchK -> do
+        view (to ret_vars) >>= \case
+          [b, x_out] -> pure (b, x_out)
+          _ -> throwError "search must return (bool, T)"
+      _ -> do
+        b <-
+          view (to ret_vars) >>= \case
+            [b] -> pure b
+            _ -> throwError "bool predicate must return single bool"
+        x_out <- lift $ Compiler.allocAncillaWithPref "s_result" search_ty
+        return (b, x_out)
 
     -- function to call the predicate, re-using the same aux space each time.
     pred_ancilla <- lift $ mapM Compiler.allocAncilla pred_aux_tys
     b' <- lift $ Compiler.allocAncilla P.tbool
     let pred_caller ctrl x b =
           let pred_call_s = call_pred (x : CQPL.Arg b' : map CQPL.Arg pred_ancilla)
+              pred_call_s_full = case search_kind of
+                AllK -> CQPL.USeqS [pred_call_s, CQPL.UnitaryS [CQPL.Arg b'] (CQPL.BasicGateU CQPL.XGate)]
+                _ -> pred_call_s
            in CQPL.USeqS
-                [ pred_call_s
+                [ pred_call_s_full
                 , CQPL.UnitaryS
                     { CQPL.qargs = [ctrl, CQPL.Arg b', b]
                     , CQPL.unitary = CQPL.BasicGateU CQPL.Toffoli
                     }
-                , CQPL.adjoint pred_call_s
+                , CQPL.adjoint pred_call_s_full
                 ]
 
     -- Emit the qsearch procedure
     -- body:
     (qsearch_body, qsearch_ancilla) <- lift $ do
       ini_binds <- use P._typingCtx
-      ((), ss) <- (\m -> evalRWST m UQSearchEnv{search_arg_type = search_ty, pred_call_builder = pred_caller} ()) $ algoQSearchZalka eps ret
+      ((), ss) <- (\m -> evalRWST m UQSearchEnv{search_arg_type = search_ty, pred_call_builder = pred_caller} ()) $ algoQSearchZalka eps ret x_out
       fin_binds <- use P._typingCtx
       let ancillas = Ctx.toList $ fin_binds Ctx.\\ ini_binds
-      return (CQPL.USeqS ss, (b', P.tbool) : ancillas)
+
+      let body = case search_kind of
+            AllK -> CQPL.USeqS $ ss ++ [CQPL.UnitaryS [CQPL.Arg ret] (CQPL.BasicGateU CQPL.XGate)]
+            _ -> CQPL.USeqS ss
+
+      return (body, (b', P.tbool) : ancillas)
 
     -- name:
-    qsearch_proc_name <- lift $ Compiler.newIdent "UAny"
+    let prim_name = (case search_kind of AnyK -> "UAny"; AllK -> "UAll"; SearchK -> "USearch")
+    qsearch_proc_name <- lift $ Compiler.newIdent prim_name
     let info_comment =
-          (printf :: String -> String -> String -> String)
-            "QSearch[%s, %s]"
+          (printf :: String -> String -> String -> String -> String)
+            "%s[%s, %s]"
+            prim_name
             (show search_ty)
             (show $ A.getFailProb eps)
     let all_params =
-          Compiler.withTag CQPL.ParamOut [(ret, P.tbool)]
+          Compiler.withTag CQPL.ParamOut [(ret, P.tbool), (x_out, search_ty)]
             ++ Compiler.withTag CQPL.ParamAux (zip pred_ancilla pred_aux_tys)
             ++ Compiler.withTag CQPL.ParamAux qsearch_ancilla
 
@@ -420,9 +447,6 @@ instance
                 , CQPL.uproc_body_stmt = qsearch_body
                 }
         }
-
-  -- fallback
-  compileUPrim _ _ = error "TODO: CompileU QSearchCFNW"
 
 -- ================================================================================
 -- CQ Lowering
@@ -507,16 +531,17 @@ algoQSearch ::
   (Either (CQPL.MetaParam sizeT) Ident -> Ident -> Ident -> CQPL.Stmt sizeT) ->
   -- | cqpl predicate caller
   (Ident -> Ident -> CQPL.Stmt sizeT) ->
-  -- | Result register
+  -- | output bit
+  Ident ->
+  -- | output value
   Ident ->
   -- | the generated QSearch procedure: body stmts and local vars
   WriterT ([CQPL.Stmt sizeT], [(Ident, P.VarType sizeT)]) (Compiler.CompilerT ext) ()
-algoQSearch ty n_samples eps grover_k_caller pred_caller ok = do
+algoQSearch ty n_samples eps grover_k_caller pred_caller ok x = do
   not_done <- allocReg "not_done" P.tbool
   q_sum <- allocReg "Q_sum" j_type
   j <- allocReg "j" j_type
   j_lim <- allocReg "j_lim" j_type
-  x <- allocReg "x" ty
 
   -- classical sampling
   when (n_samples /= 0) $ do
@@ -600,14 +625,23 @@ instance
   (RealFloat prec, Show prec) =>
   QuantumCompilePrim (QSearchCFNW SizeT prec) SizeT prec
   where
-  compileQPrim (QSearchCFNW PrimSearch{search_kind = AnyK, search_ty}) eps = do
+  compileQPrim (QSearchCFNW PrimSearch{search_kind, search_ty}) eps = do
     -- lowered unitary predicate
     (BooleanPredicate call_upred) <- view $ to mk_ucall
     (BooleanPredicate pred_aux_tys) <- view $ to uproc_aux_types
-    ret <-
-      view (to ret_vars) >>= \case
-        [b] -> pure b
-        _ -> throwError "bool predicate must return single bool"
+
+    (ret, x_out) <- case search_kind of
+      SearchK -> do
+        view (to ret_vars) >>= \case
+          [b, x_out] -> pure (b, x_out)
+          _ -> throwError "search must return (bool, T)"
+      _ -> do
+        b <-
+          view (to ret_vars) >>= \case
+            [b] -> pure b
+            _ -> throwError "bool predicate must return single bool"
+        x_out <- lift $ Compiler.allocAncillaWithPref "s_result" search_ty
+        return (b, x_out)
 
     -- make the Grover_k uproc
     -- TODO this should ideally be done by algoQSearch, but requires a lot of aux information.
@@ -649,7 +683,10 @@ instance
             }
 
     -- emit the QSearch algorithm
-    let qsearch_params = [(ret, P.tbool)]
+    let qsearch_params =
+          case search_kind of
+            SearchK -> [(ret, P.tbool), (x_out, search_ty)]
+            _ -> [(ret, P.tbool)]
 
     (BooleanPredicate meas_upred) <- view $ to mk_meas
     let pred_caller x b = meas_upred [x, b]
@@ -657,11 +694,13 @@ instance
     (qsearch_body, qsearch_local_vars) <-
       lift $
         execWriterT $
-          algoQSearch search_ty 0 eps grover_k_caller pred_caller ret
-    qsearch_proc_name <- Compiler.newIdent "QAny"
+          algoQSearch search_ty 0 eps grover_k_caller pred_caller ret x_out
+
+    let prim_name = (case search_kind of AnyK -> "QAny"; AllK -> "QAll"; SearchK -> "QSearch")
+    qsearch_proc_name <- Compiler.newIdent prim_name
     return
       CQPL.ProcDef
-        { CQPL.info_comment = printf "QAny[%s]" (show $ A.getFailProb eps)
+        { CQPL.info_comment = printf "%s[%s]" prim_name (show $ A.getFailProb eps)
         , CQPL.proc_name = qsearch_proc_name
         , CQPL.proc_meta_params = []
         , CQPL.proc_param_types = map snd qsearch_params
@@ -669,10 +708,7 @@ instance
             CQPL.ProcBodyC $
               CQPL.CProcBody
                 { CQPL.cproc_param_names = map fst qsearch_params
-                , CQPL.cproc_local_vars = qsearch_local_vars
+                , CQPL.cproc_local_vars = qsearch_local_vars ++ [(x_out, search_ty) | search_kind /= SearchK]
                 , CQPL.cproc_body_stmt = CQPL.SeqS qsearch_body
                 }
         }
-
-  -- TODO variants
-  compileQPrim _ _ = error "unsupported"

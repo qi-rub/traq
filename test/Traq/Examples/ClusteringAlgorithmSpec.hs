@@ -24,12 +24,13 @@ examplePath = "examples/clustering_algorithm.traq"
 loadExample :: IO (P.Program (DefaultPrims SizeT Double))
 loadExample = do
   Right prog <- parseFromFile (P.programParser @(DefaultPrims (Sym.Sym SizeT) Double)) examplePath
-  return $
-    prog
-      & P.mapSize (Sym.subst "N" (Sym.con 8))
-      & P.mapSize (Sym.subst "M" (Sym.con 4))
-      & P.mapSize Sym.unSym
-      & P.renameVars'
+  let prog' =
+        prog
+          & P.mapSize (Sym.subst "N" (Sym.con 8))
+          & P.mapSize (Sym.subst "M" (Sym.con 4))
+          & P.mapSize Sym.unSym
+          & P.renameVars'
+  return prog'
 
 spec :: Spec
 spec = describe "Clustering Algorithm" $ do
@@ -37,7 +38,11 @@ spec = describe "Clustering Algorithm" $ do
     expectRight =<< parseFromFile (P.programParser @(DefaultPrims (Sym.Sym SizeT) Double)) examplePath
     return ()
 
-  xdescribe "Compile" $ do
+  it "typechecks" $ do
+    ex <- loadExample
+    assertRight $ P.typeCheckProg ex
+
+  describe "Compile" $ do
     let eps = A.failProb (0.0001 :: Double)
 
     it "lowers" $ do
