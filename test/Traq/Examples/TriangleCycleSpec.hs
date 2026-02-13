@@ -30,6 +30,7 @@ loadExample = do
     prog
       & P.mapSize (Sym.subst "N" (Sym.con 8))
       & P.mapSize Sym.unSym
+      & P.renameVars'
 
 spec :: Spec
 spec = describe "Triangle Cycle Finding" $ do
@@ -37,16 +38,16 @@ spec = describe "Triangle Cycle Finding" $ do
     expectRight =<< parseFromFile (P.programParser @P) examplePath
     return ()
 
-  xdescribe "Compile" $ do
+  describe "Compile" $ do
     let eps = A.failProb (0.0001 :: Double)
 
     it "lowers" $ do
       ex <- loadExample
-      ex' <- expectRight $ A.annotateProgWith (P._exts (A.annSinglePrim eps)) ex
+      ex' <- expectRight $ A.annotateProgWithErrorBudget eps ex
       assertRight $ Compiler.lowerProgram ex'
 
     it "typechecks" $ do
       ex <- loadExample
-      ex' <- expectRight $ A.annotateProgWith (P._exts (A.annSinglePrim eps)) ex
+      ex' <- expectRight $ A.annotateProgWithErrorBudget eps ex
       ex_uqpl <- expectRight $ Compiler.lowerProgram ex'
       assertRight $ CQPL.typeCheckProgram ex_uqpl

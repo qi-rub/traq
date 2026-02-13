@@ -30,7 +30,7 @@ module Traq.Primitives.Search.QSearchCFNW (
   _QSearchZalka,
 ) where
 
-import Control.Monad (forM_, replicateM, when)
+import Control.Monad (replicateM, when)
 import Control.Monad.Except (throwError)
 import Control.Monad.RWS (RWST, evalRWST)
 import Control.Monad.Trans (lift)
@@ -319,7 +319,8 @@ algoQSearchZalka ::
   Ident ->
   UQSearchBuilder ext ()
 algoQSearchZalka eps out_bit = do
-  n <- view $ to search_arg_type . singular P._Fin
+  s_ty <- view $ to search_arg_type
+  let n = P.domainSize s_ty
 
   let n_iter = floor (_QSearchZalka_n_reps eps) :: sizeT
 
@@ -330,7 +331,6 @@ algoQSearchZalka eps out_bit = do
   let r_ty = P.Fin r
   r_regs <- lift $ Compiler.allocAncillaWithPref "n_iter" (P.Arr n_iter r_ty)
 
-  s_ty <- view $ to search_arg_type
   x_regs <- lift $ Compiler.allocAncillaWithPref "s_arg" (P.Arr n_iter s_ty)
 
   let iter_meta_var = "run_ix"
@@ -563,7 +563,7 @@ algoQSearch ty n_samples eps grover_k_caller pred_caller ok = do
 
   writeElemAt _1 quantumSampling
  where
-  n = ty ^?! P._Fin
+  n = P.domainSize ty
 
   alpha = _QSearch_alpha
   lambda = 6 / 5
