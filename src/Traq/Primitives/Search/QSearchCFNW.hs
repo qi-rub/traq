@@ -223,11 +223,6 @@ type UQSearchBuilder ext =
     ()
     (Compiler.CompilerT ext)
 
-allocSearchArgReg :: UQSearchBuilder ext Ident
-allocSearchArgReg = do
-  ty <- view $ to search_arg_type
-  lift $ Compiler.allocAncillaWithPref "s_arg" ty
-
 addPredCall :: (size ~ SizeType ext) => CQPL.Arg size -> CQPL.Arg size -> CQPL.Arg size -> UQSearchBuilder ext ()
 addPredCall c x b = do
   mk_pred <- view $ to pred_call_builder
@@ -299,7 +294,7 @@ algoQSearchZalkaRandomIterStep r r_reg ctrl_bit x_reg b_reg = do
       -- controlled iterate
       let meta_ix_name = "LIM"
       let calc_ctrl =
-            CQPL.UnitaryS [r_reg, ctrl_bit] $ CQPL.RevEmbedU ["a"] $ "a" .<=. "#LIM"
+            CQPL.UnitaryS [r_reg, ctrl_bit] $ CQPL.RevEmbedU ["a"] $ "a" .<=. P.ParamE meta_ix_name
       ((), grover_body) <-
         censor (const mempty) $
           listen $
@@ -338,19 +333,24 @@ algoQSearchZalka eps out_bit = do
   s_ty <- view $ to search_arg_type
   x_regs <- lift $ Compiler.allocAncillaWithPref "s_arg" (P.Arr n_iter s_ty)
 
-  forM_ [0 :: Int .. fromIntegral n_iter - 1] $ \i -> do
-    writeElem $ CQPL.UCommentS " "
-    writeElem $ CQPL.UCommentS $ printf "Run %d" (i + 1)
-    writeElem $ CQPL.UCommentS " "
-
-    let b_reg = CQPL.ArrElemArg (CQPL.Arg b_regs) (P.MetaValue $ fromIntegral i)
-
-    algoQSearchZalkaRandomIterStep
-      r
-      (CQPL.ArrElemArg (CQPL.Arg r_regs) (P.MetaValue $ fromIntegral i))
-      (CQPL.ArrElemArg (CQPL.Arg ctrl_bits) (P.MetaValue $ fromIntegral i))
-      (CQPL.ArrElemArg (CQPL.Arg x_regs) (P.MetaValue $ fromIntegral i))
-      b_reg
+  let iter_meta_var = "run_ix"
+  censor
+    ( \ss ->
+        [ CQPL.UForInRangeS
+            { iter_meta_var
+            , iter_lim = P.MetaSize n_iter
+            , uloop_body = CQPL.USeqS ss
+            , dagger = False
+            }
+        ]
+    )
+    $ do
+      algoQSearchZalkaRandomIterStep
+        r
+        (CQPL.ArrElemArg (CQPL.Arg r_regs) (P.MetaName iter_meta_var))
+        (CQPL.ArrElemArg (CQPL.Arg ctrl_bits) (P.MetaName iter_meta_var))
+        (CQPL.ArrElemArg (CQPL.Arg x_regs) (P.MetaName iter_meta_var))
+        (CQPL.ArrElemArg (CQPL.Arg b_regs) (P.MetaName iter_meta_var))
 
   writeElem $
     CQPL.UnitaryS
