@@ -1,6 +1,6 @@
-declare Oracle(Fin<N>) -> Bool end
+ext fn Oracle(Fin<N>) -> Bool end
 
-def main() -> Bool do
+fn main() -> Bool do
 	result <- @any<Fin<N>>[Oracle(_)];
 	return result
 end

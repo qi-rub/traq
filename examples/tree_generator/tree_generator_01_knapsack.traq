@@ -1,12 +1,12 @@
 // Algorithm as described in [A quantum algorithm for solving 0-1 Knapsack problems](https://arxiv.org/abs/2310.06623)
 
 // 0-1 Knapsack instance over N variables:
-declare Capacity () -> Fin<W> end
-declare Profit (Fin<N>) -> Fin<P> end
-declare Weight (Fin<N>) -> Fin<W> end
+ext fn Capacity () -> Fin<W> end
+ext fn Profit (Fin<N>) -> Fin<P> end
+ext fn Weight (Fin<N>) -> Fin<W> end
 
 // add the weight of the i-th item to the total
-def AddWeight(xs: Arr<N, Bool>, cur_wt: Fin<W>, i: Fin<N>) -> (Arr<N, Bool>, Fin<W>) do
+fn AddWeight(xs: Arr<N, Bool>, cur_wt: Fin<W>, i: Fin<N>) -> (Arr<N, Bool>, Fin<W>) do
     xi <- xs[i];
     wi <- Weight(i);
 
@@ -19,14 +19,14 @@ def AddWeight(xs: Arr<N, Bool>, cur_wt: Fin<W>, i: Fin<N>) -> (Arr<N, Bool>, Fin
 end
 
 // Total weight of a given assignment xs
-def TotalWeight(xs: Arr<N, Bool>) -> Fin<W> do
+fn TotalWeight(xs: Arr<N, Bool>) -> Fin<W> do
     zero <- const 0 : Fin<W>;
     xs', wt <- loop (xs, zero) AddWeight;
     return wt
 end
 
 // add the profit of the i-th item to the total
-def AddProfit(xs: Arr<N, Bool>, cur_pr: Fin<P>, i: Fin<N>) -> (Arr<N, Bool>, Fin<P>) do
+fn AddProfit(xs: Arr<N, Bool>, cur_pr: Fin<P>, i: Fin<N>) -> (Arr<N, Bool>, Fin<P>) do
     xi <- xs[i];
     pi <- Profit(i);
 
@@ -39,14 +39,14 @@ def AddProfit(xs: Arr<N, Bool>, cur_pr: Fin<P>, i: Fin<N>) -> (Arr<N, Bool>, Fin
 end
 
 // Total profit of a given assignment xs
-def TotalProfit(xs: Arr<N, Bool>) -> Fin<P> do
+fn TotalProfit(xs: Arr<N, Bool>) -> Fin<P> do
     zero <- const 0 : Fin<P>;
     xs', pr <- loop (xs, zero) AddProfit;
     return pr
 end
 
 // For the i-th element, flip it with some probability $p$, and pick it only if it can be added within capacity. 
-def TreeGenLoopBody(xs: Arr<N, Bool>, wt: Fin<W>, pr: Fin<P>, i: Fin<N>) -> (Arr<N, Bool>, Fin<W>, Fin<P>) do
+fn TreeGenLoopBody(xs: Arr<N, Bool>, wt: Fin<W>, pr: Fin<P>, i: Fin<N>) -> (Arr<N, Bool>, Fin<W>, Fin<P>) do
     xi <- xs[i]; // old value
     y <-$ bernoulli[0.2]; // should change? (w.p. 0.2)
     try_pick <- xi ^ y; // should pick?
@@ -74,7 +74,7 @@ end
 
 // Run the "tree-generator" algorithm to return a biased sample of an assignment, that fits the capacity.
 // The flag is if the new assignment has a higher profit.
-def TreeGen(xs: Arr<N, Bool>, pr: Fin<P>) -> (Bool, Arr<N, Bool>) do
+fn TreeGen(xs: Arr<N, Bool>, pr: Fin<P>) -> (Bool, Arr<N, Bool>) do
     zero_wt <- const 0 : Fin<W>;
     zero_pr <- const 0 : Fin<P>;
     xs', wt', pr' <- loop (xs, zero_wt, zero_pr) TreeGenLoopBody;
@@ -83,7 +83,7 @@ def TreeGen(xs: Arr<N, Bool>, pr: Fin<P>) -> (Bool, Arr<N, Bool>) do
 end
 
 // Run one iteration of the tree generator to obtain a good sample
-def KnapsackLoopBody(xs: Arr<N, Bool>, i: Fin<K>) -> Arr<N, Bool> do
+fn KnapsackLoopBody(xs: Arr<N, Bool>, i: Fin<K>) -> Arr<N, Bool> do
     pr <- TotalProfit(xs);
     ok, xs' <- @amplify<0.01>[TreeGen(xs, pr)];
     xs_next <- ok ? xs' : xs;
@@ -91,7 +91,7 @@ def KnapsackLoopBody(xs: Arr<N, Bool>, i: Fin<K>) -> Arr<N, Bool> do
 end
 
 // Start with an empty assignment and perform $K$ iterations of local search to maximize profit. 
-def Knapsack() -> Arr<N, Bool> do
+fn Knapsack() -> Arr<N, Bool> do
     xs <- default : Arr<N, Bool>;
     xs' <- loop (xs) KnapsackLoopBody;
     return xs'

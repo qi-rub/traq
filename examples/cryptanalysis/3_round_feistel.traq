@@ -1,12 +1,12 @@
 // Taken from paper: Breaking Symmetric Cryptosystems Using Quantum Period Finding
 // https://link.springer.com/chapter/10.1007/978-3-662-53008-5_8
 
-declare R1(BitVec<n>) -> BitVec<n> end
-declare R2(BitVec<n>) -> BitVec<n> end
-declare R3(BitVec<n>) -> BitVec<n> end
+ext fn R1(BitVec<n>) -> BitVec<n> end
+ext fn R2(BitVec<n>) -> BitVec<n> end
+ext fn R3(BitVec<n>) -> BitVec<n> end
 
 // Figure 3
-def E(xL: BitVec<n>, xR: BitVec<n>) -> (BitVec<n>, BitVec<n>) do
+fn E(xL: BitVec<n>, xR: BitVec<n>) -> (BitVec<n>, BitVec<n>) do
     u0 <- xL;
     v0 <- xR;
 
@@ -28,9 +28,9 @@ def E(xL: BitVec<n>, xR: BitVec<n>) -> (BitVec<n>, BitVec<n>) do
     return u3, v3
 end 
 
-declare alpha(Bool) -> BitVec<n> end
+ext fn alpha(Bool) -> BitVec<n> end
 
-def f(b : Bool, x : BitVec<n>) -> (Bool, BitVec<n>) do
+fn f(b : Bool, x : BitVec<n>) -> (Bool, BitVec<n>) do
     alpha_b <- alpha(b);
     yL, yR <- E(alpha_b, x);
 
@@ -41,7 +41,7 @@ def f(b : Bool, x : BitVec<n>) -> (Bool, BitVec<n>) do
     return zero, res
 end
 
-def AttackThreeRoundFeistel() -> BitVec<n> do
+fn AttackThreeRoundFeistel() -> BitVec<n> do
     zero, s <- @findXorPeriod<n_plus_1, 0.01>[f(_, _)];
     
     return s

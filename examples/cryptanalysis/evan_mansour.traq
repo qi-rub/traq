@@ -1,21 +1,21 @@
 // N = 2^n
 
 // Public permutation
-declare P(BitVec<n>) -> BitVec<n> end
+ext fn P(BitVec<n>) -> BitVec<n> end
 
 // EvanMansour encryption with secret keys (k1, k2):
 // E(x) = P(x ^ k1) ^ k2
-declare E(BitVec<n>) -> BitVec<n> end
+ext fn E(BitVec<n>) -> BitVec<n> end
 
 // construct a (almost) 2-1 function
-def f(x : BitVec<n>) -> BitVec<n> do
+fn f(x : BitVec<n>) -> BitVec<n> do
 	ex <- E(x);
 	px <- P(x);
 	fx <- ex ^ px;
 	return fx
 end
 
-def BreakEM() -> (BitVec<n>, BitVec<n>) do
+fn BreakEM() -> (BitVec<n>, BitVec<n>) do
 	ze <- const 0 : BitVec<n>;
 	k1 <- @findXorPeriod<n, 0.01>[f(_)];
 	e_0 <- E(ze);

@@ -2,9 +2,9 @@
 // first para https://arxiv.org/pdf/quant-ph/0007016
 // + also, case-study in Quipper
 
-declare Adj(Fin<N>, Fin<N>) -> Bool end
+ext fn Adj(Fin<N>, Fin<N>) -> Bool end
 
-def CompletesTriangle(i: Fin<N>, j: Fin<N>, k: Fin<N>) -> Bool do
+fn CompletesTriangle(i: Fin<N>, j: Fin<N>, k: Fin<N>) -> Bool do
   eq_ij <- i == j;
   neq_ij <- not eq_ij;
 
@@ -26,7 +26,7 @@ def CompletesTriangle(i: Fin<N>, j: Fin<N>, k: Fin<N>) -> Bool do
   return result
 end
 
-def HasTriangleCycle(ij: Tup<Fin<N>, Fin<N>>) -> Bool do
+fn HasTriangleCycle(ij: Tup<Fin<N>, Fin<N>>) -> Bool do
   i <- ij.0;
   j <- ij.1;
   edge_ij <- Adj(i, j);
@@ -37,7 +37,7 @@ def HasTriangleCycle(ij: Tup<Fin<N>, Fin<N>>) -> Bool do
   return result
 end
 
-def HasTriangle() -> Bool do
+fn HasTriangle() -> Bool do
   found_triangle <- @any<Tup<Fin<N>, Fin<N>>>[HasTriangleCycle(_)];
   return found_triangle
 end

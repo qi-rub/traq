@@ -1,21 +1,21 @@
-def Oracle(x: Fin<N>, y: Fin<M>) do
+fn Oracle(x: Fin<N>, y: Fin<M>) do
 	lt <- y <= x;
 	return lt : Bool
 end
 
-def IsEntryZero(i0: Fin<N>, j0: Fin<M>) do
+fn IsEntryZero(i0: Fin<N>, j0: Fin<M>) do
 	e <- Oracle(i0, j0);
 	e' <- !e;
 	return e' : Bool
 end
 
-def IsRowAllOnes(i: Fin<N>) do
+fn IsRowAllOnes(i: Fin<N>) do
 	okr <- @any[IsEntryZero](i);
 	okr' <- !okr;
 	return okr' : Bool
 end
 
-def HasAllOnesRow() do
+fn HasAllOnesRow() do
 	ok <- @any[IsRowAllOnes]();
 	return ok : Bool
 end
