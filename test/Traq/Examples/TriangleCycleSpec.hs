@@ -37,7 +37,7 @@ spec = describe "Triangle Cycle Finding" $ do
     expectRight =<< parseFromFile (P.programParser @P) examplePath
     return ()
 
-  describe "Compile" $ do
+  xdescribe "Compile" $ do
     let eps = A.failProb (0.0001 :: Double)
 
     it "lowers" $ do

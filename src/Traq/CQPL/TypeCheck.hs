@@ -15,7 +15,7 @@ module Traq.CQPL.TypeCheck (
 ) where
 
 import Control.Monad (forM, unless, when)
-import Control.Monad.Except (MonadError)
+import Control.Monad.Except (MonadError (throwError))
 import Control.Monad.Reader (MonadReader, ReaderT, local, runReaderT)
 import Control.Monad.State (execStateT)
 import Data.Foldable (toList)
@@ -79,9 +79,16 @@ getArgTy ::
   ) =>
   Arg size ->
   m (P.VarType size)
-getArgTy = undefined
-
--- maybeWithError (Err.MessageE $ printf "cannot find argument %s" x) mty
+getArgTy (Arg x) = do
+  mty <- view $ P._typingCtx . Ctx.at x
+  maybeWithError (Err.MessageE $ printf "cannot find argument %s" x) mty
+getArgTy (ArrElemArg arg _) = do
+  ty <- getArgTy arg
+  case ty of
+    P.Arr _ e_ty -> pure e_ty
+    P.Bitvec _ -> pure P.tbool
+    P.Tup _ -> error "TODO tuple index"
+    _ -> throwError (Err.MessageE $ printf "expected an array/tuple type")
 
 -- | Verify that the arguments match the deduced types
 verifyArgs ::
