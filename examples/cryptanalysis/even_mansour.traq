@@ -3,7 +3,7 @@
 // Public permutation
 ext fn P(BitVec<n>) -> BitVec<n> end
 
-// EvanMansour encryption with secret keys (k1, k2):
+// Even-Mansour encryption with secret keys (k1, k2):
 // E(x) = P(x ^ k1) ^ k2
 ext fn E(BitVec<n>) -> BitVec<n> end
 

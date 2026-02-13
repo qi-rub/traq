@@ -1,6 +1,6 @@
 {-# LANGUAGE TypeApplications #-}
 
-module Traq.Examples.EvanMansourSpec where
+module Traq.Examples.EvenMansourSpec where
 
 import Text.Parsec.String
 
@@ -21,15 +21,15 @@ import Test.Hspec
 import TestHelpers (assertRight, expectRight)
 
 examplePath :: String
-examplePath = "examples/cryptanalysis/evan_mansour.traq"
+examplePath = "examples/cryptanalysis/even_mansour.traq"
 
 type SPrim size = Primitive (SimonsFindXorPeriod size Double)
 
-loadEvanMansour ::
+loadEvenMansour ::
   -- | bitsize @n@ of the inputs/outputs
   SizeT ->
   IO (P.Program (SPrim SizeT))
-loadEvanMansour n = do
+loadEvenMansour n = do
   Right prog <- parseFromFile (P.programParser @(SPrim (Sym.Sym SizeT))) examplePath
   return $
     prog
@@ -55,7 +55,7 @@ spec = describe "FindXorPeriod" $ do
         >>= expectRight
     assertRight $ P.typeCheckProg p
 
-  before (loadEvanMansour n) $ do
+  before (loadEvenMansour n) $ do
     it "calculates unitary cost correctly" $ \program -> do
       let eps = A.failProb (0.01 :: Double)
       prog' <- expectRight $ A.annotateProgWith (P._exts (A.annSinglePrim eps)) program

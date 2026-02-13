@@ -70,7 +70,7 @@ spec = do
                                , let sigma = [P.FinV 1, P.FinV x]
                                ]
 
-    xdescribe "Compile" $ do
+    describe "Compile" $ do
       let eps = A.failProb (0.0001 :: Double)
 
       it "lowers" $ do
