@@ -60,12 +60,12 @@ import qualified Traq.Utils.Printing as PP
 -- | An argument (to ops/procs)
 data Arg size
   = Arg Ident -- variable
-  | ArrElem (Arg size) (MetaParam size) -- array element
+  | ArrElemArg (Arg size) (MetaParam size) -- array element
   deriving (Eq, Read, Show)
 
 instance (Show size) => PP.ToCodeString (Arg size) where
   build (Arg x) = PP.putWord x
-  build (ArrElem arg i) = do
+  build (ArrElemArg arg i) = do
     x <- PP.fromBuild arg
     i' <- PP.fromBuild i
     PP.putWord $ x ++ "[" ++ i' ++ "]"

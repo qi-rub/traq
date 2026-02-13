@@ -210,9 +210,9 @@ instance (sizeT ~ SizeT, Floating precT, Prob.RVType precT precT) => QuantumExpC
 -- ================================================================================
 
 -- | Information for building QSearch_Zalka
-data UQSearchEnv sizeT = UQSearchEnv
-  { search_arg_type :: P.VarType sizeT
-  , pred_call_builder :: Ident -> Ident -> Ident -> CQPL.UStmt sizeT
+data UQSearchEnv size = UQSearchEnv
+  { search_arg_type :: P.VarType size
+  , pred_call_builder :: CQPL.Arg size -> CQPL.Arg size -> CQPL.Arg size -> CQPL.UStmt size
   }
 
 -- | A layer on top of the unitary compiler, holding the relevant QSearch context, and storing the produced statements.
@@ -228,7 +228,7 @@ allocSearchArgReg = do
   ty <- view $ to search_arg_type
   lift $ Compiler.allocAncillaWithPref "s_arg" ty
 
-addPredCall :: Ident -> Ident -> Ident -> UQSearchBuilder ext ()
+addPredCall :: (size ~ SizeType ext) => CQPL.Arg size -> CQPL.Arg size -> CQPL.Arg size -> UQSearchBuilder ext ()
 addPredCall c x b = do
   mk_pred <- view $ to pred_call_builder
   writeElem $ mk_pred c x b
@@ -249,19 +249,19 @@ addGroverIteration ::
   , precT ~ PrecType ext
   ) =>
   -- | ctrl
-  Ident ->
+  CQPL.Arg sizeT ->
   -- | x
-  Ident ->
+  CQPL.Arg sizeT ->
   -- | b
-  Ident ->
+  CQPL.Arg sizeT ->
   UQSearchBuilder ext ()
 addGroverIteration c x b = do
   x_ty <- view $ to search_arg_type
   let unifX = CQPL.DistrU (P.UniformE x_ty)
   addPredCall c x b
-  writeElem $ CQPL.UnitaryS [CQPL.Arg x] (CQPL.Adjoint unifX)
-  writeElem $ CQPL.UnitaryS [CQPL.Arg x] CQPL.Refl0
-  writeElem $ CQPL.UnitaryS [CQPL.Arg x] unifX
+  writeElem $ CQPL.UnitaryS [x] (CQPL.Adjoint unifX)
+  writeElem $ CQPL.UnitaryS [x] CQPL.Refl0
+  writeElem $ CQPL.UnitaryS [x] unifX
 
 algoQSearchZalkaRandomIterStep ::
   forall ext sizeT precT.
@@ -273,34 +273,33 @@ algoQSearchZalkaRandomIterStep ::
   ) =>
   -- | max num of iteration
   sizeT ->
-  UQSearchBuilder ext Ident
-algoQSearchZalkaRandomIterStep r = do
-  -- time register
+  CQPL.Arg sizeT ->
+  CQPL.Arg sizeT ->
+  CQPL.Arg sizeT ->
+  CQPL.Arg sizeT ->
+  UQSearchBuilder ext ()
+algoQSearchZalkaRandomIterStep r r_reg ctrl_bit x_reg b_reg = do
   let r_ty = P.Fin r
-  r_reg <- lift $ Compiler.allocAncillaWithPref "n_iter" r_ty
-  ctrl_bit <- lift $ Compiler.allocAncillaWithPref "ctrl" P.tbool
-  x_reg <- allocSearchArgReg
-  b_reg <- lift $ Compiler.allocAncillaWithPref "pred_out" P.tbool
   x_ty <- view $ to search_arg_type
 
   -- uniform r
-  let prep_r = CQPL.UnitaryS [CQPL.Arg r_reg] (CQPL.DistrU (P.UniformE r_ty))
+  let prep_r = CQPL.UnitaryS [r_reg] (CQPL.DistrU (P.UniformE r_ty))
 
   withComputed prep_r $ do
     -- b in minus state for grover
     let prep_b =
           CQPL.USeqS
-            [ CQPL.UnitaryS [CQPL.Arg b_reg] (CQPL.BasicGateU CQPL.XGate)
-            , CQPL.UnitaryS [CQPL.Arg b_reg] (CQPL.BasicGateU CQPL.HGate)
+            [ CQPL.UnitaryS [b_reg] (CQPL.BasicGateU CQPL.XGate)
+            , CQPL.UnitaryS [b_reg] (CQPL.BasicGateU CQPL.HGate)
             ]
     withComputed prep_b $ do
       -- uniform x
-      writeElem $ CQPL.UnitaryS [CQPL.Arg x_reg] (CQPL.DistrU (P.UniformE x_ty))
+      writeElem $ CQPL.UnitaryS [x_reg] (CQPL.DistrU (P.UniformE x_ty))
 
       -- controlled iterate
       let meta_ix_name = "LIM"
       let calc_ctrl =
-            CQPL.UnitaryS [CQPL.Arg r_reg, CQPL.Arg ctrl_bit] $ CQPL.RevEmbedU ["a"] $ "a" .<=. "#LIM"
+            CQPL.UnitaryS [r_reg, ctrl_bit] $ CQPL.RevEmbedU ["a"] $ "a" .<=. "#LIM"
       ((), grover_body) <-
         censor (const mempty) $
           listen $
@@ -308,9 +307,8 @@ algoQSearchZalkaRandomIterStep r = do
               addGroverIteration ctrl_bit x_reg b_reg
       writeElem $ CQPL.mkForInRangeS meta_ix_name (P.MetaSize r) (CQPL.USeqS grover_body)
 
-  withComputed (CQPL.UnitaryS [CQPL.Arg ctrl_bit] (CQPL.BasicGateU CQPL.XGate)) $
+  withComputed (CQPL.UnitaryS [ctrl_bit] (CQPL.BasicGateU CQPL.XGate)) $
     addPredCall ctrl_bit x_reg b_reg
-  return b_reg
 
 algoQSearchZalka ::
   forall ext sizeT precT.
@@ -328,11 +326,27 @@ algoQSearchZalka ::
 algoQSearchZalka eps out_bit = do
   n <- view $ to search_arg_type . singular P._Fin
 
-  out_bits <- forM [1 :: Int .. (floor (_QSearchZalka_n_reps eps))] $ \i -> do
+  let n_iter = floor (_QSearchZalka_n_reps eps)
+  out_bits <- forM [1 :: Int .. n_iter] $ \i -> do
     writeElem $ CQPL.UCommentS " "
     writeElem $ CQPL.UCommentS $ printf "Run %d" i
     writeElem $ CQPL.UCommentS " "
-    algoQSearchZalkaRandomIterStep (_QSearchZalka_max_iter n)
+
+    let r = _QSearchZalka_max_iter n
+    let r_ty = P.Fin r
+    r_reg <- lift $ Compiler.allocAncillaWithPref "n_iter" r_ty
+    ctrl_bit <- lift $ Compiler.allocAncillaWithPref "ctrl" P.tbool
+    x_reg <- allocSearchArgReg
+    b_reg <- lift $ Compiler.allocAncillaWithPref "pred_out" P.tbool
+
+    algoQSearchZalkaRandomIterStep
+      r
+      (CQPL.Arg r_reg)
+      (CQPL.Arg ctrl_bit)
+      (CQPL.Arg x_reg)
+      (CQPL.Arg b_reg)
+
+    return b_reg
 
   let as = ["a" <> show i | i <- [1 .. length out_bits]]
   writeElem $
@@ -358,14 +372,15 @@ instance
     pred_ancilla <- lift $ mapM Compiler.allocAncilla pred_aux_tys
     b' <- lift $ Compiler.allocAncilla P.tbool
     let pred_caller ctrl x b =
-          CQPL.USeqS
-            [ call_pred (map CQPL.Arg (x : b' : pred_ancilla))
-            , CQPL.UnitaryS
-                { CQPL.qargs = map CQPL.Arg [ctrl, b', b]
-                , CQPL.unitary = CQPL.BasicGateU CQPL.Toffoli
-                }
-            , CQPL.adjoint $ call_pred (map CQPL.Arg (x : b' : pred_ancilla))
-            ]
+          let pred_call_s = call_pred (x : CQPL.Arg b' : map CQPL.Arg pred_ancilla)
+           in CQPL.USeqS
+                [ pred_call_s
+                , CQPL.UnitaryS
+                    { CQPL.qargs = [ctrl, CQPL.Arg b', b]
+                    , CQPL.unitary = CQPL.BasicGateU CQPL.Toffoli
+                    }
+                , CQPL.adjoint pred_call_s
+                ]
 
     -- Emit the qsearch procedure
     -- body:
