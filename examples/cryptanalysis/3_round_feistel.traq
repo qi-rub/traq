@@ -30,19 +30,21 @@ end
 
 declare alpha(Bool) -> BitVec<n> end
 
-def f(b : Bool, x : BitVec<n>) -> BitVec<n> do
+def f(b : Bool, x : BitVec<n>) -> (Bool, BitVec<n>) do
     alpha_b <- alpha(b);
     yL, yR <- E(alpha_b, x);
 
     res <- yR ^ alpha_b;
 
-    return res
+    zero <- const 0 : Bool;
+
+    return zero, res
 end
 
-def AttackThreeRoundFeistel() -> Bool do
-    b, s <- @findXorPeriod<n, 0.01>[f()];
+def AttackThreeRoundFeistel() -> BitVec<n> do
+    zero, s <- @findXorPeriod<n_plus_1, 0.01>[f(_, _)];
     
-    return b, s
+    return s
 
     //// Verify the computed period:
     // zero <- const 0 : Bool;

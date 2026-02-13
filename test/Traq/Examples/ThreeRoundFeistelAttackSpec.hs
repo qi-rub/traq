@@ -27,9 +27,11 @@ examplePath = "examples/cryptanalysis/3_round_feistel.traq"
 loadExample :: IO (P.Program Prims)
 loadExample = do
   Right prog <- parseFromFile (P.programParser @SymPrims) examplePath
+  let n = 4
   return $
     prog
-      & P.mapSize (Sym.subst "n" (Sym.con 4))
+      & P.mapSize (Sym.subst "n" (Sym.con n))
+      & P.mapSize (Sym.subst "n_plus_1" (Sym.con (n + 1)))
       & P.mapSize Sym.unSym
 
 spec :: Spec
