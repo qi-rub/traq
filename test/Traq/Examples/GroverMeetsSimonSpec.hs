@@ -43,16 +43,16 @@ spec = describe "Grover Meets Simon" $ do
     ex <- loadExample
     assertRight $ P.typeCheckProg ex
 
-  xdescribe "Compile" $ do
+  describe "Compile" $ do
     let eps = A.failProb (0.0001 :: Double)
 
     it "lowers" $ do
-      ex <- loadExample
-      ex' <- expectRight $ A.annotateProgWith (P._exts (A.annSinglePrim eps)) ex
+      ex <- P.renameVars' <$> loadExample
+      ex' <- expectRight $ A.annotateProgWithErrorBudget eps ex
       assertRight $ Compiler.lowerProgram ex'
 
     it "typechecks" $ do
-      ex <- loadExample
-      ex' <- expectRight $ A.annotateProgWith (P._exts (A.annSinglePrim eps)) ex
+      ex <- P.renameVars' <$> loadExample
+      ex' <- expectRight $ A.annotateProgWithErrorBudget eps ex
       ex_uqpl <- expectRight $ Compiler.lowerProgram ex'
       assertRight $ CQPL.typeCheckProgram ex_uqpl
