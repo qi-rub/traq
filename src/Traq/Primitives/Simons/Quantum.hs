@@ -1,4 +1,5 @@
 {-# LANGUAGE DeriveGeneric #-}
+{-# LANGUAGE DuplicateRecordFields #-}
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE MultiParamTypeClasses #-}
 
@@ -10,6 +11,7 @@ module Traq.Primitives.Simons.Quantum (
   _SimonsQueries,
 ) where
 
+import Control.Monad (forM)
 import Control.Monad.Trans (lift)
 import GHC.Generics (Generic)
 
@@ -17,6 +19,8 @@ import Lens.Micro.GHC
 import Lens.Micro.Mtl
 import qualified Numeric.Algebra as Alg
 
+import Traq.Control.Monad
+import qualified Traq.Data.Context as Ctx
 import Traq.Data.Subtyping
 
 import qualified Traq.Analysis as P
@@ -127,26 +131,29 @@ instance
 simonsOneRound ::
   forall ext size prec m.
   (size ~ SizeType ext, m ~ PrimCompileMonad ext (SimonsFindXorPeriod size prec)) =>
+  [P.VarType size] ->
   m (CQPL.ProcDef size)
-simonsOneRound = do
+simonsOneRound arg_tys = do
   (FindXorPeriodArg call_upred) <- view $ to mk_ucall
   (FindXorPeriodArg pred_aux_tys) <- view $ to uproc_aux_types
 
   proc_name <- lift $ Compiler.newIdent "SimonOneRound_U"
 
+  xs <- lift $ mapM Compiler.allocAncilla arg_tys
+  ys <- lift $ mapM Compiler.allocAncilla arg_tys
+  ys' <- lift $ mapM Compiler.allocAncilla arg_tys
   aux <- lift $ mapM Compiler.allocAncilla pred_aux_tys
 
-  let had_x = undefined
-  let call_g = undefined
-  let copy_out = undefined
+  let had_xs = CQPL.USeqS [CQPL.UnitaryS [CQPL.Arg x] (CQPL.DistrU $ P.UniformE t) | (x, t) <- zip xs arg_tys]
+  let call_g = call_upred (map CQPL.Arg (xs ++ ys ++ aux))
+  let copy_out = CQPL.USeqS [CQPL.UnitaryS [CQPL.Arg y, CQPL.Arg y'] (CQPL.BasicGateU CQPL.COPY) | (y, y') <- zip ys ys']
 
-  let body =
+  let body_compute = CQPL.USeqS [had_xs, call_g]
+  let uproc_body_stmt =
         CQPL.USeqS
-          [ had_x
-          , call_g
+          [ body_compute
           , copy_out
-          , CQPL.adjoint call_g
-          , CQPL.adjoint had_x
+          , CQPL.adjoint body_compute
           ]
 
   return
@@ -154,26 +161,109 @@ simonsOneRound = do
       { CQPL.info_comment = ""
       , CQPL.proc_name
       , CQPL.proc_meta_params = []
-      , CQPL.proc_param_types = undefined
+      , CQPL.proc_param_types = arg_tys ++ arg_tys ++ arg_tys ++ pred_aux_tys
       , CQPL.proc_body =
           CQPL.ProcBodyU $
             CQPL.UProcBody
-              { CQPL.uproc_param_names = undefined
-              , CQPL.uproc_param_tags = undefined
-              , CQPL.uproc_body_stmt = undefined
+              { CQPL.uproc_param_names = xs ++ ys ++ ys' ++ aux
+              , CQPL.uproc_param_tags = replicate (3 * length arg_tys + length pred_aux_tys) CQPL.ParamUnk
+              , CQPL.uproc_body_stmt
               }
       }
+
+-- // function argument
+-- uproc g($\vecx$, x, y, $\veca$) ...
+
+-- uproc SimonOneRound($\vecx$, x, y, y', $\veca$) do {
+--   x *= $H^{\ot n}$;
+--   call g($\vecx$, x, y, $\veca$);
+--   y, y' *= COPY;
+--   call$^\dagger$ g($\vecx$, x, y, $\veca$);
+--   x *= $H^{\ot n}$;
+-- }
+
+-- proc $\QAlgPrim[\PrimSimon{}]{\pcoll, \eps}$[g]($\vecx$, $y$) do {
+--   // Q = $Q(n, \pcoll, \eps)$
+--   for i : {1 ... Q} {
+--     meas SimonOneRound($\vecx$, u_i);
+--   }
+
+--   // post-processing:
+--   //     compute a bitstring $s$ that is orthogonal to every $u_i$ computed above,
+--   //     by solving the system of equations $s \cdot u_i = 0$.
+--   //     store this result in $y$.
+--   //     if no solution, then set $y = 0$.
+-- }
 
 instance
   (size ~ SizeT, RealFloat prec, Show prec) =>
   UnitaryCompilePrim (SimonsFindXorPeriod size prec) size prec
   where
-  compileUPrim = undefined
+  compileUPrim _ _ = do
+    rets <- view $ to ret_vars
+
+    -- arguments (types) over which we compute the period
+    arg_tys <- forM rets $ \x -> do
+      mty <- use $ P._typingCtx . Ctx.at x
+      maybeWithError "" mty
+
+    return
+      CQPL.ProcDef
+        { CQPL.info_comment = ""
+        , CQPL.proc_name = "USimon"
+        , CQPL.proc_meta_params = []
+        , CQPL.proc_param_types = arg_tys
+        , CQPL.proc_body =
+            CQPL.ProcBodyU $
+              CQPL.UProcBody
+                { CQPL.uproc_param_names = rets
+                , CQPL.uproc_param_tags = []
+                , CQPL.uproc_body_stmt = CQPL.UCommentS "TODO compileUPrim SimonsFindXorPeriod"
+                }
+        }
+
+-- error "TODO compileUPrim SimonsFindXorPeriod"
 
 instance
   (size ~ SizeT, RealFloat prec, Show prec) =>
   QuantumCompilePrim (SimonsFindXorPeriod size prec) size prec
   where
   compileQPrim (SimonsFindXorPeriod FindXorPeriod{n, p_0}) eps = do
-    simons_uproc <- simonsOneRound
-    undefined
+    rets <- view $ to ret_vars
+
+    -- arguments (types) over which we compute the period
+    arg_tys <- forM rets $ \x -> do
+      mty <- use $ P._typingCtx . Ctx.at x
+      maybeWithError "" mty
+
+    simons_uproc <- simonsOneRound arg_tys
+    Compiler.addProc simons_uproc
+
+    proc_name <- lift $ Compiler.newIdent "QSimon"
+    i <- lift $ Compiler.newIdent "i"
+
+    let nq = ceiling $ _SimonsQueries n p_0 eps
+    let cproc_body_stmt =
+          CQPL.SeqS
+            [ CQPL.ForInRangeS
+                { CQPL.iter_meta_var = i
+                , CQPL.iter_lim = P.MetaValue nq
+                , CQPL.loop_body = CQPL.CommentS "TODO"
+                }
+            , CQPL.CommentS "simon's post-processing: solve linear system `s . u_i = 0`"
+            ]
+
+    return
+      CQPL.ProcDef
+        { CQPL.info_comment = ""
+        , CQPL.proc_name
+        , CQPL.proc_meta_params = []
+        , CQPL.proc_param_types = arg_tys
+        , CQPL.proc_body =
+            CQPL.ProcBodyC $
+              CQPL.CProcBody
+                { CQPL.cproc_param_names = rets
+                , CQPL.cproc_local_vars = []
+                , CQPL.cproc_body_stmt
+                }
+        }

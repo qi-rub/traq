@@ -228,6 +228,7 @@ data Stmt sizeT
     WhileK {n_iter :: MetaParam sizeT, cond :: Ident, loop_body :: Stmt sizeT}
   | WhileKWithCondExpr {n_iter :: MetaParam sizeT, cond :: Ident, cond_expr :: P.BasicExpr sizeT, loop_body :: Stmt sizeT}
   | ForInArray {loop_index :: Ident, loop_index_ty :: VarType sizeT, loop_values :: [P.BasicExpr sizeT], loop_body :: Stmt sizeT}
+  | ForInRangeS {iter_meta_var :: Ident, iter_lim :: P.MetaParam sizeT, loop_body :: Stmt sizeT}
   deriving (Eq, Show, Read)
 
 type instance SizeType (Stmt sizeT) = sizeT
@@ -279,6 +280,11 @@ instance (Show sizeT) => PP.ToCodeString (Stmt sizeT) where
     PP.delimitedBlock
       (printf "for (%s in [%s]) {" loop_index loop_values_s)
       "}"
+      $ PP.build loop_body
+  build ForInRangeS{iter_meta_var, iter_lim, loop_body} = do
+    n <- PP.fromBuild iter_lim
+    PP.bracedBlockWith
+      (printf "for (%s in 0 .. < %s)" iter_meta_var n)
       $ PP.build loop_body
 
 -- ================================================================================

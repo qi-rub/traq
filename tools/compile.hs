@@ -13,7 +13,7 @@ import qualified Traq.Analysis as P
 import qualified Traq.CQPL as CQPL
 import qualified Traq.Compiler.Quantum as CompileQ
 import Traq.Prelude
-import Traq.Primitives (DefaultPrims)
+import Traq.Primitives
 import qualified Traq.ProtoLang as P
 import qualified Traq.Utils.Printing as PP
 
@@ -22,7 +22,7 @@ type SymbSize = Sym.Sym Int
 data Options = Options
   { in_file :: FilePath
   , out_file :: FilePath
-  , eps :: Maybe Float
+  , eps :: Maybe Double
   , params :: [(Ident, SizeT)]
   }
   deriving (Show)
@@ -62,10 +62,11 @@ subsNM params s = Sym.unSym $ foldr subsOnce s params
   subsOnce :: (Ident, SizeT) -> SymbSize -> SymbSize
   subsOnce (k, v) = Sym.subst k (Sym.con v)
 
-compile :: (RealFloat precT, Show precT) => P.Program (DefaultPrims SizeT precT) -> precT -> IO String
+compile :: (RealFloat precT, Show precT) => P.Program (WorstCasePrims SizeT precT) -> precT -> IO String
 compile prog eps = do
-  Right prog' <- return $ A.annotateProgWithErrorBudget (P.failProb eps) prog
-  Right cqpl_prog <- return $ CompileQ.lowerProgram prog'
+  let prog_rn = P.renameVars' prog
+  prog' <- either fail pure $ A.annotateProgWithErrorBudget (P.failProb eps) prog_rn
+  cqpl_prog <- either fail pure $ CompileQ.lowerProgram prog'
   let nqubits = CQPL.numQubits cqpl_prog
 
   return $ PP.toCodeString cqpl_prog ++ printf "\n// qubits: %d\n" nqubits
@@ -76,9 +77,7 @@ main = do
 
   -- parse
   code <- readFile in_file
-  Right prog <-
-    return $
-      P.mapSize (subsNM params) <$> P.parseProgram @(DefaultPrims _ _) code
+  prog <- either (fail . show) (pure . P.mapSize (subsNM params)) $ P.parseProgram @(WorstCasePrims _ Double) code
 
   -- compile
   out_prog <- case eps of

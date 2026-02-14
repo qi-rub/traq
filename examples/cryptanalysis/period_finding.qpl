@@ -1,0 +1,34 @@
+ext uproc f_U(BitVec<20>, BitVec<20>);
+
+ext proc f(BitVec<20>, BitVec<20>);
+
+uproc USimon() {
+  // TODO compileUPrim SimonsFindXorPeriod
+}
+
+uproc main_U(main_s : OUT BitVec<20>, main_s_1 : AUX BitVec<20>) {
+  call USimon(main_s_1);
+  main_s, main_s_1 *= SWAP;
+}
+
+uproc SimonOneRound_U(aux : BitVec<20>, aux_1 : BitVec<20>, aux_2 : BitVec<20>) {
+  aux *= Distr[uniform : BitVec<20>];
+  call f_U(aux, aux_1);
+  aux_1, aux_2 *= COPY;
+  call-adj f_U(aux, aux_1);
+  aux *= Adj-Distr[uniform : BitVec<20>];
+}
+
+proc QSimon(main_s : BitVec<20>) { locals : () } {
+  for (i in 0 .. < 31) {
+    // TODO
+  }
+  // simon's post-processing: solve linear system `s . u_i = 0`
+}
+
+proc main(main_s : BitVec<20>) { locals : (aux : BitVec<20>, aux_1 : BitVec<20>, aux_2 : BitVec<20>) } {
+  call QSimon(main_s);
+}
+
+
+// qubits: 60

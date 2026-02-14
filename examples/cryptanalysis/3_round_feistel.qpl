@@ -1,0 +1,106 @@
+ext uproc R1_U(BitVec<20>, BitVec<20>);
+
+ext proc R1(BitVec<20>, BitVec<20>);
+
+ext uproc R2_U(BitVec<20>, BitVec<20>);
+
+ext proc R2(BitVec<20>, BitVec<20>);
+
+ext uproc R3_U(BitVec<20>, BitVec<20>);
+
+ext proc R3(BitVec<20>, BitVec<20>);
+
+uproc E_U(E_xL : IN BitVec<20>, E_xR : IN BitVec<20>, E_u3 : OUT BitVec<20>, E_v3 : OUT BitVec<20>, E_u0 : AUX BitVec<20>, E_v0 : AUX BitVec<20>, E_R1u0 : AUX BitVec<20>, E_u1 : AUX BitVec<20>, E_v1 : AUX BitVec<20>, E_R2u0 : AUX BitVec<20>, E_u2 : AUX BitVec<20>, E_v2 : AUX BitVec<20>, E_R3u2 : AUX BitVec<20>, E_u0_1 : AUX BitVec<20>, E_v0_1 : AUX BitVec<20>, E_R1u0_1 : AUX BitVec<20>, E_u1_1 : AUX BitVec<20>, E_v1_1 : AUX BitVec<20>, E_R2u0_1 : AUX BitVec<20>, E_u2_1 : AUX BitVec<20>, E_v2_1 : AUX BitVec<20>, E_R3u2_1 : AUX BitVec<20>, E_u3_1 : AUX BitVec<20>, E_v3_1 : AUX BitVec<20>) {
+  E_xL, E_u0_1 *= Embed[(E_xL) => E_xL];
+  E_u0, E_u0_1 *= SWAP;
+  E_xR, E_v0_1 *= Embed[(E_xR) => E_xR];
+  E_v0, E_v0_1 *= SWAP;
+  call R1_U(E_u0, E_R1u0_1);
+  E_R1u0, E_R1u0_1 *= SWAP;
+  E_R1u0, E_v0, E_u1_1 *= Embed[(E_R1u0, E_v0) => (E_v0 ^ E_R1u0)];
+  E_u1, E_u1_1 *= SWAP;
+  E_u0, E_v1_1 *= Embed[(E_u0) => E_u0];
+  E_v1, E_v1_1 *= SWAP;
+  call R2_U(E_u1, E_R2u0_1);
+  E_R2u0, E_R2u0_1 *= SWAP;
+  E_R2u0, E_v1, E_u2_1 *= Embed[(E_R2u0, E_v1) => (E_v1 ^ E_R2u0)];
+  E_u2, E_u2_1 *= SWAP;
+  E_u1, E_v2_1 *= Embed[(E_u1) => E_u1];
+  E_v2, E_v2_1 *= SWAP;
+  call R3_U(E_u2, E_R3u2_1);
+  E_R3u2, E_R3u2_1 *= SWAP;
+  E_R3u2, E_v2, E_u3_1 *= Embed[(E_R3u2, E_v2) => (E_v2 ^ E_R3u2)];
+  E_u3, E_u3_1 *= SWAP;
+  E_u2, E_v3_1 *= Embed[(E_u2) => E_u2];
+  E_v3, E_v3_1 *= SWAP;
+}
+
+proc E(E_xL : BitVec<20>, E_xR : BitVec<20>, E_u3 : BitVec<20>, E_v3 : BitVec<20>) { locals : (E_u0 : BitVec<20>, E_v0 : BitVec<20>, E_R1u0 : BitVec<20>, E_u1 : BitVec<20>, E_v1 : BitVec<20>, E_R2u0 : BitVec<20>, E_u2 : BitVec<20>, E_v2 : BitVec<20>, E_R3u2 : BitVec<20>) } {
+  E_u0 := E_xL;
+  E_v0 := E_xR;
+  call R1(E_u0, E_R1u0);
+  E_u1 := (E_v0 ^ E_R1u0);
+  E_v1 := E_u0;
+  call R2(E_u1, E_R2u0);
+  E_u2 := (E_v1 ^ E_R2u0);
+  E_v2 := E_u1;
+  call R3(E_u2, E_R3u2);
+  E_u3 := (E_v2 ^ E_R3u2);
+  E_v3 := E_u2;
+}
+
+ext uproc alpha_U(Fin<2>, BitVec<20>);
+
+ext proc alpha(Fin<2>, BitVec<20>);
+
+uproc f_U(f_b : IN Fin<2>, f_x : IN BitVec<20>, f_zero : OUT Fin<2>, f_res : OUT BitVec<20>, f_alpha_b : AUX BitVec<20>, f_yL : AUX BitVec<20>, f_yR : AUX BitVec<20>, f_alpha_b_1 : AUX BitVec<20>, f_yL_1 : AUX BitVec<20>, f_yR_1 : AUX BitVec<20>, aux : AUX BitVec<20>, aux_1 : AUX BitVec<20>, aux_2 : AUX BitVec<20>, aux_3 : AUX BitVec<20>, aux_4 : AUX BitVec<20>, aux_5 : AUX BitVec<20>, aux_6 : AUX BitVec<20>, aux_7 : AUX BitVec<20>, aux_8 : AUX BitVec<20>, aux_9 : AUX BitVec<20>, aux_10 : AUX BitVec<20>, aux_11 : AUX BitVec<20>, aux_12 : AUX BitVec<20>, aux_13 : AUX BitVec<20>, aux_14 : AUX BitVec<20>, aux_15 : AUX BitVec<20>, aux_16 : AUX BitVec<20>, aux_17 : AUX BitVec<20>, aux_18 : AUX BitVec<20>, aux_19 : AUX BitVec<20>, f_res_1 : AUX BitVec<20>, f_zero_1 : AUX Fin<2>) {
+  call alpha_U(f_b, f_alpha_b_1);
+  f_alpha_b, f_alpha_b_1 *= SWAP;
+  call E_U(f_alpha_b, f_x, f_yL_1, f_yR_1, aux, aux_1, aux_2, aux_3, aux_4, aux_5, aux_6, aux_7, aux_8, aux_9, aux_10, aux_11, aux_12, aux_13, aux_14, aux_15, aux_16, aux_17, aux_18, aux_19);
+  f_yL, f_yR, f_yL_1, f_yR_1 *= SWAP;
+  f_alpha_b, f_yR, f_res_1 *= Embed[(f_alpha_b, f_yR) => (f_yR ^ f_alpha_b)];
+  f_res, f_res_1 *= SWAP;
+  f_zero_1 *= Embed[() => 0:Fin<2>];
+  f_zero, f_zero_1 *= SWAP;
+}
+
+proc f(f_b : Fin<2>, f_x : BitVec<20>, f_zero : Fin<2>, f_res : BitVec<20>) { locals : (f_alpha_b : BitVec<20>, f_yL : BitVec<20>, f_yR : BitVec<20>) } {
+  call alpha(f_b, f_alpha_b);
+  call E(f_alpha_b, f_x, f_yL, f_yR);
+  f_res := (f_yR ^ f_alpha_b);
+  f_zero := 0:Fin<2>;
+}
+
+uproc USimon() {
+  // TODO compileUPrim SimonsFindXorPeriod
+}
+
+uproc AttackThreeRoundFeistel_U(AttackThreeRoundFeistel_s : OUT BitVec<20>, AttackThreeRoundFeistel_zero : AUX Fin<2>, AttackThreeRoundFeistel_zero_1 : AUX Fin<2>, AttackThreeRoundFeistel_s_1 : AUX BitVec<20>) {
+  call USimon(AttackThreeRoundFeistel_zero_1, AttackThreeRoundFeistel_s_1);
+  AttackThreeRoundFeistel_zero, AttackThreeRoundFeistel_s, AttackThreeRoundFeistel_zero_1, AttackThreeRoundFeistel_s_1 *= SWAP;
+}
+
+uproc SimonOneRound_U(aux_20 : Fin<2>, aux_21 : BitVec<20>, aux_22 : Fin<2>, aux_23 : BitVec<20>, aux_24 : Fin<2>, aux_25 : BitVec<20>, aux_26 : BitVec<20>, aux_27 : BitVec<20>, aux_28 : BitVec<20>, aux_29 : BitVec<20>, aux_30 : BitVec<20>, aux_31 : BitVec<20>, aux_32 : BitVec<20>, aux_33 : BitVec<20>, aux_34 : BitVec<20>, aux_35 : BitVec<20>, aux_36 : BitVec<20>, aux_37 : BitVec<20>, aux_38 : BitVec<20>, aux_39 : BitVec<20>, aux_40 : BitVec<20>, aux_41 : BitVec<20>, aux_42 : BitVec<20>, aux_43 : BitVec<20>, aux_44 : BitVec<20>, aux_45 : BitVec<20>, aux_46 : BitVec<20>, aux_47 : BitVec<20>, aux_48 : BitVec<20>, aux_49 : BitVec<20>, aux_50 : BitVec<20>, aux_51 : BitVec<20>, aux_52 : BitVec<20>, aux_53 : Fin<2>) {
+  aux_20 *= Distr[uniform : Fin<2>];
+  aux_21 *= Distr[uniform : BitVec<20>];
+  call f_U(aux_20, aux_21, aux_22, aux_23, aux_26, aux_27, aux_28, aux_29, aux_30, aux_31, aux_32, aux_33, aux_34, aux_35, aux_36, aux_37, aux_38, aux_39, aux_40, aux_41, aux_42, aux_43, aux_44, aux_45, aux_46, aux_47, aux_48, aux_49, aux_50, aux_51, aux_52, aux_53);
+  aux_22, aux_24 *= COPY;
+  aux_23, aux_25 *= COPY;
+  call-adj f_U(aux_20, aux_21, aux_22, aux_23, aux_26, aux_27, aux_28, aux_29, aux_30, aux_31, aux_32, aux_33, aux_34, aux_35, aux_36, aux_37, aux_38, aux_39, aux_40, aux_41, aux_42, aux_43, aux_44, aux_45, aux_46, aux_47, aux_48, aux_49, aux_50, aux_51, aux_52, aux_53);
+  aux_21 *= Adj-Distr[uniform : BitVec<20>];
+  aux_20 *= Adj-Distr[uniform : Fin<2>];
+}
+
+proc QSimon(AttackThreeRoundFeistel_zero : Fin<2>, AttackThreeRoundFeistel_s : BitVec<20>) { locals : () } {
+  for (i in 0 .. < 32) {
+    // TODO
+  }
+  // simon's post-processing: solve linear system `s . u_i = 0`
+}
+
+proc AttackThreeRoundFeistel(AttackThreeRoundFeistel_s : BitVec<20>) { locals : (AttackThreeRoundFeistel_zero : Fin<2>, aux_20 : Fin<2>, aux_21 : BitVec<20>, aux_22 : Fin<2>, aux_23 : BitVec<20>, aux_24 : Fin<2>, aux_25 : BitVec<20>, aux_26 : BitVec<20>, aux_27 : BitVec<20>, aux_28 : BitVec<20>, aux_29 : BitVec<20>, aux_30 : BitVec<20>, aux_31 : BitVec<20>, aux_32 : BitVec<20>, aux_33 : BitVec<20>, aux_34 : BitVec<20>, aux_35 : BitVec<20>, aux_36 : BitVec<20>, aux_37 : BitVec<20>, aux_38 : BitVec<20>, aux_39 : BitVec<20>, aux_40 : BitVec<20>, aux_41 : BitVec<20>, aux_42 : BitVec<20>, aux_43 : BitVec<20>, aux_44 : BitVec<20>, aux_45 : BitVec<20>, aux_46 : BitVec<20>, aux_47 : BitVec<20>, aux_48 : BitVec<20>, aux_49 : BitVec<20>, aux_50 : BitVec<20>, aux_51 : BitVec<20>, aux_52 : BitVec<20>, aux_53 : Fin<2>) } {
+  call QSimon(AttackThreeRoundFeistel_zero, AttackThreeRoundFeistel_s);
+}
+
+
+// qubits: 604
