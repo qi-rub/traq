@@ -69,7 +69,7 @@ instance CompileQ1 P.Expr where
   -- function call
   compileQ1 rets P.FunCallE{P.fname, P.args} = do
     let proc_id = mkQProcName fname
-    return $ CallS{fun = FunctionCall proc_id, args = args ++ rets, meta_params = []}
+    return $ CallS{fun = FunctionCall proc_id, args = map Arg (args ++ rets), meta_params = []}
   -- primitive call
   compileQ1 rets P.PrimCallE{P.prim} = compileQ prim rets
   compileQ1 _ _ = error "TODO: UNSUPPORTED"

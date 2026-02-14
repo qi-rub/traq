@@ -272,7 +272,7 @@ prependBoundArgs pfun_names bound_args CQPL.ProcDef{..} =
   goStmt :: CQPL.Stmt size -> CQPL.Stmt size
   goStmt (CQPL.SeqS ss) = CQPL.SeqS (map goStmt ss)
   goStmt s@CQPL.CallS{CQPL.fun, CQPL.args}
-    | callTarget fun `notElem` pfun_names = s{CQPL.args = bound_arg_names ++ args}
+    | callTarget fun `notElem` pfun_names = s{CQPL.args = map CQPL.Arg bound_arg_names ++ args}
   goStmt s@CQPL.IfThenElseS{CQPL.s_true, CQPL.s_false} =
     s{CQPL.s_true = goStmt s_true, CQPL.s_false = goStmt s_false}
   goStmt s@CQPL.RepeatS{CQPL.loop_body} = s{CQPL.loop_body = goStmt loop_body}
@@ -546,7 +546,7 @@ instance
           CQPL.CallS
             { fun = CQPL.FunctionCall $ Compiler.mkQProcName pfun_name
             , meta_params = []
-            , args = placeArgsWithExcess pfun_args xs
+            , args = map CQPL.Arg $ placeArgsWithExcess pfun_args xs
             }
 
     mk_meas <-
@@ -555,7 +555,7 @@ instance
           CQPL.CallS
             { fun = CQPL.UProcAndMeas $ Compiler.mkUProcName pfun_name
             , meta_params = []
-            , args = placeArgsWithExcess pfun_args xs
+            , args = map CQPL.Arg $ placeArgsWithExcess pfun_args xs
             }
 
     let builder =
@@ -580,5 +580,5 @@ instance
       CQPL.CallS
         { fun = CQPL.FunctionCall $ CQPL.proc_name prim_proc
         , meta_params = []
-        , args = map fst bound_args ++ rets
+        , args = map (CQPL.Arg . fst) bound_args ++ map CQPL.Arg rets
         }

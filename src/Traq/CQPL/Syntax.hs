@@ -220,7 +220,7 @@ data Stmt sizeT
   | AssignS {rets :: [Ident], expr :: P.BasicExpr sizeT}
   | RandomS {rets :: [Ident], distr_expr :: P.DistrExpr sizeT}
   | RandomDynS {ret :: Ident, max_var :: Ident}
-  | CallS {fun :: FunctionCall, meta_params :: [Either (MetaParam sizeT) Ident], args :: [Ident]}
+  | CallS {fun :: FunctionCall, meta_params :: [Either (MetaParam sizeT) Ident], args :: [Arg sizeT]}
   | SeqS [Stmt sizeT]
   | IfThenElseS {cond :: Ident, s_true, s_false :: Stmt sizeT}
   | RepeatS {n_iter :: MetaParam sizeT, loop_body :: Stmt sizeT}
@@ -248,7 +248,8 @@ instance (Show sizeT) => PP.ToCodeString (Stmt sizeT) where
     PP.putLine $ printf "%s :=$ [1 .. %s];" ret max_var
   build CallS{fun, meta_params, args} = do
     meta_params_str <- PP.wrapNonEmpty "[" "]" . PP.commaList <$> mapM (either PP.fromBuild return) meta_params
-    PP.putLine $ printf "%s%s(%s);" (f_str fun) meta_params_str (PP.commaList args)
+    args_str <- mapM PP.fromBuild args
+    PP.putLine $ printf "%s%s(%s);" (f_str fun) meta_params_str (PP.commaList args_str)
    where
     f_str :: FunctionCall -> String
     f_str (FunctionCall fname) = printf "call %s" fname
