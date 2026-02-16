@@ -80,11 +80,11 @@ instance
   EvalPrim (Amplify sizeT precT) sizeT precT
   where
   evalPrim Amplify{p_min} (SamplerFn sampler) = do
-    -- TODO also push this into the primitive class book-keeping.
-    eval_env <- view id
-
     -- result distribution
+    eval_env <- view id
     let mu = sampler [] & runReaderT ?? eval_env
+
+    -- success probability
     let p_succ = Prob.probabilityOf success mu
 
     lift $
