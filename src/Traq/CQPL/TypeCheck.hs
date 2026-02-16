@@ -18,7 +18,6 @@ import Control.Monad (forM, unless, when)
 import Control.Monad.Except (MonadError (throwError))
 import Control.Monad.Reader (MonadReader, ReaderT, local, runReaderT)
 import Control.Monad.State (execStateT)
-import Data.Foldable (toList)
 import Data.List (intersect)
 import GHC.Generics (Generic)
 import Text.Printf (printf)
@@ -202,12 +201,7 @@ typeCheckStmt SkipS = return ()
 typeCheckStmt (CommentS _) = return ()
 -- Simple statements
 typeCheckStmt AssignS{rets, expr} = do
-  let expr_vars = toList $ P.freeVars expr
-  expr_var_tys <- forM expr_vars $ \var -> do
-    view (P._typingCtx . Ctx.at var)
-      >>= maybeWithError (Err.MessageE $ printf "cannot find %s" var)
-  let gamma = Ctx.fromList $ zip expr_vars expr_var_tys
-
+  gamma <- view P._typingCtx
   actual_ret_tys <-
     case runReaderT ?? gamma $ P.typeCheckBasicExpr expr of
       Left err -> Err.throwErrorMessage err
@@ -261,7 +255,7 @@ typeCheckStmt ForInRangeS{loop_body, iter_meta_var, iter_lim} = do
   iter_ty <- case iter_lim of
     P.MetaSize n -> pure $ P.Fin n
     P.MetaValue n -> pure $ P.Fin $ fromIntegral n
-    P.MetaName _ -> Err.throwErrorMessage $ "cannot find iteration"
+    P.MetaName _ -> Err.throwErrorMessage "cannot find iteration"
   local (P._typingCtx . Ctx.ins ('#' : iter_meta_var) .~ iter_ty) $
     typeCheckStmt loop_body
 -- try by desugaring

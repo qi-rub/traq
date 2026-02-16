@@ -11,6 +11,7 @@ module Traq.Primitives.Amplify.QAmplify (
   _EQSearch,
 ) where
 
+import Control.Monad.Trans (lift)
 import GHC.Generics (Generic)
 
 import Lens.Micro.GHC
@@ -22,6 +23,7 @@ import Traq.Data.Subtyping
 
 import qualified Traq.Analysis as A
 import qualified Traq.CQPL as CQPL
+import qualified Traq.Compiler as Compiler
 import Traq.Prelude
 import Traq.Primitives.Amplify.Prelude
 import Traq.Primitives.Class
@@ -141,7 +143,7 @@ instance UnitaryCompilePrim (QAmplify size prec) size prec where
 
 instance QuantumCompilePrim (QAmplify size prec) size prec where
   compileQPrim (QAmplify Amplify{}) eps = do
-    let qamplify_proc_name = "UAmplify"
+    qamplify_proc_name <- lift $ Compiler.newIdent "QAmplify"
     let args = []
     let local_vars = []
     let cproc_body_stmt = CQPL.CommentS "TODO"

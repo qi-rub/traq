@@ -92,21 +92,22 @@ instance CompileQ1 P.Expr where
     let proc_id = mkQProcName loop_body_fun
 
     return $
-      SeqS
-        [ ForInRangeS
-            { iter_meta_var
-            , iter_lim = P.MetaSize n
-            , loop_body =
-                SeqS
-                  [ AssignS [iter_var] (P.ParamE iter_meta_var)
-                  , CallS
-                      { fun = FunctionCall proc_id
-                      , meta_params = []
-                      , args = map Arg rets ++ [Arg iter_var]
-                      }
-                  ]
-            }
-        ]
+      SeqS $
+        [AssignS [y] (P.VarE x) | (x, y) <- zip initial_args rets]
+          ++ [ ForInRangeS
+                 { iter_meta_var
+                 , iter_lim = P.MetaSize n
+                 , loop_body =
+                     SeqS
+                       [ AssignS [iter_var] (P.ParamE iter_meta_var)
+                       , CallS
+                           { fun = FunctionCall proc_id
+                           , meta_params = []
+                           , args = map Arg rets ++ [Arg iter_var] ++ map Arg rets
+                           }
+                       ]
+                 }
+             ]
 
 instance CompileQ1 P.Stmt where
   type CompileQArgs P.Stmt ext = ()

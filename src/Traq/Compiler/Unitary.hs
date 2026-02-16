@@ -123,7 +123,7 @@ instance CompileU1 P.Expr where
     return UCallS{uproc_id, qargs, dagger = False}
   compileU1 rets P.PrimCallE{prim} = compileU prim rets
   compileU1 rets P.LoopE{initial_args, loop_body_fun} = do
-    P.FunDef{param_types} <- view (P._funCtx . Ctx.at loop_body_fun) >>= maybeWithError "cannot find loop body fun"
+    P.FunDef{param_types, ret_types} <- view (P._funCtx . Ctx.at loop_body_fun) >>= maybeWithError "cannot find loop body fun"
     n <- case last param_types of
       P.Fin n -> pure n
       _ -> throwError "loop index must be of type `Fin`"
@@ -133,15 +133,44 @@ instance CompileU1 P.Expr where
 
     -- fresh aux for each iteration
     aux_vars <- mapM (allocAncilla . P.Arr n) aux_tys
-    iter_meta_var <- newIdent "ITER"
 
-    return
-      UForInRangeS
-        { iter_meta_var
-        , iter_lim = P.MetaSize n
-        , uloop_body = CQPL.UCommentS "TODO"
-        , dagger = False
-        }
+    iter_meta_var <- newIdent "ITER"
+    iter_vars <- allocAncilla (P.Arr n (P.Fin n))
+
+    intermediates <- mapM (allocAncilla . P.Arr (n + 1)) ret_types
+
+    let at_ix x = ArrElemArg (Arg x) (P.MetaName iter_meta_var)
+
+    return $
+      USeqS $
+        [ UnitaryS
+            [Arg x_in, ArrElemArg (Arg x_out) (MetaSize 0)]
+            (BasicGateU COPY)
+        | (x_out, x_in) <- zip intermediates initial_args
+        ]
+          ++ [ UForInRangeS
+                 { iter_meta_var
+                 , iter_lim = P.MetaSize n
+                 , uloop_body =
+                     USeqS
+                       [ UCallS
+                           { uproc_id = uproc_id
+                           , dagger = False
+                           , qargs =
+                               map at_ix intermediates
+                                 ++ [at_ix iter_vars]
+                                 ++ map at_ix intermediates
+                                 ++ map at_ix aux_vars
+                           }
+                       ]
+                 , dagger = False
+                 }
+             ]
+          ++ [ UnitaryS
+                 [ArrElemArg (Arg x_last) (MetaSize n), Arg x_ret]
+                 (BasicGateU COPY)
+             | (x_ret, x_last) <- zip rets intermediates
+             ]
 
 instance CompileU1 P.Stmt where
   type CompileArgs P.Stmt ext = ()
