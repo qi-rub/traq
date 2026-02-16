@@ -258,9 +258,11 @@ typeCheckStmt IfThenElseS{cond, s_true, s_false} = do
   typeCheckStmt s_false
 typeCheckStmt RepeatS{loop_body} = typeCheckStmt loop_body
 typeCheckStmt ForInRangeS{loop_body, iter_meta_var, iter_lim} = do
-  let iter_ty = P.Fin undefined
-  let upd = P._typingCtx . Ctx.ins iter_meta_var .~ iter_ty
-  magnify upd $
+  iter_ty <- case iter_lim of
+    P.MetaSize n -> pure $ P.Fin n
+    P.MetaValue n -> pure $ P.Fin $ fromIntegral n
+    P.MetaName _ -> Err.throwErrorMessage $ "cannot find iteration"
+  local (P._typingCtx . Ctx.ins ('#' : iter_meta_var) .~ iter_ty) $
     typeCheckStmt loop_body
 -- try by desugaring
 typeCheckStmt s = case desugarS s of
