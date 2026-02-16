@@ -19,14 +19,14 @@ uproc SimonOneRound_U(aux : BitVec<20>, aux_1 : BitVec<20>, aux_2 : BitVec<20>) 
   aux *= Adj-Distr[uniform : BitVec<20>];
 }
 
-proc QSimon(main_s : BitVec<20>) { locals : () } {
+proc QSimon(main_s : BitVec<20>) { locals : (QSimon__u : Arr<31, BitVec<20>>) } {
   for (i in 0 .. < 31) {
-    // TODO
+    meas SimonOneRound_U(QSimon__u[#i]);
   }
-  // simon's post-processing: solve linear system `s . u_i = 0`
+  // simon's post-processing: solve linear system: (main_s) . (QSimon__u) = 0
 }
 
-proc main(main_s : BitVec<20>) { locals : (aux : BitVec<20>, aux_1 : BitVec<20>, aux_2 : BitVec<20>) } {
+proc main(main_s : BitVec<20>) { locals : (aux : BitVec<20>, aux_1 : BitVec<20>, aux_2 : BitVec<20>, QSimon__u : Arr<31, BitVec<20>>) } {
   call QSimon(main_s);
 }
 

@@ -44,14 +44,14 @@ uproc SimonOneRound_U(innerAttack_k : BitVec<20>, aux : BitVec<20>, aux_1 : BitV
   aux *= Adj-Distr[uniform : BitVec<20>];
 }
 
-proc QSimon(innerAttack_k : BitVec<20>, innerAttack_k1 : BitVec<20>) { locals : () } {
+proc QSimon(innerAttack_k : BitVec<20>, innerAttack_k1 : BitVec<20>) { locals : (QSimon__u : Arr<79, BitVec<20>>) } {
   for (i in 0 .. < 79) {
-    // TODO
+    meas SimonOneRound_U(QSimon__u[#i]);
   }
-  // simon's post-processing: solve linear system `s . u_i = 0`
+  // simon's post-processing: solve linear system: (innerAttack_k1) . (QSimon__u) = 0
 }
 
-proc innerAttack(innerAttack_k : BitVec<20>, innerAttack_res : Fin<2>) { locals : (innerAttack_k1 : BitVec<20>, aux : BitVec<20>, aux_1 : BitVec<20>, aux_2 : BitVec<20>, aux_3 : BitVec<20>, aux_4 : BitVec<20>, aux_5 : BitVec<20>, aux_6 : BitVec<20>, aux_7 : BitVec<20>) } {
+proc innerAttack(innerAttack_k : BitVec<20>, innerAttack_res : Fin<2>) { locals : (innerAttack_k1 : BitVec<20>, aux : BitVec<20>, aux_1 : BitVec<20>, aux_2 : BitVec<20>, aux_3 : BitVec<20>, aux_4 : BitVec<20>, aux_5 : BitVec<20>, aux_6 : BitVec<20>, aux_7 : BitVec<20>, QSimon__u : Arr<79, BitVec<20>>) } {
   call QSimon(innerAttack_k, innerAttack_k1);
   call classifier(innerAttack_k, innerAttack_k1, innerAttack_res);
 }

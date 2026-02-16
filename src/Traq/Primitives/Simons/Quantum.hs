@@ -23,6 +23,7 @@ import Traq.Control.Monad
 import qualified Traq.Data.Context as Ctx
 import Traq.Data.Subtyping
 
+import Text.Printf (printf)
 import qualified Traq.Analysis as P
 import qualified Traq.CQPL as CQPL
 import qualified Traq.Compiler as Compiler
@@ -30,6 +31,7 @@ import Traq.Prelude
 import Traq.Primitives.Class
 import Traq.Primitives.Simons.Prelude
 import qualified Traq.ProtoLang as P
+import qualified Traq.Utils.Printing as PP
 
 -- ================================================================================
 -- Primitive and Query Cost Formulas
@@ -243,14 +245,28 @@ instance
     i <- lift $ Compiler.newIdent "i"
 
     let nq = ceiling $ _SimonsQueries n p_0 eps
+    xts <- forM arg_tys $ \t -> do
+      let t' = P.Arr nq t
+      x <- lift $ Compiler.allocAncillaWithPref (proc_name ++ "__u") t'
+      pure (x, t')
+
     let cproc_body_stmt =
           CQPL.SeqS
             [ CQPL.ForInRangeS
                 { CQPL.iter_meta_var = i
-                , CQPL.iter_lim = P.MetaValue nq
-                , CQPL.loop_body = CQPL.CommentS "TODO"
+                , CQPL.iter_lim = P.MetaSize nq
+                , CQPL.loop_body =
+                    CQPL.CallS
+                      { fun = CQPL.UProcAndMeas (CQPL.proc_name simons_uproc)
+                      , meta_params = []
+                      , args = map (\(x, _) -> CQPL.ArrElemArg (CQPL.Arg x) (P.MetaName i)) xts
+                      }
                 }
-            , CQPL.CommentS "simon's post-processing: solve linear system `s . u_i = 0`"
+            , CQPL.CommentS $
+                printf
+                  "simon's post-processing: solve linear system: (%s) . (%s) = 0"
+                  (PP.commaList rets)
+                  (PP.commaList $ map fst xts)
             ]
 
     return
@@ -263,7 +279,7 @@ instance
             CQPL.ProcBodyC $
               CQPL.CProcBody
                 { CQPL.cproc_param_names = rets
-                , CQPL.cproc_local_vars = []
+                , CQPL.cproc_local_vars = xts
                 , CQPL.cproc_body_stmt
                 }
         }

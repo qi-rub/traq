@@ -91,14 +91,14 @@ uproc SimonOneRound_U(aux_20 : Fin<2>, aux_21 : BitVec<20>, aux_22 : Fin<2>, aux
   aux_20 *= Adj-Distr[uniform : Fin<2>];
 }
 
-proc QSimon(AttackThreeRoundFeistel_zero : Fin<2>, AttackThreeRoundFeistel_s : BitVec<20>) { locals : () } {
+proc QSimon(AttackThreeRoundFeistel_zero : Fin<2>, AttackThreeRoundFeistel_s : BitVec<20>) { locals : (QSimon__u : Arr<32, Fin<2>>, QSimon__u_1 : Arr<32, BitVec<20>>) } {
   for (i in 0 .. < 32) {
-    // TODO
+    meas SimonOneRound_U(QSimon__u[#i], QSimon__u_1[#i]);
   }
-  // simon's post-processing: solve linear system `s . u_i = 0`
+  // simon's post-processing: solve linear system: (AttackThreeRoundFeistel_zero, AttackThreeRoundFeistel_s) . (QSimon__u, QSimon__u_1) = 0
 }
 
-proc AttackThreeRoundFeistel(AttackThreeRoundFeistel_s : BitVec<20>) { locals : (AttackThreeRoundFeistel_zero : Fin<2>, aux_20 : Fin<2>, aux_21 : BitVec<20>, aux_22 : Fin<2>, aux_23 : BitVec<20>, aux_24 : Fin<2>, aux_25 : BitVec<20>, aux_26 : BitVec<20>, aux_27 : BitVec<20>, aux_28 : BitVec<20>, aux_29 : BitVec<20>, aux_30 : BitVec<20>, aux_31 : BitVec<20>, aux_32 : BitVec<20>, aux_33 : BitVec<20>, aux_34 : BitVec<20>, aux_35 : BitVec<20>, aux_36 : BitVec<20>, aux_37 : BitVec<20>, aux_38 : BitVec<20>, aux_39 : BitVec<20>, aux_40 : BitVec<20>, aux_41 : BitVec<20>, aux_42 : BitVec<20>, aux_43 : BitVec<20>, aux_44 : BitVec<20>, aux_45 : BitVec<20>, aux_46 : BitVec<20>, aux_47 : BitVec<20>, aux_48 : BitVec<20>, aux_49 : BitVec<20>, aux_50 : BitVec<20>, aux_51 : BitVec<20>, aux_52 : BitVec<20>, aux_53 : Fin<2>) } {
+proc AttackThreeRoundFeistel(AttackThreeRoundFeistel_s : BitVec<20>) { locals : (AttackThreeRoundFeistel_zero : Fin<2>, aux_20 : Fin<2>, aux_21 : BitVec<20>, aux_22 : Fin<2>, aux_23 : BitVec<20>, aux_24 : Fin<2>, aux_25 : BitVec<20>, aux_26 : BitVec<20>, aux_27 : BitVec<20>, aux_28 : BitVec<20>, aux_29 : BitVec<20>, aux_30 : BitVec<20>, aux_31 : BitVec<20>, aux_32 : BitVec<20>, aux_33 : BitVec<20>, aux_34 : BitVec<20>, aux_35 : BitVec<20>, aux_36 : BitVec<20>, aux_37 : BitVec<20>, aux_38 : BitVec<20>, aux_39 : BitVec<20>, aux_40 : BitVec<20>, aux_41 : BitVec<20>, aux_42 : BitVec<20>, aux_43 : BitVec<20>, aux_44 : BitVec<20>, aux_45 : BitVec<20>, aux_46 : BitVec<20>, aux_47 : BitVec<20>, aux_48 : BitVec<20>, aux_49 : BitVec<20>, aux_50 : BitVec<20>, aux_51 : BitVec<20>, aux_52 : BitVec<20>, aux_53 : Fin<2>, QSimon__u : Arr<32, Fin<2>>, QSimon__u_1 : Arr<32, BitVec<20>>) } {
   call QSimon(AttackThreeRoundFeistel_zero, AttackThreeRoundFeistel_s);
 }
 
