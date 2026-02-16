@@ -2,33 +2,44 @@ ext uproc f_U(BitVec<20>, BitVec<20>);
 
 ext proc f(BitVec<20>, BitVec<20>);
 
-uproc USimon() {
-  // TODO compileUPrim SimonsFindXorPeriod
+uproc SimonOneRound_U(x : OUT BitVec<20>, y : AUX BitVec<20>, yy : AUX BitVec<20>) {
+  x *= Distr[uniform : BitVec<20>];
+  call f_U(x, y);
+  y, yy *= COPY;
+  call-adj f_U(x, y);
+  x *= Adj-Distr[uniform : BitVec<20>];
 }
 
-uproc main_U(main_s : OUT BitVec<20>, main_s_1 : AUX BitVec<20>) {
-  call USimon(main_s_1);
+uproc USimon(main_s_1 : OUT BitVec<20>, USimon_aux : AUX Arr<31, BitVec<20>>, USimon_aux_1 : AUX Arr<31, BitVec<20>>, USimon_aux_2 : AUX Arr<31, BitVec<20>>) {
+  for (#i in 0 .. < 31) {
+    call SimonOneRound_U(USimon_aux[#i], USimon_aux_1[#i], USimon_aux_2[#i]);
+  }
+  // simon's post-processing: unitarily solve linear system: (main_s_1) . (USimon_aux) = 0
+}
+
+uproc main_U(main_s : OUT BitVec<20>, main_s_1 : AUX BitVec<20>, x : AUX BitVec<20>, y : AUX BitVec<20>, yy : AUX BitVec<20>, USimon_aux : AUX Arr<31, BitVec<20>>, USimon_aux_1 : AUX Arr<31, BitVec<20>>, USimon_aux_2 : AUX Arr<31, BitVec<20>>, aux_prim : AUX Arr<31, BitVec<20>>, aux_prim_1 : AUX Arr<31, BitVec<20>>, aux_prim_2 : AUX Arr<31, BitVec<20>>) {
+  call USimon(main_s_1, aux_prim, aux_prim_1, aux_prim_2);
   main_s, main_s_1 *= SWAP;
 }
 
-uproc SimonOneRound_U(aux : BitVec<20>, aux_1 : BitVec<20>, aux_2 : BitVec<20>) {
-  aux *= Distr[uniform : BitVec<20>];
-  call f_U(aux, aux_1);
-  aux_1, aux_2 *= COPY;
-  call-adj f_U(aux, aux_1);
-  aux *= Adj-Distr[uniform : BitVec<20>];
+uproc SimonOneRound_U_1(x_1 : OUT BitVec<20>, y_1 : AUX BitVec<20>, yy_1 : AUX BitVec<20>) {
+  x_1 *= Distr[uniform : BitVec<20>];
+  call f_U(x_1, y_1);
+  y_1, yy_1 *= COPY;
+  call-adj f_U(x_1, y_1);
+  x_1 *= Adj-Distr[uniform : BitVec<20>];
 }
 
 proc QSimon(main_s : BitVec<20>) { locals : (QSimon__u : Arr<31, BitVec<20>>) } {
-  for (i in 0 .. < 31) {
-    meas SimonOneRound_U(QSimon__u[#i]);
+  for (i_1 in 0 .. < 31) {
+    meas SimonOneRound_U_1(QSimon__u[#i_1]);
   }
   // simon's post-processing: solve linear system: (main_s) . (QSimon__u) = 0
 }
 
-proc main(main_s : BitVec<20>) { locals : (aux : BitVec<20>, aux_1 : BitVec<20>, aux_2 : BitVec<20>, QSimon__u : Arr<31, BitVec<20>>) } {
+proc main(main_s : BitVec<20>) { locals : (x_1 : BitVec<20>, y_1 : BitVec<20>, yy_1 : BitVec<20>, QSimon__u : Arr<31, BitVec<20>>) } {
   call QSimon(main_s);
 }
 
 
-// qubits: 60
+// qubits: 3820
