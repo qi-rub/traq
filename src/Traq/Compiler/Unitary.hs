@@ -19,6 +19,7 @@ module Traq.Compiler.Unitary (
 ) where
 
 import Control.Monad (zipWithM)
+import Control.Monad.Except (MonadError (throwError))
 import Data.Foldable (Foldable (toList))
 
 import Lens.Micro.GHC
@@ -122,10 +123,25 @@ instance CompileU1 P.Expr where
     return UCallS{uproc_id, qargs, dagger = False}
   compileU1 rets P.PrimCallE{prim} = compileU prim rets
   compileU1 rets P.LoopE{initial_args, loop_body_fun} = do
+    P.FunDef{param_types} <- view (P._funCtx . Ctx.at loop_body_fun) >>= maybeWithError "cannot find loop body fun"
+    n <- case last param_types of
+      P.Fin n -> pure n
+      _ -> throwError "loop index must be of type `Fin`"
+
     let uproc_id = mkUProcName loop_body_fun
     ProcSignature{aux_tys} <- use (_procSignatures . at uproc_id) >>= maybeWithError "cannot find uproc signature"
 
-    error "TODO: compileU1 rets P.LoopE{initial_args, loop_body_fun}"
+    -- fresh aux for each iteration
+    aux_vars <- mapM (allocAncilla . P.Arr n) aux_tys
+    iter_meta_var <- newIdent "ITER"
+
+    return
+      UForInRangeS
+        { iter_meta_var
+        , iter_lim = P.MetaSize n
+        , uloop_body = CQPL.UCommentS "TODO"
+        , dagger = False
+        }
 
 instance CompileU1 P.Stmt where
   type CompileArgs P.Stmt ext = ()

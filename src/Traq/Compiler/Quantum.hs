@@ -9,6 +9,7 @@ module Traq.Compiler.Quantum (
 ) where
 
 import Control.Monad (forM_)
+import Control.Monad.Except (MonadError (..))
 
 import Lens.Micro.GHC
 import Lens.Micro.Mtl
@@ -76,7 +77,36 @@ instance CompileQ1 P.Expr where
     return $ CallS{fun = FunctionCall proc_id, args = map Arg (args ++ rets), meta_params = []}
   -- primitive call
   compileQ1 rets P.PrimCallE{P.prim} = compileQ prim rets
-  compileQ1 _ _ = error "TODO: UNSUPPORTED"
+  -- loops
+  compileQ1 rets P.LoopE{loop_body_fun, initial_args} = do
+    P.FunDef{param_types} <- view (P._funCtx . Ctx.at loop_body_fun) >>= maybeWithError "cannot find loop body fun"
+    n <- case last param_types of
+      P.Fin n -> pure n
+      _ -> throwError "loop index must be of type `Fin`"
+
+    iter_meta_var <- newIdent "ITER"
+
+    iter_var <- newIdent "iter"
+    P._typingCtx . Ctx.ins iter_var .= P.Fin n
+
+    let proc_id = mkQProcName loop_body_fun
+
+    return $
+      SeqS
+        [ ForInRangeS
+            { iter_meta_var
+            , iter_lim = P.MetaSize n
+            , loop_body =
+                SeqS
+                  [ AssignS [iter_var] (P.ParamE iter_meta_var)
+                  , CallS
+                      { fun = FunctionCall proc_id
+                      , meta_params = []
+                      , args = map Arg rets ++ [Arg iter_var]
+                      }
+                  ]
+            }
+        ]
 
 instance CompileQ1 P.Stmt where
   type CompileQArgs P.Stmt ext = ()

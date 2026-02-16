@@ -257,7 +257,11 @@ typeCheckStmt IfThenElseS{cond, s_true, s_false} = do
   typeCheckStmt s_true
   typeCheckStmt s_false
 typeCheckStmt RepeatS{loop_body} = typeCheckStmt loop_body
-typeCheckStmt ForInRangeS{loop_body} = typeCheckStmt loop_body
+typeCheckStmt ForInRangeS{loop_body, iter_meta_var, iter_lim} = do
+  let iter_ty = P.Fin undefined
+  let upd = P._typingCtx . Ctx.ins iter_meta_var .~ iter_ty
+  magnify upd $
+    typeCheckStmt loop_body
 -- try by desugaring
 typeCheckStmt s = case desugarS s of
   Just s' -> typeCheckStmt s'
