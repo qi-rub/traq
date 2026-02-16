@@ -147,6 +147,12 @@ instance RenameVars (BasicExpr size) where
   renameVars pref (DynIndexE a i) = DynIndexE (renameVars pref a) (renameVars pref i)
   renameVars pref (UpdateArrE a i v) = UpdateArrE (renameVars pref a) (renameVars pref i) (renameVars pref v)
   renameVars pref (ProjectE tup i) = ProjectE (renameVars pref tup) i
+  renameVars pref (TernaryE{branch, lhs, rhs}) =
+    TernaryE
+      { branch = renameVars pref branch
+      , lhs = renameVars pref lhs
+      , rhs = renameVars pref rhs
+      }
   renameVars _ e = e
 
 instance (RenameVars ext) => RenameVars (Expr ext) where
@@ -154,7 +160,7 @@ instance (RenameVars ext) => RenameVars (Expr ext) where
   renameVars _ e@RandomSampleE{} = e
   renameVars prefix e@FunCallE{args} = e{args = addPrefix prefix args}
   renameVars prefix PrimCallE{prim} = PrimCallE $ renameVars prefix prim
-  renameVars _ _ = error "rename: unsupported expr"
+  renameVars prefix e@LoopE{initial_args} = e{initial_args = addPrefix prefix initial_args}
 
 instance (RenameVars ext) => RenameVars (Stmt ext) where
   renameVars prefix ExprS{rets, expr} =
@@ -182,3 +188,6 @@ instance (RenameVars ext) => RenameVars (NamedFunDef ext) where
 
 instance (RenameVars ext) => RenameVars (Program ext) where
   renameVars pref (Program fs) = Program $ map (renameVars pref) fs
+
+instance RenameVars (Core size prec) where
+  renameVars _ = \case {}

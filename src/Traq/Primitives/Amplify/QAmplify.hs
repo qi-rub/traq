@@ -13,12 +13,15 @@ module Traq.Primitives.Amplify.QAmplify (
 
 import GHC.Generics (Generic)
 
+import Lens.Micro.GHC
+import Lens.Micro.Mtl
 import qualified Numeric.Algebra as Alg
 
 import qualified Traq.Data.Probability as Prob
 import Traq.Data.Subtyping
 
 import qualified Traq.Analysis as A
+import qualified Traq.CQPL as CQPL
 import Traq.Prelude
 import Traq.Primitives.Amplify.Prelude
 import Traq.Primitives.Class
@@ -117,8 +120,43 @@ instance (P.EvalReqs size prec, Floating prec, Ord prec) => QuantumExpCostPrim (
 
 instance UnitaryCompilePrim (QAmplify size prec) size prec where
   compileUPrim (QAmplify Amplify{}) eps = do
-    error "TODO: CompileU QAmplify"
+    let qamplify_proc_name = "UAmplify"
+    let all_params = [] :: [(Ident, CQPL.ParamTag, P.VarType size)]
+    let uproc_body_stmt = CQPL.UCommentS "TODO"
+
+    return
+      CQPL.ProcDef
+        { CQPL.info_comment = ""
+        , CQPL.proc_name = qamplify_proc_name
+        , CQPL.proc_meta_params = []
+        , CQPL.proc_param_types = map (view _3) all_params
+        , CQPL.proc_body =
+            CQPL.ProcBodyU $
+              CQPL.UProcBody
+                { CQPL.uproc_param_names = map (view _1) all_params
+                , CQPL.uproc_param_tags = map (view _2) all_params
+                , CQPL.uproc_body_stmt
+                }
+        }
 
 instance QuantumCompilePrim (QAmplify size prec) size prec where
   compileQPrim (QAmplify Amplify{}) eps = do
-    error "TODO: CompileQ QAmplify"
+    let qamplify_proc_name = "UAmplify"
+    let args = []
+    let local_vars = []
+    let cproc_body_stmt = CQPL.CommentS "TODO"
+
+    return
+      CQPL.ProcDef
+        { CQPL.info_comment = ""
+        , CQPL.proc_name = qamplify_proc_name
+        , CQPL.proc_meta_params = []
+        , CQPL.proc_param_types = map snd args
+        , CQPL.proc_body =
+            CQPL.ProcBodyC $
+              CQPL.CProcBody
+                { CQPL.cproc_param_names = map fst args
+                , CQPL.cproc_local_vars = local_vars
+                , CQPL.cproc_body_stmt
+                }
+        }

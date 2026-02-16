@@ -15,6 +15,8 @@ import qualified Traq.Compiler as Compiler
 import Traq.Prelude
 import Traq.Primitives
 import Traq.ProtoLang
+import qualified Traq.ProtoLang as P
+import qualified Traq.Utils.Printing as PP
 
 import Test.Hspec
 import TestHelpers
@@ -121,16 +123,17 @@ spec = do
                                , ([ArrV [FinV 1, FinV 1]], 0.2)
                                ]
 
-    xdescribe "Compile" $ do
+    fdescribe "Compile" $ do
       let eps = A.failProb (0.0001 :: Double)
 
       it "lowers" $ do
-        ex <- loadKnapsack 2 20 30 2
+        ex <- P.renameVars' <$> loadKnapsack 2 20 30 2
+        putStrLn $ PP.toCodeString ex
         ex' <- expectRight $ A.annotateProgWith (_exts (A.annSinglePrim eps)) ex
         assertRight $ Compiler.lowerProgram ex'
 
       it "typechecks" $ do
-        ex <- loadKnapsack 2 20 30 2
+        ex <- P.renameVars' <$> loadKnapsack 2 20 30 2
         ex' <- expectRight $ A.annotateProgWith (_exts (A.annSinglePrim eps)) ex
         ex_uqpl <- expectRight $ Compiler.lowerProgram ex'
         assertRight $ CQPL.typeCheckProgram ex_uqpl
@@ -147,3 +150,17 @@ spec = do
       let result = runProgram @Core' (loopExample 10 20) funInterpCtx []
 
       result `shouldBeDistribution` [([FinV 10], 1.0)]
+
+    fdescribe "Compile" $ do
+      let eps = A.failProb (0.0001 :: Double)
+      it "lowers" $ do
+        let ex = P.renameVars' $ loopExample @Core' 10 20
+        putStrLn $ PP.toCodeString ex
+        ex' <- expectRight $ A.annotateProgWith (_exts (A.annSinglePrim eps)) ex
+        assertRight $ Compiler.lowerProgram ex'
+
+      it "typechecks" $ do
+        let ex = P.renameVars' $ loopExample @Core' 10 20
+        ex' <- expectRight $ A.annotateProgWith (_exts (A.annSinglePrim eps)) ex
+        ex_uqpl <- expectRight $ Compiler.lowerProgram ex'
+        assertRight $ CQPL.typeCheckProgram ex_uqpl

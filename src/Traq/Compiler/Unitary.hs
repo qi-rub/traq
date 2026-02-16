@@ -27,6 +27,7 @@ import Lens.Micro.Mtl
 import Traq.Control.Monad
 import qualified Traq.Data.Context as Ctx
 
+import qualified Traq.Analysis.Annotate.Prelude as A
 import qualified Traq.CQPL as CQPL
 import Traq.CQPL.Syntax
 import Traq.Compiler.Prelude
@@ -76,6 +77,9 @@ class (P.TypeInferrable ext (SizeType ext)) => CompileU ext where
 
 instance (P.TypingReqs size) => CompileU (P.Core size prec) where
   compileU = \case {}
+
+instance (P.TypingReqs size) => CompileU (A.AnnFailProb (P.Core size prec)) where
+  compileU (A.AnnFailProb _ ext) = case ext of {}
 
 class CompileU1 f where
   -- | all arguments/info provided to compile the given data
