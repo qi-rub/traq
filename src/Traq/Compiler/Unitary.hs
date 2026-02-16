@@ -121,7 +121,11 @@ instance CompileU1 P.Expr where
     let qargs = map Arg $ args ++ rets ++ aux_vars
     return UCallS{uproc_id, qargs, dagger = False}
   compileU1 rets P.PrimCallE{prim} = compileU prim rets
-  compileU1 rets P.LoopE{initial_args, loop_body_fun} = error "TODO: compileU1 rets P.LoopE{initial_args, loop_body_fun}"
+  compileU1 rets P.LoopE{initial_args, loop_body_fun} = do
+    let uproc_id = mkUProcName loop_body_fun
+    ProcSignature{aux_tys} <- use (_procSignatures . at uproc_id) >>= maybeWithError "cannot find uproc signature"
+
+    error "TODO: compileU1 rets P.LoopE{initial_args, loop_body_fun}"
 
 instance CompileU1 P.Stmt where
   type CompileArgs P.Stmt ext = ()
