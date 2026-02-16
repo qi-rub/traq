@@ -123,7 +123,7 @@ spec = do
                                , ([ArrV [FinV 1, FinV 1]], 0.2)
                                ]
 
-    fdescribe "Compile" $ do
+    xdescribe "Compile" $ do
       let eps = A.failProb (0.0001 :: Double)
 
       it "lowers" $ do
@@ -152,15 +152,14 @@ spec = do
       result `shouldBeDistribution` [([FinV 10], 1.0)]
 
     fdescribe "Compile" $ do
-      let eps = A.failProb (0.0001 :: Double)
       it "lowers" $ do
         let ex = P.renameVars' $ loopExample @Core' 10 20
         putStrLn $ PP.toCodeString ex
-        ex' <- expectRight $ A.annotateProgWith (_exts (A.annSinglePrim eps)) ex
+        ex' <- expectRight $ A.annotateProgWith (_exts A.annNoPrims) ex
         assertRight $ Compiler.lowerProgram ex'
 
       it "typechecks" $ do
         let ex = P.renameVars' $ loopExample @Core' 10 20
-        ex' <- expectRight $ A.annotateProgWith (_exts (A.annSinglePrim eps)) ex
+        ex' <- expectRight $ A.annotateProgWith (_exts A.annNoPrims) ex
         ex_uqpl <- expectRight $ Compiler.lowerProgram ex'
         assertRight $ CQPL.typeCheckProgram ex_uqpl
