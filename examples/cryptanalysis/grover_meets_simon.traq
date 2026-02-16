@@ -2,14 +2,14 @@
 
 // N = 2^n
 // Block-cipher E(k, x)
-declare E(BitVec<n>, BitVec<n>) -> BitVec<n> end
+ext fn E(BitVec<n>, BitVec<n>) -> BitVec<n> end
 
 // FX-construction with secret keys (k0, k1, k2):
 // Enc(x) = E_k0(x ^ k1) ^ k2
-declare Enc(BitVec<n>) -> BitVec<n> end
+ext fn Enc(BitVec<n>) -> BitVec<n> end
 
 // FX-construction almost 2-1 function, when k = k0 (hidden)
-def f(k: BitVec<n>, x : BitVec<n>) -> BitVec<n> do
+fn f(k: BitVec<n>, x : BitVec<n>) -> BitVec<n> do
 	ex <- Enc(x);
 	p_kx <- E(k, x);
 	f_kx <- ex ^ p_kx;
@@ -17,16 +17,16 @@ def f(k: BitVec<n>, x : BitVec<n>) -> BitVec<n> do
 end
 
 // classifier(k: BitVec<n>, k1: BitVec<n>)
-declare classifier(BitVec<n>, BitVec<n>) -> Bool end
+ext fn classifier(BitVec<n>, BitVec<n>) -> Bool end
 
 // takes k and outputs some BitVec<n>
-def innerAttack(k: BitVec<n>) -> Bool do
+fn innerAttack(k: BitVec<n>) -> Bool do
     k1 <- @findXorPeriod<n, 0.01>[f(k, _)];
     res <- classifier(k, k1);
     return res
 end
 
-def outerAttack() -> Bool do
-    k0 <- @search<BitVec<n>>[innerAttack(_)];
+fn outerAttack() -> BitVec<n> do
+    ok, k0 <- @search<BitVec<n>>[innerAttack(_)];
     return k0
 end

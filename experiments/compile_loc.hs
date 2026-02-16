@@ -19,7 +19,7 @@ loadProgramFromFile :: String -> IO (P.Program (Traq.DefaultPrims (Sym.Sym SizeT
 loadProgramFromFile fname = do
   sprog_or_err <- parseFromFile (P.programParser @(Traq.DefaultPrims (Sym.Sym SizeT) Double)) fname
   sprog <- either (error . show) pure sprog_or_err
-  let sprog' = P.renameVars "" sprog
+  let sprog' = P.renameVars' sprog
   -- putStrLn $ PP.toCodeString sprog
   -- putStrLn $ PP.toCodeString sprog'
   return sprog'

@@ -95,6 +95,13 @@ typeCheckBasicExpr UnOpE{un_op, operand} = do
     NotOp -> do
       unless (arg_ty == tbool) $ throwError ("`not` requires bool, got " <> show arg_ty)
       return tbool
+    AnyOp -> do
+      return tbool
+    MajOp -> do
+      case arg_ty of
+        Arr _ t -> return t
+        Bitvec _ -> return tbool
+        _ -> throwError "MajorityOp expects a vector type"
 typeCheckBasicExpr BinOpE{bin_op, lhs, rhs} = do
   ty_lhs <- typeCheckBasicExpr lhs
   ty_rhs <- typeCheckBasicExpr rhs
@@ -130,6 +137,11 @@ typeCheckBasicExpr BinOpE{bin_op, lhs, rhs} = do
         throwError
           ("`==` requires same type args, got " <> show [ty_lhs, ty_rhs])
       return tbool
+    VecSelectOp -> do
+      case ty_lhs of
+        Arr _ t -> return t
+        Bitvec _ -> return tbool
+        _ -> throwError "VecSelectOp expects a vector type"
 typeCheckBasicExpr TernaryE{branch, lhs, rhs} = do
   ty_branch <- typeCheckBasicExpr branch
   unless (ty_branch == tbool) $

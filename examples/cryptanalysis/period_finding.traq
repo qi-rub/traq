@@ -1,6 +1,6 @@
-declare f(BitVec<n>) -> BitVec<n> end
+ext fn f(BitVec<n>) -> BitVec<n> end
 
-def main() -> BitVec<n> do
+fn main() -> BitVec<n> do
 	s <- @findXorPeriod<n, 0.01>[f(_)];
 	return s
 end

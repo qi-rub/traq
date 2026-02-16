@@ -1,0 +1,144 @@
+ext uproc E_U(BitVec<20>, BitVec<20>, BitVec<20>);
+
+ext proc E(BitVec<20>, BitVec<20>, BitVec<20>);
+
+ext uproc Enc_U(BitVec<20>, BitVec<20>);
+
+ext proc Enc(BitVec<20>, BitVec<20>);
+
+uproc f_U(f_k : IN BitVec<20>, f_x : IN BitVec<20>, f_f_kx : OUT BitVec<20>, f_ex : AUX BitVec<20>, f_p_kx : AUX BitVec<20>, f_ex_1 : AUX BitVec<20>, f_p_kx_1 : AUX BitVec<20>, f_f_kx_1 : AUX BitVec<20>) {
+  call Enc_U(f_x, f_ex_1);
+  f_ex, f_ex_1 *= SWAP;
+  call E_U(f_k, f_x, f_p_kx_1);
+  f_p_kx, f_p_kx_1 *= SWAP;
+  f_ex, f_p_kx, f_f_kx_1 *= Embed[(f_ex, f_p_kx) => (f_ex ^ f_p_kx)];
+  f_f_kx, f_f_kx_1 *= SWAP;
+}
+
+proc f(f_k : BitVec<20>, f_x : BitVec<20>, f_f_kx : BitVec<20>) { locals : (f_ex : BitVec<20>, f_p_kx : BitVec<20>) } {
+  call Enc(f_x, f_ex);
+  call E(f_k, f_x, f_p_kx);
+  f_f_kx := (f_ex ^ f_p_kx);
+}
+
+ext uproc classifier_U(BitVec<20>, BitVec<20>, Fin<2>);
+
+ext proc classifier(BitVec<20>, BitVec<20>, Fin<2>);
+
+uproc SimonOneRound_U(innerAttack_k : BitVec<20>, x : OUT BitVec<20>, y : AUX BitVec<20>, yy : AUX BitVec<20>, aux : AUX BitVec<20>, aux_1 : AUX BitVec<20>, aux_2 : AUX BitVec<20>, aux_3 : AUX BitVec<20>, aux_4 : AUX BitVec<20>) {
+  x *= Distr[uniform : BitVec<20>];
+  call f_U(innerAttack_k, x, y, aux, aux_1, aux_2, aux_3, aux_4);
+  y, yy *= COPY;
+  call-adj f_U(innerAttack_k, x, y, aux, aux_1, aux_2, aux_3, aux_4);
+  x *= Adj-Distr[uniform : BitVec<20>];
+}
+
+uproc USimon(innerAttack_k : BitVec<20>, innerAttack_k1_1 : OUT BitVec<20>, USimon_aux : AUX Arr<79, BitVec<20>>, USimon_aux_1 : AUX Arr<79, BitVec<20>>, USimon_aux_2 : AUX Arr<79, BitVec<20>>, USimon_aux_3 : AUX Arr<79, BitVec<20>>, USimon_aux_4 : AUX Arr<79, BitVec<20>>, USimon_aux_5 : AUX Arr<79, BitVec<20>>, USimon_aux_6 : AUX Arr<79, BitVec<20>>, USimon_aux_7 : AUX Arr<79, BitVec<20>>) {
+  for (#i in 0 .. < 79) {
+    call SimonOneRound_U(innerAttack_k, USimon_aux[#i], USimon_aux_1[#i], USimon_aux_2[#i], USimon_aux_3[#i], USimon_aux_4[#i], USimon_aux_5[#i], USimon_aux_6[#i], USimon_aux_7[#i]);
+  }
+  // simon's post-processing: unitarily solve linear system: (innerAttack_k1_1) . (USimon_aux) = 0
+}
+
+uproc innerAttack_U(innerAttack_k : IN BitVec<20>, innerAttack_res : OUT Fin<2>, innerAttack_k1 : AUX BitVec<20>, innerAttack_k1_1 : AUX BitVec<20>, x : AUX BitVec<20>, y : AUX BitVec<20>, yy : AUX BitVec<20>, aux : AUX BitVec<20>, aux_1 : AUX BitVec<20>, aux_2 : AUX BitVec<20>, aux_3 : AUX BitVec<20>, aux_4 : AUX BitVec<20>, USimon_aux : AUX Arr<79, BitVec<20>>, USimon_aux_1 : AUX Arr<79, BitVec<20>>, USimon_aux_2 : AUX Arr<79, BitVec<20>>, USimon_aux_3 : AUX Arr<79, BitVec<20>>, USimon_aux_4 : AUX Arr<79, BitVec<20>>, USimon_aux_5 : AUX Arr<79, BitVec<20>>, USimon_aux_6 : AUX Arr<79, BitVec<20>>, USimon_aux_7 : AUX Arr<79, BitVec<20>>, aux_prim : AUX Arr<79, BitVec<20>>, aux_prim_1 : AUX Arr<79, BitVec<20>>, aux_prim_2 : AUX Arr<79, BitVec<20>>, aux_prim_3 : AUX Arr<79, BitVec<20>>, aux_prim_4 : AUX Arr<79, BitVec<20>>, aux_prim_5 : AUX Arr<79, BitVec<20>>, aux_prim_6 : AUX Arr<79, BitVec<20>>, aux_prim_7 : AUX Arr<79, BitVec<20>>, innerAttack_res_1 : AUX Fin<2>) {
+  call USimon(innerAttack_k, innerAttack_k1_1, aux_prim, aux_prim_1, aux_prim_2, aux_prim_3, aux_prim_4, aux_prim_5, aux_prim_6, aux_prim_7);
+  innerAttack_k1, innerAttack_k1_1 *= SWAP;
+  call classifier_U(innerAttack_k, innerAttack_k1, innerAttack_res_1);
+  innerAttack_res, innerAttack_res_1 *= SWAP;
+}
+
+uproc SimonOneRound_U_1(innerAttack_k : BitVec<20>, x_1 : OUT BitVec<20>, y_1 : AUX BitVec<20>, yy_1 : AUX BitVec<20>, aux_5 : AUX BitVec<20>, aux_6 : AUX BitVec<20>, aux_7 : AUX BitVec<20>, aux_8 : AUX BitVec<20>, aux_9 : AUX BitVec<20>) {
+  x_1 *= Distr[uniform : BitVec<20>];
+  call f_U(innerAttack_k, x_1, y_1, aux_5, aux_6, aux_7, aux_8, aux_9);
+  y_1, yy_1 *= COPY;
+  call-adj f_U(innerAttack_k, x_1, y_1, aux_5, aux_6, aux_7, aux_8, aux_9);
+  x_1 *= Adj-Distr[uniform : BitVec<20>];
+}
+
+proc QSimon(innerAttack_k : BitVec<20>, innerAttack_k1 : BitVec<20>) { locals : (QSimon__u : Arr<79, BitVec<20>>) } {
+  for (i_1 in 0 .. < 79) {
+    meas SimonOneRound_U_1(QSimon__u[#i_1]);
+  }
+  // simon's post-processing: solve linear system: (innerAttack_k1) . (QSimon__u) = 0
+}
+
+proc innerAttack(innerAttack_k : BitVec<20>, innerAttack_res : Fin<2>) { locals : (innerAttack_k1 : BitVec<20>, x_1 : BitVec<20>, y_1 : BitVec<20>, yy_1 : BitVec<20>, aux_5 : BitVec<20>, aux_6 : BitVec<20>, aux_7 : BitVec<20>, aux_8 : BitVec<20>, aux_9 : BitVec<20>, QSimon__u : Arr<79, BitVec<20>>) } {
+  call QSimon(innerAttack_k, innerAttack_k1);
+  call classifier(innerAttack_k, innerAttack_k1, innerAttack_res);
+}
+
+// USearch[Bitvec 20, 5.0e-4]
+uproc USearch(outerAttack_ok_1 : OUT Fin<2>, outerAttack_k0_1 : OUT BitVec<20>, aux_10 : AUX BitVec<20>, aux_11 : AUX BitVec<20>, aux_12 : AUX BitVec<20>, aux_13 : AUX BitVec<20>, aux_14 : AUX BitVec<20>, aux_15 : AUX BitVec<20>, aux_16 : AUX BitVec<20>, aux_17 : AUX BitVec<20>, aux_18 : AUX BitVec<20>, aux_19 : AUX BitVec<20>, aux_20 : AUX Arr<79, BitVec<20>>, aux_21 : AUX Arr<79, BitVec<20>>, aux_22 : AUX Arr<79, BitVec<20>>, aux_23 : AUX Arr<79, BitVec<20>>, aux_24 : AUX Arr<79, BitVec<20>>, aux_25 : AUX Arr<79, BitVec<20>>, aux_26 : AUX Arr<79, BitVec<20>>, aux_27 : AUX Arr<79, BitVec<20>>, aux_28 : AUX Arr<79, BitVec<20>>, aux_29 : AUX Arr<79, BitVec<20>>, aux_30 : AUX Arr<79, BitVec<20>>, aux_31 : AUX Arr<79, BitVec<20>>, aux_32 : AUX Arr<79, BitVec<20>>, aux_33 : AUX Arr<79, BitVec<20>>, aux_34 : AUX Arr<79, BitVec<20>>, aux_35 : AUX Arr<79, BitVec<20>>, aux_36 : AUX Fin<2>, aux_37 : AUX Fin<2>, ctrl : AUX Arr<16, Fin<2>>, pred_out : AUX Arr<16, Fin<2>>, n_iter : AUX Arr<16, Fin<805>>, s_arg : AUX Arr<16, BitVec<20>>) {
+  for (#run_ix in 0 .. < 16) {
+    n_iter[#run_ix] *= Distr[uniform : Fin<805>];
+    pred_out[#run_ix] *= X;
+    pred_out[#run_ix] *= H;
+    s_arg[#run_ix] *= Distr[uniform : BitVec<20>];
+    for (#LIM in 0 .. < 805) {
+      n_iter[#run_ix], ctrl[#run_ix] *= Embed[(a) => (a <= #LIM)];
+      call innerAttack_U(s_arg[#run_ix], aux_37, aux_10, aux_11, aux_12, aux_13, aux_14, aux_15, aux_16, aux_17, aux_18, aux_19, aux_20, aux_21, aux_22, aux_23, aux_24, aux_25, aux_26, aux_27, aux_28, aux_29, aux_30, aux_31, aux_32, aux_33, aux_34, aux_35, aux_36);
+      ctrl[#run_ix], aux_37, pred_out[#run_ix] *= Toffoli;
+      call-adj innerAttack_U(s_arg[#run_ix], aux_37, aux_10, aux_11, aux_12, aux_13, aux_14, aux_15, aux_16, aux_17, aux_18, aux_19, aux_20, aux_21, aux_22, aux_23, aux_24, aux_25, aux_26, aux_27, aux_28, aux_29, aux_30, aux_31, aux_32, aux_33, aux_34, aux_35, aux_36);
+      s_arg[#run_ix] *= Adj-Distr[uniform : BitVec<20>];
+      s_arg[#run_ix] *= Refl0;
+      s_arg[#run_ix] *= Distr[uniform : BitVec<20>];
+      n_iter[#run_ix], ctrl[#run_ix] *= Embed[(a) => (a <= #LIM)];
+    }
+    pred_out[#run_ix] *= H;
+    pred_out[#run_ix] *= X;
+    n_iter[#run_ix] *= Adj-Distr[uniform : Fin<805>];
+    ctrl[#run_ix] *= X;
+    call innerAttack_U(s_arg[#run_ix], aux_37, aux_10, aux_11, aux_12, aux_13, aux_14, aux_15, aux_16, aux_17, aux_18, aux_19, aux_20, aux_21, aux_22, aux_23, aux_24, aux_25, aux_26, aux_27, aux_28, aux_29, aux_30, aux_31, aux_32, aux_33, aux_34, aux_35, aux_36);
+    ctrl[#run_ix], aux_37, pred_out[#run_ix] *= Toffoli;
+    call-adj innerAttack_U(s_arg[#run_ix], aux_37, aux_10, aux_11, aux_12, aux_13, aux_14, aux_15, aux_16, aux_17, aux_18, aux_19, aux_20, aux_21, aux_22, aux_23, aux_24, aux_25, aux_26, aux_27, aux_28, aux_29, aux_30, aux_31, aux_32, aux_33, aux_34, aux_35, aux_36);
+    ctrl[#run_ix] *= X;
+  }
+  pred_out, outerAttack_ok_1 *= Embed[(a) => or a];
+  s_arg, pred_out, outerAttack_k0_1 *= Embed[(a, f) => (a selectOn f)];
+}
+
+uproc outerAttack_U(outerAttack_k0 : OUT BitVec<20>, outerAttack_ok : AUX Fin<2>, outerAttack_ok_1 : AUX Fin<2>, outerAttack_k0_1 : AUX BitVec<20>, aux_10 : AUX BitVec<20>, aux_11 : AUX BitVec<20>, aux_12 : AUX BitVec<20>, aux_13 : AUX BitVec<20>, aux_14 : AUX BitVec<20>, aux_15 : AUX BitVec<20>, aux_16 : AUX BitVec<20>, aux_17 : AUX BitVec<20>, aux_18 : AUX BitVec<20>, aux_19 : AUX BitVec<20>, aux_20 : AUX Arr<79, BitVec<20>>, aux_21 : AUX Arr<79, BitVec<20>>, aux_22 : AUX Arr<79, BitVec<20>>, aux_23 : AUX Arr<79, BitVec<20>>, aux_24 : AUX Arr<79, BitVec<20>>, aux_25 : AUX Arr<79, BitVec<20>>, aux_26 : AUX Arr<79, BitVec<20>>, aux_27 : AUX Arr<79, BitVec<20>>, aux_28 : AUX Arr<79, BitVec<20>>, aux_29 : AUX Arr<79, BitVec<20>>, aux_30 : AUX Arr<79, BitVec<20>>, aux_31 : AUX Arr<79, BitVec<20>>, aux_32 : AUX Arr<79, BitVec<20>>, aux_33 : AUX Arr<79, BitVec<20>>, aux_34 : AUX Arr<79, BitVec<20>>, aux_35 : AUX Arr<79, BitVec<20>>, aux_36 : AUX Fin<2>, aux_37 : AUX Fin<2>, ctrl : AUX Arr<16, Fin<2>>, pred_out : AUX Arr<16, Fin<2>>, n_iter : AUX Arr<16, Fin<805>>, s_arg : AUX Arr<16, BitVec<20>>, aux_prim_8 : AUX BitVec<20>, aux_prim_9 : AUX BitVec<20>, aux_prim_10 : AUX BitVec<20>, aux_prim_11 : AUX BitVec<20>, aux_prim_12 : AUX BitVec<20>, aux_prim_13 : AUX BitVec<20>, aux_prim_14 : AUX BitVec<20>, aux_prim_15 : AUX BitVec<20>, aux_prim_16 : AUX BitVec<20>, aux_prim_17 : AUX BitVec<20>, aux_prim_18 : AUX Arr<79, BitVec<20>>, aux_prim_19 : AUX Arr<79, BitVec<20>>, aux_prim_20 : AUX Arr<79, BitVec<20>>, aux_prim_21 : AUX Arr<79, BitVec<20>>, aux_prim_22 : AUX Arr<79, BitVec<20>>, aux_prim_23 : AUX Arr<79, BitVec<20>>, aux_prim_24 : AUX Arr<79, BitVec<20>>, aux_prim_25 : AUX Arr<79, BitVec<20>>, aux_prim_26 : AUX Arr<79, BitVec<20>>, aux_prim_27 : AUX Arr<79, BitVec<20>>, aux_prim_28 : AUX Arr<79, BitVec<20>>, aux_prim_29 : AUX Arr<79, BitVec<20>>, aux_prim_30 : AUX Arr<79, BitVec<20>>, aux_prim_31 : AUX Arr<79, BitVec<20>>, aux_prim_32 : AUX Arr<79, BitVec<20>>, aux_prim_33 : AUX Arr<79, BitVec<20>>, aux_prim_34 : AUX Fin<2>, aux_prim_35 : AUX Fin<2>, aux_prim_36 : AUX Arr<16, Fin<2>>, aux_prim_37 : AUX Arr<16, Fin<2>>, aux_prim_38 : AUX Arr<16, Fin<805>>, aux_prim_39 : AUX Arr<16, BitVec<20>>) {
+  call USearch(outerAttack_ok_1, outerAttack_k0_1, aux_prim_8, aux_prim_9, aux_prim_10, aux_prim_11, aux_prim_12, aux_prim_13, aux_prim_14, aux_prim_15, aux_prim_16, aux_prim_17, aux_prim_18, aux_prim_19, aux_prim_20, aux_prim_21, aux_prim_22, aux_prim_23, aux_prim_24, aux_prim_25, aux_prim_26, aux_prim_27, aux_prim_28, aux_prim_29, aux_prim_30, aux_prim_31, aux_prim_32, aux_prim_33, aux_prim_34, aux_prim_35, aux_prim_36, aux_prim_37, aux_prim_38, aux_prim_39);
+  outerAttack_ok, outerAttack_k0, outerAttack_ok_1, outerAttack_k0_1 *= SWAP;
+}
+
+// Grover[...]
+uproc Grover[k](x_2 : IN BitVec<20>, outerAttack_ok : OUT Fin<2>, aux_38 : AUX BitVec<20>, aux_39 : AUX BitVec<20>, aux_40 : AUX BitVec<20>, aux_41 : AUX BitVec<20>, aux_42 : AUX BitVec<20>, aux_43 : AUX BitVec<20>, aux_44 : AUX BitVec<20>, aux_45 : AUX BitVec<20>, aux_46 : AUX BitVec<20>, aux_47 : AUX BitVec<20>, aux_48 : AUX Arr<79, BitVec<20>>, aux_49 : AUX Arr<79, BitVec<20>>, aux_50 : AUX Arr<79, BitVec<20>>, aux_51 : AUX Arr<79, BitVec<20>>, aux_52 : AUX Arr<79, BitVec<20>>, aux_53 : AUX Arr<79, BitVec<20>>, aux_54 : AUX Arr<79, BitVec<20>>, aux_55 : AUX Arr<79, BitVec<20>>, aux_56 : AUX Arr<79, BitVec<20>>, aux_57 : AUX Arr<79, BitVec<20>>, aux_58 : AUX Arr<79, BitVec<20>>, aux_59 : AUX Arr<79, BitVec<20>>, aux_60 : AUX Arr<79, BitVec<20>>, aux_61 : AUX Arr<79, BitVec<20>>, aux_62 : AUX Arr<79, BitVec<20>>, aux_63 : AUX Arr<79, BitVec<20>>, aux_64 : AUX Fin<2>) {
+  outerAttack_ok *= X;
+  outerAttack_ok *= H;
+  x_2 *= Distr[uniform : BitVec<20>];
+  repeat (#k) {
+    call innerAttack_U(x_2, outerAttack_ok, aux_38, aux_39, aux_40, aux_41, aux_42, aux_43, aux_44, aux_45, aux_46, aux_47, aux_48, aux_49, aux_50, aux_51, aux_52, aux_53, aux_54, aux_55, aux_56, aux_57, aux_58, aux_59, aux_60, aux_61, aux_62, aux_63, aux_64);
+    x_2 *= Adj-Distr[uniform : BitVec<20>];
+    x_2 *= Refl0;
+    x_2 *= Distr[uniform : BitVec<20>];
+  }
+  outerAttack_ok *= H;
+  outerAttack_ok *= X;
+}
+
+// QSearch[5.0e-4]
+proc QSearch(outerAttack_ok : Fin<2>, outerAttack_k0 : BitVec<20>) { locals : (not_done : Fin<2>, Q_sum : Fin<9421>, j : Fin<9421>, j_lim : Fin<9421>) } {
+  repeat (7) {
+    Q_sum := 0:Fin<9421>;
+    for (j_lim in [1:Fin<9421>, 1:Fin<9421>, 1:Fin<9421>, 2:Fin<9421>, 2:Fin<9421>, 2:Fin<9421>, 3:Fin<9421>, 4:Fin<9421>, 5:Fin<9421>, 6:Fin<9421>, 7:Fin<9421>, 8:Fin<9421>, 10:Fin<9421>, 12:Fin<9421>, 15:Fin<9421>, 18:Fin<9421>, 22:Fin<9421>, 26:Fin<9421>, 31:Fin<9421>, 38:Fin<9421>, 46:Fin<9421>, 55:Fin<9421>, 66:Fin<9421>, 79:Fin<9421>, 95:Fin<9421>, 114:Fin<9421>, 137:Fin<9421>, 164:Fin<9421>, 197:Fin<9421>, 237:Fin<9421>, 284:Fin<9421>, 341:Fin<9421>, 410:Fin<9421>, 492:Fin<9421>, 590:Fin<9421>, 708:Fin<9421>, 850:Fin<9421>, 1020:Fin<9421>, 1024:Fin<9421>, 1024:Fin<9421>, 1024:Fin<9421>]) {
+      j :=$ [1 .. j_lim];
+      Q_sum := (Q_sum + j);
+      not_done := (not_done && (Q_sum <= j_lim));
+      if (not_done) {
+        meas Grover[j](outerAttack_k0, outerAttack_ok);
+        meas innerAttack_U(outerAttack_k0, outerAttack_ok);
+        not_done := (not_done && outerAttack_ok);
+      } else {
+        skip;
+      }
+    }
+  }
+}
+
+proc outerAttack(outerAttack_k0 : BitVec<20>) { locals : (outerAttack_ok : Fin<2>) } {
+  call QSearch(outerAttack_ok, outerAttack_k0);
+}
+
+
+// qubits: 52030

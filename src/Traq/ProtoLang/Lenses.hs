@@ -23,6 +23,11 @@ class MapSize ext where
 
   mapSize :: (size ~ SizeType ext, size' ~ SizeType ext', ext' ~ MappedSize ext size') => (size -> size') -> (ext -> ext')
 
+instance MapSize (VarType size) where
+  type MappedSize (VarType size) size' = VarType size'
+
+  mapSize = fmap
+
 instance (MapSize ext) => MapSize (Expr ext) where
   type MappedSize (Expr ext) size' = Expr (MappedSize ext size')
 

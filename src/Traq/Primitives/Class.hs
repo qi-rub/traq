@@ -262,7 +262,7 @@ prependBoundArgs pfun_names bound_args CQPL.ProcDef{..} =
   goUStmt :: CQPL.UStmt size -> CQPL.UStmt size
   goUStmt (CQPL.USeqS ss) = CQPL.USeqS (map goUStmt ss)
   goUStmt s@CQPL.UCallS{CQPL.uproc_id, CQPL.qargs}
-    | uproc_id `notElem` pfun_names = s{CQPL.qargs = bound_arg_names ++ qargs}
+    | uproc_id `notElem` pfun_names = s{CQPL.qargs = map CQPL.Arg bound_arg_names ++ qargs}
   goUStmt (CQPL.URepeatS n body) = CQPL.URepeatS n (goUStmt body)
   goUStmt s@CQPL.UForInRangeS{CQPL.uloop_body} = s{CQPL.uloop_body = goUStmt uloop_body}
   goUStmt s@CQPL.UWithComputedS{CQPL.with_ustmt, CQPL.body_ustmt} =
@@ -272,7 +272,7 @@ prependBoundArgs pfun_names bound_args CQPL.ProcDef{..} =
   goStmt :: CQPL.Stmt size -> CQPL.Stmt size
   goStmt (CQPL.SeqS ss) = CQPL.SeqS (map goStmt ss)
   goStmt s@CQPL.CallS{CQPL.fun, CQPL.args}
-    | callTarget fun `notElem` pfun_names = s{CQPL.args = bound_arg_names ++ args}
+    | callTarget fun `notElem` pfun_names = s{CQPL.args = map CQPL.Arg bound_arg_names ++ args}
   goStmt s@CQPL.IfThenElseS{CQPL.s_true, CQPL.s_false} =
     s{CQPL.s_true = goStmt s_true, CQPL.s_false = goStmt s_false}
   goStmt s@CQPL.RepeatS{CQPL.loop_body} = s{CQPL.loop_body = goStmt loop_body}
@@ -304,7 +304,7 @@ instance
           CQPL.UCallS
             { uproc_id = Compiler.mkUProcName pfun_name
             , dagger = False
-            , qargs = placeArgsWithExcess pfun_args xs
+            , qargs = placeArgsWithExcess (map (fmap CQPL.Arg) pfun_args) xs
             }
 
     uproc_aux_types <-
@@ -339,7 +339,7 @@ instance
     return $
       CQPL.UCallS
         { CQPL.uproc_id = CQPL.proc_name prim_proc
-        , CQPL.qargs = map fst bound_args ++ rets ++ prim_aux_vars
+        , CQPL.qargs = map (CQPL.Arg . fst) bound_args ++ map CQPL.Arg rets ++ map CQPL.Arg prim_aux_vars
         , CQPL.dagger = False
         }
 
@@ -509,7 +509,6 @@ instance
 -- --------------------------------------------------------------------------------
 
 instance
-  {-# OVERLAPPABLE #-}
   ( TypeCheckPrim prim (SizeType prim)
   , P.TypingReqs (SizeType prim)
   , UnitaryCompilePrim prim (SizeType prim) (PrecType prim)
@@ -529,7 +528,7 @@ instance
           CQPL.UCallS
             { uproc_id = Compiler.mkUProcName pfun_name
             , dagger = False
-            , qargs = placeArgsWithExcess pfun_args xs
+            , qargs = placeArgsWithExcess (map (fmap CQPL.Arg) pfun_args) xs
             }
 
     uproc_aux_types <-
@@ -547,7 +546,7 @@ instance
           CQPL.CallS
             { fun = CQPL.FunctionCall $ Compiler.mkQProcName pfun_name
             , meta_params = []
-            , args = placeArgsWithExcess pfun_args xs
+            , args = map CQPL.Arg $ placeArgsWithExcess pfun_args xs
             }
 
     mk_meas <-
@@ -556,7 +555,7 @@ instance
           CQPL.CallS
             { fun = CQPL.UProcAndMeas $ Compiler.mkUProcName pfun_name
             , meta_params = []
-            , args = placeArgsWithExcess pfun_args xs
+            , args = map CQPL.Arg $ placeArgsWithExcess pfun_args xs
             }
 
     let builder =
@@ -581,5 +580,5 @@ instance
       CQPL.CallS
         { fun = CQPL.FunctionCall $ CQPL.proc_name prim_proc
         , meta_params = []
-        , args = map fst bound_args ++ rets
+        , args = map (CQPL.Arg . fst) bound_args ++ map CQPL.Arg rets
         }

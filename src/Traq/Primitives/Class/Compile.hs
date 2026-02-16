@@ -8,6 +8,7 @@ module Traq.Primitives.Class.Compile (
   PrimCompileEnv (..),
   UnitaryCompilePrim (..),
   QuantumCompilePrim (..),
+  PrimCompileMonad,
 ) where
 
 import Control.Monad.Reader (ReaderT (..))
@@ -27,7 +28,7 @@ import qualified Traq.ProtoLang as P
 -- Environment and enclosing monad for compiling primitives.
 -- --------------------------------------------------------------------------------
 
-type UCallBuilder size = [Ident] -> CQPL.UStmt size
+type UCallBuilder size = [CQPL.Arg size] -> CQPL.UStmt size
 type CallBuilder size = [Ident] -> CQPL.Stmt size
 
 -- | Helpers to compile a primitive.

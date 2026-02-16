@@ -1,4 +1,4 @@
-def sampler(l: Fin<N>, r: Fin<N>) -> (Bool, Fin<N>)
+fn sampler(l: Fin<N>, r: Fin<N>) -> (Bool, Fin<N>)
 do
   x <-$ uniform : Fin<N>;
   ok_l <- l <= x;
@@ -7,7 +7,7 @@ do
   return ok, x
 end
 
-def main() -> (Bool, Fin<N>) do
+fn main() -> (Bool, Fin<N>) do
   l <- const 1 : Fin<N>;
   r <- const 4 : Fin<N>;
 

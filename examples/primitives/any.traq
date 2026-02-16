@@ -1,6 +1,6 @@
-declare Oracle(Fin<20>) -> Bool end
+ext fn Oracle(Fin<20>) -> Bool end
 
-def main() -> Bool do
+fn main() -> Bool do
 	ok <- @any[Oracle]()
 	return ok
 end

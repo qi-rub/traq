@@ -1,6 +1,6 @@
 {-# LANGUAGE TypeApplications #-}
 
-module Traq.Examples.EvanMansourSpec where
+module Traq.Examples.EvenMansourSpec where
 
 import Text.Parsec.String
 
@@ -10,6 +10,8 @@ import qualified Traq.Data.Symbolic as Sym
 
 import qualified Traq.Analysis as A
 import Traq.Analysis.CostModel.QueryCost (SimpleQueryCost (..))
+import qualified Traq.CQPL as CQPL
+import qualified Traq.Compiler as Compiler
 import Traq.Prelude
 import Traq.Primitives.Class
 import Traq.Primitives.Simons.Quantum
@@ -19,15 +21,15 @@ import Test.Hspec
 import TestHelpers (assertRight, expectRight)
 
 examplePath :: String
-examplePath = "examples/cryptanalysis/evan_mansour.traq"
+examplePath = "examples/cryptanalysis/even_mansour.traq"
 
 type SPrim size = Primitive (SimonsFindXorPeriod size Double)
 
-loadEvanMansour ::
+loadEvenMansour ::
   -- | bitsize @n@ of the inputs/outputs
   SizeT ->
   IO (P.Program (SPrim SizeT))
-loadEvanMansour n = do
+loadEvenMansour n = do
   Right prog <- parseFromFile (P.programParser @(SPrim (Sym.Sym SizeT))) examplePath
   return $
     prog
@@ -53,7 +55,7 @@ spec = describe "FindXorPeriod" $ do
         >>= expectRight
     assertRight $ P.typeCheckProg p
 
-  before (loadEvanMansour n) $ do
+  before (loadEvenMansour n) $ do
     it "calculates unitary cost correctly" $ \program -> do
       let eps = A.failProb (0.01 :: Double)
       prog' <- expectRight $ A.annotateProgWith (P._exts (A.annSinglePrim eps)) program
@@ -71,3 +73,15 @@ spec = describe "FindXorPeriod" $ do
       let formulaCost = 2 + 4 * _SimonsQueries n p0 eps
 
       actualCost `shouldBe` formulaCost
+
+    describe "Compile" $ do
+      let eps = A.failProb (0.0001 :: Double)
+
+      it "lowers" $ \program -> do
+        ex' <- expectRight $ A.annotateProgWith (P._exts (A.annSinglePrim eps)) program
+        assertRight $ Compiler.lowerProgram ex'
+
+      it "typechecks" $ \program -> do
+        ex' <- expectRight $ A.annotateProgWith (P._exts (A.annSinglePrim eps)) program
+        ex_uqpl <- expectRight $ Compiler.lowerProgram ex'
+        assertRight $ CQPL.typeCheckProgram ex_uqpl

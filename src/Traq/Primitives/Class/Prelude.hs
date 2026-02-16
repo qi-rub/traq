@@ -15,7 +15,6 @@ module Traq.Primitives.Class.Prelude (
 
 import Control.Applicative (Alternative ((<|>)))
 import Control.Monad.Except (MonadError, liftEither)
-import Control.Monad.Trans (lift)
 import Data.Kind (Type)
 import Data.Maybe (fromMaybe)
 import Text.Parsec.Token

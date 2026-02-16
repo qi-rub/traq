@@ -2,10 +2,10 @@
 // https://arxiv.org/pdf/2203.04975
 
 // Evaluate the weight of an assignment
-declare Phi(Arr<n, Bool>) -> Fin<W> end
+ext fn Phi(Arr<n, Bool>) -> Fin<W> end
 
 // check if flipping `i` gives a good neighbour
-def good(x: Arr<n, Bool>, i: Fin<n>) -> Bool
+fn good(x: Arr<n, Bool>, i: Fin<n>) -> Bool
 do
 	w <- Phi(x);
 	b <- x[i];
@@ -16,7 +16,7 @@ do
 	return ok
 end
 
-def hillclimb_iter(x: Arr<n, Bool>) -> Arr<n, Bool> do
+fn hillclimb_iter(x: Arr<n, Bool>) -> Arr<n, Bool> do
 	ok, i <- @search<Fin<n>>[good(x, _)];
 	b <- x[i];
 	b' <- not b;
@@ -24,7 +24,7 @@ def hillclimb_iter(x: Arr<n, Bool>) -> Arr<n, Bool> do
 	return x'
 end
 
-def hillclimb_3() -> Arr<n, Bool> do
+fn hillclimb_3() -> Arr<n, Bool> do
 	// x_0 <-$ uniform : Arr<n, Bool>;
 	x_0 <- default : Arr<n, Bool>;
 	x_1 <- hillclimb_iter(x_0);

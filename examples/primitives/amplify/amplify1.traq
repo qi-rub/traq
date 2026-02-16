@@ -1,6 +1,6 @@
-declare sampler(Fin<N>) -> (Bool, Fin<N>) end
+ext fn sampler(Fin<N>) -> (Bool, Fin<N>) end
 
-def main() -> (Bool, Fin<N>) do
+fn main() -> (Bool, Fin<N>) do
 	x <- const 1 : Fin<N>;
 	ok, result <- @amplify<0.02>[sampler(x)];
 	return ok, result

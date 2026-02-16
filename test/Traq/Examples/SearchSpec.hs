@@ -79,6 +79,18 @@ spec = describe "SearchSpec" $ do
         let proto_cost = A.costUProg ex' :: SimpleQueryCost Double
         uqpl_cost `shouldSatisfy` (<= proto_cost)
 
+    describe "Compile" $ do
+      let eps = A.failProb (0.0001 :: Double)
+
+      it "lowers" $ do
+        ex' <- expectRight $ A.annotateProgWith (P._exts (A.annSinglePrim eps)) ex
+        assertRight $ Compiler.lowerProgram ex'
+
+      it "typechecks" $ do
+        ex' <- expectRight $ A.annotateProgWith (P._exts (A.annSinglePrim eps)) ex
+        ex_uqpl <- expectRight $ Compiler.lowerProgram ex'
+        assertRight $ CQPL.typeCheckProgram ex_uqpl
+
   describe "arraySearch (returning solution)" $ do
     let n = 10
     let ex = arraySearchIx n

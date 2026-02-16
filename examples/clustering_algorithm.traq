@@ -3,11 +3,11 @@
 
 // type point = Arr<N, Fin<M>>
 
-declare D_n(Fin<N>) -> Arr<N, Fin<M>> end
+ext fn D_n(Fin<N>) -> Arr<N, Fin<M>> end
 
-declare Dist(Arr<N, Fin<M>>, Arr<N, Fin<M>>) -> Fin<M> end
+ext fn Dist(Arr<N, Fin<M>>, Arr<N, Fin<M>>) -> Fin<M> end
 
-def check(dmax : Fin<M>, ij: Tup<Fin<N>, Fin<N>>) -> Bool do
+fn check(dmax : Fin<M>, ij: Tup<Fin<N>, Fin<N>>) -> Bool do
     i <- ij.0;
     j <- ij.1;
     xi <- D_n(i);
@@ -19,16 +19,18 @@ def check(dmax : Fin<M>, ij: Tup<Fin<N>, Fin<N>>) -> Bool do
     return ok
 end
 
-def loop_body(i: Fin<N>, j: Fin<N>) -> (Fin<N>, Fin<N>) do
+fn loop_body(i: Fin<N>, j: Fin<N>) -> (Fin<N>, Fin<N>) do
     xi <- D_n(i);
     xj <- D_n(j);
     dmax <- Dist(xi, xj);
 
-    i', j' <- @search<Tup<Fin<N>, Fin<N>>>[check(dmax, _)];
+    ok, ij' <- @search<Tup<Fin<N>, Fin<N>>>[check(dmax, _)];
+    i' <- ij'.0;
+    j' <- ij'.1;
     return i', j'
 end
 
-def main () -> (Fin<N>, Fin<N>) do
+fn main () -> (Fin<N>, Fin<N>) do
     i0 <-$ uniform : Fin<N>;
     j0 <-$ uniform : Fin<N>;
 

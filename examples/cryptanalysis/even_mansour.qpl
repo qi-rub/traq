@@ -1,0 +1,76 @@
+ext uproc P_U(BitVec<20>, BitVec<20>);
+
+ext proc P(BitVec<20>, BitVec<20>);
+
+ext uproc E_U(BitVec<20>, BitVec<20>);
+
+ext proc E(BitVec<20>, BitVec<20>);
+
+uproc f_U(f_x : IN BitVec<20>, f_fx : OUT BitVec<20>, f_ex : AUX BitVec<20>, f_px : AUX BitVec<20>, f_ex_1 : AUX BitVec<20>, f_px_1 : AUX BitVec<20>, f_fx_1 : AUX BitVec<20>) {
+  call E_U(f_x, f_ex_1);
+  f_ex, f_ex_1 *= SWAP;
+  call P_U(f_x, f_px_1);
+  f_px, f_px_1 *= SWAP;
+  f_ex, f_px, f_fx_1 *= Embed[(f_ex, f_px) => (f_ex ^ f_px)];
+  f_fx, f_fx_1 *= SWAP;
+}
+
+proc f(f_x : BitVec<20>, f_fx : BitVec<20>) { locals : (f_ex : BitVec<20>, f_px : BitVec<20>) } {
+  call E(f_x, f_ex);
+  call P(f_x, f_px);
+  f_fx := (f_ex ^ f_px);
+}
+
+uproc SimonOneRound_U(x : OUT BitVec<20>, y : AUX BitVec<20>, yy : AUX BitVec<20>, aux : AUX BitVec<20>, aux_1 : AUX BitVec<20>, aux_2 : AUX BitVec<20>, aux_3 : AUX BitVec<20>, aux_4 : AUX BitVec<20>) {
+  x *= Distr[uniform : BitVec<20>];
+  call f_U(x, y, aux, aux_1, aux_2, aux_3, aux_4);
+  y, yy *= COPY;
+  call-adj f_U(x, y, aux, aux_1, aux_2, aux_3, aux_4);
+  x *= Adj-Distr[uniform : BitVec<20>];
+}
+
+uproc USimon(BreakEM_k1_1 : OUT BitVec<20>, USimon_aux : AUX Arr<31, BitVec<20>>, USimon_aux_1 : AUX Arr<31, BitVec<20>>, USimon_aux_2 : AUX Arr<31, BitVec<20>>, USimon_aux_3 : AUX Arr<31, BitVec<20>>, USimon_aux_4 : AUX Arr<31, BitVec<20>>, USimon_aux_5 : AUX Arr<31, BitVec<20>>, USimon_aux_6 : AUX Arr<31, BitVec<20>>, USimon_aux_7 : AUX Arr<31, BitVec<20>>) {
+  for (#i in 0 .. < 31) {
+    call SimonOneRound_U(USimon_aux[#i], USimon_aux_1[#i], USimon_aux_2[#i], USimon_aux_3[#i], USimon_aux_4[#i], USimon_aux_5[#i], USimon_aux_6[#i], USimon_aux_7[#i]);
+  }
+  // simon's post-processing: unitarily solve linear system: (BreakEM_k1_1) . (USimon_aux) = 0
+}
+
+uproc BreakEM_U(BreakEM_k1 : OUT BitVec<20>, BreakEM_k2 : OUT BitVec<20>, BreakEM_ze : AUX BitVec<20>, BreakEM_e_0 : AUX BitVec<20>, BreakEM_p_k1 : AUX BitVec<20>, BreakEM_ze_1 : AUX BitVec<20>, BreakEM_k1_1 : AUX BitVec<20>, x : AUX BitVec<20>, y : AUX BitVec<20>, yy : AUX BitVec<20>, aux : AUX BitVec<20>, aux_1 : AUX BitVec<20>, aux_2 : AUX BitVec<20>, aux_3 : AUX BitVec<20>, aux_4 : AUX BitVec<20>, USimon_aux : AUX Arr<31, BitVec<20>>, USimon_aux_1 : AUX Arr<31, BitVec<20>>, USimon_aux_2 : AUX Arr<31, BitVec<20>>, USimon_aux_3 : AUX Arr<31, BitVec<20>>, USimon_aux_4 : AUX Arr<31, BitVec<20>>, USimon_aux_5 : AUX Arr<31, BitVec<20>>, USimon_aux_6 : AUX Arr<31, BitVec<20>>, USimon_aux_7 : AUX Arr<31, BitVec<20>>, aux_prim : AUX Arr<31, BitVec<20>>, aux_prim_1 : AUX Arr<31, BitVec<20>>, aux_prim_2 : AUX Arr<31, BitVec<20>>, aux_prim_3 : AUX Arr<31, BitVec<20>>, aux_prim_4 : AUX Arr<31, BitVec<20>>, aux_prim_5 : AUX Arr<31, BitVec<20>>, aux_prim_6 : AUX Arr<31, BitVec<20>>, aux_prim_7 : AUX Arr<31, BitVec<20>>, BreakEM_e_0_1 : AUX BitVec<20>, BreakEM_p_k1_1 : AUX BitVec<20>, BreakEM_k2_1 : AUX BitVec<20>) {
+  BreakEM_ze_1 *= Embed[() => 0:BitVec<20>];
+  BreakEM_ze, BreakEM_ze_1 *= SWAP;
+  call USimon(BreakEM_k1_1, aux_prim, aux_prim_1, aux_prim_2, aux_prim_3, aux_prim_4, aux_prim_5, aux_prim_6, aux_prim_7);
+  BreakEM_k1, BreakEM_k1_1 *= SWAP;
+  call E_U(BreakEM_ze, BreakEM_e_0_1);
+  BreakEM_e_0, BreakEM_e_0_1 *= SWAP;
+  call P_U(BreakEM_k1, BreakEM_p_k1_1);
+  BreakEM_p_k1, BreakEM_p_k1_1 *= SWAP;
+  BreakEM_e_0, BreakEM_p_k1, BreakEM_k2_1 *= Embed[(BreakEM_e_0, BreakEM_p_k1) => (BreakEM_e_0 ^ BreakEM_p_k1)];
+  BreakEM_k2, BreakEM_k2_1 *= SWAP;
+}
+
+uproc SimonOneRound_U_1(x_1 : OUT BitVec<20>, y_1 : AUX BitVec<20>, yy_1 : AUX BitVec<20>, aux_5 : AUX BitVec<20>, aux_6 : AUX BitVec<20>, aux_7 : AUX BitVec<20>, aux_8 : AUX BitVec<20>, aux_9 : AUX BitVec<20>) {
+  x_1 *= Distr[uniform : BitVec<20>];
+  call f_U(x_1, y_1, aux_5, aux_6, aux_7, aux_8, aux_9);
+  y_1, yy_1 *= COPY;
+  call-adj f_U(x_1, y_1, aux_5, aux_6, aux_7, aux_8, aux_9);
+  x_1 *= Adj-Distr[uniform : BitVec<20>];
+}
+
+proc QSimon(BreakEM_k1 : BitVec<20>) { locals : (QSimon__u : Arr<31, BitVec<20>>) } {
+  for (i_1 in 0 .. < 31) {
+    meas SimonOneRound_U_1(QSimon__u[#i_1]);
+  }
+  // simon's post-processing: solve linear system: (BreakEM_k1) . (QSimon__u) = 0
+}
+
+proc BreakEM(BreakEM_k1 : BitVec<20>, BreakEM_k2 : BitVec<20>) { locals : (BreakEM_ze : BitVec<20>, BreakEM_e_0 : BitVec<20>, BreakEM_p_k1 : BitVec<20>, x_1 : BitVec<20>, y_1 : BitVec<20>, yy_1 : BitVec<20>, aux_5 : BitVec<20>, aux_6 : BitVec<20>, aux_7 : BitVec<20>, aux_8 : BitVec<20>, aux_9 : BitVec<20>, QSimon__u : Arr<31, BitVec<20>>) } {
+  BreakEM_ze := 0:BitVec<20>;
+  call QSimon(BreakEM_k1);
+  call E(BreakEM_ze, BreakEM_e_0);
+  call P(BreakEM_k1, BreakEM_p_k1);
+  BreakEM_k2 := (BreakEM_e_0 ^ BreakEM_p_k1);
+}
+
+
+// qubits: 10280

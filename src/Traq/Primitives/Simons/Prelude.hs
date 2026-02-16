@@ -65,6 +65,14 @@ instance (Show sizeT) => SerializePrim (FindXorPeriod sizeT Double) where
     return FindXorPeriod{n, p_0}
   printPrimParams FindXorPeriod{n, p_0} = [show n, printf "%.2f" p_0]
 
+-- | Bitsize
+bitsize :: (P.TypingReqs size) => P.VarType size -> Maybe size
+bitsize (P.Fin 2) = Just 1
+bitsize (P.Fin _) = Nothing
+bitsize (P.Bitvec n) = Just n
+bitsize (P.Arr n t) = (n *) <$> bitsize t
+bitsize (P.Tup ts) = sum <$> mapM bitsize ts
+
 instance
   (P.TypingReqs sizeT, Num precT, Ord precT, Show precT) =>
   TypeCheckPrim (FindXorPeriod sizeT precT) sizeT
@@ -80,7 +88,7 @@ instance
       throwError $
         printf "FindPeriod: fn must be of type `t -> t`, got output %s -> %s" (show param_types) (show ret_types)
 
-    when (P.bitsize (P.Tup param_types) /= Just n) $ do
+    when (bitsize (P.Tup param_types) /= Just n) $ do
       throwError $
         printf "FindPeriod: mistmatched bitsize: expected %s, got %s" (show n) (show param_types)
 

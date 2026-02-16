@@ -15,7 +15,7 @@ module Traq.CQPL.TypeCheck (
 ) where
 
 import Control.Monad (forM, unless, when)
-import Control.Monad.Except (MonadError)
+import Control.Monad.Except (MonadError (throwError))
 import Control.Monad.Reader (MonadReader, ReaderT, local, runReaderT)
 import Control.Monad.State (execStateT)
 import Data.Foldable (toList)
@@ -69,6 +69,27 @@ verifyArgTys arg_tys tys = do
     Err.throwErrorMessage $
       printf "mismatched args: inferred %s, actual %s" (show tys) (show arg_tys)
 
+getArgTy ::
+  forall size env m.
+  ( P.TypingReqs size
+  , MonadError Err.MyError m
+  , MonadReader env m
+  , P.HasTypingCtx env
+  , size ~ SizeType env
+  ) =>
+  Arg size ->
+  m (P.VarType size)
+getArgTy (Arg x) = do
+  mty <- view $ P._typingCtx . Ctx.at x
+  maybeWithError (Err.MessageE $ printf "cannot find argument %s" x) mty
+getArgTy (ArrElemArg arg _) = do
+  ty <- getArgTy arg
+  case ty of
+    P.Arr _ e_ty -> pure e_ty
+    P.Bitvec _ -> pure P.tbool
+    P.Tup _ -> error "TODO tuple index"
+    _ -> throwError (Err.MessageE $ printf "expected an array/tuple type")
+
 -- | Verify that the arguments match the deduced types
 verifyArgs ::
   forall sizeT env m.
@@ -78,13 +99,11 @@ verifyArgs ::
   , P.HasTypingCtx env
   , sizeT ~ SizeType env
   ) =>
-  [Ident] ->
+  [Arg sizeT] ->
   [P.VarType sizeT] ->
   m ()
 verifyArgs args tys = do
-  arg_tys <- forM args $ \x -> do
-    mty <- view $ P._typingCtx . Ctx.at x
-    maybeWithError (Err.MessageE $ printf "cannot find argument %s" x) mty
+  arg_tys <- forM args getArgTy
   verifyArgTys arg_tys tys
 
 -- ================================================================================
@@ -146,9 +165,7 @@ typeCheckUStmt :: forall sizeT. (P.TypingReqs sizeT) => UStmt sizeT -> TypeCheck
 typeCheckUStmt USkipS = return ()
 typeCheckUStmt (UCommentS _) = return ()
 typeCheckUStmt UnitaryS{unitary, qargs} = do
-  arg_tys <- forM qargs $ \x -> do
-    mty <- view $ P._typingCtx . Ctx.at x
-    maybeWithError (Err.MessageE $ printf "cannot find argument %s" x) mty
+  arg_tys <- forM qargs getArgTy
   typeCheckUnitary unitary arg_tys
 typeCheckUStmt UCallS{uproc_id, qargs} = do
   ProcDef{proc_param_types, proc_body} <-
@@ -217,9 +234,7 @@ typeCheckStmt CallS{fun = FunctionCall proc_id, args} = do
     view (_procCtx . Ctx.at proc_id)
       >>= maybeWithError (Err.MessageE "cannot find proc")
   unless (isCProc p) $ Err.throwErrorMessage "expected uproc"
-  arg_tys <- forM args $ \var -> do
-    view (P._typingCtx . Ctx.at var) >>= maybeWithError (Err.MessageE $ printf "cannot find %s" var)
-  ensureEqual proc_param_types arg_tys ("mismatched function args for call proc " ++ proc_id)
+  verifyArgs args proc_param_types
 
 -- call uproc
 typeCheckStmt CallS{fun = UProcAndMeas uproc_id, args} = do
@@ -229,8 +244,7 @@ typeCheckStmt CallS{fun = UProcAndMeas uproc_id, args} = do
 
   unless (isUProc p) $ Err.throwErrorMessage "expected uproc"
 
-  arg_tys <- forM args $ \var -> do
-    view (P._typingCtx . Ctx.at var) >>= maybeWithError (Err.MessageE $ printf "cannot find %s" var)
+  arg_tys <- forM args getArgTy
   ensureEqual (take (length arg_tys) proc_param_types) arg_tys ("mismatched function args for meas uproc " ++ uproc_id)
 
 -- compound statements
@@ -243,6 +257,7 @@ typeCheckStmt IfThenElseS{cond, s_true, s_false} = do
   typeCheckStmt s_true
   typeCheckStmt s_false
 typeCheckStmt RepeatS{loop_body} = typeCheckStmt loop_body
+typeCheckStmt ForInRangeS{loop_body} = typeCheckStmt loop_body
 -- try by desugaring
 typeCheckStmt s = case desugarS s of
   Just s' -> typeCheckStmt s'

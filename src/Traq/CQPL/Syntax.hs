@@ -5,6 +5,7 @@
 module Traq.CQPL.Syntax (
   -- * Syntax
   MetaParam (..),
+  Arg (..),
 
   -- ** Unitary Fragment
   HasAdjoint (..),
@@ -53,14 +54,27 @@ import Traq.Utils.ASTRewriting
 import qualified Traq.Utils.Printing as PP
 
 -- ================================================================================
--- Transformers
+-- Common
 -- ================================================================================
-class HasAdjoint a where
-  adjoint :: a -> a
+
+-- | An argument (to ops/procs)
+data Arg size
+  = Arg Ident -- variable
+  | ArrElemArg (Arg size) (MetaParam size) -- array element
+  deriving (Eq, Read, Show)
+
+instance (Show size) => PP.ToCodeString (Arg size) where
+  build (Arg x) = PP.putWord x
+  build (ArrElemArg arg i) = do
+    x <- PP.fromBuild arg
+    i' <- PP.fromBuild i
+    PP.putWord $ x ++ "[" ++ i' ++ "]"
 
 -- ================================================================================
 -- Unitary Fragment
 -- ================================================================================
+class HasAdjoint a where
+  adjoint :: a -> a
 
 -- --------------------------------------------------------------------------------
 -- Unitary Operators
@@ -123,8 +137,8 @@ instance HasAdjoint (Unitary sizeT) where
 -- | Unitary Statement
 data UStmt sizeT
   = USkipS
-  | UnitaryS {qargs :: [Ident], unitary :: Unitary sizeT} -- q... *= U
-  | UCallS {uproc_id :: Ident, dagger :: Bool, qargs :: [Ident]} -- call F(q...)
+  | UnitaryS {qargs :: [Arg sizeT], unitary :: Unitary sizeT} -- q... *= U
+  | UCallS {uproc_id :: Ident, dagger :: Bool, qargs :: [Arg sizeT]} -- call F(q...)
   | USeqS [UStmt sizeT] -- W1; W2; ...
   | -- placeholders
     UCommentS String
@@ -162,14 +176,16 @@ instance (Show sizeT) => PP.ToCodeString (UStmt sizeT) where
   build USkipS = PP.putLine "skip;"
   build (UCommentS c) = PP.putComment c
   build UnitaryS{qargs, unitary} = PP.concatenated $ do
-    PP.putWord $ PP.commaList qargs
+    qs <- mapM PP.fromBuild qargs
+    PP.putWord $ PP.commaList qs
     PP.putWord " *= "
     PP.build unitary
     PP.putWord ";"
   build UCallS{uproc_id, dagger, qargs} = PP.concatenated $ do
+    qs <- mapM PP.fromBuild qargs
     PP.putWord "call"
     PP.putWord $ showDagger dagger
-    PP.putWord $ printf " %s(%s);" uproc_id $ PP.commaList qargs
+    PP.putWord $ printf " %s(%s);" uproc_id $ PP.commaList qs
   build (USeqS ps) = mapM_ PP.build ps
   -- syntax sugar
   build (URepeatS k s) = do
@@ -204,7 +220,7 @@ data Stmt sizeT
   | AssignS {rets :: [Ident], expr :: P.BasicExpr sizeT}
   | RandomS {rets :: [Ident], distr_expr :: P.DistrExpr sizeT}
   | RandomDynS {ret :: Ident, max_var :: Ident}
-  | CallS {fun :: FunctionCall, meta_params :: [Either (MetaParam sizeT) Ident], args :: [Ident]}
+  | CallS {fun :: FunctionCall, meta_params :: [Either (MetaParam sizeT) Ident], args :: [Arg sizeT]}
   | SeqS [Stmt sizeT]
   | IfThenElseS {cond :: Ident, s_true, s_false :: Stmt sizeT}
   | RepeatS {n_iter :: MetaParam sizeT, loop_body :: Stmt sizeT}
@@ -212,6 +228,7 @@ data Stmt sizeT
     WhileK {n_iter :: MetaParam sizeT, cond :: Ident, loop_body :: Stmt sizeT}
   | WhileKWithCondExpr {n_iter :: MetaParam sizeT, cond :: Ident, cond_expr :: P.BasicExpr sizeT, loop_body :: Stmt sizeT}
   | ForInArray {loop_index :: Ident, loop_index_ty :: VarType sizeT, loop_values :: [P.BasicExpr sizeT], loop_body :: Stmt sizeT}
+  | ForInRangeS {iter_meta_var :: Ident, iter_lim :: P.MetaParam sizeT, loop_body :: Stmt sizeT}
   deriving (Eq, Show, Read)
 
 type instance SizeType (Stmt sizeT) = sizeT
@@ -231,7 +248,8 @@ instance (Show sizeT) => PP.ToCodeString (Stmt sizeT) where
     PP.putLine $ printf "%s :=$ [1 .. %s];" ret max_var
   build CallS{fun, meta_params, args} = do
     meta_params_str <- PP.wrapNonEmpty "[" "]" . PP.commaList <$> mapM (either PP.fromBuild return) meta_params
-    PP.putLine $ printf "%s%s(%s);" (f_str fun) meta_params_str (PP.commaList args)
+    args_str <- mapM PP.fromBuild args
+    PP.putLine $ printf "%s%s(%s);" (f_str fun) meta_params_str (PP.commaList args_str)
    where
     f_str :: FunctionCall -> String
     f_str (FunctionCall fname) = printf "call %s" fname
@@ -263,6 +281,11 @@ instance (Show sizeT) => PP.ToCodeString (Stmt sizeT) where
     PP.delimitedBlock
       (printf "for (%s in [%s]) {" loop_index loop_values_s)
       "}"
+      $ PP.build loop_body
+  build ForInRangeS{iter_meta_var, iter_lim, loop_body} = do
+    n <- PP.fromBuild iter_lim
+    PP.bracedBlockWith
+      (printf "for (%s in 0 .. < %s)" iter_meta_var n)
       $ PP.build loop_body
 
 -- ================================================================================

@@ -48,7 +48,7 @@ spec = do
       let lctx = default_
       circ <-
         expectRight $
-          algoQSearchZalka @P.Core' eps "output_bit"
+          algoQSearchZalka @P.Core' eps "output_bit" "elem"
             & execRWT UQSearchEnv{search_arg_type = P.Fin n, pred_call_builder = pred_caller}
             & (\m -> runRWST m lenv lctx)
             <&> (CQPL.USeqS . fst3)
@@ -68,7 +68,7 @@ spec = do
       let compile_config = default_
       (n > 2) ==> do
         ss <-
-          algoQSearchZalka @(QSearchCFNW SizeT Double) eps "result"
+          algoQSearchZalka @(QSearchCFNW SizeT Double) eps "result" "elem"
             & execRWT (qsearch_env n)
             & (\m -> runRWST m compile_config default_)
             <&> fst3
