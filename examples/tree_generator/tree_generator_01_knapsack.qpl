@@ -287,8 +287,32 @@ uproc KnapsackLoopBody_U(KnapsackLoopBody_xs : IN Arr<10, Fin<2>>, KnapsackLoopB
   KnapsackLoopBody_xs_next, KnapsackLoopBody_xs_next_1 *= SWAP;
 }
 
-proc QAmplify(KnapsackLoopBody_xs : Arr<10, Fin<2>>, KnapsackLoopBody_pr : Fin<1000>, KnapsackLoopBody_ok : Fin<2>, KnapsackLoopBody_xs' : Arr<10, Fin<2>>) { locals : () } {
-  // TODO
+uproc Grover[k](KnapsackLoopBody_xs : Arr<10, Fin<2>>, KnapsackLoopBody_pr : Fin<1000>, KnapsackLoopBody_ok : OUT Fin<2>, KnapsackLoopBody_xs' : OUT Arr<10, Fin<2>>, aux_110 : AUX Fin<1000>, aux_111 : AUX Fin<1000>, aux_112 : AUX Fin<1000>, aux_113 : AUX Fin<1000>, aux_114 : AUX Fin<1000>, aux_115 : AUX Fin<1000>, aux_116 : AUX Arr<10, Fin<2>>, aux_117 : AUX Fin<1000>, aux_118 : AUX Fin<1000>, aux_119 : AUX Arr<10, Fin<2>>, aux_120 : AUX Arr<10, Fin<2>>, aux_121 : AUX Arr<10, Fin<2>>, aux_122 : AUX Arr<10, Fin<1000>>, aux_123 : AUX Arr<10, Fin<1000>>, aux_124 : AUX Arr<10, Fin<1000>>, aux_125 : AUX Arr<10, Fin<2>>, aux_126 : AUX Arr<10, Fin<2>>, aux_127 : AUX Arr<10, Fin<1000>>, aux_128 : AUX Arr<10, Fin<1000>>, aux_129 : AUX Arr<10, Fin<2>>, aux_130 : AUX Arr<10, Fin<2>>, aux_131 : AUX Arr<10, Fin<2>>, aux_132 : AUX Arr<10, Fin<2>>, aux_133 : AUX Arr<10, Fin<1000>>, aux_134 : AUX Arr<10, Fin<1000>>, aux_135 : AUX Arr<10, Fin<1000>>, aux_136 : AUX Arr<10, Fin<2>>, aux_137 : AUX Arr<10, Fin<2>>, aux_138 : AUX Arr<10, Arr<10, Fin<2>>>, aux_139 : AUX Arr<10, Fin<1000>>, aux_140 : AUX Arr<10, Fin<1000>>, aux_141 : AUX Arr<10, Fin<1000>>, aux_142 : AUX Arr<10, Fin<1000>>, aux_143 : AUX Arr<10, Fin<10>>, aux_144 : AUX Arr<11, Arr<10, Fin<2>>>, aux_145 : AUX Arr<11, Fin<1000>>, aux_146 : AUX Arr<11, Fin<1000>>, aux_147 : AUX Fin<2>) {
+  call TreeGen_U(KnapsackLoopBody_xs, KnapsackLoopBody_pr, KnapsackLoopBody_ok, KnapsackLoopBody_xs', aux_110, aux_111, aux_112, aux_113, aux_114, aux_115, aux_116, aux_117, aux_118, aux_119, aux_120, aux_121, aux_122, aux_123, aux_124, aux_125, aux_126, aux_127, aux_128, aux_129, aux_130, aux_131, aux_132, aux_133, aux_134, aux_135, aux_136, aux_137, aux_138, aux_139, aux_140, aux_141, aux_142, aux_143, aux_144, aux_145, aux_146, aux_147);
+  repeat (#k) {
+    KnapsackLoopBody_ok *= Z;
+    call-adj TreeGen_U(KnapsackLoopBody_xs, KnapsackLoopBody_pr, KnapsackLoopBody_ok, KnapsackLoopBody_xs', aux_110, aux_111, aux_112, aux_113, aux_114, aux_115, aux_116, aux_117, aux_118, aux_119, aux_120, aux_121, aux_122, aux_123, aux_124, aux_125, aux_126, aux_127, aux_128, aux_129, aux_130, aux_131, aux_132, aux_133, aux_134, aux_135, aux_136, aux_137, aux_138, aux_139, aux_140, aux_141, aux_142, aux_143, aux_144, aux_145, aux_146, aux_147);
+    KnapsackLoopBody_ok, KnapsackLoopBody_xs', aux_110, aux_111, aux_112, aux_113, aux_114, aux_115, aux_116, aux_117, aux_118, aux_119, aux_120, aux_121, aux_122, aux_123, aux_124, aux_125, aux_126, aux_127, aux_128, aux_129, aux_130, aux_131, aux_132, aux_133, aux_134, aux_135, aux_136, aux_137, aux_138, aux_139, aux_140, aux_141, aux_142, aux_143, aux_144, aux_145, aux_146, aux_147 *= PhaseOnZero(3.141592653589793);
+    call TreeGen_U(KnapsackLoopBody_xs, KnapsackLoopBody_pr, KnapsackLoopBody_ok, KnapsackLoopBody_xs', aux_110, aux_111, aux_112, aux_113, aux_114, aux_115, aux_116, aux_117, aux_118, aux_119, aux_120, aux_121, aux_122, aux_123, aux_124, aux_125, aux_126, aux_127, aux_128, aux_129, aux_130, aux_131, aux_132, aux_133, aux_134, aux_135, aux_136, aux_137, aux_138, aux_139, aux_140, aux_141, aux_142, aux_143, aux_144, aux_145, aux_146, aux_147);
+  }
+}
+
+proc QAmplify(KnapsackLoopBody_xs : Arr<10, Fin<2>>, KnapsackLoopBody_pr : Fin<1000>, KnapsackLoopBody_ok : Fin<2>, KnapsackLoopBody_xs' : Arr<10, Fin<2>>) { locals : (not_done : Fin<2>, Q_sum : Fin<92>, j : Fin<92>, j_lim : Fin<92>) } {
+  not_done := 0:Fin<2>;
+  repeat (8) {
+    Q_sum := 0:Fin<92>;
+    for (j_lim in [1:Fin<92>, 1:Fin<92>, 1:Fin<92>, 2:Fin<92>, 2:Fin<92>, 2:Fin<92>, 3:Fin<92>, 4:Fin<92>, 5:Fin<92>, 6:Fin<92>, 7:Fin<92>, 8:Fin<92>, 10:Fin<92>, 10:Fin<92>, 10:Fin<92>, 10:Fin<92>, 10:Fin<92>]) {
+      j :=$ [1 .. j_lim];
+      Q_sum := (Q_sum + j);
+      not_done := (not_done && (Q_sum <= j_lim));
+      if (not_done) {
+        meas Grover[j](KnapsackLoopBody_xs, KnapsackLoopBody_pr, KnapsackLoopBody_ok, KnapsackLoopBody_xs');
+        not_done := (not_done && not KnapsackLoopBody_ok);
+      } else {
+        skip;
+      }
+    }
+  }
 }
 
 proc KnapsackLoopBody(KnapsackLoopBody_xs : Arr<10, Fin<2>>, KnapsackLoopBody_i : Fin<3>, KnapsackLoopBody_xs_next : Arr<10, Fin<2>>) { locals : (KnapsackLoopBody_pr : Fin<1000>, KnapsackLoopBody_ok : Fin<2>, KnapsackLoopBody_xs' : Arr<10, Fin<2>>) } {

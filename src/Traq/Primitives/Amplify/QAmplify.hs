@@ -16,9 +16,7 @@ import Control.Monad (forM, replicateM, when)
 import Control.Monad.Trans (lift)
 import Control.Monad.Writer (WriterT (..), censor)
 import Data.Bifunctor (second)
-import Data.String (IsString (..))
 import GHC.Generics (Generic)
-import Text.Printf (printf)
 
 import Lens.Micro.GHC
 import Lens.Micro.Mtl
@@ -299,7 +297,6 @@ qamplifySamplingRanges p_min = go q_max js
 buildQAmplify ::
   forall ext prec m.
   ( RealFloat prec
-  , Show prec
   , SizeType ext ~ SizeT
   , m ~ AlgoMonad ext prec
   ) =>
@@ -317,7 +314,7 @@ buildQAmplify n_samples eps p_min = do
 
   -- flag
   not_done <- allocLocal "not_done" P.tbool
-  addStmt $ CQPL.AssignS [not_done] (P.ConstE 0 P.tbool)
+  addStmt $ CQPL.AssignS [not_done] (P.ConstE (P.FinV 0) P.tbool)
 
   -- classical sampling
   SamplerFn mkSamplerCCall <- view $ to mk_call
@@ -358,12 +355,17 @@ buildQAmplify n_samples eps p_min = do
       $ do
         addStmt $ CQPL.RandomDynS j j_lim
         addStmt $ CQPL.AssignS [q_sum] (P.BinOpE P.AddOp (P.VarE q_sum) (P.VarE j))
-        addStmt $ CQPL.AssignS [not_done] (error "not_done && (q_sum <= j_lim)")
+        addStmt $ CQPL.AssignS [not_done] (P.VarE not_done P..&&. (P.VarE q_sum P..<=. P.VarE j_lim))
         withStmt (CQPL.ifThenS not_done) $ do
-          addStmt $ error "meas grover[#j](rets)"
-          addStmt $ CQPL.AssignS [not_done] (error "not_done && (not b)")
+          addStmt $
+            CQPL.CallS
+              { CQPL.fun = CQPL.UProcAndMeas (CQPL.proc_name uproc_grover_k)
+              , CQPL.meta_params = [Right j]
+              , CQPL.args = map CQPL.Arg rets
+              }
+          addStmt $ CQPL.AssignS [not_done] (P.VarE not_done P..&&. P.notE (P.VarE b))
 
-instance (Floating prec, RealFrac prec) => QuantumCompilePrim (QAmplify SizeT prec) SizeT prec where
+instance (RealFloat prec) => QuantumCompilePrim (QAmplify SizeT prec) SizeT prec where
   compileQPrim (QAmplify Amplify{p_min}) eps = do
     rets <- view $ to ret_vars
     ret_tys <- forM rets $ \x ->

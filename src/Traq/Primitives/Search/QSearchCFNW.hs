@@ -689,7 +689,7 @@ instance
             _ -> [(ret, P.tbool)]
 
     (BooleanPredicate meas_upred) <- view $ to mk_meas
-    let pred_caller x b = meas_upred [x, b]
+    let pred_caller x b = meas_upred [CQPL.Arg x, CQPL.Arg b]
 
     (qsearch_body, qsearch_local_vars) <-
       lift $
