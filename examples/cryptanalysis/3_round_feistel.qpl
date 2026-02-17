@@ -106,7 +106,7 @@ uproc SimonOneRound_U_1(x_2 : OUT Fin<2>, x_3 : OUT BitVec<20>, y_2 : AUX Fin<2>
 }
 
 proc QSimon(AttackThreeRoundFeistel_zero : Fin<2>, AttackThreeRoundFeistel_s : BitVec<20>) { locals : (QSimon__u : Arr<32, Fin<2>>, QSimon__u_1 : Arr<32, BitVec<20>>) } {
-  for (i_1 in 0 .. < 32) {
+  for (#i_1 in 0 .. < 32) {
     meas SimonOneRound_U_1(QSimon__u[#i_1], QSimon__u_1[#i_1]);
   }
   // simon's post-processing: solve linear system: (AttackThreeRoundFeistel_zero, AttackThreeRoundFeistel_s) . (QSimon__u, QSimon__u_1) = 0

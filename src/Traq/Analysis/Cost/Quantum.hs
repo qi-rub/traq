@@ -155,34 +155,25 @@ instance ExpCostQ1 Expr where
       return (distr >>= run_loop_body i, iter_cost)
     return $ Alg.sum cs
 
--- | TODO unify this as a class instance, after unifying evaluation
-expCostQStmt ::
-  forall ext size prec cost m.
-  ( m ~ CostAnalysisMonad ext
-  , ExpCostQ ext size prec
-  , CostModelReqs size prec cost
-  ) =>
-  Stmt ext ->
-  ProgramState size ->
-  m cost
-expCostQStmt ExprS{expr} sigma = expCostQ1 expr sigma
-expCostQStmt IfThenElseS{cond, s_true, s_false} sigma = do
-  let b =
-        sigma
-          ^?! Ctx.at cond
-          . non' (error $ "cannot find variable" ++ cond)
-          . to valueToBool
-  expCostQStmt (if b then s_true else s_false) sigma
-expCostQStmt (SeqS ss) sigma = do
-  env <- view _evaluationEnv
+instance ExpCostQ1 Stmt where
+  expCostQ1 ExprS{expr} sigma = expCostQ1 expr sigma
+  expCostQ1 IfThenElseS{cond, s_true, s_false} sigma = do
+    let b =
+          sigma
+            ^?! Ctx.at cond
+            . non' (error $ "cannot find variable" ++ cond)
+            . to valueToBool
+    expCostQ1 (if b then s_true else s_false) sigma
+  expCostQ1 (SeqS ss) sigma = do
+    env <- view _evaluationEnv
 
-  let stepS s sigma_s = eval1 s sigma_s & (runReaderT ?? env)
+    let stepS s sigma_s = eval1 s sigma_s & (runReaderT ?? env)
 
-  (_, cs) <- forAccumM (pure sigma) ss $ \distr s -> do
-    c <- Prob.expectationA (expCostQStmt s) distr
-    return (distr >>= stepS s, c)
+    (_, cs) <- forAccumM (pure sigma) ss $ \distr s -> do
+      c <- Prob.expectationA (expCostQ1 s) distr
+      return (distr >>= stepS s, c)
 
-  return $ Alg.sum cs
+    return $ Alg.sum cs
 
 instance ExpCostQ1 NamedFunDef where
   -- query an external function
@@ -198,7 +189,7 @@ instance ExpCostQ1 NamedFunDef where
     NamedFunDef
       { fun_def = FunDef{mbody = Just FunBody{param_names, body_stmt}}
       }
-    args = expCostQStmt body_stmt sigma
+    args = expCostQ1 body_stmt sigma
      where
       -- bind args to the parameter names
       sigma = Ctx.fromList $ zip param_names args

@@ -9,6 +9,7 @@ module Traq.Compiler.Quantum (
 ) where
 
 import Control.Monad (forM_)
+import Control.Monad.Except (MonadError (..))
 
 import Lens.Micro.GHC
 import Lens.Micro.Mtl
@@ -16,6 +17,7 @@ import Lens.Micro.Mtl
 import Traq.Control.Monad
 import qualified Traq.Data.Context as Ctx
 
+import qualified Traq.Analysis.Annotate.Prelude as A
 import Traq.CQPL.Syntax
 import Traq.Compiler.Prelude
 import Traq.Compiler.Unitary
@@ -40,6 +42,9 @@ class (CompileU ext) => CompileQ ext where
 
 instance (P.TypingReqs size) => CompileQ (P.Core size prec) where
   compileQ = \case {}
+
+instance (P.TypingReqs size) => CompileQ (A.AnnFailProb (P.Core size prec)) where
+  compileQ (A.AnnFailProb _ ext) = case ext of {}
 
 class CompileQ1 f where
   -- | all arguments/info provided to compile the given data
@@ -72,7 +77,37 @@ instance CompileQ1 P.Expr where
     return $ CallS{fun = FunctionCall proc_id, args = map Arg (args ++ rets), meta_params = []}
   -- primitive call
   compileQ1 rets P.PrimCallE{P.prim} = compileQ prim rets
-  compileQ1 _ _ = error "TODO: UNSUPPORTED"
+  -- loops
+  compileQ1 rets P.LoopE{loop_body_fun, initial_args} = do
+    P.FunDef{param_types} <- view (P._funCtx . Ctx.at loop_body_fun) >>= maybeWithError "cannot find loop body fun"
+    n <- case last param_types of
+      P.Fin n -> pure n
+      _ -> throwError "loop index must be of type `Fin`"
+
+    iter_meta_var <- newIdent "ITER"
+
+    iter_var <- newIdent "iter"
+    P._typingCtx . Ctx.ins iter_var .= P.Fin n
+
+    let proc_id = mkQProcName loop_body_fun
+
+    return $
+      SeqS $
+        [AssignS [y] (P.VarE x) | (x, y) <- zip initial_args rets]
+          ++ [ ForInRangeS
+                 { iter_meta_var
+                 , iter_lim = P.MetaSize n
+                 , loop_body =
+                     SeqS
+                       [ AssignS [iter_var] (P.ParamE iter_meta_var)
+                       , CallS
+                           { fun = FunctionCall proc_id
+                           , meta_params = []
+                           , args = map Arg rets ++ [Arg iter_var] ++ map Arg rets
+                           }
+                       ]
+                 }
+             ]
 
 instance CompileQ1 P.Stmt where
   type CompileQArgs P.Stmt ext = ()

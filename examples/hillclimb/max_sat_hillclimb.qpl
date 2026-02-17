@@ -1,0 +1,130 @@
+ext uproc Phi_U(Arr<20, Fin<2>>, Fin<1000>);
+
+ext proc Phi(Arr<20, Fin<2>>, Fin<1000>);
+
+uproc good_U(good_x : IN Arr<20, Fin<2>>, good_i : IN Fin<20>, good_ok : OUT Fin<2>, good_w : AUX Fin<1000>, good_b : AUX Fin<2>, good_b' : AUX Fin<2>, good_x' : AUX Arr<20, Fin<2>>, good_w' : AUX Fin<1000>, good_w_1 : AUX Fin<1000>, good_b_1 : AUX Fin<2>, good_b'_1 : AUX Fin<2>, good_x'_1 : AUX Arr<20, Fin<2>>, good_w'_1 : AUX Fin<1000>, good_ok_1 : AUX Fin<2>) {
+  call Phi_U(good_x, good_w_1);
+  good_w, good_w_1 *= SWAP;
+  good_i, good_x, good_b_1 *= Embed[(good_i, good_x) => good_x[good_i]];
+  good_b, good_b_1 *= SWAP;
+  good_b, good_b'_1 *= Embed[(good_b) => not good_b];
+  good_b', good_b'_1 *= SWAP;
+  good_b, good_i, good_x, good_x'_1 *= Embed[(good_b, good_i, good_x) => update good_x[good_i] = good_b];
+  good_x', good_x'_1 *= SWAP;
+  call Phi_U(good_x', good_w'_1);
+  good_w', good_w'_1 *= SWAP;
+  good_w, good_w', good_ok_1 *= Embed[(good_w, good_w') => (good_w < good_w')];
+  good_ok, good_ok_1 *= SWAP;
+}
+
+proc good(good_x : Arr<20, Fin<2>>, good_i : Fin<20>, good_ok : Fin<2>) { locals : (good_w : Fin<1000>, good_b : Fin<2>, good_b' : Fin<2>, good_x' : Arr<20, Fin<2>>, good_w' : Fin<1000>) } {
+  call Phi(good_x, good_w);
+  good_b := good_x[good_i];
+  good_b' := not good_b;
+  good_x' := update good_x[good_i] = good_b;
+  call Phi(good_x', good_w');
+  good_ok := (good_w < good_w');
+}
+
+// USearch[Fin 20, 3.333333333333333e-4]
+uproc USearch(hillclimb_iter_x : Arr<20, Fin<2>>, hillclimb_iter_ok_1 : OUT Fin<2>, hillclimb_iter_i_1 : OUT Fin<20>, aux : AUX Fin<1000>, aux_1 : AUX Fin<2>, aux_2 : AUX Fin<2>, aux_3 : AUX Arr<20, Fin<2>>, aux_4 : AUX Fin<1000>, aux_5 : AUX Fin<1000>, aux_6 : AUX Fin<2>, aux_7 : AUX Fin<2>, aux_8 : AUX Arr<20, Fin<2>>, aux_9 : AUX Fin<1000>, aux_10 : AUX Fin<2>, aux_11 : AUX Fin<2>, ctrl : AUX Arr<17, Fin<2>>, pred_out : AUX Arr<17, Fin<2>>, n_iter : AUX Arr<17, Fin<4>>, s_arg : AUX Arr<17, Fin<20>>) {
+  for (#run_ix in 0 .. < 17) {
+    n_iter[#run_ix] *= Distr[uniform : Fin<4>];
+    pred_out[#run_ix] *= X;
+    pred_out[#run_ix] *= H;
+    s_arg[#run_ix] *= Distr[uniform : Fin<20>];
+    for (#LIM in 0 .. < 4) {
+      n_iter[#run_ix], ctrl[#run_ix] *= Embed[(a) => (a <= #LIM)];
+      call good_U(hillclimb_iter_x, s_arg[#run_ix], aux_11, aux, aux_1, aux_2, aux_3, aux_4, aux_5, aux_6, aux_7, aux_8, aux_9, aux_10);
+      ctrl[#run_ix], aux_11, pred_out[#run_ix] *= Toffoli;
+      call-adj good_U(hillclimb_iter_x, s_arg[#run_ix], aux_11, aux, aux_1, aux_2, aux_3, aux_4, aux_5, aux_6, aux_7, aux_8, aux_9, aux_10);
+      s_arg[#run_ix] *= Adj-Distr[uniform : Fin<20>];
+      s_arg[#run_ix] *= PhaseOnZero(3.141592653589793);
+      s_arg[#run_ix] *= Distr[uniform : Fin<20>];
+      n_iter[#run_ix], ctrl[#run_ix] *= Embed[(a) => (a <= #LIM)];
+    }
+    pred_out[#run_ix] *= H;
+    pred_out[#run_ix] *= X;
+    n_iter[#run_ix] *= Adj-Distr[uniform : Fin<4>];
+    ctrl[#run_ix] *= X;
+    call good_U(hillclimb_iter_x, s_arg[#run_ix], aux_11, aux, aux_1, aux_2, aux_3, aux_4, aux_5, aux_6, aux_7, aux_8, aux_9, aux_10);
+    ctrl[#run_ix], aux_11, pred_out[#run_ix] *= Toffoli;
+    call-adj good_U(hillclimb_iter_x, s_arg[#run_ix], aux_11, aux, aux_1, aux_2, aux_3, aux_4, aux_5, aux_6, aux_7, aux_8, aux_9, aux_10);
+    ctrl[#run_ix] *= X;
+  }
+  pred_out, hillclimb_iter_ok_1 *= Embed[(a) => or a];
+  s_arg, pred_out, hillclimb_iter_i_1 *= Embed[(a, f) => (a selectOn f)];
+}
+
+uproc hillclimb_iter_U(hillclimb_iter_x : IN Arr<20, Fin<2>>, hillclimb_iter_x' : OUT Arr<20, Fin<2>>, hillclimb_iter_ok : AUX Fin<2>, hillclimb_iter_i : AUX Fin<20>, hillclimb_iter_b : AUX Fin<2>, hillclimb_iter_b' : AUX Fin<2>, hillclimb_iter_ok_1 : AUX Fin<2>, hillclimb_iter_i_1 : AUX Fin<20>, aux : AUX Fin<1000>, aux_1 : AUX Fin<2>, aux_2 : AUX Fin<2>, aux_3 : AUX Arr<20, Fin<2>>, aux_4 : AUX Fin<1000>, aux_5 : AUX Fin<1000>, aux_6 : AUX Fin<2>, aux_7 : AUX Fin<2>, aux_8 : AUX Arr<20, Fin<2>>, aux_9 : AUX Fin<1000>, aux_10 : AUX Fin<2>, aux_11 : AUX Fin<2>, ctrl : AUX Arr<17, Fin<2>>, pred_out : AUX Arr<17, Fin<2>>, n_iter : AUX Arr<17, Fin<4>>, s_arg : AUX Arr<17, Fin<20>>, aux_prim : AUX Fin<1000>, aux_prim_1 : AUX Fin<2>, aux_prim_2 : AUX Fin<2>, aux_prim_3 : AUX Arr<20, Fin<2>>, aux_prim_4 : AUX Fin<1000>, aux_prim_5 : AUX Fin<1000>, aux_prim_6 : AUX Fin<2>, aux_prim_7 : AUX Fin<2>, aux_prim_8 : AUX Arr<20, Fin<2>>, aux_prim_9 : AUX Fin<1000>, aux_prim_10 : AUX Fin<2>, aux_prim_11 : AUX Fin<2>, aux_prim_12 : AUX Arr<17, Fin<2>>, aux_prim_13 : AUX Arr<17, Fin<2>>, aux_prim_14 : AUX Arr<17, Fin<4>>, aux_prim_15 : AUX Arr<17, Fin<20>>, hillclimb_iter_b_1 : AUX Fin<2>, hillclimb_iter_b'_1 : AUX Fin<2>, hillclimb_iter_x'_1 : AUX Arr<20, Fin<2>>) {
+  call USearch(hillclimb_iter_x, hillclimb_iter_ok_1, hillclimb_iter_i_1, aux_prim, aux_prim_1, aux_prim_2, aux_prim_3, aux_prim_4, aux_prim_5, aux_prim_6, aux_prim_7, aux_prim_8, aux_prim_9, aux_prim_10, aux_prim_11, aux_prim_12, aux_prim_13, aux_prim_14, aux_prim_15);
+  hillclimb_iter_ok, hillclimb_iter_i, hillclimb_iter_ok_1, hillclimb_iter_i_1 *= SWAP;
+  hillclimb_iter_i, hillclimb_iter_x, hillclimb_iter_b_1 *= Embed[(hillclimb_iter_i, hillclimb_iter_x) => hillclimb_iter_x[hillclimb_iter_i]];
+  hillclimb_iter_b, hillclimb_iter_b_1 *= SWAP;
+  hillclimb_iter_b, hillclimb_iter_b'_1 *= Embed[(hillclimb_iter_b) => not hillclimb_iter_b];
+  hillclimb_iter_b', hillclimb_iter_b'_1 *= SWAP;
+  hillclimb_iter_b, hillclimb_iter_i, hillclimb_iter_x, hillclimb_iter_x'_1 *= Embed[(hillclimb_iter_b, hillclimb_iter_i, hillclimb_iter_x) => update hillclimb_iter_x[hillclimb_iter_i] = hillclimb_iter_b];
+  hillclimb_iter_x', hillclimb_iter_x'_1 *= SWAP;
+}
+
+// Grover[...]
+uproc Grover[k](hillclimb_iter_x : Arr<20, Fin<2>>, x : IN Fin<20>, hillclimb_iter_ok : OUT Fin<2>, aux_12 : AUX Fin<1000>, aux_13 : AUX Fin<2>, aux_14 : AUX Fin<2>, aux_15 : AUX Arr<20, Fin<2>>, aux_16 : AUX Fin<1000>, aux_17 : AUX Fin<1000>, aux_18 : AUX Fin<2>, aux_19 : AUX Fin<2>, aux_20 : AUX Arr<20, Fin<2>>, aux_21 : AUX Fin<1000>, aux_22 : AUX Fin<2>) {
+  hillclimb_iter_ok *= X;
+  hillclimb_iter_ok *= H;
+  x *= Distr[uniform : Fin<20>];
+  repeat (#k) {
+    call good_U(hillclimb_iter_x, x, hillclimb_iter_ok, aux_12, aux_13, aux_14, aux_15, aux_16, aux_17, aux_18, aux_19, aux_20, aux_21, aux_22);
+    x *= Adj-Distr[uniform : Fin<20>];
+    x *= PhaseOnZero(3.141592653589793);
+    x *= Distr[uniform : Fin<20>];
+  }
+  hillclimb_iter_ok *= H;
+  hillclimb_iter_ok *= X;
+}
+
+// QSearch[3.333333333333333e-4]
+proc QSearch(hillclimb_iter_x : Arr<20, Fin<2>>, hillclimb_iter_ok : Fin<2>, hillclimb_iter_i : Fin<20>) { locals : (not_done : Fin<2>, Q_sum : Fin<42>, j : Fin<42>, j_lim : Fin<42>) } {
+  repeat (8) {
+    Q_sum := 0:Fin<42>;
+    for (j_lim in [1:Fin<42>, 1:Fin<42>, 1:Fin<42>, 2:Fin<42>, 2:Fin<42>, 2:Fin<42>, 3:Fin<42>, 4:Fin<42>, 4:Fin<42>, 4:Fin<42>, 4:Fin<42>, 4:Fin<42>, 4:Fin<42>, 4:Fin<42>]) {
+      j :=$ [1 .. j_lim];
+      Q_sum := (Q_sum + j);
+      not_done := (not_done && (Q_sum <= j_lim));
+      if (not_done) {
+        meas Grover[j](hillclimb_iter_x, hillclimb_iter_i, hillclimb_iter_ok);
+        meas good_U(hillclimb_iter_x, hillclimb_iter_i, hillclimb_iter_ok);
+        not_done := (not_done && hillclimb_iter_ok);
+      } else {
+        skip;
+      }
+    }
+  }
+}
+
+proc hillclimb_iter(hillclimb_iter_x : Arr<20, Fin<2>>, hillclimb_iter_x' : Arr<20, Fin<2>>) { locals : (hillclimb_iter_ok : Fin<2>, hillclimb_iter_i : Fin<20>, hillclimb_iter_b : Fin<2>, hillclimb_iter_b' : Fin<2>) } {
+  call QSearch(hillclimb_iter_x, hillclimb_iter_ok, hillclimb_iter_i);
+  hillclimb_iter_b := hillclimb_iter_x[hillclimb_iter_i];
+  hillclimb_iter_b' := not hillclimb_iter_b;
+  hillclimb_iter_x' := update hillclimb_iter_x[hillclimb_iter_i] = hillclimb_iter_b;
+}
+
+uproc hillclimb_3_U(hillclimb_3_x_3 : OUT Arr<20, Fin<2>>, hillclimb_3_x_0 : AUX Arr<20, Fin<2>>, hillclimb_3_x_1 : AUX Arr<20, Fin<2>>, hillclimb_3_x_2 : AUX Arr<20, Fin<2>>, hillclimb_3_x_0_1 : AUX Arr<20, Fin<2>>, hillclimb_3_x_1_1 : AUX Arr<20, Fin<2>>, aux_23 : AUX Fin<2>, aux_24 : AUX Fin<20>, aux_25 : AUX Fin<2>, aux_26 : AUX Fin<2>, aux_27 : AUX Fin<2>, aux_28 : AUX Fin<20>, aux_29 : AUX Fin<1000>, aux_30 : AUX Fin<2>, aux_31 : AUX Fin<2>, aux_32 : AUX Arr<20, Fin<2>>, aux_33 : AUX Fin<1000>, aux_34 : AUX Fin<1000>, aux_35 : AUX Fin<2>, aux_36 : AUX Fin<2>, aux_37 : AUX Arr<20, Fin<2>>, aux_38 : AUX Fin<1000>, aux_39 : AUX Fin<2>, aux_40 : AUX Fin<2>, aux_41 : AUX Arr<17, Fin<2>>, aux_42 : AUX Arr<17, Fin<2>>, aux_43 : AUX Arr<17, Fin<4>>, aux_44 : AUX Arr<17, Fin<20>>, aux_45 : AUX Fin<1000>, aux_46 : AUX Fin<2>, aux_47 : AUX Fin<2>, aux_48 : AUX Arr<20, Fin<2>>, aux_49 : AUX Fin<1000>, aux_50 : AUX Fin<1000>, aux_51 : AUX Fin<2>, aux_52 : AUX Fin<2>, aux_53 : AUX Arr<20, Fin<2>>, aux_54 : AUX Fin<1000>, aux_55 : AUX Fin<2>, aux_56 : AUX Fin<2>, aux_57 : AUX Arr<17, Fin<2>>, aux_58 : AUX Arr<17, Fin<2>>, aux_59 : AUX Arr<17, Fin<4>>, aux_60 : AUX Arr<17, Fin<20>>, aux_61 : AUX Fin<2>, aux_62 : AUX Fin<2>, aux_63 : AUX Arr<20, Fin<2>>, hillclimb_3_x_2_1 : AUX Arr<20, Fin<2>>, aux_64 : AUX Fin<2>, aux_65 : AUX Fin<20>, aux_66 : AUX Fin<2>, aux_67 : AUX Fin<2>, aux_68 : AUX Fin<2>, aux_69 : AUX Fin<20>, aux_70 : AUX Fin<1000>, aux_71 : AUX Fin<2>, aux_72 : AUX Fin<2>, aux_73 : AUX Arr<20, Fin<2>>, aux_74 : AUX Fin<1000>, aux_75 : AUX Fin<1000>, aux_76 : AUX Fin<2>, aux_77 : AUX Fin<2>, aux_78 : AUX Arr<20, Fin<2>>, aux_79 : AUX Fin<1000>, aux_80 : AUX Fin<2>, aux_81 : AUX Fin<2>, aux_82 : AUX Arr<17, Fin<2>>, aux_83 : AUX Arr<17, Fin<2>>, aux_84 : AUX Arr<17, Fin<4>>, aux_85 : AUX Arr<17, Fin<20>>, aux_86 : AUX Fin<1000>, aux_87 : AUX Fin<2>, aux_88 : AUX Fin<2>, aux_89 : AUX Arr<20, Fin<2>>, aux_90 : AUX Fin<1000>, aux_91 : AUX Fin<1000>, aux_92 : AUX Fin<2>, aux_93 : AUX Fin<2>, aux_94 : AUX Arr<20, Fin<2>>, aux_95 : AUX Fin<1000>, aux_96 : AUX Fin<2>, aux_97 : AUX Fin<2>, aux_98 : AUX Arr<17, Fin<2>>, aux_99 : AUX Arr<17, Fin<2>>, aux_100 : AUX Arr<17, Fin<4>>, aux_101 : AUX Arr<17, Fin<20>>, aux_102 : AUX Fin<2>, aux_103 : AUX Fin<2>, aux_104 : AUX Arr<20, Fin<2>>, hillclimb_3_x_3_1 : AUX Arr<20, Fin<2>>, aux_105 : AUX Fin<2>, aux_106 : AUX Fin<20>, aux_107 : AUX Fin<2>, aux_108 : AUX Fin<2>, aux_109 : AUX Fin<2>, aux_110 : AUX Fin<20>, aux_111 : AUX Fin<1000>, aux_112 : AUX Fin<2>, aux_113 : AUX Fin<2>, aux_114 : AUX Arr<20, Fin<2>>, aux_115 : AUX Fin<1000>, aux_116 : AUX Fin<1000>, aux_117 : AUX Fin<2>, aux_118 : AUX Fin<2>, aux_119 : AUX Arr<20, Fin<2>>, aux_120 : AUX Fin<1000>, aux_121 : AUX Fin<2>, aux_122 : AUX Fin<2>, aux_123 : AUX Arr<17, Fin<2>>, aux_124 : AUX Arr<17, Fin<2>>, aux_125 : AUX Arr<17, Fin<4>>, aux_126 : AUX Arr<17, Fin<20>>, aux_127 : AUX Fin<1000>, aux_128 : AUX Fin<2>, aux_129 : AUX Fin<2>, aux_130 : AUX Arr<20, Fin<2>>, aux_131 : AUX Fin<1000>, aux_132 : AUX Fin<1000>, aux_133 : AUX Fin<2>, aux_134 : AUX Fin<2>, aux_135 : AUX Arr<20, Fin<2>>, aux_136 : AUX Fin<1000>, aux_137 : AUX Fin<2>, aux_138 : AUX Fin<2>, aux_139 : AUX Arr<17, Fin<2>>, aux_140 : AUX Arr<17, Fin<2>>, aux_141 : AUX Arr<17, Fin<4>>, aux_142 : AUX Arr<17, Fin<20>>, aux_143 : AUX Fin<2>, aux_144 : AUX Fin<2>, aux_145 : AUX Arr<20, Fin<2>>) {
+  hillclimb_3_x_0_1 *= Embed[() => default : Arr<20, Fin<2>>];
+  hillclimb_3_x_0, hillclimb_3_x_0_1 *= SWAP;
+  call hillclimb_iter_U(hillclimb_3_x_0, hillclimb_3_x_1_1, aux_23, aux_24, aux_25, aux_26, aux_27, aux_28, aux_29, aux_30, aux_31, aux_32, aux_33, aux_34, aux_35, aux_36, aux_37, aux_38, aux_39, aux_40, aux_41, aux_42, aux_43, aux_44, aux_45, aux_46, aux_47, aux_48, aux_49, aux_50, aux_51, aux_52, aux_53, aux_54, aux_55, aux_56, aux_57, aux_58, aux_59, aux_60, aux_61, aux_62, aux_63);
+  hillclimb_3_x_1, hillclimb_3_x_1_1 *= SWAP;
+  call hillclimb_iter_U(hillclimb_3_x_1, hillclimb_3_x_2_1, aux_64, aux_65, aux_66, aux_67, aux_68, aux_69, aux_70, aux_71, aux_72, aux_73, aux_74, aux_75, aux_76, aux_77, aux_78, aux_79, aux_80, aux_81, aux_82, aux_83, aux_84, aux_85, aux_86, aux_87, aux_88, aux_89, aux_90, aux_91, aux_92, aux_93, aux_94, aux_95, aux_96, aux_97, aux_98, aux_99, aux_100, aux_101, aux_102, aux_103, aux_104);
+  hillclimb_3_x_2, hillclimb_3_x_2_1 *= SWAP;
+  call hillclimb_iter_U(hillclimb_3_x_2, hillclimb_3_x_3_1, aux_105, aux_106, aux_107, aux_108, aux_109, aux_110, aux_111, aux_112, aux_113, aux_114, aux_115, aux_116, aux_117, aux_118, aux_119, aux_120, aux_121, aux_122, aux_123, aux_124, aux_125, aux_126, aux_127, aux_128, aux_129, aux_130, aux_131, aux_132, aux_133, aux_134, aux_135, aux_136, aux_137, aux_138, aux_139, aux_140, aux_141, aux_142, aux_143, aux_144, aux_145);
+  hillclimb_3_x_3, hillclimb_3_x_3_1 *= SWAP;
+}
+
+proc hillclimb_3(hillclimb_3_x_3 : Arr<20, Fin<2>>) { locals : (hillclimb_3_x_0 : Arr<20, Fin<2>>, hillclimb_3_x_1 : Arr<20, Fin<2>>, hillclimb_3_x_2 : Arr<20, Fin<2>>) } {
+  hillclimb_3_x_0 := default : Arr<20, Fin<2>>;
+  call hillclimb_iter(hillclimb_3_x_0, hillclimb_3_x_1);
+  call hillclimb_iter(hillclimb_3_x_1, hillclimb_3_x_2);
+  call hillclimb_iter(hillclimb_3_x_2, hillclimb_3_x_3);
+}
+
+
+// qubits: 1702

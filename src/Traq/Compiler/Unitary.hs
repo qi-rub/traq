@@ -19,6 +19,7 @@ module Traq.Compiler.Unitary (
 ) where
 
 import Control.Monad (zipWithM)
+import Control.Monad.Except (MonadError (throwError))
 import Data.Foldable (Foldable (toList))
 
 import Lens.Micro.GHC
@@ -27,6 +28,7 @@ import Lens.Micro.Mtl
 import Traq.Control.Monad
 import qualified Traq.Data.Context as Ctx
 
+import qualified Traq.Analysis.Annotate.Prelude as A
 import qualified Traq.CQPL as CQPL
 import Traq.CQPL.Syntax
 import Traq.Compiler.Prelude
@@ -77,6 +79,9 @@ class (P.TypeInferrable ext (SizeType ext)) => CompileU ext where
 instance (P.TypingReqs size) => CompileU (P.Core size prec) where
   compileU = \case {}
 
+instance (P.TypingReqs size) => CompileU (A.AnnFailProb (P.Core size prec)) where
+  compileU (A.AnnFailProb _ ext) = case ext of {}
+
 class CompileU1 f where
   -- | all arguments/info provided to compile the given data
   type CompileArgs f ext
@@ -117,7 +122,55 @@ instance CompileU1 P.Expr where
     let qargs = map Arg $ args ++ rets ++ aux_vars
     return UCallS{uproc_id, qargs, dagger = False}
   compileU1 rets P.PrimCallE{prim} = compileU prim rets
-  compileU1 rets P.LoopE{initial_args, loop_body_fun} = error "TODO: compileU1 rets P.LoopE{initial_args, loop_body_fun}"
+  compileU1 rets P.LoopE{initial_args, loop_body_fun} = do
+    P.FunDef{param_types, ret_types} <- view (P._funCtx . Ctx.at loop_body_fun) >>= maybeWithError "cannot find loop body fun"
+    n <- case last param_types of
+      P.Fin n -> pure n
+      _ -> throwError "loop index must be of type `Fin`"
+
+    let uproc_id = mkUProcName loop_body_fun
+    ProcSignature{aux_tys} <- use (_procSignatures . at uproc_id) >>= maybeWithError "cannot find uproc signature"
+
+    -- fresh aux for each iteration
+    aux_vars <- mapM (allocAncilla . P.Arr n) aux_tys
+
+    iter_meta_var <- newIdent "ITER"
+    iter_vars <- allocAncilla (P.Arr n (P.Fin n))
+
+    intermediates <- mapM (allocAncilla . P.Arr (n + 1)) ret_types
+
+    let at_ix x = ArrElemArg (Arg x) (P.MetaName iter_meta_var)
+
+    return $
+      USeqS $
+        [ UnitaryS
+            [Arg x_in, ArrElemArg (Arg x_out) (MetaSize 0)]
+            (BasicGateU COPY)
+        | (x_out, x_in) <- zip intermediates initial_args
+        ]
+          ++ [ UForInRangeS
+                 { iter_meta_var
+                 , iter_lim = P.MetaSize n
+                 , uloop_body =
+                     USeqS
+                       [ UCallS
+                           { uproc_id = uproc_id
+                           , dagger = False
+                           , qargs =
+                               map at_ix intermediates
+                                 ++ [at_ix iter_vars]
+                                 ++ map at_ix intermediates
+                                 ++ map at_ix aux_vars
+                           }
+                       ]
+                 , dagger = False
+                 }
+             ]
+          ++ [ UnitaryS
+                 [ArrElemArg (Arg x_last) (MetaSize n), Arg x_ret]
+                 (BasicGateU COPY)
+             | (x_ret, x_last) <- zip rets intermediates
+             ]
 
 instance CompileU1 P.Stmt where
   type CompileArgs P.Stmt ext = ()

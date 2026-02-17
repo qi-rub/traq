@@ -430,6 +430,9 @@ data Core sizeT precT
 type instance SizeType (Core size prec) = size
 type instance PrecType (Core size prec) = prec
 
+instance PP.ToCodeString (Core size prec) where
+  build = \case {}
+
 {- | Simple void extension with integer size and double prec.
 Usage: @p :: Program Core'@
 -}

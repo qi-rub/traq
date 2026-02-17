@@ -324,7 +324,7 @@ instance (TypeInferrable ext sizeT) => TypeInferrable (Stmt ext) sizeT where
       throwError $
         ("Expected " <> show (length rets) <> " outputs, but given " <> show (length out_tys) <> " vars to bind.")
           <> (" (return variables: " <> show rets <> ", output types: " <> show out_tys <> ")")
-    zipWithM_ Ctx.put rets out_tys
+    zipWithM_ Ctx.putOrMatch rets out_tys
     pure []
   -- sequence
   inferTypes (SeqS ss) = mapM_ inferTypes ss >> pure []
@@ -363,8 +363,7 @@ typeCheckFun
       throwError "number of returns must match the types"
 
     let gamma = Ctx.fromList $ zip param_names param_types
-    -- gamma' <- execStateT ?? gamma $ runReaderT ?? funCtx $ inferTypes body_stmt
-    (_, gamma', _) <- runRWST (inferTypes body_stmt) funCtx gamma
+    (_, gamma', ()) <- runRWST (inferTypes body_stmt) funCtx gamma
     forM_ (zip ret_names ret_types) $ \(x, t) -> do
       when (has _Just (gamma ^. Ctx.at x)) $ do
         throwError $ printf "parameter `%s` cannot be returned, please copy it into a new variable and return that" x

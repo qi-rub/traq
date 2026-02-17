@@ -85,23 +85,29 @@ data BasicGate
   | CNOT
   | XGate
   | HGate
+  | ZGate
   | COPY
   | SWAP
+  | Rz Double
+  | PhaseOnZero Double
   deriving (Eq, Show, Read)
 
 instance PP.ToCodeString BasicGate where
   build XGate = PP.putWord "X"
   build HGate = PP.putWord "H"
+  build ZGate = PP.putWord "Z"
+  build (Rz theta) = PP.putWord $ printf "Rz(%f)" theta
+  build (PhaseOnZero theta) = PP.putWord $ printf "PhaseOnZero(%f)" theta
   build g = PP.putWord $ show g
 
-isSelfAdjoint :: BasicGate -> Bool
-isSelfAdjoint _ = True
+instance HasAdjoint BasicGate where
+  adjoint (Rz theta) = Rz (-theta)
+  adjoint (PhaseOnZero theta) = PhaseOnZero (-theta)
+  adjoint g = g
 
 -- | Unitary operators in CQPL
 data Unitary sizeT
   = BasicGateU BasicGate
-  | -- | reflect about |0>_T
-    Refl0
   | RevEmbedU [Ident] (P.BasicExpr sizeT)
   | DistrU (P.DistrExpr sizeT)
   | Controlled (Unitary sizeT)
@@ -118,13 +124,11 @@ instance (Show sizeT) => PP.ToCodeString (Unitary sizeT) where
   build (DistrU mu) = do
     e_s <- PP.fromBuild mu
     PP.putWord $ printf "Distr[%s]" e_s
-  build Refl0 = PP.putWord $ printf "Refl0"
   build (Controlled u) = PP.putWord . ("Ctrl-" <>) =<< PP.fromBuild u
   build (Adjoint u) = PP.putWord . ("Adj-" <>) =<< PP.fromBuild u
 
 instance HasAdjoint (Unitary sizeT) where
-  adjoint u@(BasicGateU g) | isSelfAdjoint g = u
-  adjoint Refl0 = Refl0
+  adjoint (BasicGateU g) = BasicGateU (adjoint g)
   adjoint u@(RevEmbedU _ _) = u
   adjoint (Controlled u) = Controlled (adjoint u)
   adjoint (Adjoint u) = u
@@ -285,7 +289,7 @@ instance (Show sizeT) => PP.ToCodeString (Stmt sizeT) where
   build ForInRangeS{iter_meta_var, iter_lim, loop_body} = do
     n <- PP.fromBuild iter_lim
     PP.bracedBlockWith
-      (printf "for (%s in 0 .. < %s)" iter_meta_var n)
+      (printf "for (#%s in 0 .. < %s)" iter_meta_var n)
       $ PP.build loop_body
 
 -- ================================================================================

@@ -33,11 +33,13 @@ module Traq.Data.Context (
   lookup',
   unsafePut,
   put,
+  putOrMatch,
 ) where
 
 import Prelude hiding (lookup, null)
 import qualified Prelude
 
+import Control.Monad (when)
 import Control.Monad.Except (MonadError, throwError)
 import Control.Monad.Reader (MonadReader)
 import Control.Monad.State (MonadState)
@@ -174,3 +176,10 @@ put x v =
   use (at x) >>= \case
     Nothing -> unsafePut x v
     _ -> throwError (printf "variable `%s` already exists!" x)
+
+-- | Match value if key exists, otherwise insert.
+putOrMatch :: (MonadError String m, MonadState (Context a) m, Eq a) => Ident -> a -> m ()
+putOrMatch x v =
+  use (at x) >>= \case
+    Nothing -> unsafePut x v
+    (Just v') -> when (v /= v') $ throwError (printf "variable `%s` already exists!" x)

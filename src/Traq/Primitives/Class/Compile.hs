@@ -29,7 +29,7 @@ import qualified Traq.ProtoLang as P
 -- --------------------------------------------------------------------------------
 
 type UCallBuilder size = [CQPL.Arg size] -> CQPL.UStmt size
-type CallBuilder size = [Ident] -> CQPL.Stmt size
+type CallBuilder size = [CQPL.Arg size] -> CQPL.Stmt size
 
 -- | Helpers to compile a primitive.
 data PrimCompileEnv shape size = PrimCompileEnv

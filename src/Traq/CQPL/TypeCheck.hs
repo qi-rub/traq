@@ -18,7 +18,6 @@ import Control.Monad (forM, unless, when)
 import Control.Monad.Except (MonadError (throwError))
 import Control.Monad.Reader (MonadReader, ReaderT, local, runReaderT)
 import Control.Monad.State (execStateT)
-import Data.Foldable (toList)
 import Data.List (intersect)
 import GHC.Generics (Generic)
 import Text.Printf (printf)
@@ -129,16 +128,19 @@ type TypeChecker sizeT = ReaderT (CheckingCtx sizeT) (Either Err.MyError)
 -- Type Checking
 -- ================================================================================
 
+typeCheckBasicGate :: forall size. (P.TypingReqs size) => BasicGate -> [P.VarType size] -> TypeChecker size ()
+typeCheckBasicGate Toffoli tys = verifyArgTys tys [P.tbool, P.tbool, P.tbool]
+typeCheckBasicGate CNOT tys = verifyArgTys tys [P.tbool, P.tbool]
+typeCheckBasicGate XGate tys = verifyArgTys tys [P.tbool]
+typeCheckBasicGate HGate tys = verifyArgTys tys [P.tbool]
+typeCheckBasicGate ZGate tys = verifyArgTys tys [P.tbool]
+typeCheckBasicGate (Rz _) tys = verifyArgTys tys [P.tbool]
+typeCheckBasicGate (PhaseOnZero _) _ = return ()
+typeCheckBasicGate COPY tys = let n = length tys `div` 2 in verifyArgTys (take n tys) (drop n tys)
+typeCheckBasicGate SWAP tys = let n = length tys `div` 2 in verifyArgTys (take n tys) (drop n tys)
+
 typeCheckUnitary :: forall sizeT. (P.TypingReqs sizeT) => Unitary sizeT -> [P.VarType sizeT] -> TypeChecker sizeT ()
--- basic gates
-typeCheckUnitary (BasicGateU Toffoli) tys = verifyArgTys tys [P.tbool, P.tbool, P.tbool]
-typeCheckUnitary (BasicGateU CNOT) tys = verifyArgTys tys [P.tbool, P.tbool]
-typeCheckUnitary (BasicGateU XGate) tys = verifyArgTys tys [P.tbool]
-typeCheckUnitary (BasicGateU HGate) tys = verifyArgTys tys [P.tbool]
--- general gates
-typeCheckUnitary (BasicGateU COPY) tys = let n = length tys `div` 2 in verifyArgTys (take n tys) (drop n tys)
-typeCheckUnitary (BasicGateU SWAP) tys = let n = length tys `div` 2 in verifyArgTys (take n tys) (drop n tys)
-typeCheckUnitary Refl0 _ = return ()
+typeCheckUnitary (BasicGateU g) tys = typeCheckBasicGate g tys
 typeCheckUnitary (DistrU (P.UniformE ty)) tys = verifyArgTys tys [ty]
 typeCheckUnitary (DistrU (P.BernoulliE _)) tys = verifyArgTys tys [P.tbool]
 typeCheckUnitary (RevEmbedU xs e) tys = do
@@ -202,12 +204,7 @@ typeCheckStmt SkipS = return ()
 typeCheckStmt (CommentS _) = return ()
 -- Simple statements
 typeCheckStmt AssignS{rets, expr} = do
-  let expr_vars = toList $ P.freeVars expr
-  expr_var_tys <- forM expr_vars $ \var -> do
-    view (P._typingCtx . Ctx.at var)
-      >>= maybeWithError (Err.MessageE $ printf "cannot find %s" var)
-  let gamma = Ctx.fromList $ zip expr_vars expr_var_tys
-
+  gamma <- view P._typingCtx
   actual_ret_tys <-
     case runReaderT ?? gamma $ P.typeCheckBasicExpr expr of
       Left err -> Err.throwErrorMessage err
@@ -257,7 +254,13 @@ typeCheckStmt IfThenElseS{cond, s_true, s_false} = do
   typeCheckStmt s_true
   typeCheckStmt s_false
 typeCheckStmt RepeatS{loop_body} = typeCheckStmt loop_body
-typeCheckStmt ForInRangeS{loop_body} = typeCheckStmt loop_body
+typeCheckStmt ForInRangeS{loop_body, iter_meta_var, iter_lim} = do
+  iter_ty <- case iter_lim of
+    P.MetaSize n -> pure $ P.Fin n
+    P.MetaValue n -> pure $ P.Fin $ fromIntegral n
+    P.MetaName _ -> Err.throwErrorMessage "cannot find iteration"
+  local (P._typingCtx . Ctx.ins ('#' : iter_meta_var) .~ iter_ty) $
+    typeCheckStmt loop_body
 -- try by desugaring
 typeCheckStmt s = case desugarS s of
   Just s' -> typeCheckStmt s'

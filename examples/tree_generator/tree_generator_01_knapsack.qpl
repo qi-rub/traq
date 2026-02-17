@@ -1,0 +1,345 @@
+ext uproc Capacity_U(Fin<1000>);
+
+ext proc Capacity(Fin<1000>);
+
+ext uproc Profit_U(Fin<10>, Fin<1000>);
+
+ext proc Profit(Fin<10>, Fin<1000>);
+
+ext uproc Weight_U(Fin<10>, Fin<1000>);
+
+ext proc Weight(Fin<10>, Fin<1000>);
+
+uproc AddWeight_U(AddWeight_xs : IN Arr<10, Fin<2>>, AddWeight_cur_wt : IN Fin<1000>, AddWeight_i : IN Fin<10>, AddWeight_xs' : OUT Arr<10, Fin<2>>, AddWeight_new_wt : OUT Fin<1000>, AddWeight_xi : AUX Fin<2>, AddWeight_wi : AUX Fin<1000>, AddWeight_zero : AUX Fin<1000>, AddWeight_wi_pick : AUX Fin<1000>, AddWeight_xi_1 : AUX Fin<2>, AddWeight_wi_1 : AUX Fin<1000>, AddWeight_zero_1 : AUX Fin<1000>, AddWeight_wi_pick_1 : AUX Fin<1000>, AddWeight_new_wt_1 : AUX Fin<1000>, AddWeight_xs'_1 : AUX Arr<10, Fin<2>>) {
+  AddWeight_i, AddWeight_xs, AddWeight_xi_1 *= Embed[(AddWeight_i, AddWeight_xs) => AddWeight_xs[AddWeight_i]];
+  AddWeight_xi, AddWeight_xi_1 *= SWAP;
+  call Weight_U(AddWeight_i, AddWeight_wi_1);
+  AddWeight_wi, AddWeight_wi_1 *= SWAP;
+  AddWeight_zero_1 *= Embed[() => 0:Fin<1000>];
+  AddWeight_zero, AddWeight_zero_1 *= SWAP;
+  AddWeight_wi, AddWeight_xi, AddWeight_zero, AddWeight_wi_pick_1 *= Embed[(AddWeight_wi, AddWeight_xi, AddWeight_zero) => (ifte AddWeight_xi AddWeight_wi AddWeight_zero)];
+  AddWeight_wi_pick, AddWeight_wi_pick_1 *= SWAP;
+  AddWeight_cur_wt, AddWeight_wi_pick, AddWeight_new_wt_1 *= Embed[(AddWeight_cur_wt, AddWeight_wi_pick) => (AddWeight_cur_wt + AddWeight_wi_pick)];
+  AddWeight_new_wt, AddWeight_new_wt_1 *= SWAP;
+  AddWeight_xs, AddWeight_xs'_1 *= Embed[(AddWeight_xs) => AddWeight_xs];
+  AddWeight_xs', AddWeight_xs'_1 *= SWAP;
+}
+
+proc AddWeight(AddWeight_xs : Arr<10, Fin<2>>, AddWeight_cur_wt : Fin<1000>, AddWeight_i : Fin<10>, AddWeight_xs' : Arr<10, Fin<2>>, AddWeight_new_wt : Fin<1000>) { locals : (AddWeight_xi : Fin<2>, AddWeight_wi : Fin<1000>, AddWeight_zero : Fin<1000>, AddWeight_wi_pick : Fin<1000>) } {
+  AddWeight_xi := AddWeight_xs[AddWeight_i];
+  call Weight(AddWeight_i, AddWeight_wi);
+  AddWeight_zero := 0:Fin<1000>;
+  AddWeight_wi_pick := (ifte AddWeight_xi AddWeight_wi AddWeight_zero);
+  AddWeight_new_wt := (AddWeight_cur_wt + AddWeight_wi_pick);
+  AddWeight_xs' := AddWeight_xs;
+}
+
+uproc TotalWeight_U(TotalWeight_xs : IN Arr<10, Fin<2>>, TotalWeight_wt : OUT Fin<1000>, TotalWeight_zero : AUX Fin<1000>, TotalWeight_xs' : AUX Arr<10, Fin<2>>, TotalWeight_zero_1 : AUX Fin<1000>, TotalWeight_xs'_1 : AUX Arr<10, Fin<2>>, TotalWeight_wt_1 : AUX Fin<1000>, aux : AUX Arr<10, Fin<2>>, aux_1 : AUX Arr<10, Fin<1000>>, aux_2 : AUX Arr<10, Fin<1000>>, aux_3 : AUX Arr<10, Fin<1000>>, aux_4 : AUX Arr<10, Fin<2>>, aux_5 : AUX Arr<10, Fin<1000>>, aux_6 : AUX Arr<10, Fin<1000>>, aux_7 : AUX Arr<10, Fin<1000>>, aux_8 : AUX Arr<10, Fin<1000>>, aux_9 : AUX Arr<10, Arr<10, Fin<2>>>, aux_10 : AUX Arr<10, Fin<10>>, aux_11 : AUX Arr<11, Arr<10, Fin<2>>>, aux_12 : AUX Arr<11, Fin<1000>>) {
+  TotalWeight_zero_1 *= Embed[() => 0:Fin<1000>];
+  TotalWeight_zero, TotalWeight_zero_1 *= SWAP;
+  TotalWeight_xs, aux_11[0] *= COPY;
+  TotalWeight_zero, aux_12[0] *= COPY;
+  for (#ITER in 0 .. < 10) {
+    call AddWeight_U(aux_11[#ITER], aux_12[#ITER], aux_10[#ITER], aux_11[#ITER], aux_12[#ITER], aux[#ITER], aux_1[#ITER], aux_2[#ITER], aux_3[#ITER], aux_4[#ITER], aux_5[#ITER], aux_6[#ITER], aux_7[#ITER], aux_8[#ITER], aux_9[#ITER]);
+  }
+  aux_11[10], TotalWeight_xs'_1 *= COPY;
+  aux_12[10], TotalWeight_wt_1 *= COPY;
+  TotalWeight_xs', TotalWeight_wt, TotalWeight_xs'_1, TotalWeight_wt_1 *= SWAP;
+}
+
+proc TotalWeight(TotalWeight_xs : Arr<10, Fin<2>>, TotalWeight_wt : Fin<1000>) { locals : (TotalWeight_zero : Fin<1000>, TotalWeight_xs' : Arr<10, Fin<2>>, iter : Fin<10>) } {
+  TotalWeight_zero := 0:Fin<1000>;
+  TotalWeight_xs' := TotalWeight_xs;
+  TotalWeight_wt := TotalWeight_zero;
+  for (#ITER_1 in 0 .. < 10) {
+    iter := #ITER_1;
+    call AddWeight(TotalWeight_xs', TotalWeight_wt, iter, TotalWeight_xs', TotalWeight_wt);
+  }
+}
+
+uproc AddProfit_U(AddProfit_xs : IN Arr<10, Fin<2>>, AddProfit_cur_pr : IN Fin<1000>, AddProfit_i : IN Fin<10>, AddProfit_xs' : OUT Arr<10, Fin<2>>, AddProfit_new_pr : OUT Fin<1000>, AddProfit_xi : AUX Fin<2>, AddProfit_pi : AUX Fin<1000>, AddProfit_zero : AUX Fin<1000>, AddProfit_pi_pick : AUX Fin<1000>, AddProfit_xi_1 : AUX Fin<2>, AddProfit_pi_1 : AUX Fin<1000>, AddProfit_zero_1 : AUX Fin<1000>, AddProfit_pi_pick_1 : AUX Fin<1000>, AddProfit_new_pr_1 : AUX Fin<1000>, AddProfit_xs'_1 : AUX Arr<10, Fin<2>>) {
+  AddProfit_i, AddProfit_xs, AddProfit_xi_1 *= Embed[(AddProfit_i, AddProfit_xs) => AddProfit_xs[AddProfit_i]];
+  AddProfit_xi, AddProfit_xi_1 *= SWAP;
+  call Profit_U(AddProfit_i, AddProfit_pi_1);
+  AddProfit_pi, AddProfit_pi_1 *= SWAP;
+  AddProfit_zero_1 *= Embed[() => 0:Fin<1000>];
+  AddProfit_zero, AddProfit_zero_1 *= SWAP;
+  AddProfit_pi, AddProfit_xi, AddProfit_zero, AddProfit_pi_pick_1 *= Embed[(AddProfit_pi, AddProfit_xi, AddProfit_zero) => (ifte AddProfit_xi AddProfit_pi AddProfit_zero)];
+  AddProfit_pi_pick, AddProfit_pi_pick_1 *= SWAP;
+  AddProfit_cur_pr, AddProfit_pi_pick, AddProfit_new_pr_1 *= Embed[(AddProfit_cur_pr, AddProfit_pi_pick) => (AddProfit_cur_pr + AddProfit_pi_pick)];
+  AddProfit_new_pr, AddProfit_new_pr_1 *= SWAP;
+  AddProfit_xs, AddProfit_xs'_1 *= Embed[(AddProfit_xs) => AddProfit_xs];
+  AddProfit_xs', AddProfit_xs'_1 *= SWAP;
+}
+
+proc AddProfit(AddProfit_xs : Arr<10, Fin<2>>, AddProfit_cur_pr : Fin<1000>, AddProfit_i : Fin<10>, AddProfit_xs' : Arr<10, Fin<2>>, AddProfit_new_pr : Fin<1000>) { locals : (AddProfit_xi : Fin<2>, AddProfit_pi : Fin<1000>, AddProfit_zero : Fin<1000>, AddProfit_pi_pick : Fin<1000>) } {
+  AddProfit_xi := AddProfit_xs[AddProfit_i];
+  call Profit(AddProfit_i, AddProfit_pi);
+  AddProfit_zero := 0:Fin<1000>;
+  AddProfit_pi_pick := (ifte AddProfit_xi AddProfit_pi AddProfit_zero);
+  AddProfit_new_pr := (AddProfit_cur_pr + AddProfit_pi_pick);
+  AddProfit_xs' := AddProfit_xs;
+}
+
+uproc TotalProfit_U(TotalProfit_xs : IN Arr<10, Fin<2>>, TotalProfit_pr : OUT Fin<1000>, TotalProfit_zero : AUX Fin<1000>, TotalProfit_xs' : AUX Arr<10, Fin<2>>, TotalProfit_zero_1 : AUX Fin<1000>, TotalProfit_xs'_1 : AUX Arr<10, Fin<2>>, TotalProfit_pr_1 : AUX Fin<1000>, aux_13 : AUX Arr<10, Fin<2>>, aux_14 : AUX Arr<10, Fin<1000>>, aux_15 : AUX Arr<10, Fin<1000>>, aux_16 : AUX Arr<10, Fin<1000>>, aux_17 : AUX Arr<10, Fin<2>>, aux_18 : AUX Arr<10, Fin<1000>>, aux_19 : AUX Arr<10, Fin<1000>>, aux_20 : AUX Arr<10, Fin<1000>>, aux_21 : AUX Arr<10, Fin<1000>>, aux_22 : AUX Arr<10, Arr<10, Fin<2>>>, aux_23 : AUX Arr<10, Fin<10>>, aux_24 : AUX Arr<11, Arr<10, Fin<2>>>, aux_25 : AUX Arr<11, Fin<1000>>) {
+  TotalProfit_zero_1 *= Embed[() => 0:Fin<1000>];
+  TotalProfit_zero, TotalProfit_zero_1 *= SWAP;
+  TotalProfit_xs, aux_24[0] *= COPY;
+  TotalProfit_zero, aux_25[0] *= COPY;
+  for (#ITER_2 in 0 .. < 10) {
+    call AddProfit_U(aux_24[#ITER_2], aux_25[#ITER_2], aux_23[#ITER_2], aux_24[#ITER_2], aux_25[#ITER_2], aux_13[#ITER_2], aux_14[#ITER_2], aux_15[#ITER_2], aux_16[#ITER_2], aux_17[#ITER_2], aux_18[#ITER_2], aux_19[#ITER_2], aux_20[#ITER_2], aux_21[#ITER_2], aux_22[#ITER_2]);
+  }
+  aux_24[10], TotalProfit_xs'_1 *= COPY;
+  aux_25[10], TotalProfit_pr_1 *= COPY;
+  TotalProfit_xs', TotalProfit_pr, TotalProfit_xs'_1, TotalProfit_pr_1 *= SWAP;
+}
+
+proc TotalProfit(TotalProfit_xs : Arr<10, Fin<2>>, TotalProfit_pr : Fin<1000>) { locals : (TotalProfit_zero : Fin<1000>, TotalProfit_xs' : Arr<10, Fin<2>>, iter_1 : Fin<10>) } {
+  TotalProfit_zero := 0:Fin<1000>;
+  TotalProfit_xs' := TotalProfit_xs;
+  TotalProfit_pr := TotalProfit_zero;
+  for (#ITER_3 in 0 .. < 10) {
+    iter_1 := #ITER_3;
+    call AddProfit(TotalProfit_xs', TotalProfit_pr, iter_1, TotalProfit_xs', TotalProfit_pr);
+  }
+}
+
+uproc TreeGenLoopBody_U(TreeGenLoopBody_xs : IN Arr<10, Fin<2>>, TreeGenLoopBody_wt : IN Fin<1000>, TreeGenLoopBody_pr : IN Fin<1000>, TreeGenLoopBody_i : IN Fin<10>, TreeGenLoopBody_xs' : OUT Arr<10, Fin<2>>, TreeGenLoopBody_new_wt : OUT Fin<1000>, TreeGenLoopBody_new_pr : OUT Fin<1000>, TreeGenLoopBody_xi : AUX Fin<2>, TreeGenLoopBody_y : AUX Fin<2>, TreeGenLoopBody_try_pick : AUX Fin<2>, TreeGenLoopBody_wi : AUX Fin<1000>, TreeGenLoopBody_wt_picked : AUX Fin<1000>, TreeGenLoopBody_c : AUX Fin<1000>, TreeGenLoopBody_can_fit : AUX Fin<2>, TreeGenLoopBody_should_pick : AUX Fin<2>, TreeGenLoopBody_pi : AUX Fin<1000>, TreeGenLoopBody_pr_picked : AUX Fin<1000>, TreeGenLoopBody_xi_1 : AUX Fin<2>, TreeGenLoopBody_y_1 : AUX Fin<2>, TreeGenLoopBody_y_1_1 : AUX Fin<2>, TreeGenLoopBody_try_pick_1 : AUX Fin<2>, TreeGenLoopBody_wi_1 : AUX Fin<1000>, TreeGenLoopBody_wt_picked_1 : AUX Fin<1000>, TreeGenLoopBody_c_1 : AUX Fin<1000>, TreeGenLoopBody_can_fit_1 : AUX Fin<2>, TreeGenLoopBody_should_pick_1 : AUX Fin<2>, TreeGenLoopBody_xs'_1 : AUX Arr<10, Fin<2>>, TreeGenLoopBody_new_wt_1 : AUX Fin<1000>, TreeGenLoopBody_pi_1 : AUX Fin<1000>, TreeGenLoopBody_pr_picked_1 : AUX Fin<1000>, TreeGenLoopBody_new_pr_1 : AUX Fin<1000>) {
+  TreeGenLoopBody_i, TreeGenLoopBody_xs, TreeGenLoopBody_xi_1 *= Embed[(TreeGenLoopBody_i, TreeGenLoopBody_xs) => TreeGenLoopBody_xs[TreeGenLoopBody_i]];
+  TreeGenLoopBody_xi, TreeGenLoopBody_xi_1 *= SWAP;
+  TreeGenLoopBody_y_1 *= Distr[bernoulli[0.2]];
+  TreeGenLoopBody_y_1, TreeGenLoopBody_y_1_1 *= COPY;
+  TreeGenLoopBody_y, TreeGenLoopBody_y_1 *= SWAP;
+  TreeGenLoopBody_xi, TreeGenLoopBody_y, TreeGenLoopBody_try_pick_1 *= Embed[(TreeGenLoopBody_xi, TreeGenLoopBody_y) => (TreeGenLoopBody_xi ^ TreeGenLoopBody_y)];
+  TreeGenLoopBody_try_pick, TreeGenLoopBody_try_pick_1 *= SWAP;
+  call Weight_U(TreeGenLoopBody_i, TreeGenLoopBody_wi_1);
+  TreeGenLoopBody_wi, TreeGenLoopBody_wi_1 *= SWAP;
+  TreeGenLoopBody_wi, TreeGenLoopBody_wt, TreeGenLoopBody_wt_picked_1 *= Embed[(TreeGenLoopBody_wi, TreeGenLoopBody_wt) => (TreeGenLoopBody_wt + TreeGenLoopBody_wi)];
+  TreeGenLoopBody_wt_picked, TreeGenLoopBody_wt_picked_1 *= SWAP;
+  call Capacity_U(TreeGenLoopBody_c_1);
+  TreeGenLoopBody_c, TreeGenLoopBody_c_1 *= SWAP;
+  TreeGenLoopBody_c, TreeGenLoopBody_wt_picked, TreeGenLoopBody_can_fit_1 *= Embed[(TreeGenLoopBody_c, TreeGenLoopBody_wt_picked) => (TreeGenLoopBody_wt_picked <= TreeGenLoopBody_c)];
+  TreeGenLoopBody_can_fit, TreeGenLoopBody_can_fit_1 *= SWAP;
+  TreeGenLoopBody_can_fit, TreeGenLoopBody_try_pick, TreeGenLoopBody_should_pick_1 *= Embed[(TreeGenLoopBody_can_fit, TreeGenLoopBody_try_pick) => (TreeGenLoopBody_try_pick && TreeGenLoopBody_can_fit)];
+  TreeGenLoopBody_should_pick, TreeGenLoopBody_should_pick_1 *= SWAP;
+  TreeGenLoopBody_i, TreeGenLoopBody_should_pick, TreeGenLoopBody_xs, TreeGenLoopBody_xs'_1 *= Embed[(TreeGenLoopBody_i, TreeGenLoopBody_should_pick, TreeGenLoopBody_xs) => update TreeGenLoopBody_xs[TreeGenLoopBody_i] = TreeGenLoopBody_should_pick];
+  TreeGenLoopBody_xs', TreeGenLoopBody_xs'_1 *= SWAP;
+  TreeGenLoopBody_should_pick, TreeGenLoopBody_wt, TreeGenLoopBody_wt_picked, TreeGenLoopBody_new_wt_1 *= Embed[(TreeGenLoopBody_should_pick, TreeGenLoopBody_wt, TreeGenLoopBody_wt_picked) => (ifte TreeGenLoopBody_should_pick TreeGenLoopBody_wt_picked TreeGenLoopBody_wt)];
+  TreeGenLoopBody_new_wt, TreeGenLoopBody_new_wt_1 *= SWAP;
+  call Profit_U(TreeGenLoopBody_i, TreeGenLoopBody_pi_1);
+  TreeGenLoopBody_pi, TreeGenLoopBody_pi_1 *= SWAP;
+  TreeGenLoopBody_pi, TreeGenLoopBody_pr, TreeGenLoopBody_pr_picked_1 *= Embed[(TreeGenLoopBody_pi, TreeGenLoopBody_pr) => (TreeGenLoopBody_pr + TreeGenLoopBody_pi)];
+  TreeGenLoopBody_pr_picked, TreeGenLoopBody_pr_picked_1 *= SWAP;
+  TreeGenLoopBody_pr, TreeGenLoopBody_pr_picked, TreeGenLoopBody_should_pick, TreeGenLoopBody_new_pr_1 *= Embed[(TreeGenLoopBody_pr, TreeGenLoopBody_pr_picked, TreeGenLoopBody_should_pick) => (ifte TreeGenLoopBody_should_pick TreeGenLoopBody_pr_picked TreeGenLoopBody_pr)];
+  TreeGenLoopBody_new_pr, TreeGenLoopBody_new_pr_1 *= SWAP;
+}
+
+proc TreeGenLoopBody(TreeGenLoopBody_xs : Arr<10, Fin<2>>, TreeGenLoopBody_wt : Fin<1000>, TreeGenLoopBody_pr : Fin<1000>, TreeGenLoopBody_i : Fin<10>, TreeGenLoopBody_xs' : Arr<10, Fin<2>>, TreeGenLoopBody_new_wt : Fin<1000>, TreeGenLoopBody_new_pr : Fin<1000>) { locals : (TreeGenLoopBody_xi : Fin<2>, TreeGenLoopBody_y : Fin<2>, TreeGenLoopBody_try_pick : Fin<2>, TreeGenLoopBody_wi : Fin<1000>, TreeGenLoopBody_wt_picked : Fin<1000>, TreeGenLoopBody_c : Fin<1000>, TreeGenLoopBody_can_fit : Fin<2>, TreeGenLoopBody_should_pick : Fin<2>, TreeGenLoopBody_pi : Fin<1000>, TreeGenLoopBody_pr_picked : Fin<1000>) } {
+  TreeGenLoopBody_xi := TreeGenLoopBody_xs[TreeGenLoopBody_i];
+  TreeGenLoopBody_y :=$ bernoulli[0.2];
+  TreeGenLoopBody_try_pick := (TreeGenLoopBody_xi ^ TreeGenLoopBody_y);
+  call Weight(TreeGenLoopBody_i, TreeGenLoopBody_wi);
+  TreeGenLoopBody_wt_picked := (TreeGenLoopBody_wt + TreeGenLoopBody_wi);
+  call Capacity(TreeGenLoopBody_c);
+  TreeGenLoopBody_can_fit := (TreeGenLoopBody_wt_picked <= TreeGenLoopBody_c);
+  TreeGenLoopBody_should_pick := (TreeGenLoopBody_try_pick && TreeGenLoopBody_can_fit);
+  TreeGenLoopBody_xs' := update TreeGenLoopBody_xs[TreeGenLoopBody_i] = TreeGenLoopBody_should_pick;
+  TreeGenLoopBody_new_wt := (ifte TreeGenLoopBody_should_pick TreeGenLoopBody_wt_picked TreeGenLoopBody_wt);
+  call Profit(TreeGenLoopBody_i, TreeGenLoopBody_pi);
+  TreeGenLoopBody_pr_picked := (TreeGenLoopBody_pr + TreeGenLoopBody_pi);
+  TreeGenLoopBody_new_pr := (ifte TreeGenLoopBody_should_pick TreeGenLoopBody_pr_picked TreeGenLoopBody_pr);
+}
+
+uproc TreeGen_U(TreeGen_xs : IN Arr<10, Fin<2>>, TreeGen_pr : IN Fin<1000>, TreeGen_ok : OUT Fin<2>, TreeGen_xs' : OUT Arr<10, Fin<2>>, TreeGen_zero_wt : AUX Fin<1000>, TreeGen_zero_pr : AUX Fin<1000>, TreeGen_wt' : AUX Fin<1000>, TreeGen_pr' : AUX Fin<1000>, TreeGen_zero_wt_1 : AUX Fin<1000>, TreeGen_zero_pr_1 : AUX Fin<1000>, TreeGen_xs'_1 : AUX Arr<10, Fin<2>>, TreeGen_wt'_1 : AUX Fin<1000>, TreeGen_pr'_1 : AUX Fin<1000>, aux_26 : AUX Arr<10, Fin<2>>, aux_27 : AUX Arr<10, Fin<2>>, aux_28 : AUX Arr<10, Fin<2>>, aux_29 : AUX Arr<10, Fin<1000>>, aux_30 : AUX Arr<10, Fin<1000>>, aux_31 : AUX Arr<10, Fin<1000>>, aux_32 : AUX Arr<10, Fin<2>>, aux_33 : AUX Arr<10, Fin<2>>, aux_34 : AUX Arr<10, Fin<1000>>, aux_35 : AUX Arr<10, Fin<1000>>, aux_36 : AUX Arr<10, Fin<2>>, aux_37 : AUX Arr<10, Fin<2>>, aux_38 : AUX Arr<10, Fin<2>>, aux_39 : AUX Arr<10, Fin<2>>, aux_40 : AUX Arr<10, Fin<1000>>, aux_41 : AUX Arr<10, Fin<1000>>, aux_42 : AUX Arr<10, Fin<1000>>, aux_43 : AUX Arr<10, Fin<2>>, aux_44 : AUX Arr<10, Fin<2>>, aux_45 : AUX Arr<10, Arr<10, Fin<2>>>, aux_46 : AUX Arr<10, Fin<1000>>, aux_47 : AUX Arr<10, Fin<1000>>, aux_48 : AUX Arr<10, Fin<1000>>, aux_49 : AUX Arr<10, Fin<1000>>, aux_50 : AUX Arr<10, Fin<10>>, aux_51 : AUX Arr<11, Arr<10, Fin<2>>>, aux_52 : AUX Arr<11, Fin<1000>>, aux_53 : AUX Arr<11, Fin<1000>>, TreeGen_ok_1 : AUX Fin<2>) {
+  TreeGen_zero_wt_1 *= Embed[() => 0:Fin<1000>];
+  TreeGen_zero_wt, TreeGen_zero_wt_1 *= SWAP;
+  TreeGen_zero_pr_1 *= Embed[() => 0:Fin<1000>];
+  TreeGen_zero_pr, TreeGen_zero_pr_1 *= SWAP;
+  TreeGen_xs, aux_51[0] *= COPY;
+  TreeGen_zero_wt, aux_52[0] *= COPY;
+  TreeGen_zero_pr, aux_53[0] *= COPY;
+  for (#ITER_4 in 0 .. < 10) {
+    call TreeGenLoopBody_U(aux_51[#ITER_4], aux_52[#ITER_4], aux_53[#ITER_4], aux_50[#ITER_4], aux_51[#ITER_4], aux_52[#ITER_4], aux_53[#ITER_4], aux_26[#ITER_4], aux_27[#ITER_4], aux_28[#ITER_4], aux_29[#ITER_4], aux_30[#ITER_4], aux_31[#ITER_4], aux_32[#ITER_4], aux_33[#ITER_4], aux_34[#ITER_4], aux_35[#ITER_4], aux_36[#ITER_4], aux_37[#ITER_4], aux_38[#ITER_4], aux_39[#ITER_4], aux_40[#ITER_4], aux_41[#ITER_4], aux_42[#ITER_4], aux_43[#ITER_4], aux_44[#ITER_4], aux_45[#ITER_4], aux_46[#ITER_4], aux_47[#ITER_4], aux_48[#ITER_4], aux_49[#ITER_4]);
+  }
+  aux_51[10], TreeGen_xs'_1 *= COPY;
+  aux_52[10], TreeGen_wt'_1 *= COPY;
+  aux_53[10], TreeGen_pr'_1 *= COPY;
+  TreeGen_xs', TreeGen_wt', TreeGen_pr', TreeGen_xs'_1, TreeGen_wt'_1, TreeGen_pr'_1 *= SWAP;
+  TreeGen_pr, TreeGen_pr', TreeGen_ok_1 *= Embed[(TreeGen_pr, TreeGen_pr') => (TreeGen_pr < TreeGen_pr')];
+  TreeGen_ok, TreeGen_ok_1 *= SWAP;
+}
+
+proc TreeGen(TreeGen_xs : Arr<10, Fin<2>>, TreeGen_pr : Fin<1000>, TreeGen_ok : Fin<2>, TreeGen_xs' : Arr<10, Fin<2>>) { locals : (TreeGen_zero_wt : Fin<1000>, TreeGen_zero_pr : Fin<1000>, TreeGen_wt' : Fin<1000>, TreeGen_pr' : Fin<1000>, iter_2 : Fin<10>) } {
+  TreeGen_zero_wt := 0:Fin<1000>;
+  TreeGen_zero_pr := 0:Fin<1000>;
+  TreeGen_xs' := TreeGen_xs;
+  TreeGen_wt' := TreeGen_zero_wt;
+  TreeGen_pr' := TreeGen_zero_pr;
+  for (#ITER_5 in 0 .. < 10) {
+    iter_2 := #ITER_5;
+    call TreeGenLoopBody(TreeGen_xs', TreeGen_wt', TreeGen_pr', iter_2, TreeGen_xs', TreeGen_wt', TreeGen_pr');
+  }
+  TreeGen_ok := (TreeGen_pr < TreeGen_pr');
+}
+
+uproc UAmplify(KnapsackLoopBody_xs : Arr<10, Fin<2>>, KnapsackLoopBody_pr : Fin<1000>, KnapsackLoopBody_ok_1 : OUT Fin<2>, KnapsackLoopBody_xs'_1 : OUT Arr<10, Fin<2>>, aux_72 : AUX Fin<1000>, aux_73 : AUX Fin<1000>, aux_74 : AUX Fin<1000>, aux_75 : AUX Fin<1000>, aux_76 : AUX Fin<1000>, aux_77 : AUX Fin<1000>, aux_78 : AUX Arr<10, Fin<2>>, aux_79 : AUX Fin<1000>, aux_80 : AUX Fin<1000>, aux_81 : AUX Arr<10, Fin<2>>, aux_82 : AUX Arr<10, Fin<2>>, aux_83 : AUX Arr<10, Fin<2>>, aux_84 : AUX Arr<10, Fin<1000>>, aux_85 : AUX Arr<10, Fin<1000>>, aux_86 : AUX Arr<10, Fin<1000>>, aux_87 : AUX Arr<10, Fin<2>>, aux_88 : AUX Arr<10, Fin<2>>, aux_89 : AUX Arr<10, Fin<1000>>, aux_90 : AUX Arr<10, Fin<1000>>, aux_91 : AUX Arr<10, Fin<2>>, aux_92 : AUX Arr<10, Fin<2>>, aux_93 : AUX Arr<10, Fin<2>>, aux_94 : AUX Arr<10, Fin<2>>, aux_95 : AUX Arr<10, Fin<1000>>, aux_96 : AUX Arr<10, Fin<1000>>, aux_97 : AUX Arr<10, Fin<1000>>, aux_98 : AUX Arr<10, Fin<2>>, aux_99 : AUX Arr<10, Fin<2>>, aux_100 : AUX Arr<10, Arr<10, Fin<2>>>, aux_101 : AUX Arr<10, Fin<1000>>, aux_102 : AUX Arr<10, Fin<1000>>, aux_103 : AUX Arr<10, Fin<1000>>, aux_104 : AUX Arr<10, Fin<1000>>, aux_105 : AUX Arr<10, Fin<10>>, aux_106 : AUX Arr<11, Arr<10, Fin<2>>>, aux_107 : AUX Arr<11, Fin<1000>>, aux_108 : AUX Arr<11, Fin<1000>>, aux_109 : AUX Fin<2>) {
+  call TreeGen_U(KnapsackLoopBody_xs, KnapsackLoopBody_pr, KnapsackLoopBody_ok_1, KnapsackLoopBody_xs'_1, aux_72, aux_73, aux_74, aux_75, aux_76, aux_77, aux_78, aux_79, aux_80, aux_81, aux_82, aux_83, aux_84, aux_85, aux_86, aux_87, aux_88, aux_89, aux_90, aux_91, aux_92, aux_93, aux_94, aux_95, aux_96, aux_97, aux_98, aux_99, aux_100, aux_101, aux_102, aux_103, aux_104, aux_105, aux_106, aux_107, aux_108, aux_109);
+  KnapsackLoopBody_ok_1 *= Rz(-0.011526049168105172);
+  call-adj TreeGen_U(KnapsackLoopBody_xs, KnapsackLoopBody_pr, KnapsackLoopBody_ok_1, KnapsackLoopBody_xs'_1, aux_72, aux_73, aux_74, aux_75, aux_76, aux_77, aux_78, aux_79, aux_80, aux_81, aux_82, aux_83, aux_84, aux_85, aux_86, aux_87, aux_88, aux_89, aux_90, aux_91, aux_92, aux_93, aux_94, aux_95, aux_96, aux_97, aux_98, aux_99, aux_100, aux_101, aux_102, aux_103, aux_104, aux_105, aux_106, aux_107, aux_108, aux_109);
+  KnapsackLoopBody_ok_1, KnapsackLoopBody_xs'_1, aux_72, aux_73, aux_74, aux_75, aux_76, aux_77, aux_78, aux_79, aux_80, aux_81, aux_82, aux_83, aux_84, aux_85, aux_86, aux_87, aux_88, aux_89, aux_90, aux_91, aux_92, aux_93, aux_94, aux_95, aux_96, aux_97, aux_98, aux_99, aux_100, aux_101, aux_102, aux_103, aux_104, aux_105, aux_106, aux_107, aux_108, aux_109 *= PhaseOnZero(0.005737246821149794);
+  call TreeGen_U(KnapsackLoopBody_xs, KnapsackLoopBody_pr, KnapsackLoopBody_ok_1, KnapsackLoopBody_xs'_1, aux_72, aux_73, aux_74, aux_75, aux_76, aux_77, aux_78, aux_79, aux_80, aux_81, aux_82, aux_83, aux_84, aux_85, aux_86, aux_87, aux_88, aux_89, aux_90, aux_91, aux_92, aux_93, aux_94, aux_95, aux_96, aux_97, aux_98, aux_99, aux_100, aux_101, aux_102, aux_103, aux_104, aux_105, aux_106, aux_107, aux_108, aux_109);
+  KnapsackLoopBody_ok_1 *= Rz(-0.0037960730984009164);
+  call-adj TreeGen_U(KnapsackLoopBody_xs, KnapsackLoopBody_pr, KnapsackLoopBody_ok_1, KnapsackLoopBody_xs'_1, aux_72, aux_73, aux_74, aux_75, aux_76, aux_77, aux_78, aux_79, aux_80, aux_81, aux_82, aux_83, aux_84, aux_85, aux_86, aux_87, aux_88, aux_89, aux_90, aux_91, aux_92, aux_93, aux_94, aux_95, aux_96, aux_97, aux_98, aux_99, aux_100, aux_101, aux_102, aux_103, aux_104, aux_105, aux_106, aux_107, aux_108, aux_109);
+  KnapsackLoopBody_ok_1, KnapsackLoopBody_xs'_1, aux_72, aux_73, aux_74, aux_75, aux_76, aux_77, aux_78, aux_79, aux_80, aux_81, aux_82, aux_83, aux_84, aux_85, aux_86, aux_87, aux_88, aux_89, aux_90, aux_91, aux_92, aux_93, aux_94, aux_95, aux_96, aux_97, aux_98, aux_99, aux_100, aux_101, aux_102, aux_103, aux_104, aux_105, aux_106, aux_107, aux_108, aux_109 *= PhaseOnZero(0.0028167452554461367);
+  call TreeGen_U(KnapsackLoopBody_xs, KnapsackLoopBody_pr, KnapsackLoopBody_ok_1, KnapsackLoopBody_xs'_1, aux_72, aux_73, aux_74, aux_75, aux_76, aux_77, aux_78, aux_79, aux_80, aux_81, aux_82, aux_83, aux_84, aux_85, aux_86, aux_87, aux_88, aux_89, aux_90, aux_91, aux_92, aux_93, aux_94, aux_95, aux_96, aux_97, aux_98, aux_99, aux_100, aux_101, aux_102, aux_103, aux_104, aux_105, aux_106, aux_107, aux_108, aux_109);
+  KnapsackLoopBody_ok_1 *= Rz(-0.0022220689602476425);
+  call-adj TreeGen_U(KnapsackLoopBody_xs, KnapsackLoopBody_pr, KnapsackLoopBody_ok_1, KnapsackLoopBody_xs'_1, aux_72, aux_73, aux_74, aux_75, aux_76, aux_77, aux_78, aux_79, aux_80, aux_81, aux_82, aux_83, aux_84, aux_85, aux_86, aux_87, aux_88, aux_89, aux_90, aux_91, aux_92, aux_93, aux_94, aux_95, aux_96, aux_97, aux_98, aux_99, aux_100, aux_101, aux_102, aux_103, aux_104, aux_105, aux_106, aux_107, aux_108, aux_109);
+  KnapsackLoopBody_ok_1, KnapsackLoopBody_xs'_1, aux_72, aux_73, aux_74, aux_75, aux_76, aux_77, aux_78, aux_79, aux_80, aux_81, aux_82, aux_83, aux_84, aux_85, aux_86, aux_87, aux_88, aux_89, aux_90, aux_91, aux_92, aux_93, aux_94, aux_95, aux_96, aux_97, aux_98, aux_99, aux_100, aux_101, aux_102, aux_103, aux_104, aux_105, aux_106, aux_107, aux_108, aux_109 *= PhaseOnZero(0.001819622370843461);
+  call TreeGen_U(KnapsackLoopBody_xs, KnapsackLoopBody_pr, KnapsackLoopBody_ok_1, KnapsackLoopBody_xs'_1, aux_72, aux_73, aux_74, aux_75, aux_76, aux_77, aux_78, aux_79, aux_80, aux_81, aux_82, aux_83, aux_84, aux_85, aux_86, aux_87, aux_88, aux_89, aux_90, aux_91, aux_92, aux_93, aux_94, aux_95, aux_96, aux_97, aux_98, aux_99, aux_100, aux_101, aux_102, aux_103, aux_104, aux_105, aux_106, aux_107, aux_108, aux_109);
+  KnapsackLoopBody_ok_1 *= Rz(-0.0015269182335347976);
+  call-adj TreeGen_U(KnapsackLoopBody_xs, KnapsackLoopBody_pr, KnapsackLoopBody_ok_1, KnapsackLoopBody_xs'_1, aux_72, aux_73, aux_74, aux_75, aux_76, aux_77, aux_78, aux_79, aux_80, aux_81, aux_82, aux_83, aux_84, aux_85, aux_86, aux_87, aux_88, aux_89, aux_90, aux_91, aux_92, aux_93, aux_94, aux_95, aux_96, aux_97, aux_98, aux_99, aux_100, aux_101, aux_102, aux_103, aux_104, aux_105, aux_106, aux_107, aux_108, aux_109);
+  KnapsackLoopBody_ok_1, KnapsackLoopBody_xs'_1, aux_72, aux_73, aux_74, aux_75, aux_76, aux_77, aux_78, aux_79, aux_80, aux_81, aux_82, aux_83, aux_84, aux_85, aux_86, aux_87, aux_88, aux_89, aux_90, aux_91, aux_92, aux_93, aux_94, aux_95, aux_96, aux_97, aux_98, aux_99, aux_100, aux_101, aux_102, aux_103, aux_104, aux_105, aux_106, aux_107, aux_108, aux_109 *= PhaseOnZero(0.0013026936511006941);
+  call TreeGen_U(KnapsackLoopBody_xs, KnapsackLoopBody_pr, KnapsackLoopBody_ok_1, KnapsackLoopBody_xs'_1, aux_72, aux_73, aux_74, aux_75, aux_76, aux_77, aux_78, aux_79, aux_80, aux_81, aux_82, aux_83, aux_84, aux_85, aux_86, aux_87, aux_88, aux_89, aux_90, aux_91, aux_92, aux_93, aux_94, aux_95, aux_96, aux_97, aux_98, aux_99, aux_100, aux_101, aux_102, aux_103, aux_104, aux_105, aux_106, aux_107, aux_108, aux_109);
+  KnapsackLoopBody_ok_1 *= Rz(-0.0011240063319286641);
+  call-adj TreeGen_U(KnapsackLoopBody_xs, KnapsackLoopBody_pr, KnapsackLoopBody_ok_1, KnapsackLoopBody_xs'_1, aux_72, aux_73, aux_74, aux_75, aux_76, aux_77, aux_78, aux_79, aux_80, aux_81, aux_82, aux_83, aux_84, aux_85, aux_86, aux_87, aux_88, aux_89, aux_90, aux_91, aux_92, aux_93, aux_94, aux_95, aux_96, aux_97, aux_98, aux_99, aux_100, aux_101, aux_102, aux_103, aux_104, aux_105, aux_106, aux_107, aux_108, aux_109);
+  KnapsackLoopBody_ok_1, KnapsackLoopBody_xs'_1, aux_72, aux_73, aux_74, aux_75, aux_76, aux_77, aux_78, aux_79, aux_80, aux_81, aux_82, aux_83, aux_84, aux_85, aux_86, aux_87, aux_88, aux_89, aux_90, aux_91, aux_92, aux_93, aux_94, aux_95, aux_96, aux_97, aux_98, aux_99, aux_100, aux_101, aux_102, aux_103, aux_104, aux_105, aux_106, aux_107, aux_108, aux_109 *= PhaseOnZero(0.000977072800026606);
+  call TreeGen_U(KnapsackLoopBody_xs, KnapsackLoopBody_pr, KnapsackLoopBody_ok_1, KnapsackLoopBody_xs'_1, aux_72, aux_73, aux_74, aux_75, aux_76, aux_77, aux_78, aux_79, aux_80, aux_81, aux_82, aux_83, aux_84, aux_85, aux_86, aux_87, aux_88, aux_89, aux_90, aux_91, aux_92, aux_93, aux_94, aux_95, aux_96, aux_97, aux_98, aux_99, aux_100, aux_101, aux_102, aux_103, aux_104, aux_105, aux_106, aux_107, aux_108, aux_109);
+  KnapsackLoopBody_ok_1 *= Rz(-0.0008531036527738527);
+  call-adj TreeGen_U(KnapsackLoopBody_xs, KnapsackLoopBody_pr, KnapsackLoopBody_ok_1, KnapsackLoopBody_xs'_1, aux_72, aux_73, aux_74, aux_75, aux_76, aux_77, aux_78, aux_79, aux_80, aux_81, aux_82, aux_83, aux_84, aux_85, aux_86, aux_87, aux_88, aux_89, aux_90, aux_91, aux_92, aux_93, aux_94, aux_95, aux_96, aux_97, aux_98, aux_99, aux_100, aux_101, aux_102, aux_103, aux_104, aux_105, aux_106, aux_107, aux_108, aux_109);
+  KnapsackLoopBody_ok_1, KnapsackLoopBody_xs'_1, aux_72, aux_73, aux_74, aux_75, aux_76, aux_77, aux_78, aux_79, aux_80, aux_81, aux_82, aux_83, aux_84, aux_85, aux_86, aux_87, aux_88, aux_89, aux_90, aux_91, aux_92, aux_93, aux_94, aux_95, aux_96, aux_97, aux_98, aux_99, aux_100, aux_101, aux_102, aux_103, aux_104, aux_105, aux_106, aux_107, aux_108, aux_109 *= PhaseOnZero(0.0007462208791875804);
+  call TreeGen_U(KnapsackLoopBody_xs, KnapsackLoopBody_pr, KnapsackLoopBody_ok_1, KnapsackLoopBody_xs'_1, aux_72, aux_73, aux_74, aux_75, aux_76, aux_77, aux_78, aux_79, aux_80, aux_81, aux_82, aux_83, aux_84, aux_85, aux_86, aux_87, aux_88, aux_89, aux_90, aux_91, aux_92, aux_93, aux_94, aux_95, aux_96, aux_97, aux_98, aux_99, aux_100, aux_101, aux_102, aux_103, aux_104, aux_105, aux_106, aux_107, aux_108, aux_109);
+  KnapsackLoopBody_ok_1 *= Rz(-0.0006523360773607303);
+  call-adj TreeGen_U(KnapsackLoopBody_xs, KnapsackLoopBody_pr, KnapsackLoopBody_ok_1, KnapsackLoopBody_xs'_1, aux_72, aux_73, aux_74, aux_75, aux_76, aux_77, aux_78, aux_79, aux_80, aux_81, aux_82, aux_83, aux_84, aux_85, aux_86, aux_87, aux_88, aux_89, aux_90, aux_91, aux_92, aux_93, aux_94, aux_95, aux_96, aux_97, aux_98, aux_99, aux_100, aux_101, aux_102, aux_103, aux_104, aux_105, aux_106, aux_107, aux_108, aux_109);
+  KnapsackLoopBody_ok_1, KnapsackLoopBody_xs'_1, aux_72, aux_73, aux_74, aux_75, aux_76, aux_77, aux_78, aux_79, aux_80, aux_81, aux_82, aux_83, aux_84, aux_85, aux_86, aux_87, aux_88, aux_89, aux_90, aux_91, aux_92, aux_93, aux_94, aux_95, aux_96, aux_97, aux_98, aux_99, aux_100, aux_101, aux_102, aux_103, aux_104, aux_105, aux_106, aux_107, aux_108, aux_109 *= PhaseOnZero(0.000568509060304143);
+  call TreeGen_U(KnapsackLoopBody_xs, KnapsackLoopBody_pr, KnapsackLoopBody_ok_1, KnapsackLoopBody_xs'_1, aux_72, aux_73, aux_74, aux_75, aux_76, aux_77, aux_78, aux_79, aux_80, aux_81, aux_82, aux_83, aux_84, aux_85, aux_86, aux_87, aux_88, aux_89, aux_90, aux_91, aux_92, aux_93, aux_94, aux_95, aux_96, aux_97, aux_98, aux_99, aux_100, aux_101, aux_102, aux_103, aux_104, aux_105, aux_106, aux_107, aux_108, aux_109);
+  KnapsackLoopBody_ok_1 *= Rz(-0.0004925625967566173);
+  call-adj TreeGen_U(KnapsackLoopBody_xs, KnapsackLoopBody_pr, KnapsackLoopBody_ok_1, KnapsackLoopBody_xs'_1, aux_72, aux_73, aux_74, aux_75, aux_76, aux_77, aux_78, aux_79, aux_80, aux_81, aux_82, aux_83, aux_84, aux_85, aux_86, aux_87, aux_88, aux_89, aux_90, aux_91, aux_92, aux_93, aux_94, aux_95, aux_96, aux_97, aux_98, aux_99, aux_100, aux_101, aux_102, aux_103, aux_104, aux_105, aux_106, aux_107, aux_108, aux_109);
+  KnapsackLoopBody_ok_1, KnapsackLoopBody_xs'_1, aux_72, aux_73, aux_74, aux_75, aux_76, aux_77, aux_78, aux_79, aux_80, aux_81, aux_82, aux_83, aux_84, aux_85, aux_86, aux_87, aux_88, aux_89, aux_90, aux_91, aux_92, aux_93, aux_94, aux_95, aux_96, aux_97, aux_98, aux_99, aux_100, aux_101, aux_102, aux_103, aux_104, aux_105, aux_106, aux_107, aux_108, aux_109 *= PhaseOnZero(0.00042284114222675855);
+  call TreeGen_U(KnapsackLoopBody_xs, KnapsackLoopBody_pr, KnapsackLoopBody_ok_1, KnapsackLoopBody_xs'_1, aux_72, aux_73, aux_74, aux_75, aux_76, aux_77, aux_78, aux_79, aux_80, aux_81, aux_82, aux_83, aux_84, aux_85, aux_86, aux_87, aux_88, aux_89, aux_90, aux_91, aux_92, aux_93, aux_94, aux_95, aux_96, aux_97, aux_98, aux_99, aux_100, aux_101, aux_102, aux_103, aux_104, aux_105, aux_106, aux_107, aux_108, aux_109);
+  KnapsackLoopBody_ok_1 *= Rz(-0.00035805416759807123);
+  call-adj TreeGen_U(KnapsackLoopBody_xs, KnapsackLoopBody_pr, KnapsackLoopBody_ok_1, KnapsackLoopBody_xs'_1, aux_72, aux_73, aux_74, aux_75, aux_76, aux_77, aux_78, aux_79, aux_80, aux_81, aux_82, aux_83, aux_84, aux_85, aux_86, aux_87, aux_88, aux_89, aux_90, aux_91, aux_92, aux_93, aux_94, aux_95, aux_96, aux_97, aux_98, aux_99, aux_100, aux_101, aux_102, aux_103, aux_104, aux_105, aux_106, aux_107, aux_108, aux_109);
+  KnapsackLoopBody_ok_1, KnapsackLoopBody_xs'_1, aux_72, aux_73, aux_74, aux_75, aux_76, aux_77, aux_78, aux_79, aux_80, aux_81, aux_82, aux_83, aux_84, aux_85, aux_86, aux_87, aux_88, aux_89, aux_90, aux_91, aux_92, aux_93, aux_94, aux_95, aux_96, aux_97, aux_98, aux_99, aux_100, aux_101, aux_102, aux_103, aux_104, aux_105, aux_106, aux_107, aux_108, aux_109 *= PhaseOnZero(0.00029717106231432296);
+  call TreeGen_U(KnapsackLoopBody_xs, KnapsackLoopBody_pr, KnapsackLoopBody_ok_1, KnapsackLoopBody_xs'_1, aux_72, aux_73, aux_74, aux_75, aux_76, aux_77, aux_78, aux_79, aux_80, aux_81, aux_82, aux_83, aux_84, aux_85, aux_86, aux_87, aux_88, aux_89, aux_90, aux_91, aux_92, aux_93, aux_94, aux_95, aux_96, aux_97, aux_98, aux_99, aux_100, aux_101, aux_102, aux_103, aux_104, aux_105, aux_106, aux_107, aux_108, aux_109);
+  KnapsackLoopBody_ok_1 *= Rz(-0.0002393484597632499);
+  call-adj TreeGen_U(KnapsackLoopBody_xs, KnapsackLoopBody_pr, KnapsackLoopBody_ok_1, KnapsackLoopBody_xs'_1, aux_72, aux_73, aux_74, aux_75, aux_76, aux_77, aux_78, aux_79, aux_80, aux_81, aux_82, aux_83, aux_84, aux_85, aux_86, aux_87, aux_88, aux_89, aux_90, aux_91, aux_92, aux_93, aux_94, aux_95, aux_96, aux_97, aux_98, aux_99, aux_100, aux_101, aux_102, aux_103, aux_104, aux_105, aux_106, aux_107, aux_108, aux_109);
+  KnapsackLoopBody_ok_1, KnapsackLoopBody_xs'_1, aux_72, aux_73, aux_74, aux_75, aux_76, aux_77, aux_78, aux_79, aux_80, aux_81, aux_82, aux_83, aux_84, aux_85, aux_86, aux_87, aux_88, aux_89, aux_90, aux_91, aux_92, aux_93, aux_94, aux_95, aux_96, aux_97, aux_98, aux_99, aux_100, aux_101, aux_102, aux_103, aux_104, aux_105, aux_106, aux_107, aux_108, aux_109 *= PhaseOnZero(0.00018387845064632183);
+  call TreeGen_U(KnapsackLoopBody_xs, KnapsackLoopBody_pr, KnapsackLoopBody_ok_1, KnapsackLoopBody_xs'_1, aux_72, aux_73, aux_74, aux_75, aux_76, aux_77, aux_78, aux_79, aux_80, aux_81, aux_82, aux_83, aux_84, aux_85, aux_86, aux_87, aux_88, aux_89, aux_90, aux_91, aux_92, aux_93, aux_94, aux_95, aux_96, aux_97, aux_98, aux_99, aux_100, aux_101, aux_102, aux_103, aux_104, aux_105, aux_106, aux_107, aux_108, aux_109);
+  KnapsackLoopBody_ok_1 *= Rz(-0.00013015048929663258);
+  call-adj TreeGen_U(KnapsackLoopBody_xs, KnapsackLoopBody_pr, KnapsackLoopBody_ok_1, KnapsackLoopBody_xs'_1, aux_72, aux_73, aux_74, aux_75, aux_76, aux_77, aux_78, aux_79, aux_80, aux_81, aux_82, aux_83, aux_84, aux_85, aux_86, aux_87, aux_88, aux_89, aux_90, aux_91, aux_92, aux_93, aux_94, aux_95, aux_96, aux_97, aux_98, aux_99, aux_100, aux_101, aux_102, aux_103, aux_104, aux_105, aux_106, aux_107, aux_108, aux_109);
+  KnapsackLoopBody_ok_1, KnapsackLoopBody_xs'_1, aux_72, aux_73, aux_74, aux_75, aux_76, aux_77, aux_78, aux_79, aux_80, aux_81, aux_82, aux_83, aux_84, aux_85, aux_86, aux_87, aux_88, aux_89, aux_90, aux_91, aux_92, aux_93, aux_94, aux_95, aux_96, aux_97, aux_98, aux_99, aux_100, aux_101, aux_102, aux_103, aux_104, aux_105, aux_106, aux_107, aux_108, aux_109 *= PhaseOnZero(0.00007762234316309893);
+  call TreeGen_U(KnapsackLoopBody_xs, KnapsackLoopBody_pr, KnapsackLoopBody_ok_1, KnapsackLoopBody_xs'_1, aux_72, aux_73, aux_74, aux_75, aux_76, aux_77, aux_78, aux_79, aux_80, aux_81, aux_82, aux_83, aux_84, aux_85, aux_86, aux_87, aux_88, aux_89, aux_90, aux_91, aux_92, aux_93, aux_94, aux_95, aux_96, aux_97, aux_98, aux_99, aux_100, aux_101, aux_102, aux_103, aux_104, aux_105, aux_106, aux_107, aux_108, aux_109);
+  KnapsackLoopBody_ok_1 *= Rz(-0.000025796959484433774);
+  call-adj TreeGen_U(KnapsackLoopBody_xs, KnapsackLoopBody_pr, KnapsackLoopBody_ok_1, KnapsackLoopBody_xs'_1, aux_72, aux_73, aux_74, aux_75, aux_76, aux_77, aux_78, aux_79, aux_80, aux_81, aux_82, aux_83, aux_84, aux_85, aux_86, aux_87, aux_88, aux_89, aux_90, aux_91, aux_92, aux_93, aux_94, aux_95, aux_96, aux_97, aux_98, aux_99, aux_100, aux_101, aux_102, aux_103, aux_104, aux_105, aux_106, aux_107, aux_108, aux_109);
+  KnapsackLoopBody_ok_1, KnapsackLoopBody_xs'_1, aux_72, aux_73, aux_74, aux_75, aux_76, aux_77, aux_78, aux_79, aux_80, aux_81, aux_82, aux_83, aux_84, aux_85, aux_86, aux_87, aux_88, aux_89, aux_90, aux_91, aux_92, aux_93, aux_94, aux_95, aux_96, aux_97, aux_98, aux_99, aux_100, aux_101, aux_102, aux_103, aux_104, aux_105, aux_106, aux_107, aux_108, aux_109 *= PhaseOnZero(-0.000025796959484433774);
+  call TreeGen_U(KnapsackLoopBody_xs, KnapsackLoopBody_pr, KnapsackLoopBody_ok_1, KnapsackLoopBody_xs'_1, aux_72, aux_73, aux_74, aux_75, aux_76, aux_77, aux_78, aux_79, aux_80, aux_81, aux_82, aux_83, aux_84, aux_85, aux_86, aux_87, aux_88, aux_89, aux_90, aux_91, aux_92, aux_93, aux_94, aux_95, aux_96, aux_97, aux_98, aux_99, aux_100, aux_101, aux_102, aux_103, aux_104, aux_105, aux_106, aux_107, aux_108, aux_109);
+  KnapsackLoopBody_ok_1 *= Rz(0.00007762234316309893);
+  call-adj TreeGen_U(KnapsackLoopBody_xs, KnapsackLoopBody_pr, KnapsackLoopBody_ok_1, KnapsackLoopBody_xs'_1, aux_72, aux_73, aux_74, aux_75, aux_76, aux_77, aux_78, aux_79, aux_80, aux_81, aux_82, aux_83, aux_84, aux_85, aux_86, aux_87, aux_88, aux_89, aux_90, aux_91, aux_92, aux_93, aux_94, aux_95, aux_96, aux_97, aux_98, aux_99, aux_100, aux_101, aux_102, aux_103, aux_104, aux_105, aux_106, aux_107, aux_108, aux_109);
+  KnapsackLoopBody_ok_1, KnapsackLoopBody_xs'_1, aux_72, aux_73, aux_74, aux_75, aux_76, aux_77, aux_78, aux_79, aux_80, aux_81, aux_82, aux_83, aux_84, aux_85, aux_86, aux_87, aux_88, aux_89, aux_90, aux_91, aux_92, aux_93, aux_94, aux_95, aux_96, aux_97, aux_98, aux_99, aux_100, aux_101, aux_102, aux_103, aux_104, aux_105, aux_106, aux_107, aux_108, aux_109 *= PhaseOnZero(-0.00013015048929663258);
+  call TreeGen_U(KnapsackLoopBody_xs, KnapsackLoopBody_pr, KnapsackLoopBody_ok_1, KnapsackLoopBody_xs'_1, aux_72, aux_73, aux_74, aux_75, aux_76, aux_77, aux_78, aux_79, aux_80, aux_81, aux_82, aux_83, aux_84, aux_85, aux_86, aux_87, aux_88, aux_89, aux_90, aux_91, aux_92, aux_93, aux_94, aux_95, aux_96, aux_97, aux_98, aux_99, aux_100, aux_101, aux_102, aux_103, aux_104, aux_105, aux_106, aux_107, aux_108, aux_109);
+  KnapsackLoopBody_ok_1 *= Rz(0.00018387845064632183);
+  call-adj TreeGen_U(KnapsackLoopBody_xs, KnapsackLoopBody_pr, KnapsackLoopBody_ok_1, KnapsackLoopBody_xs'_1, aux_72, aux_73, aux_74, aux_75, aux_76, aux_77, aux_78, aux_79, aux_80, aux_81, aux_82, aux_83, aux_84, aux_85, aux_86, aux_87, aux_88, aux_89, aux_90, aux_91, aux_92, aux_93, aux_94, aux_95, aux_96, aux_97, aux_98, aux_99, aux_100, aux_101, aux_102, aux_103, aux_104, aux_105, aux_106, aux_107, aux_108, aux_109);
+  KnapsackLoopBody_ok_1, KnapsackLoopBody_xs'_1, aux_72, aux_73, aux_74, aux_75, aux_76, aux_77, aux_78, aux_79, aux_80, aux_81, aux_82, aux_83, aux_84, aux_85, aux_86, aux_87, aux_88, aux_89, aux_90, aux_91, aux_92, aux_93, aux_94, aux_95, aux_96, aux_97, aux_98, aux_99, aux_100, aux_101, aux_102, aux_103, aux_104, aux_105, aux_106, aux_107, aux_108, aux_109 *= PhaseOnZero(-0.0002393484597632499);
+  call TreeGen_U(KnapsackLoopBody_xs, KnapsackLoopBody_pr, KnapsackLoopBody_ok_1, KnapsackLoopBody_xs'_1, aux_72, aux_73, aux_74, aux_75, aux_76, aux_77, aux_78, aux_79, aux_80, aux_81, aux_82, aux_83, aux_84, aux_85, aux_86, aux_87, aux_88, aux_89, aux_90, aux_91, aux_92, aux_93, aux_94, aux_95, aux_96, aux_97, aux_98, aux_99, aux_100, aux_101, aux_102, aux_103, aux_104, aux_105, aux_106, aux_107, aux_108, aux_109);
+  KnapsackLoopBody_ok_1 *= Rz(0.00029717106231432296);
+  call-adj TreeGen_U(KnapsackLoopBody_xs, KnapsackLoopBody_pr, KnapsackLoopBody_ok_1, KnapsackLoopBody_xs'_1, aux_72, aux_73, aux_74, aux_75, aux_76, aux_77, aux_78, aux_79, aux_80, aux_81, aux_82, aux_83, aux_84, aux_85, aux_86, aux_87, aux_88, aux_89, aux_90, aux_91, aux_92, aux_93, aux_94, aux_95, aux_96, aux_97, aux_98, aux_99, aux_100, aux_101, aux_102, aux_103, aux_104, aux_105, aux_106, aux_107, aux_108, aux_109);
+  KnapsackLoopBody_ok_1, KnapsackLoopBody_xs'_1, aux_72, aux_73, aux_74, aux_75, aux_76, aux_77, aux_78, aux_79, aux_80, aux_81, aux_82, aux_83, aux_84, aux_85, aux_86, aux_87, aux_88, aux_89, aux_90, aux_91, aux_92, aux_93, aux_94, aux_95, aux_96, aux_97, aux_98, aux_99, aux_100, aux_101, aux_102, aux_103, aux_104, aux_105, aux_106, aux_107, aux_108, aux_109 *= PhaseOnZero(-0.00035805416759807123);
+  call TreeGen_U(KnapsackLoopBody_xs, KnapsackLoopBody_pr, KnapsackLoopBody_ok_1, KnapsackLoopBody_xs'_1, aux_72, aux_73, aux_74, aux_75, aux_76, aux_77, aux_78, aux_79, aux_80, aux_81, aux_82, aux_83, aux_84, aux_85, aux_86, aux_87, aux_88, aux_89, aux_90, aux_91, aux_92, aux_93, aux_94, aux_95, aux_96, aux_97, aux_98, aux_99, aux_100, aux_101, aux_102, aux_103, aux_104, aux_105, aux_106, aux_107, aux_108, aux_109);
+  KnapsackLoopBody_ok_1 *= Rz(0.00042284114222675855);
+  call-adj TreeGen_U(KnapsackLoopBody_xs, KnapsackLoopBody_pr, KnapsackLoopBody_ok_1, KnapsackLoopBody_xs'_1, aux_72, aux_73, aux_74, aux_75, aux_76, aux_77, aux_78, aux_79, aux_80, aux_81, aux_82, aux_83, aux_84, aux_85, aux_86, aux_87, aux_88, aux_89, aux_90, aux_91, aux_92, aux_93, aux_94, aux_95, aux_96, aux_97, aux_98, aux_99, aux_100, aux_101, aux_102, aux_103, aux_104, aux_105, aux_106, aux_107, aux_108, aux_109);
+  KnapsackLoopBody_ok_1, KnapsackLoopBody_xs'_1, aux_72, aux_73, aux_74, aux_75, aux_76, aux_77, aux_78, aux_79, aux_80, aux_81, aux_82, aux_83, aux_84, aux_85, aux_86, aux_87, aux_88, aux_89, aux_90, aux_91, aux_92, aux_93, aux_94, aux_95, aux_96, aux_97, aux_98, aux_99, aux_100, aux_101, aux_102, aux_103, aux_104, aux_105, aux_106, aux_107, aux_108, aux_109 *= PhaseOnZero(-0.0004925625967566173);
+  call TreeGen_U(KnapsackLoopBody_xs, KnapsackLoopBody_pr, KnapsackLoopBody_ok_1, KnapsackLoopBody_xs'_1, aux_72, aux_73, aux_74, aux_75, aux_76, aux_77, aux_78, aux_79, aux_80, aux_81, aux_82, aux_83, aux_84, aux_85, aux_86, aux_87, aux_88, aux_89, aux_90, aux_91, aux_92, aux_93, aux_94, aux_95, aux_96, aux_97, aux_98, aux_99, aux_100, aux_101, aux_102, aux_103, aux_104, aux_105, aux_106, aux_107, aux_108, aux_109);
+  KnapsackLoopBody_ok_1 *= Rz(0.000568509060304143);
+  call-adj TreeGen_U(KnapsackLoopBody_xs, KnapsackLoopBody_pr, KnapsackLoopBody_ok_1, KnapsackLoopBody_xs'_1, aux_72, aux_73, aux_74, aux_75, aux_76, aux_77, aux_78, aux_79, aux_80, aux_81, aux_82, aux_83, aux_84, aux_85, aux_86, aux_87, aux_88, aux_89, aux_90, aux_91, aux_92, aux_93, aux_94, aux_95, aux_96, aux_97, aux_98, aux_99, aux_100, aux_101, aux_102, aux_103, aux_104, aux_105, aux_106, aux_107, aux_108, aux_109);
+  KnapsackLoopBody_ok_1, KnapsackLoopBody_xs'_1, aux_72, aux_73, aux_74, aux_75, aux_76, aux_77, aux_78, aux_79, aux_80, aux_81, aux_82, aux_83, aux_84, aux_85, aux_86, aux_87, aux_88, aux_89, aux_90, aux_91, aux_92, aux_93, aux_94, aux_95, aux_96, aux_97, aux_98, aux_99, aux_100, aux_101, aux_102, aux_103, aux_104, aux_105, aux_106, aux_107, aux_108, aux_109 *= PhaseOnZero(-0.0006523360773607303);
+  call TreeGen_U(KnapsackLoopBody_xs, KnapsackLoopBody_pr, KnapsackLoopBody_ok_1, KnapsackLoopBody_xs'_1, aux_72, aux_73, aux_74, aux_75, aux_76, aux_77, aux_78, aux_79, aux_80, aux_81, aux_82, aux_83, aux_84, aux_85, aux_86, aux_87, aux_88, aux_89, aux_90, aux_91, aux_92, aux_93, aux_94, aux_95, aux_96, aux_97, aux_98, aux_99, aux_100, aux_101, aux_102, aux_103, aux_104, aux_105, aux_106, aux_107, aux_108, aux_109);
+  KnapsackLoopBody_ok_1 *= Rz(0.0007462208791875804);
+  call-adj TreeGen_U(KnapsackLoopBody_xs, KnapsackLoopBody_pr, KnapsackLoopBody_ok_1, KnapsackLoopBody_xs'_1, aux_72, aux_73, aux_74, aux_75, aux_76, aux_77, aux_78, aux_79, aux_80, aux_81, aux_82, aux_83, aux_84, aux_85, aux_86, aux_87, aux_88, aux_89, aux_90, aux_91, aux_92, aux_93, aux_94, aux_95, aux_96, aux_97, aux_98, aux_99, aux_100, aux_101, aux_102, aux_103, aux_104, aux_105, aux_106, aux_107, aux_108, aux_109);
+  KnapsackLoopBody_ok_1, KnapsackLoopBody_xs'_1, aux_72, aux_73, aux_74, aux_75, aux_76, aux_77, aux_78, aux_79, aux_80, aux_81, aux_82, aux_83, aux_84, aux_85, aux_86, aux_87, aux_88, aux_89, aux_90, aux_91, aux_92, aux_93, aux_94, aux_95, aux_96, aux_97, aux_98, aux_99, aux_100, aux_101, aux_102, aux_103, aux_104, aux_105, aux_106, aux_107, aux_108, aux_109 *= PhaseOnZero(-0.0008531036527738527);
+  call TreeGen_U(KnapsackLoopBody_xs, KnapsackLoopBody_pr, KnapsackLoopBody_ok_1, KnapsackLoopBody_xs'_1, aux_72, aux_73, aux_74, aux_75, aux_76, aux_77, aux_78, aux_79, aux_80, aux_81, aux_82, aux_83, aux_84, aux_85, aux_86, aux_87, aux_88, aux_89, aux_90, aux_91, aux_92, aux_93, aux_94, aux_95, aux_96, aux_97, aux_98, aux_99, aux_100, aux_101, aux_102, aux_103, aux_104, aux_105, aux_106, aux_107, aux_108, aux_109);
+  KnapsackLoopBody_ok_1 *= Rz(0.000977072800026606);
+  call-adj TreeGen_U(KnapsackLoopBody_xs, KnapsackLoopBody_pr, KnapsackLoopBody_ok_1, KnapsackLoopBody_xs'_1, aux_72, aux_73, aux_74, aux_75, aux_76, aux_77, aux_78, aux_79, aux_80, aux_81, aux_82, aux_83, aux_84, aux_85, aux_86, aux_87, aux_88, aux_89, aux_90, aux_91, aux_92, aux_93, aux_94, aux_95, aux_96, aux_97, aux_98, aux_99, aux_100, aux_101, aux_102, aux_103, aux_104, aux_105, aux_106, aux_107, aux_108, aux_109);
+  KnapsackLoopBody_ok_1, KnapsackLoopBody_xs'_1, aux_72, aux_73, aux_74, aux_75, aux_76, aux_77, aux_78, aux_79, aux_80, aux_81, aux_82, aux_83, aux_84, aux_85, aux_86, aux_87, aux_88, aux_89, aux_90, aux_91, aux_92, aux_93, aux_94, aux_95, aux_96, aux_97, aux_98, aux_99, aux_100, aux_101, aux_102, aux_103, aux_104, aux_105, aux_106, aux_107, aux_108, aux_109 *= PhaseOnZero(-0.0011240063319286641);
+  call TreeGen_U(KnapsackLoopBody_xs, KnapsackLoopBody_pr, KnapsackLoopBody_ok_1, KnapsackLoopBody_xs'_1, aux_72, aux_73, aux_74, aux_75, aux_76, aux_77, aux_78, aux_79, aux_80, aux_81, aux_82, aux_83, aux_84, aux_85, aux_86, aux_87, aux_88, aux_89, aux_90, aux_91, aux_92, aux_93, aux_94, aux_95, aux_96, aux_97, aux_98, aux_99, aux_100, aux_101, aux_102, aux_103, aux_104, aux_105, aux_106, aux_107, aux_108, aux_109);
+  KnapsackLoopBody_ok_1 *= Rz(0.0013026936511006941);
+  call-adj TreeGen_U(KnapsackLoopBody_xs, KnapsackLoopBody_pr, KnapsackLoopBody_ok_1, KnapsackLoopBody_xs'_1, aux_72, aux_73, aux_74, aux_75, aux_76, aux_77, aux_78, aux_79, aux_80, aux_81, aux_82, aux_83, aux_84, aux_85, aux_86, aux_87, aux_88, aux_89, aux_90, aux_91, aux_92, aux_93, aux_94, aux_95, aux_96, aux_97, aux_98, aux_99, aux_100, aux_101, aux_102, aux_103, aux_104, aux_105, aux_106, aux_107, aux_108, aux_109);
+  KnapsackLoopBody_ok_1, KnapsackLoopBody_xs'_1, aux_72, aux_73, aux_74, aux_75, aux_76, aux_77, aux_78, aux_79, aux_80, aux_81, aux_82, aux_83, aux_84, aux_85, aux_86, aux_87, aux_88, aux_89, aux_90, aux_91, aux_92, aux_93, aux_94, aux_95, aux_96, aux_97, aux_98, aux_99, aux_100, aux_101, aux_102, aux_103, aux_104, aux_105, aux_106, aux_107, aux_108, aux_109 *= PhaseOnZero(-0.0015269182335347976);
+  call TreeGen_U(KnapsackLoopBody_xs, KnapsackLoopBody_pr, KnapsackLoopBody_ok_1, KnapsackLoopBody_xs'_1, aux_72, aux_73, aux_74, aux_75, aux_76, aux_77, aux_78, aux_79, aux_80, aux_81, aux_82, aux_83, aux_84, aux_85, aux_86, aux_87, aux_88, aux_89, aux_90, aux_91, aux_92, aux_93, aux_94, aux_95, aux_96, aux_97, aux_98, aux_99, aux_100, aux_101, aux_102, aux_103, aux_104, aux_105, aux_106, aux_107, aux_108, aux_109);
+  KnapsackLoopBody_ok_1 *= Rz(0.001819622370843461);
+  call-adj TreeGen_U(KnapsackLoopBody_xs, KnapsackLoopBody_pr, KnapsackLoopBody_ok_1, KnapsackLoopBody_xs'_1, aux_72, aux_73, aux_74, aux_75, aux_76, aux_77, aux_78, aux_79, aux_80, aux_81, aux_82, aux_83, aux_84, aux_85, aux_86, aux_87, aux_88, aux_89, aux_90, aux_91, aux_92, aux_93, aux_94, aux_95, aux_96, aux_97, aux_98, aux_99, aux_100, aux_101, aux_102, aux_103, aux_104, aux_105, aux_106, aux_107, aux_108, aux_109);
+  KnapsackLoopBody_ok_1, KnapsackLoopBody_xs'_1, aux_72, aux_73, aux_74, aux_75, aux_76, aux_77, aux_78, aux_79, aux_80, aux_81, aux_82, aux_83, aux_84, aux_85, aux_86, aux_87, aux_88, aux_89, aux_90, aux_91, aux_92, aux_93, aux_94, aux_95, aux_96, aux_97, aux_98, aux_99, aux_100, aux_101, aux_102, aux_103, aux_104, aux_105, aux_106, aux_107, aux_108, aux_109 *= PhaseOnZero(-0.0022220689602476425);
+  call TreeGen_U(KnapsackLoopBody_xs, KnapsackLoopBody_pr, KnapsackLoopBody_ok_1, KnapsackLoopBody_xs'_1, aux_72, aux_73, aux_74, aux_75, aux_76, aux_77, aux_78, aux_79, aux_80, aux_81, aux_82, aux_83, aux_84, aux_85, aux_86, aux_87, aux_88, aux_89, aux_90, aux_91, aux_92, aux_93, aux_94, aux_95, aux_96, aux_97, aux_98, aux_99, aux_100, aux_101, aux_102, aux_103, aux_104, aux_105, aux_106, aux_107, aux_108, aux_109);
+  KnapsackLoopBody_ok_1 *= Rz(0.0028167452554461367);
+  call-adj TreeGen_U(KnapsackLoopBody_xs, KnapsackLoopBody_pr, KnapsackLoopBody_ok_1, KnapsackLoopBody_xs'_1, aux_72, aux_73, aux_74, aux_75, aux_76, aux_77, aux_78, aux_79, aux_80, aux_81, aux_82, aux_83, aux_84, aux_85, aux_86, aux_87, aux_88, aux_89, aux_90, aux_91, aux_92, aux_93, aux_94, aux_95, aux_96, aux_97, aux_98, aux_99, aux_100, aux_101, aux_102, aux_103, aux_104, aux_105, aux_106, aux_107, aux_108, aux_109);
+  KnapsackLoopBody_ok_1, KnapsackLoopBody_xs'_1, aux_72, aux_73, aux_74, aux_75, aux_76, aux_77, aux_78, aux_79, aux_80, aux_81, aux_82, aux_83, aux_84, aux_85, aux_86, aux_87, aux_88, aux_89, aux_90, aux_91, aux_92, aux_93, aux_94, aux_95, aux_96, aux_97, aux_98, aux_99, aux_100, aux_101, aux_102, aux_103, aux_104, aux_105, aux_106, aux_107, aux_108, aux_109 *= PhaseOnZero(-0.0037960730984009164);
+  call TreeGen_U(KnapsackLoopBody_xs, KnapsackLoopBody_pr, KnapsackLoopBody_ok_1, KnapsackLoopBody_xs'_1, aux_72, aux_73, aux_74, aux_75, aux_76, aux_77, aux_78, aux_79, aux_80, aux_81, aux_82, aux_83, aux_84, aux_85, aux_86, aux_87, aux_88, aux_89, aux_90, aux_91, aux_92, aux_93, aux_94, aux_95, aux_96, aux_97, aux_98, aux_99, aux_100, aux_101, aux_102, aux_103, aux_104, aux_105, aux_106, aux_107, aux_108, aux_109);
+  KnapsackLoopBody_ok_1 *= Rz(0.005737246821149794);
+  call-adj TreeGen_U(KnapsackLoopBody_xs, KnapsackLoopBody_pr, KnapsackLoopBody_ok_1, KnapsackLoopBody_xs'_1, aux_72, aux_73, aux_74, aux_75, aux_76, aux_77, aux_78, aux_79, aux_80, aux_81, aux_82, aux_83, aux_84, aux_85, aux_86, aux_87, aux_88, aux_89, aux_90, aux_91, aux_92, aux_93, aux_94, aux_95, aux_96, aux_97, aux_98, aux_99, aux_100, aux_101, aux_102, aux_103, aux_104, aux_105, aux_106, aux_107, aux_108, aux_109);
+  KnapsackLoopBody_ok_1, KnapsackLoopBody_xs'_1, aux_72, aux_73, aux_74, aux_75, aux_76, aux_77, aux_78, aux_79, aux_80, aux_81, aux_82, aux_83, aux_84, aux_85, aux_86, aux_87, aux_88, aux_89, aux_90, aux_91, aux_92, aux_93, aux_94, aux_95, aux_96, aux_97, aux_98, aux_99, aux_100, aux_101, aux_102, aux_103, aux_104, aux_105, aux_106, aux_107, aux_108, aux_109 *= PhaseOnZero(-0.011526049168105172);
+  call TreeGen_U(KnapsackLoopBody_xs, KnapsackLoopBody_pr, KnapsackLoopBody_ok_1, KnapsackLoopBody_xs'_1, aux_72, aux_73, aux_74, aux_75, aux_76, aux_77, aux_78, aux_79, aux_80, aux_81, aux_82, aux_83, aux_84, aux_85, aux_86, aux_87, aux_88, aux_89, aux_90, aux_91, aux_92, aux_93, aux_94, aux_95, aux_96, aux_97, aux_98, aux_99, aux_100, aux_101, aux_102, aux_103, aux_104, aux_105, aux_106, aux_107, aux_108, aux_109);
+}
+
+uproc KnapsackLoopBody_U(KnapsackLoopBody_xs : IN Arr<10, Fin<2>>, KnapsackLoopBody_i : IN Fin<3>, KnapsackLoopBody_xs_next : OUT Arr<10, Fin<2>>, KnapsackLoopBody_pr : AUX Fin<1000>, KnapsackLoopBody_ok : AUX Fin<2>, KnapsackLoopBody_xs' : AUX Arr<10, Fin<2>>, KnapsackLoopBody_pr_1 : AUX Fin<1000>, aux_54 : AUX Fin<1000>, aux_55 : AUX Arr<10, Fin<2>>, aux_56 : AUX Fin<1000>, aux_57 : AUX Arr<10, Fin<2>>, aux_58 : AUX Fin<1000>, aux_59 : AUX Arr<10, Fin<2>>, aux_60 : AUX Arr<10, Fin<1000>>, aux_61 : AUX Arr<10, Fin<1000>>, aux_62 : AUX Arr<10, Fin<1000>>, aux_63 : AUX Arr<10, Fin<2>>, aux_64 : AUX Arr<10, Fin<1000>>, aux_65 : AUX Arr<10, Fin<1000>>, aux_66 : AUX Arr<10, Fin<1000>>, aux_67 : AUX Arr<10, Fin<1000>>, aux_68 : AUX Arr<10, Arr<10, Fin<2>>>, aux_69 : AUX Arr<10, Fin<10>>, aux_70 : AUX Arr<11, Arr<10, Fin<2>>>, aux_71 : AUX Arr<11, Fin<1000>>, KnapsackLoopBody_ok_1 : AUX Fin<2>, KnapsackLoopBody_xs'_1 : AUX Arr<10, Fin<2>>, aux_72 : AUX Fin<1000>, aux_73 : AUX Fin<1000>, aux_74 : AUX Fin<1000>, aux_75 : AUX Fin<1000>, aux_76 : AUX Fin<1000>, aux_77 : AUX Fin<1000>, aux_78 : AUX Arr<10, Fin<2>>, aux_79 : AUX Fin<1000>, aux_80 : AUX Fin<1000>, aux_81 : AUX Arr<10, Fin<2>>, aux_82 : AUX Arr<10, Fin<2>>, aux_83 : AUX Arr<10, Fin<2>>, aux_84 : AUX Arr<10, Fin<1000>>, aux_85 : AUX Arr<10, Fin<1000>>, aux_86 : AUX Arr<10, Fin<1000>>, aux_87 : AUX Arr<10, Fin<2>>, aux_88 : AUX Arr<10, Fin<2>>, aux_89 : AUX Arr<10, Fin<1000>>, aux_90 : AUX Arr<10, Fin<1000>>, aux_91 : AUX Arr<10, Fin<2>>, aux_92 : AUX Arr<10, Fin<2>>, aux_93 : AUX Arr<10, Fin<2>>, aux_94 : AUX Arr<10, Fin<2>>, aux_95 : AUX Arr<10, Fin<1000>>, aux_96 : AUX Arr<10, Fin<1000>>, aux_97 : AUX Arr<10, Fin<1000>>, aux_98 : AUX Arr<10, Fin<2>>, aux_99 : AUX Arr<10, Fin<2>>, aux_100 : AUX Arr<10, Arr<10, Fin<2>>>, aux_101 : AUX Arr<10, Fin<1000>>, aux_102 : AUX Arr<10, Fin<1000>>, aux_103 : AUX Arr<10, Fin<1000>>, aux_104 : AUX Arr<10, Fin<1000>>, aux_105 : AUX Arr<10, Fin<10>>, aux_106 : AUX Arr<11, Arr<10, Fin<2>>>, aux_107 : AUX Arr<11, Fin<1000>>, aux_108 : AUX Arr<11, Fin<1000>>, aux_109 : AUX Fin<2>, aux_prim : AUX Fin<1000>, aux_prim_1 : AUX Fin<1000>, aux_prim_2 : AUX Fin<1000>, aux_prim_3 : AUX Fin<1000>, aux_prim_4 : AUX Fin<1000>, aux_prim_5 : AUX Fin<1000>, aux_prim_6 : AUX Arr<10, Fin<2>>, aux_prim_7 : AUX Fin<1000>, aux_prim_8 : AUX Fin<1000>, aux_prim_9 : AUX Arr<10, Fin<2>>, aux_prim_10 : AUX Arr<10, Fin<2>>, aux_prim_11 : AUX Arr<10, Fin<2>>, aux_prim_12 : AUX Arr<10, Fin<1000>>, aux_prim_13 : AUX Arr<10, Fin<1000>>, aux_prim_14 : AUX Arr<10, Fin<1000>>, aux_prim_15 : AUX Arr<10, Fin<2>>, aux_prim_16 : AUX Arr<10, Fin<2>>, aux_prim_17 : AUX Arr<10, Fin<1000>>, aux_prim_18 : AUX Arr<10, Fin<1000>>, aux_prim_19 : AUX Arr<10, Fin<2>>, aux_prim_20 : AUX Arr<10, Fin<2>>, aux_prim_21 : AUX Arr<10, Fin<2>>, aux_prim_22 : AUX Arr<10, Fin<2>>, aux_prim_23 : AUX Arr<10, Fin<1000>>, aux_prim_24 : AUX Arr<10, Fin<1000>>, aux_prim_25 : AUX Arr<10, Fin<1000>>, aux_prim_26 : AUX Arr<10, Fin<2>>, aux_prim_27 : AUX Arr<10, Fin<2>>, aux_prim_28 : AUX Arr<10, Arr<10, Fin<2>>>, aux_prim_29 : AUX Arr<10, Fin<1000>>, aux_prim_30 : AUX Arr<10, Fin<1000>>, aux_prim_31 : AUX Arr<10, Fin<1000>>, aux_prim_32 : AUX Arr<10, Fin<1000>>, aux_prim_33 : AUX Arr<10, Fin<10>>, aux_prim_34 : AUX Arr<11, Arr<10, Fin<2>>>, aux_prim_35 : AUX Arr<11, Fin<1000>>, aux_prim_36 : AUX Arr<11, Fin<1000>>, aux_prim_37 : AUX Fin<2>, KnapsackLoopBody_xs_next_1 : AUX Arr<10, Fin<2>>) {
+  call TotalProfit_U(KnapsackLoopBody_xs, KnapsackLoopBody_pr_1, aux_54, aux_55, aux_56, aux_57, aux_58, aux_59, aux_60, aux_61, aux_62, aux_63, aux_64, aux_65, aux_66, aux_67, aux_68, aux_69, aux_70, aux_71);
+  KnapsackLoopBody_pr, KnapsackLoopBody_pr_1 *= SWAP;
+  call UAmplify(KnapsackLoopBody_xs, KnapsackLoopBody_pr, KnapsackLoopBody_ok_1, KnapsackLoopBody_xs'_1, aux_prim, aux_prim_1, aux_prim_2, aux_prim_3, aux_prim_4, aux_prim_5, aux_prim_6, aux_prim_7, aux_prim_8, aux_prim_9, aux_prim_10, aux_prim_11, aux_prim_12, aux_prim_13, aux_prim_14, aux_prim_15, aux_prim_16, aux_prim_17, aux_prim_18, aux_prim_19, aux_prim_20, aux_prim_21, aux_prim_22, aux_prim_23, aux_prim_24, aux_prim_25, aux_prim_26, aux_prim_27, aux_prim_28, aux_prim_29, aux_prim_30, aux_prim_31, aux_prim_32, aux_prim_33, aux_prim_34, aux_prim_35, aux_prim_36, aux_prim_37);
+  KnapsackLoopBody_ok, KnapsackLoopBody_xs', KnapsackLoopBody_ok_1, KnapsackLoopBody_xs'_1 *= SWAP;
+  KnapsackLoopBody_ok, KnapsackLoopBody_xs, KnapsackLoopBody_xs', KnapsackLoopBody_xs_next_1 *= Embed[(KnapsackLoopBody_ok, KnapsackLoopBody_xs, KnapsackLoopBody_xs') => (ifte KnapsackLoopBody_ok KnapsackLoopBody_xs' KnapsackLoopBody_xs)];
+  KnapsackLoopBody_xs_next, KnapsackLoopBody_xs_next_1 *= SWAP;
+}
+
+uproc Grover[k](KnapsackLoopBody_xs : Arr<10, Fin<2>>, KnapsackLoopBody_pr : Fin<1000>, KnapsackLoopBody_ok : OUT Fin<2>, KnapsackLoopBody_xs' : OUT Arr<10, Fin<2>>, aux_110 : AUX Fin<1000>, aux_111 : AUX Fin<1000>, aux_112 : AUX Fin<1000>, aux_113 : AUX Fin<1000>, aux_114 : AUX Fin<1000>, aux_115 : AUX Fin<1000>, aux_116 : AUX Arr<10, Fin<2>>, aux_117 : AUX Fin<1000>, aux_118 : AUX Fin<1000>, aux_119 : AUX Arr<10, Fin<2>>, aux_120 : AUX Arr<10, Fin<2>>, aux_121 : AUX Arr<10, Fin<2>>, aux_122 : AUX Arr<10, Fin<1000>>, aux_123 : AUX Arr<10, Fin<1000>>, aux_124 : AUX Arr<10, Fin<1000>>, aux_125 : AUX Arr<10, Fin<2>>, aux_126 : AUX Arr<10, Fin<2>>, aux_127 : AUX Arr<10, Fin<1000>>, aux_128 : AUX Arr<10, Fin<1000>>, aux_129 : AUX Arr<10, Fin<2>>, aux_130 : AUX Arr<10, Fin<2>>, aux_131 : AUX Arr<10, Fin<2>>, aux_132 : AUX Arr<10, Fin<2>>, aux_133 : AUX Arr<10, Fin<1000>>, aux_134 : AUX Arr<10, Fin<1000>>, aux_135 : AUX Arr<10, Fin<1000>>, aux_136 : AUX Arr<10, Fin<2>>, aux_137 : AUX Arr<10, Fin<2>>, aux_138 : AUX Arr<10, Arr<10, Fin<2>>>, aux_139 : AUX Arr<10, Fin<1000>>, aux_140 : AUX Arr<10, Fin<1000>>, aux_141 : AUX Arr<10, Fin<1000>>, aux_142 : AUX Arr<10, Fin<1000>>, aux_143 : AUX Arr<10, Fin<10>>, aux_144 : AUX Arr<11, Arr<10, Fin<2>>>, aux_145 : AUX Arr<11, Fin<1000>>, aux_146 : AUX Arr<11, Fin<1000>>, aux_147 : AUX Fin<2>) {
+  call TreeGen_U(KnapsackLoopBody_xs, KnapsackLoopBody_pr, KnapsackLoopBody_ok, KnapsackLoopBody_xs', aux_110, aux_111, aux_112, aux_113, aux_114, aux_115, aux_116, aux_117, aux_118, aux_119, aux_120, aux_121, aux_122, aux_123, aux_124, aux_125, aux_126, aux_127, aux_128, aux_129, aux_130, aux_131, aux_132, aux_133, aux_134, aux_135, aux_136, aux_137, aux_138, aux_139, aux_140, aux_141, aux_142, aux_143, aux_144, aux_145, aux_146, aux_147);
+  repeat (#k) {
+    KnapsackLoopBody_ok *= Z;
+    call-adj TreeGen_U(KnapsackLoopBody_xs, KnapsackLoopBody_pr, KnapsackLoopBody_ok, KnapsackLoopBody_xs', aux_110, aux_111, aux_112, aux_113, aux_114, aux_115, aux_116, aux_117, aux_118, aux_119, aux_120, aux_121, aux_122, aux_123, aux_124, aux_125, aux_126, aux_127, aux_128, aux_129, aux_130, aux_131, aux_132, aux_133, aux_134, aux_135, aux_136, aux_137, aux_138, aux_139, aux_140, aux_141, aux_142, aux_143, aux_144, aux_145, aux_146, aux_147);
+    KnapsackLoopBody_ok, KnapsackLoopBody_xs', aux_110, aux_111, aux_112, aux_113, aux_114, aux_115, aux_116, aux_117, aux_118, aux_119, aux_120, aux_121, aux_122, aux_123, aux_124, aux_125, aux_126, aux_127, aux_128, aux_129, aux_130, aux_131, aux_132, aux_133, aux_134, aux_135, aux_136, aux_137, aux_138, aux_139, aux_140, aux_141, aux_142, aux_143, aux_144, aux_145, aux_146, aux_147 *= PhaseOnZero(3.141592653589793);
+    call TreeGen_U(KnapsackLoopBody_xs, KnapsackLoopBody_pr, KnapsackLoopBody_ok, KnapsackLoopBody_xs', aux_110, aux_111, aux_112, aux_113, aux_114, aux_115, aux_116, aux_117, aux_118, aux_119, aux_120, aux_121, aux_122, aux_123, aux_124, aux_125, aux_126, aux_127, aux_128, aux_129, aux_130, aux_131, aux_132, aux_133, aux_134, aux_135, aux_136, aux_137, aux_138, aux_139, aux_140, aux_141, aux_142, aux_143, aux_144, aux_145, aux_146, aux_147);
+  }
+}
+
+proc QAmplify(KnapsackLoopBody_xs : Arr<10, Fin<2>>, KnapsackLoopBody_pr : Fin<1000>, KnapsackLoopBody_ok : Fin<2>, KnapsackLoopBody_xs' : Arr<10, Fin<2>>) { locals : (not_done : Fin<2>, Q_sum : Fin<92>, j : Fin<92>, j_lim : Fin<92>) } {
+  not_done := 0:Fin<2>;
+  repeat (8) {
+    Q_sum := 0:Fin<92>;
+    for (j_lim in [1:Fin<92>, 1:Fin<92>, 1:Fin<92>, 2:Fin<92>, 2:Fin<92>, 2:Fin<92>, 3:Fin<92>, 4:Fin<92>, 5:Fin<92>, 6:Fin<92>, 7:Fin<92>, 8:Fin<92>, 10:Fin<92>, 10:Fin<92>, 10:Fin<92>, 10:Fin<92>, 10:Fin<92>]) {
+      j :=$ [1 .. j_lim];
+      Q_sum := (Q_sum + j);
+      not_done := (not_done && (Q_sum <= j_lim));
+      if (not_done) {
+        meas Grover[j](KnapsackLoopBody_xs, KnapsackLoopBody_pr, KnapsackLoopBody_ok, KnapsackLoopBody_xs');
+        not_done := (not_done && not KnapsackLoopBody_ok);
+      } else {
+        skip;
+      }
+    }
+  }
+}
+
+proc KnapsackLoopBody(KnapsackLoopBody_xs : Arr<10, Fin<2>>, KnapsackLoopBody_i : Fin<3>, KnapsackLoopBody_xs_next : Arr<10, Fin<2>>) { locals : (KnapsackLoopBody_pr : Fin<1000>, KnapsackLoopBody_ok : Fin<2>, KnapsackLoopBody_xs' : Arr<10, Fin<2>>) } {
+  call TotalProfit(KnapsackLoopBody_xs, KnapsackLoopBody_pr);
+  call QAmplify(KnapsackLoopBody_xs, KnapsackLoopBody_pr, KnapsackLoopBody_ok, KnapsackLoopBody_xs');
+  KnapsackLoopBody_xs_next := (ifte KnapsackLoopBody_ok KnapsackLoopBody_xs' KnapsackLoopBody_xs);
+}
+
+uproc Knapsack_U(Knapsack_xs' : OUT Arr<10, Fin<2>>, Knapsack_xs : AUX Arr<10, Fin<2>>, Knapsack_xs_1 : AUX Arr<10, Fin<2>>, Knapsack_xs'_1 : AUX Arr<10, Fin<2>>, aux_110 : AUX Arr<3, Fin<1000>>, aux_111 : AUX Arr<3, Fin<2>>, aux_112 : AUX Arr<3, Arr<10, Fin<2>>>, aux_113 : AUX Arr<3, Fin<1000>>, aux_114 : AUX Arr<3, Fin<1000>>, aux_115 : AUX Arr<3, Arr<10, Fin<2>>>, aux_116 : AUX Arr<3, Fin<1000>>, aux_117 : AUX Arr<3, Arr<10, Fin<2>>>, aux_118 : AUX Arr<3, Fin<1000>>, aux_119 : AUX Arr<3, Arr<10, Fin<2>>>, aux_120 : AUX Arr<3, Arr<10, Fin<1000>>>, aux_121 : AUX Arr<3, Arr<10, Fin<1000>>>, aux_122 : AUX Arr<3, Arr<10, Fin<1000>>>, aux_123 : AUX Arr<3, Arr<10, Fin<2>>>, aux_124 : AUX Arr<3, Arr<10, Fin<1000>>>, aux_125 : AUX Arr<3, Arr<10, Fin<1000>>>, aux_126 : AUX Arr<3, Arr<10, Fin<1000>>>, aux_127 : AUX Arr<3, Arr<10, Fin<1000>>>, aux_128 : AUX Arr<3, Arr<10, Arr<10, Fin<2>>>>, aux_129 : AUX Arr<3, Arr<10, Fin<10>>>, aux_130 : AUX Arr<3, Arr<11, Arr<10, Fin<2>>>>, aux_131 : AUX Arr<3, Arr<11, Fin<1000>>>, aux_132 : AUX Arr<3, Fin<2>>, aux_133 : AUX Arr<3, Arr<10, Fin<2>>>, aux_134 : AUX Arr<3, Fin<1000>>, aux_135 : AUX Arr<3, Fin<1000>>, aux_136 : AUX Arr<3, Fin<1000>>, aux_137 : AUX Arr<3, Fin<1000>>, aux_138 : AUX Arr<3, Fin<1000>>, aux_139 : AUX Arr<3, Fin<1000>>, aux_140 : AUX Arr<3, Arr<10, Fin<2>>>, aux_141 : AUX Arr<3, Fin<1000>>, aux_142 : AUX Arr<3, Fin<1000>>, aux_143 : AUX Arr<3, Arr<10, Fin<2>>>, aux_144 : AUX Arr<3, Arr<10, Fin<2>>>, aux_145 : AUX Arr<3, Arr<10, Fin<2>>>, aux_146 : AUX Arr<3, Arr<10, Fin<1000>>>, aux_147 : AUX Arr<3, Arr<10, Fin<1000>>>, aux_148 : AUX Arr<3, Arr<10, Fin<1000>>>, aux_149 : AUX Arr<3, Arr<10, Fin<2>>>, aux_150 : AUX Arr<3, Arr<10, Fin<2>>>, aux_151 : AUX Arr<3, Arr<10, Fin<1000>>>, aux_152 : AUX Arr<3, Arr<10, Fin<1000>>>, aux_153 : AUX Arr<3, Arr<10, Fin<2>>>, aux_154 : AUX Arr<3, Arr<10, Fin<2>>>, aux_155 : AUX Arr<3, Arr<10, Fin<2>>>, aux_156 : AUX Arr<3, Arr<10, Fin<2>>>, aux_157 : AUX Arr<3, Arr<10, Fin<1000>>>, aux_158 : AUX Arr<3, Arr<10, Fin<1000>>>, aux_159 : AUX Arr<3, Arr<10, Fin<1000>>>, aux_160 : AUX Arr<3, Arr<10, Fin<2>>>, aux_161 : AUX Arr<3, Arr<10, Fin<2>>>, aux_162 : AUX Arr<3, Arr<10, Arr<10, Fin<2>>>>, aux_163 : AUX Arr<3, Arr<10, Fin<1000>>>, aux_164 : AUX Arr<3, Arr<10, Fin<1000>>>, aux_165 : AUX Arr<3, Arr<10, Fin<1000>>>, aux_166 : AUX Arr<3, Arr<10, Fin<1000>>>, aux_167 : AUX Arr<3, Arr<10, Fin<10>>>, aux_168 : AUX Arr<3, Arr<11, Arr<10, Fin<2>>>>, aux_169 : AUX Arr<3, Arr<11, Fin<1000>>>, aux_170 : AUX Arr<3, Arr<11, Fin<1000>>>, aux_171 : AUX Arr<3, Fin<2>>, aux_172 : AUX Arr<3, Fin<1000>>, aux_173 : AUX Arr<3, Fin<1000>>, aux_174 : AUX Arr<3, Fin<1000>>, aux_175 : AUX Arr<3, Fin<1000>>, aux_176 : AUX Arr<3, Fin<1000>>, aux_177 : AUX Arr<3, Fin<1000>>, aux_178 : AUX Arr<3, Arr<10, Fin<2>>>, aux_179 : AUX Arr<3, Fin<1000>>, aux_180 : AUX Arr<3, Fin<1000>>, aux_181 : AUX Arr<3, Arr<10, Fin<2>>>, aux_182 : AUX Arr<3, Arr<10, Fin<2>>>, aux_183 : AUX Arr<3, Arr<10, Fin<2>>>, aux_184 : AUX Arr<3, Arr<10, Fin<1000>>>, aux_185 : AUX Arr<3, Arr<10, Fin<1000>>>, aux_186 : AUX Arr<3, Arr<10, Fin<1000>>>, aux_187 : AUX Arr<3, Arr<10, Fin<2>>>, aux_188 : AUX Arr<3, Arr<10, Fin<2>>>, aux_189 : AUX Arr<3, Arr<10, Fin<1000>>>, aux_190 : AUX Arr<3, Arr<10, Fin<1000>>>, aux_191 : AUX Arr<3, Arr<10, Fin<2>>>, aux_192 : AUX Arr<3, Arr<10, Fin<2>>>, aux_193 : AUX Arr<3, Arr<10, Fin<2>>>, aux_194 : AUX Arr<3, Arr<10, Fin<2>>>, aux_195 : AUX Arr<3, Arr<10, Fin<1000>>>, aux_196 : AUX Arr<3, Arr<10, Fin<1000>>>, aux_197 : AUX Arr<3, Arr<10, Fin<1000>>>, aux_198 : AUX Arr<3, Arr<10, Fin<2>>>, aux_199 : AUX Arr<3, Arr<10, Fin<2>>>, aux_200 : AUX Arr<3, Arr<10, Arr<10, Fin<2>>>>, aux_201 : AUX Arr<3, Arr<10, Fin<1000>>>, aux_202 : AUX Arr<3, Arr<10, Fin<1000>>>, aux_203 : AUX Arr<3, Arr<10, Fin<1000>>>, aux_204 : AUX Arr<3, Arr<10, Fin<1000>>>, aux_205 : AUX Arr<3, Arr<10, Fin<10>>>, aux_206 : AUX Arr<3, Arr<11, Arr<10, Fin<2>>>>, aux_207 : AUX Arr<3, Arr<11, Fin<1000>>>, aux_208 : AUX Arr<3, Arr<11, Fin<1000>>>, aux_209 : AUX Arr<3, Fin<2>>, aux_210 : AUX Arr<3, Arr<10, Fin<2>>>, aux_211 : AUX Arr<3, Fin<3>>, aux_212 : AUX Arr<4, Arr<10, Fin<2>>>) {
+  Knapsack_xs_1 *= Embed[() => default : Arr<10, Fin<2>>];
+  Knapsack_xs, Knapsack_xs_1 *= SWAP;
+  Knapsack_xs, aux_212[0] *= COPY;
+  for (#ITER_6 in 0 .. < 3) {
+    call KnapsackLoopBody_U(aux_212[#ITER_6], aux_211[#ITER_6], aux_212[#ITER_6], aux_110[#ITER_6], aux_111[#ITER_6], aux_112[#ITER_6], aux_113[#ITER_6], aux_114[#ITER_6], aux_115[#ITER_6], aux_116[#ITER_6], aux_117[#ITER_6], aux_118[#ITER_6], aux_119[#ITER_6], aux_120[#ITER_6], aux_121[#ITER_6], aux_122[#ITER_6], aux_123[#ITER_6], aux_124[#ITER_6], aux_125[#ITER_6], aux_126[#ITER_6], aux_127[#ITER_6], aux_128[#ITER_6], aux_129[#ITER_6], aux_130[#ITER_6], aux_131[#ITER_6], aux_132[#ITER_6], aux_133[#ITER_6], aux_134[#ITER_6], aux_135[#ITER_6], aux_136[#ITER_6], aux_137[#ITER_6], aux_138[#ITER_6], aux_139[#ITER_6], aux_140[#ITER_6], aux_141[#ITER_6], aux_142[#ITER_6], aux_143[#ITER_6], aux_144[#ITER_6], aux_145[#ITER_6], aux_146[#ITER_6], aux_147[#ITER_6], aux_148[#ITER_6], aux_149[#ITER_6], aux_150[#ITER_6], aux_151[#ITER_6], aux_152[#ITER_6], aux_153[#ITER_6], aux_154[#ITER_6], aux_155[#ITER_6], aux_156[#ITER_6], aux_157[#ITER_6], aux_158[#ITER_6], aux_159[#ITER_6], aux_160[#ITER_6], aux_161[#ITER_6], aux_162[#ITER_6], aux_163[#ITER_6], aux_164[#ITER_6], aux_165[#ITER_6], aux_166[#ITER_6], aux_167[#ITER_6], aux_168[#ITER_6], aux_169[#ITER_6], aux_170[#ITER_6], aux_171[#ITER_6], aux_172[#ITER_6], aux_173[#ITER_6], aux_174[#ITER_6], aux_175[#ITER_6], aux_176[#ITER_6], aux_177[#ITER_6], aux_178[#ITER_6], aux_179[#ITER_6], aux_180[#ITER_6], aux_181[#ITER_6], aux_182[#ITER_6], aux_183[#ITER_6], aux_184[#ITER_6], aux_185[#ITER_6], aux_186[#ITER_6], aux_187[#ITER_6], aux_188[#ITER_6], aux_189[#ITER_6], aux_190[#ITER_6], aux_191[#ITER_6], aux_192[#ITER_6], aux_193[#ITER_6], aux_194[#ITER_6], aux_195[#ITER_6], aux_196[#ITER_6], aux_197[#ITER_6], aux_198[#ITER_6], aux_199[#ITER_6], aux_200[#ITER_6], aux_201[#ITER_6], aux_202[#ITER_6], aux_203[#ITER_6], aux_204[#ITER_6], aux_205[#ITER_6], aux_206[#ITER_6], aux_207[#ITER_6], aux_208[#ITER_6], aux_209[#ITER_6], aux_210[#ITER_6]);
+  }
+  aux_212[3], Knapsack_xs'_1 *= COPY;
+  Knapsack_xs', Knapsack_xs'_1 *= SWAP;
+}
+
+proc Knapsack(Knapsack_xs' : Arr<10, Fin<2>>) { locals : (Knapsack_xs : Arr<10, Fin<2>>, iter_3 : Fin<3>) } {
+  Knapsack_xs := default : Arr<10, Fin<2>>;
+  Knapsack_xs' := Knapsack_xs;
+  for (#ITER_7 in 0 .. < 3) {
+    iter_3 := #ITER_7;
+    call KnapsackLoopBody(Knapsack_xs', iter_3, Knapsack_xs');
+  }
+}
+
+
+// qubits: 14858

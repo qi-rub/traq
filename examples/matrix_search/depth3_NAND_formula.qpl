@@ -14,7 +14,7 @@ proc NOR_0(i0 : Fin<20>, j0 : Fin<10>, k0 : Fin<10>, e' : Fin<2>) { locals : (e 
   e' := not e;
 }
 
-// UAny[Fin 10, 3.8011955e-32]
+// UAny[Fin 10, 3.801194009254654e-32]
 uproc UAny(i1 : Fin<20>, j1 : Fin<10>, or_1_1 : OUT Fin<2>, s_result : OUT Fin<10>, aux : AUX Fin<2>, aux_1 : AUX Fin<2>, aux_2 : AUX Fin<2>, aux_3 : AUX Fin<2>, ctrl : AUX Arr<146, Fin<2>>, pred_out : AUX Arr<146, Fin<2>>, n_iter : AUX Arr<146, Fin<3>>, s_arg : AUX Arr<146, Fin<10>>) {
   for (#run_ix in 0 .. < 146) {
     n_iter[#run_ix] *= Distr[uniform : Fin<3>];
@@ -27,7 +27,7 @@ uproc UAny(i1 : Fin<20>, j1 : Fin<10>, or_1_1 : OUT Fin<2>, s_result : OUT Fin<1
       ctrl[#run_ix], aux_3, pred_out[#run_ix] *= Toffoli;
       call-adj NOR_0_U(i1, j1, s_arg[#run_ix], aux_3, aux, aux_1, aux_2);
       s_arg[#run_ix] *= Adj-Distr[uniform : Fin<10>];
-      s_arg[#run_ix] *= Refl0;
+      s_arg[#run_ix] *= PhaseOnZero(3.141592653589793);
       s_arg[#run_ix] *= Distr[uniform : Fin<10>];
       n_iter[#run_ix], ctrl[#run_ix] *= Embed[(a) => (a <= #LIM)];
     }
@@ -59,14 +59,14 @@ uproc Grover[k](i1 : Fin<20>, j1 : Fin<10>, x : IN Fin<10>, or_1 : OUT Fin<2>, a
   repeat (#k) {
     call NOR_0_U(i1, j1, x, or_1, aux_4, aux_5, aux_6);
     x *= Adj-Distr[uniform : Fin<10>];
-    x *= Refl0;
+    x *= PhaseOnZero(3.141592653589793);
     x *= Distr[uniform : Fin<10>];
   }
   or_1 *= H;
   or_1 *= X;
 }
 
-// QAny[3.8011955e-32]
+// QAny[3.801194009254654e-32]
 proc QAny(i1 : Fin<20>, j1 : Fin<10>, or_1 : Fin<2>) { locals : (not_done : Fin<2>, Q_sum : Fin<30>, j : Fin<30>, j_lim : Fin<30>, s_result_1 : Fin<10>) } {
   repeat (66) {
     Q_sum := 0:Fin<30>;
@@ -90,7 +90,7 @@ proc NOR_1(i1 : Fin<20>, j1 : Fin<10>, nor_1 : Fin<2>) { locals : (or_1 : Fin<2>
   nor_1 := not or_1;
 }
 
-// UAny[Fin 10, 1.3387059e-13]
+// UAny[Fin 10, 1.3387056295712027e-13]
 uproc UAny_1(i2 : Fin<20>, or_2_1 : OUT Fin<2>, s_result_2 : OUT Fin<10>, aux_7 : AUX Fin<2>, aux_8 : AUX Fin<2>, aux_9 : AUX Fin<10>, aux_10 : AUX Fin<2>, aux_11 : AUX Fin<2>, aux_12 : AUX Fin<2>, aux_13 : AUX Fin<2>, aux_14 : AUX Arr<146, Fin<2>>, aux_15 : AUX Arr<146, Fin<2>>, aux_16 : AUX Arr<146, Fin<3>>, aux_17 : AUX Arr<146, Fin<10>>, aux_18 : AUX Fin<10>, aux_19 : AUX Fin<2>, aux_20 : AUX Fin<2>, aux_21 : AUX Fin<2>, aux_22 : AUX Fin<2>, aux_23 : AUX Arr<146, Fin<2>>, aux_24 : AUX Arr<146, Fin<2>>, aux_25 : AUX Arr<146, Fin<3>>, aux_26 : AUX Arr<146, Fin<10>>, aux_27 : AUX Fin<2>, aux_28 : AUX Fin<2>, ctrl_1 : AUX Arr<60, Fin<2>>, pred_out_1 : AUX Arr<60, Fin<2>>, n_iter_1 : AUX Arr<60, Fin<3>>, s_arg_1 : AUX Arr<60, Fin<10>>) {
   for (#run_ix in 0 .. < 60) {
     n_iter_1[#run_ix] *= Distr[uniform : Fin<3>];
@@ -103,7 +103,7 @@ uproc UAny_1(i2 : Fin<20>, or_2_1 : OUT Fin<2>, s_result_2 : OUT Fin<10>, aux_7 
       ctrl_1[#run_ix], aux_28, pred_out_1[#run_ix] *= Toffoli;
       call-adj NOR_1_U(i2, s_arg_1[#run_ix], aux_28, aux_7, aux_8, aux_9, aux_10, aux_11, aux_12, aux_13, aux_14, aux_15, aux_16, aux_17, aux_18, aux_19, aux_20, aux_21, aux_22, aux_23, aux_24, aux_25, aux_26, aux_27);
       s_arg_1[#run_ix] *= Adj-Distr[uniform : Fin<10>];
-      s_arg_1[#run_ix] *= Refl0;
+      s_arg_1[#run_ix] *= PhaseOnZero(3.141592653589793);
       s_arg_1[#run_ix] *= Distr[uniform : Fin<10>];
       n_iter_1[#run_ix], ctrl_1[#run_ix] *= Embed[(a) => (a <= #LIM)];
     }
@@ -135,14 +135,14 @@ uproc Grover_1[k](i2 : Fin<20>, x_1 : IN Fin<10>, or_2 : OUT Fin<2>, aux_29 : AU
   repeat (#k) {
     call NOR_1_U(i2, x_1, or_2, aux_29, aux_30, aux_31, aux_32, aux_33, aux_34, aux_35, aux_36, aux_37, aux_38, aux_39, aux_40, aux_41, aux_42, aux_43, aux_44, aux_45, aux_46, aux_47, aux_48, aux_49);
     x_1 *= Adj-Distr[uniform : Fin<10>];
-    x_1 *= Refl0;
+    x_1 *= PhaseOnZero(3.141592653589793);
     x_1 *= Distr[uniform : Fin<10>];
   }
   or_2 *= H;
   or_2 *= X;
 }
 
-// QAny[1.3387059e-13]
+// QAny[1.3387056295712027e-13]
 proc QAny_1(i2 : Fin<20>, or_2 : Fin<2>) { locals : (not_done_1 : Fin<2>, Q_sum_1 : Fin<30>, j_1 : Fin<30>, j_lim_1 : Fin<30>, s_result_3 : Fin<10>) } {
   repeat (27) {
     Q_sum_1 := 0:Fin<30>;
@@ -179,7 +179,7 @@ uproc UAny_2(or_3_1 : OUT Fin<2>, s_result_4 : OUT Fin<20>, aux_50 : AUX Fin<2>,
       ctrl_2[#run_ix], aux_107, pred_out_2[#run_ix] *= Toffoli;
       call-adj NOR_2_U(s_arg_2[#run_ix], aux_107, aux_50, aux_51, aux_52, aux_53, aux_54, aux_55, aux_56, aux_57, aux_58, aux_59, aux_60, aux_61, aux_62, aux_63, aux_64, aux_65, aux_66, aux_67, aux_68, aux_69, aux_70, aux_71, aux_72, aux_73, aux_74, aux_75, aux_76, aux_77, aux_78, aux_79, aux_80, aux_81, aux_82, aux_83, aux_84, aux_85, aux_86, aux_87, aux_88, aux_89, aux_90, aux_91, aux_92, aux_93, aux_94, aux_95, aux_96, aux_97, aux_98, aux_99, aux_100, aux_101, aux_102, aux_103, aux_104, aux_105, aux_106);
       s_arg_2[#run_ix] *= Adj-Distr[uniform : Fin<20>];
-      s_arg_2[#run_ix] *= Refl0;
+      s_arg_2[#run_ix] *= PhaseOnZero(3.141592653589793);
       s_arg_2[#run_ix] *= Distr[uniform : Fin<20>];
       n_iter_2[#run_ix], ctrl_2[#run_ix] *= Embed[(a) => (a <= #LIM)];
     }
@@ -209,7 +209,7 @@ uproc Grover_2[k](x_2 : IN Fin<20>, or_3 : OUT Fin<2>, aux_108 : AUX Fin<2>, aux
   repeat (#k) {
     call NOR_2_U(x_2, or_3, aux_108, aux_109, aux_110, aux_111, aux_112, aux_113, aux_114, aux_115, aux_116, aux_117, aux_118, aux_119, aux_120, aux_121, aux_122, aux_123, aux_124, aux_125, aux_126, aux_127, aux_128, aux_129, aux_130, aux_131, aux_132, aux_133, aux_134, aux_135, aux_136, aux_137, aux_138, aux_139, aux_140, aux_141, aux_142, aux_143, aux_144, aux_145, aux_146, aux_147, aux_148, aux_149, aux_150, aux_151, aux_152, aux_153, aux_154, aux_155, aux_156, aux_157, aux_158, aux_159, aux_160, aux_161, aux_162, aux_163, aux_164);
     x_2 *= Adj-Distr[uniform : Fin<20>];
-    x_2 *= Refl0;
+    x_2 *= PhaseOnZero(3.141592653589793);
     x_2 *= Distr[uniform : Fin<20>];
   }
   or_3 *= H;
