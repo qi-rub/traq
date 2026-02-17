@@ -16,7 +16,6 @@ import Traq.Prelude
 import Traq.Primitives
 import Traq.ProtoLang
 import qualified Traq.ProtoLang as P
-import qualified Traq.Utils.Printing as PP
 
 import Test.Hspec
 import TestHelpers
@@ -128,18 +127,8 @@ spec = do
 
       it "lowers" $ do
         ex <- P.renameVars' <$> loadKnapsack 2 20 30 2
-
-        putStrLn $ replicate 80 '='
-        putStrLn $ PP.toCodeString ex
-        putStrLn $ replicate 80 '='
-
         ex' <- expectRight $ A.annotateProgWith (_exts (A.annSinglePrim eps)) ex
         assertRight $ Compiler.lowerProgram ex'
-
-        ex_uqpl <- expectRight $ Compiler.lowerProgram ex'
-        putStrLn $ replicate 80 '='
-        putStrLn $ PP.toCodeString ex_uqpl
-        putStrLn $ replicate 80 '='
 
       it "typechecks" $ do
         ex <- P.renameVars' <$> loadKnapsack 2 20 30 2

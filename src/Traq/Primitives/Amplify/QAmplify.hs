@@ -128,6 +128,7 @@ instance (Floating prec, RealFrac prec) => UnitaryCompilePrim (QAmplify size pre
   compileUPrim (QAmplify Amplify{p_min}) eps = do
     -- return vars and types
     rets <- view $ to ret_vars
+    let b = head rets
     ret_tys <- forM rets $ \x -> do
       mty <- use $ P._typingCtx . Ctx.at x
       maybeWithError "" mty
@@ -138,6 +139,12 @@ instance (Floating prec, RealFrac prec) => UnitaryCompilePrim (QAmplify size pre
 
     -- parameters
     let l = ceiling ((_FPAA_L eps p_min - 1) / 2.0) :: Int
+    let _L = 2 * l + 1 :: Int
+
+    let acot x = atan (1 / x) :: Double
+    let gamma = acosh ((1.0 / fromIntegral _L) * cosh (1.0 / sqrt (A.getFailProb eps))) :: prec
+    let alphas = [2.0 * acot (tan (2 * pi * fromIntegral i / fromIntegral _L) * (1.0 - realToFrac gamma ** 2)) | i <- [1 .. l]]
+    let betas = map negate $ reverse alphas
 
     -- algorithm
     qamplify_proc_name <- lift $ Compiler.newIdent "UAmplify"
@@ -148,7 +155,18 @@ instance (Floating prec, RealFrac prec) => UnitaryCompilePrim (QAmplify size pre
             ++ zip3 rets (repeat CQPL.ParamOut) ret_tys
             ++ zip3 pred_aux (repeat CQPL.ParamAux) pred_aux_tys
 
-    let uproc_body_stmt = CQPL.UCommentS "TODO"
+    let sampler_call = call_upred (map CQPL.Arg (rets ++ pred_aux))
+    let uproc_body_stmt =
+          CQPL.USeqS $
+            sampler_call
+              : concat
+                [ [ CQPL.UnitaryS [CQPL.Arg b] $ CQPL.BasicGateU $ CQPL.Rz beta
+                  , CQPL.adjoint sampler_call
+                  , CQPL.UnitaryS (map CQPL.Arg (rets ++ pred_aux)) $ CQPL.BasicGateU $ CQPL.PhaseOnZero (-alpha)
+                  , sampler_call
+                  ]
+                | (alpha, beta) <- zip alphas betas
+                ]
 
     return
       CQPL.ProcDef
