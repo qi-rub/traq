@@ -56,7 +56,7 @@ uproc SimonOneRound_U_1(innerAttack_k : BitVec<20>, x_1 : OUT BitVec<20>, y_1 : 
 }
 
 proc QSimon(innerAttack_k : BitVec<20>, innerAttack_k1 : BitVec<20>) { locals : (QSimon__u : Arr<79, BitVec<20>>) } {
-  for (i_1 in 0 .. < 79) {
+  for (#i_1 in 0 .. < 79) {
     meas SimonOneRound_U_1(QSimon__u[#i_1]);
   }
   // simon's post-processing: solve linear system: (innerAttack_k1) . (QSimon__u) = 0

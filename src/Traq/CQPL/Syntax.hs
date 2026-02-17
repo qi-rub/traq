@@ -287,7 +287,7 @@ instance (Show sizeT) => PP.ToCodeString (Stmt sizeT) where
   build ForInRangeS{iter_meta_var, iter_lim, loop_body} = do
     n <- PP.fromBuild iter_lim
     PP.bracedBlockWith
-      (printf "for (%s in 0 .. < %s)" iter_meta_var n)
+      (printf "for (#%s in 0 .. < %s)" iter_meta_var n)
       $ PP.build loop_body
 
 -- ================================================================================
