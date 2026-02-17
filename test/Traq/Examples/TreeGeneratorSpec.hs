@@ -123,7 +123,7 @@ spec = do
                                , ([ArrV [FinV 1, FinV 1]], 0.2)
                                ]
 
-    fdescribe "Compile" $ do
+    describe "Compile" $ do
       let eps = A.failProb (0.0001 :: Double)
 
       it "lowers" $ do

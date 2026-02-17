@@ -255,7 +255,7 @@ addGroverIteration c x b = do
   let unifX = CQPL.DistrU (P.UniformE x_ty)
   addPredCall c x b
   writeElem $ CQPL.UnitaryS [x] (CQPL.Adjoint unifX)
-  writeElem $ CQPL.UnitaryS [x] CQPL.Refl0
+  writeElem $ CQPL.UnitaryS [x] (CQPL.BasicGateU (CQPL.PhaseOnZero pi)) -- reflect on |0>
   writeElem $ CQPL.UnitaryS [x] unifX
 
 algoQSearchZalkaRandomIterStep ::
@@ -506,7 +506,7 @@ groverK k (x, x_ty) b mk_pred =
     CQPL.USeqS
       [ mk_pred x b
       , CQPL.UnitaryS [CQPL.Arg x] (CQPL.Adjoint unifX)
-      , CQPL.UnitaryS [CQPL.Arg x] CQPL.Refl0
+      , CQPL.UnitaryS [CQPL.Arg x] (CQPL.BasicGateU (CQPL.PhaseOnZero pi))
       , CQPL.UnitaryS [CQPL.Arg x] unifX
       ]
 

@@ -11,13 +11,17 @@ module Traq.Primitives.Amplify.QAmplify (
   _EQSearch,
 ) where
 
+import Control.Monad (forM)
 import Control.Monad.Trans (lift)
 import GHC.Generics (Generic)
+import Text.Printf (printf)
 
 import Lens.Micro.GHC
 import Lens.Micro.Mtl
 import qualified Numeric.Algebra as Alg
 
+import Traq.Control.Monad
+import qualified Traq.Data.Context as Ctx
 import qualified Traq.Data.Probability as Prob
 import Traq.Data.Subtyping
 
@@ -120,10 +124,30 @@ instance (P.EvalReqs size prec, Floating prec, Ord prec) => QuantumExpCostPrim (
 -- Compilation
 -- ================================================================================
 
-instance UnitaryCompilePrim (QAmplify size prec) size prec where
-  compileUPrim (QAmplify Amplify{}) eps = do
-    let qamplify_proc_name = "UAmplify"
-    let all_params = [] :: [(Ident, CQPL.ParamTag, P.VarType size)]
+instance (Floating prec, RealFrac prec) => UnitaryCompilePrim (QAmplify size prec) size prec where
+  compileUPrim (QAmplify Amplify{p_min}) eps = do
+    -- return vars and types
+    rets <- view $ to ret_vars
+    ret_tys <- forM rets $ \x -> do
+      mty <- use $ P._typingCtx . Ctx.at x
+      maybeWithError "" mty
+
+    -- sampler
+    (SamplerFn call_upred) <- view $ to mk_ucall
+    (SamplerFn pred_aux_tys) <- view $ to uproc_aux_types
+
+    -- parameters
+    let l = ceiling ((_FPAA_L eps p_min - 1) / 2.0) :: Int
+
+    -- algorithm
+    qamplify_proc_name <- lift $ Compiler.newIdent "UAmplify"
+    pred_aux <- lift $ mapM Compiler.allocAncilla pred_aux_tys
+
+    let all_params =
+          zip3 [] (repeat CQPL.ParamInp) []
+            ++ zip3 rets (repeat CQPL.ParamOut) ret_tys
+            ++ zip3 pred_aux (repeat CQPL.ParamAux) pred_aux_tys
+
     let uproc_body_stmt = CQPL.UCommentS "TODO"
 
     return
@@ -141,10 +165,21 @@ instance UnitaryCompilePrim (QAmplify size prec) size prec where
                 }
         }
 
-instance QuantumCompilePrim (QAmplify size prec) size prec where
-  compileQPrim (QAmplify Amplify{}) eps = do
+instance (Floating prec, RealFrac prec) => QuantumCompilePrim (QAmplify size prec) size prec where
+  compileQPrim (QAmplify Amplify{p_min}) eps = do
+    -- return vars and types
+    rets <- view $ to ret_vars
+    ret_tys <- forM rets $ \x -> do
+      mty <- use $ P._typingCtx . Ctx.at x
+      maybeWithError "" mty
+
+    -- sampler
+    (SamplerFn call_upred) <- view $ to mk_ucall
+    (SamplerFn pred_aux_tys) <- view $ to uproc_aux_types
+
+    -- algorithm
     qamplify_proc_name <- lift $ Compiler.newIdent "QAmplify"
-    let args = []
+    let args = zip rets ret_tys
     let local_vars = []
     let cproc_body_stmt = CQPL.CommentS "TODO"
 

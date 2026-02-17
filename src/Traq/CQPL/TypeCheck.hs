@@ -128,16 +128,18 @@ type TypeChecker sizeT = ReaderT (CheckingCtx sizeT) (Either Err.MyError)
 -- Type Checking
 -- ================================================================================
 
+typeCheckBasicGate :: forall size. (P.TypingReqs size) => BasicGate -> [P.VarType size] -> TypeChecker size ()
+typeCheckBasicGate Toffoli tys = verifyArgTys tys [P.tbool, P.tbool, P.tbool]
+typeCheckBasicGate CNOT tys = verifyArgTys tys [P.tbool, P.tbool]
+typeCheckBasicGate XGate tys = verifyArgTys tys [P.tbool]
+typeCheckBasicGate HGate tys = verifyArgTys tys [P.tbool]
+typeCheckBasicGate (Rz _) tys = verifyArgTys tys [P.tbool]
+typeCheckBasicGate (PhaseOnZero _) _ = return ()
+typeCheckBasicGate COPY tys = let n = length tys `div` 2 in verifyArgTys (take n tys) (drop n tys)
+typeCheckBasicGate SWAP tys = let n = length tys `div` 2 in verifyArgTys (take n tys) (drop n tys)
+
 typeCheckUnitary :: forall sizeT. (P.TypingReqs sizeT) => Unitary sizeT -> [P.VarType sizeT] -> TypeChecker sizeT ()
--- basic gates
-typeCheckUnitary (BasicGateU Toffoli) tys = verifyArgTys tys [P.tbool, P.tbool, P.tbool]
-typeCheckUnitary (BasicGateU CNOT) tys = verifyArgTys tys [P.tbool, P.tbool]
-typeCheckUnitary (BasicGateU XGate) tys = verifyArgTys tys [P.tbool]
-typeCheckUnitary (BasicGateU HGate) tys = verifyArgTys tys [P.tbool]
--- general gates
-typeCheckUnitary (BasicGateU COPY) tys = let n = length tys `div` 2 in verifyArgTys (take n tys) (drop n tys)
-typeCheckUnitary (BasicGateU SWAP) tys = let n = length tys `div` 2 in verifyArgTys (take n tys) (drop n tys)
-typeCheckUnitary Refl0 _ = return ()
+typeCheckUnitary (BasicGateU g) tys = typeCheckBasicGate g tys
 typeCheckUnitary (DistrU (P.UniformE ty)) tys = verifyArgTys tys [ty]
 typeCheckUnitary (DistrU (P.BernoulliE _)) tys = verifyArgTys tys [P.tbool]
 typeCheckUnitary (RevEmbedU xs e) tys = do
