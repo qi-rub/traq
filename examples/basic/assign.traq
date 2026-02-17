@@ -1,0 +1,6 @@
+fn main(x : Fin<10>) -> Fin<10> do
+	one <- const 1 : Fin<10>;
+	x <- x + one;
+	x' <- x + one;
+	return x'
+end

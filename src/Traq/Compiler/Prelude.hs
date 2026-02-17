@@ -163,6 +163,7 @@ compileWith ::
   ( m ~ CompilerT ext
   , size ~ SizeType ext
   , P.HasFreeVars ext
+  , P.TypeInferrable ext size
   ) =>
   (P.Program ext -> m ()) ->
   P.Program ext ->
@@ -170,6 +171,7 @@ compileWith ::
 compileWith compiler prog = do
   unless (P.checkVarsUnique prog) $
     throwError "program does not have unique variables!"
+  P.typeCheckProg prog
 
   let config =
         default_

@@ -64,7 +64,7 @@ subsNM params s = Sym.unSym $ foldr subsOnce s params
 
 compile :: (RealFloat precT, Show precT) => P.Program (WorstCasePrims SizeT precT) -> precT -> IO String
 compile prog eps = do
-  let prog_rn = P.renameVars' prog
+  let prog_rn = if P.checkVarsUnique prog then prog else P.renameVars' prog
   prog' <- either fail pure $ A.annotateProgWithErrorBudget (P.failProb eps) prog_rn
   cqpl_prog <- either fail pure $ CompileQ.lowerProgram prog'
   let nqubits = CQPL.numQubits cqpl_prog
