@@ -546,7 +546,7 @@ instance
           CQPL.CallS
             { fun = CQPL.FunctionCall $ Compiler.mkQProcName pfun_name
             , meta_params = []
-            , args = map CQPL.Arg $ placeArgsWithExcess pfun_args xs
+            , args = placeArgsWithExcess (map (fmap CQPL.Arg) pfun_args) xs :: [CQPL.Arg (SizeType prim)]
             }
 
     mk_meas <-
@@ -555,7 +555,7 @@ instance
           CQPL.CallS
             { fun = CQPL.UProcAndMeas $ Compiler.mkUProcName pfun_name
             , meta_params = []
-            , args = map CQPL.Arg $ placeArgsWithExcess pfun_args xs
+            , args = placeArgsWithExcess (map (fmap CQPL.Arg) pfun_args) xs :: [CQPL.Arg (SizeType prim)]
             }
 
     let builder =

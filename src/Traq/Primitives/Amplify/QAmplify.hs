@@ -205,8 +205,8 @@ mkGroverK = do
 
   rets <- view $ to ret_vars
   let b = head rets
-  ret_tys <- forM rets $ \x -> do
-    error "return type of x"
+  ret_tys <- forM rets $ \x ->
+    use (P._typingCtx . Ctx.at x) >>= maybeWithError "missing variable"
 
   (SamplerFn mk_sampler_call) <- view $ to mk_ucall
   (SamplerFn aux_tys) <- view $ to uproc_aux_types
@@ -246,53 +246,45 @@ mkGroverK = do
               }
       }
 
-{-
-uproc QAmplify(b, y) do {
-  not_done := 0 : Bool;
-  repeat $N_\text{runs}$ {
-    Q_sum := 0 : Fin<$Q_\text{max}$>;
-    for j_lim : Fin<$Q_\text{max}$> in $\vec{J}$ {
-      j :=$\texttt{\$}$ [1 .. j_lim] : Fin<$Q_\text{max}$>;
-      Q_sum := Q_sum + j;
-      not_done := not_done and (Q_sum <= j_lim);
-      if (not_done) {
-        meas grover$_j$(b, y); // run the grover iterations
-        not_done := not_done and (not b);
+-- | Implementation of the hybrid quantum search algorithm \( \textbf{QSearch} \).
+algoQAmplify ::
+  forall ext prec m.
+  ( RealFloat prec
+  , Show prec
+  , SizeType ext ~ SizeT
+  , m ~ PrimCompileMonad ext (QAmplify SizeT prec)
+  ) =>
+  -- | n_samples: number of classical samples
+  SizeT ->
+  -- | eps: max fail prob
+  A.FailProb prec ->
+  -- | p_min: min success probability of sampler
+  prec ->
+  m (CQPL.ProcDef SizeT)
+algoQAmplify n_samples eps p_min = do
+  -- classical call
+  SamplerFn call_sampler_c <- view $ to mk_call
+
+  -- quantum grover iterations
+  uproc_grover_k <- withSandbox mkGroverK
+  Compiler.addProc uproc_grover_k
+
+  {- uproc QAmplify(b, y) do {
+    not_done := 0 : Bool;
+    repeat $N_\text{runs}$ {
+      Q_sum := 0 : Fin<$Q_\text{max}$>;
+      for j_lim : Fin<$Q_\text{max}$> in $\vec{J}$ {
+        j :=$\texttt{\$}$ [1 .. j_lim] : Fin<$Q_\text{max}$>;
+        Q_sum := Q_sum + j;
+        not_done := not_done and (Q_sum <= j_lim);
+        if (not_done) {
+          meas grover$_j$(b, y); // run the grover iterations
+          not_done := not_done and (not b);
+        }
       }
     }
-  }
-}
--}
+  } -}
 
--- | Implementation of the hybrid quantum search algorithm \( \textbf{QSearch} \).
-algoQSearch ::
-  forall ext sizeT precT m.
-  ( Integral sizeT
-  , RealFloat precT
-  , sizeT ~ SizeT
-  , Show sizeT
-  , Show precT
-  , P.TypingReqs sizeT
-  , SizeType ext ~ sizeT
-  , m ~ PrimCompileMonad ext (QAmplify sizeT precT)
-  ) =>
-  -- | search elem type
-  P.VarType sizeT ->
-  -- | number of classical samples
-  sizeT ->
-  -- | max fail prob
-  A.FailProb precT ->
-  -- | grover_k caller: k, x, b
-  (Either (CQPL.MetaParam sizeT) Ident -> Ident -> Ident -> CQPL.Stmt sizeT) ->
-  -- | cqpl predicate caller
-  (Ident -> Ident -> CQPL.Stmt sizeT) ->
-  -- | output bit
-  Ident ->
-  -- | output value
-  Ident ->
-  -- | the generated QSearch procedure: body stmts and local vars
-  m ()
-algoQSearch ty n_samples eps grover_k_caller pred_caller ok x = do
   not_done <- allocReg "not_done" P.tbool
   q_sum <- allocReg "Q_sum" j_type
   j <- allocReg "j" j_type
@@ -468,35 +460,5 @@ algoQSearch ty n_samples eps grover_k_caller pred_caller ok x = do
 --                 }
 --         }
 
-instance (Floating prec, RealFrac prec) => QuantumCompilePrim (QAmplify size prec) size prec where
-  compileQPrim (QAmplify Amplify{p_min}) eps = do
-    -- return vars and types
-    rets <- view $ to ret_vars
-    ret_tys <- forM rets $ \x -> do
-      mty <- use $ P._typingCtx . Ctx.at x
-      maybeWithError "" mty
-
-    -- sampler
-    (SamplerFn call_upred) <- view $ to mk_ucall
-    (SamplerFn pred_aux_tys) <- view $ to uproc_aux_types
-
-    -- algorithm
-    qamplify_proc_name <- lift $ Compiler.newIdent "QAmplify"
-    let args = zip rets ret_tys
-    let local_vars = []
-    let cproc_body_stmt = CQPL.CommentS "TODO"
-
-    return
-      CQPL.ProcDef
-        { CQPL.info_comment = ""
-        , CQPL.proc_name = qamplify_proc_name
-        , CQPL.proc_meta_params = []
-        , CQPL.proc_param_types = map snd args
-        , CQPL.proc_body =
-            CQPL.ProcBodyC $
-              CQPL.CProcBody
-                { CQPL.cproc_param_names = map fst args
-                , CQPL.cproc_local_vars = local_vars
-                , CQPL.cproc_body_stmt
-                }
-        }
+instance (Floating prec, RealFrac prec) => QuantumCompilePrim (QAmplify SizeT prec) SizeT prec where
+  compileQPrim (QAmplify Amplify{p_min}) eps = algoQAmplify 0 eps p_min
