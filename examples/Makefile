@@ -1,4 +1,4 @@
-SUBDIRS = cryptanalysis matrix_search tree_generator
+SUBDIRS = cryptanalysis hillclimb matrix_search tree_generator
 
 all: $(SUBDIRS)
 
