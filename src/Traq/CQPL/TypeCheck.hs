@@ -133,6 +133,7 @@ typeCheckBasicGate Toffoli tys = verifyArgTys tys [P.tbool, P.tbool, P.tbool]
 typeCheckBasicGate CNOT tys = verifyArgTys tys [P.tbool, P.tbool]
 typeCheckBasicGate XGate tys = verifyArgTys tys [P.tbool]
 typeCheckBasicGate HGate tys = verifyArgTys tys [P.tbool]
+typeCheckBasicGate ZGate tys = verifyArgTys tys [P.tbool]
 typeCheckBasicGate (Rz _) tys = verifyArgTys tys [P.tbool]
 typeCheckBasicGate (PhaseOnZero _) _ = return ()
 typeCheckBasicGate COPY tys = let n = length tys `div` 2 in verifyArgTys (take n tys) (drop n tys)

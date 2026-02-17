@@ -85,6 +85,7 @@ data BasicGate
   | CNOT
   | XGate
   | HGate
+  | ZGate
   | COPY
   | SWAP
   | Rz Double
@@ -94,6 +95,7 @@ data BasicGate
 instance PP.ToCodeString BasicGate where
   build XGate = PP.putWord "X"
   build HGate = PP.putWord "H"
+  build ZGate = PP.putWord "Z"
   build (Rz theta) = PP.putWord $ printf "Rz(%f)" theta
   build (PhaseOnZero theta) = PP.putWord $ printf "PhaseOnZero(%f)" theta
   build g = PP.putWord $ show g

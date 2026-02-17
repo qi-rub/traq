@@ -124,6 +124,10 @@ instance (P.EvalReqs size prec, Floating prec, Ord prec) => QuantumExpCostPrim (
 -- Compilation
 -- ================================================================================
 
+-- --------------------------------------------------------------------------------
+-- Unitary Compilation
+-- --------------------------------------------------------------------------------
+
 instance (Floating prec, RealFrac prec) => UnitaryCompilePrim (QAmplify size prec) size prec where
   compileUPrim (QAmplify Amplify{p_min}) eps = do
     -- return vars and types
@@ -180,6 +184,305 @@ instance (Floating prec, RealFrac prec) => UnitaryCompilePrim (QAmplify size pre
                 { CQPL.uproc_param_names = map (view _1) all_params
                 , CQPL.uproc_param_tags = map (view _2) all_params
                 , CQPL.uproc_body_stmt
+                }
+        }
+
+-- --------------------------------------------------------------------------------
+-- CQ Compilation
+-- --------------------------------------------------------------------------------
+{-
+
+// function argument
+uproc g(b, y, $\veca$) ...
+
+// run k grover iterations
+uproc grover$_k$(b, y, $\veca$) do {
+  call g(b, y, $\veca$);
+
+  repeat $k$ {
+    b *= Z;
+
+    call$^\dagger$ g(b, y, $\veca$);
+    b, y, $\veca$ *= PhaseOnZero($\pi$); // reflect about $\ket{0}$ (with global phase -1)
+    call g(b, y, $\veca$);
+  }
+}
+
+uproc QAmplify(b, y) do {
+  not_done := 0 : Bool;
+  repeat $N_\text{runs}$ {
+    Q_sum := 0 : Fin<$Q_\text{max}$>;
+    for j_lim : Fin<$Q_\text{max}$> in $\vec{J}$ {
+      j :=$\texttt{\$}$ [1 .. j_lim] : Fin<$Q_\text{max}$>;
+      Q_sum := Q_sum + j;
+      not_done := not_done and (Q_sum <= j_lim);
+      if (not_done) {
+        meas grover$_j$(b, y); // run the grover iterations
+        not_done := not_done and (not b);
+      }
+    }
+  }
+}
+-}
+
+-- | the generated QSearch procedure: body stmts and local vars
+type QSearchCompilerT ext =
+  WriterT
+    ([CQPL.Stmt (SizeType ext)], [(Ident, P.VarType (SizeType ext))])
+    (Compiler.CompilerT ext)
+
+allocReg ::
+  ( m ~ QSearchCompilerT ext
+  , sizeT ~ SizeType ext
+  ) =>
+  Ident ->
+  P.VarType sizeT ->
+  m Ident
+allocReg prefix ty = do
+  reg <- lift $ Compiler.newIdent prefix
+  writeElemAt _2 (reg, ty)
+  return reg
+
+-- | Run K grover iterations
+groverK ::
+  forall sizeT.
+  -- | number of rounds
+  P.MetaParam sizeT ->
+  -- | the element and type to search for. @x : T@
+  (Ident, P.VarType sizeT) ->
+  -- | the output bit
+  Ident ->
+  -- | run the predicate
+  (Ident -> Ident -> CQPL.UStmt sizeT) ->
+  CQPL.UStmt sizeT
+groverK k (x, x_ty) b mk_pred =
+  CQPL.USeqS
+    [ prepb
+    , prepx
+    , CQPL.URepeatS k grover_iterate
+    , CQPL.adjoint prepb
+    ]
+ where
+  unifX = CQPL.DistrU (P.UniformE x_ty)
+
+  -- map b to |-> and x to uniform
+  prepb, prepx :: CQPL.UStmt sizeT
+  prepb =
+    CQPL.USeqS
+      [ CQPL.UnitaryS [CQPL.Arg b] (CQPL.BasicGateU CQPL.XGate)
+      , CQPL.UnitaryS [CQPL.Arg b] (CQPL.BasicGateU CQPL.HGate)
+      ]
+  prepx = CQPL.UnitaryS [CQPL.Arg x] unifX
+
+  grover_iterate :: CQPL.UStmt sizeT
+  grover_iterate =
+    CQPL.USeqS
+      [ mk_pred x b
+      , CQPL.UnitaryS [CQPL.Arg x] (CQPL.Adjoint unifX)
+      , CQPL.UnitaryS [CQPL.Arg x] (CQPL.BasicGateU (CQPL.PhaseOnZero pi))
+      , CQPL.UnitaryS [CQPL.Arg x] unifX
+      ]
+
+-- | Implementation of the hybrid quantum search algorithm \( \textbf{QSearch} \).
+algoQSearch ::
+  forall ext sizeT precT.
+  ( Integral sizeT
+  , RealFloat precT
+  , sizeT ~ SizeT
+  , Show sizeT
+  , Show precT
+  , P.TypingReqs sizeT
+  , SizeType ext ~ sizeT
+  ) =>
+  -- | search elem type
+  P.VarType sizeT ->
+  -- | number of classical samples
+  sizeT ->
+  -- | max fail prob
+  A.FailProb precT ->
+  -- | grover_k caller: k, x, b
+  (Either (CQPL.MetaParam sizeT) Ident -> Ident -> Ident -> CQPL.Stmt sizeT) ->
+  -- | cqpl predicate caller
+  (Ident -> Ident -> CQPL.Stmt sizeT) ->
+  -- | output bit
+  Ident ->
+  -- | output value
+  Ident ->
+  -- | the generated QSearch procedure: body stmts and local vars
+  QSearchCompilerT ext ()
+algoQSearch ty n_samples eps grover_k_caller pred_caller ok x = do
+  not_done <- allocReg "not_done" P.tbool
+  q_sum <- allocReg "Q_sum" j_type
+  j <- allocReg "j" j_type
+  j_lim <- allocReg "j_lim" j_type
+
+  -- classical sampling
+  when (n_samples /= 0) $ do
+    let classicalSampling =
+          CQPL.WhileKWithCondExpr (CQPL.MetaSize n_samples) not_done (notE (fromString ok)) $
+            CQPL.SeqS
+              [ CQPL.RandomS [x] (P.UniformE ty)
+              , pred_caller x ok
+              ]
+    writeElemAt _1 classicalSampling
+
+  -- quantum search
+
+  -- one call and meas to grover with j iterations
+  let quantumGroverOnce =
+        CQPL.SeqS
+          [ CQPL.RandomDynS j j_lim
+          , CQPL.AssignS [q_sum] (fromString q_sum .+. fromString j)
+          , CQPL.AssignS
+              [not_done]
+              (fromString not_done .&&. (fromString q_sum .<=. fromString j_lim))
+          , CQPL.ifThenS
+              not_done
+              ( CQPL.SeqS
+                  [ grover_k_caller (Right j) x ok
+                  , pred_caller x ok
+                  , CQPL.AssignS [not_done] (fromString not_done .&&. fromString ok)
+                  ]
+              )
+          ]
+
+  let quantumSamplingOneRound =
+        CQPL.SeqS
+          [ CQPL.AssignS [q_sum] (P.ConstE{P.val = P.FinV 0, P.ty = j_type})
+          , CQPL.ForInArray
+              { CQPL.loop_index = j_lim
+              , CQPL.loop_index_ty = j_type
+              , CQPL.loop_values = [P.ConstE (P.FinV $ fromIntegral v_j) j_type | v_j <- sampling_ranges]
+              , CQPL.loop_body = quantumGroverOnce
+              }
+          ]
+
+  let quantumSampling = CQPL.RepeatS (CQPL.MetaSize n_runs) quantumSamplingOneRound
+
+  writeElemAt _1 quantumSampling
+ where
+  n = P.domainSize ty
+
+  alpha = _QSearch_alpha
+  lambda = 6 / 5
+
+  sqrt_n :: Float
+  sqrt_n = sqrt (fromIntegral n)
+
+  n_runs, q_max :: SizeT
+  n_runs = ceiling $ logBase 3 (1 / A.getFailProb eps)
+  q_max = ceiling $ alpha * sqrt_n
+
+  -- type for j and Q_sum
+  j_type = P.Fin q_max
+
+  -- compute the limits for sampling `j` in each iteration.
+  sampling_ranges :: [SizeT]
+  sampling_ranges = go q_max js
+   where
+    go :: SizeT -> [SizeT] -> [SizeT]
+    go _ [] = []
+    go lim (x : _) | x > lim = []
+    go lim (x : xs) = x : go (lim - x) xs
+
+    js :: [SizeT]
+    js = map floor js_f
+
+    js_f :: [Float]
+    js_f = lambda : map nxt js_f
+
+    nxt :: Float -> Float
+    nxt m = min (lambda * m) sqrt_n
+
+instance
+  (RealFloat prec, Show prec) =>
+  QuantumCompilePrim (QSearchCFNW SizeT prec) SizeT prec
+  where
+  compileQPrim (QSearchCFNW PrimSearch{search_kind, search_ty}) eps = do
+    -- lowered unitary predicate
+    (BooleanPredicate call_upred) <- view $ to mk_ucall
+    (BooleanPredicate pred_aux_tys) <- view $ to uproc_aux_types
+
+    (ret, x_out) <- case search_kind of
+      SearchK -> do
+        view (to ret_vars) >>= \case
+          [b, x_out] -> pure (b, x_out)
+          _ -> throwError "search must return (bool, T)"
+      _ -> do
+        b <-
+          view (to ret_vars) >>= \case
+            [b] -> pure b
+            _ -> throwError "bool predicate must return single bool"
+        x_out <- lift $ Compiler.allocAncillaWithPref "s_result" search_ty
+        return (b, x_out)
+
+    -- make the Grover_k uproc
+    -- TODO this should ideally be done by algoQSearch, but requires a lot of aux information.
+    uproc_grover_k_name <- Compiler.newIdent "Grover"
+    upred_aux_vars <- replicateM (length pred_aux_tys) $ Compiler.newIdent "aux"
+    grover_arg_name <- Compiler.newIdent "x"
+    let meta_k = P.MetaName "k"
+    let uproc_grover_k_body =
+          groverK
+            meta_k
+            (grover_arg_name, search_ty)
+            ret
+            (\x b -> call_upred (map CQPL.Arg ([x, b] ++ upred_aux_vars)))
+    let uproc_grover_k_params =
+          Compiler.withTag CQPL.ParamInp [(grover_arg_name, search_ty)]
+            ++ Compiler.withTag CQPL.ParamOut [(ret, P.tbool)]
+            ++ Compiler.withTag CQPL.ParamAux (zip upred_aux_vars pred_aux_tys)
+    let uproc_grover_k =
+          CQPL.ProcDef
+            { CQPL.info_comment = "Grover[...]"
+            , CQPL.proc_name = uproc_grover_k_name
+            , CQPL.proc_meta_params = ["k"]
+            , CQPL.proc_param_types = map (view _3) uproc_grover_k_params
+            , CQPL.proc_body =
+                CQPL.ProcBodyU $
+                  CQPL.UProcBody
+                    { CQPL.uproc_param_names = map (view _1) uproc_grover_k_params
+                    , CQPL.uproc_param_tags = map (view _2) uproc_grover_k_params
+                    , CQPL.uproc_body_stmt = uproc_grover_k_body
+                    }
+            }
+    Compiler.addProc uproc_grover_k
+
+    let grover_k_caller k x b =
+          CQPL.CallS
+            { CQPL.fun = CQPL.UProcAndMeas uproc_grover_k_name
+            , CQPL.meta_params = [k]
+            , CQPL.args = [CQPL.Arg x, CQPL.Arg b]
+            }
+
+    -- emit the QSearch algorithm
+    let qsearch_params =
+          case search_kind of
+            SearchK -> [(ret, P.tbool), (x_out, search_ty)]
+            _ -> [(ret, P.tbool)]
+
+    (BooleanPredicate meas_upred) <- view $ to mk_meas
+    let pred_caller x b = meas_upred [x, b]
+
+    (qsearch_body, qsearch_local_vars) <-
+      lift $
+        execWriterT $
+          algoQSearch search_ty 0 eps grover_k_caller pred_caller ret x_out
+
+    let prim_name = (case search_kind of AnyK -> "QAny"; AllK -> "QAll"; SearchK -> "QSearch")
+    qsearch_proc_name <- Compiler.newIdent prim_name
+    return
+      CQPL.ProcDef
+        { CQPL.info_comment = printf "%s[%s]" prim_name (show $ A.getFailProb eps)
+        , CQPL.proc_name = qsearch_proc_name
+        , CQPL.proc_meta_params = []
+        , CQPL.proc_param_types = map snd qsearch_params
+        , CQPL.proc_body =
+            CQPL.ProcBodyC $
+              CQPL.CProcBody
+                { CQPL.cproc_param_names = map fst qsearch_params
+                , CQPL.cproc_local_vars = qsearch_local_vars ++ [(x_out, search_ty) | search_kind /= SearchK]
+                , CQPL.cproc_body_stmt = CQPL.SeqS qsearch_body
                 }
         }
 
