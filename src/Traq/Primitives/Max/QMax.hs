@@ -24,6 +24,7 @@ import Text.Printf (printf)
 
 import qualified Numeric.Algebra as Alg
 
+import qualified Traq.Analysis as A
 import qualified Traq.Analysis as P
 import Traq.Prelude
 import Traq.Primitives.Class
@@ -98,14 +99,14 @@ instance
   (Integral size, Floating prec, P.SizeToPrec size prec) =>
   UnitaryCostPrim (QMax size prec) size prec
   where
-  unitaryQueryCosts QMax{arg_ty} eps = QMaxFunArg{fun = strongQueries $ _WQMax _N eps}
+  unitaryQueryCosts QMax{arg_ty} _ = QMaxFunArg{fun = weakQueries (A.sizeToPrec _N)}
    where
     _N = P.domainSize arg_ty
 
   unitaryExprCosts _ _ = Alg.zero
 
 instance UnitaryCompilePrim (QMax size prec) size prec where
-  compileUPrim QMax{} eps = do
+  compileUPrim QMax{arg_ty} _ = do
     error "TODO: CompileU QMax"
 
 -- ================================================================================
