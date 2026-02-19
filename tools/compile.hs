@@ -62,7 +62,7 @@ subsNM params s = Sym.unSym $ foldr subsOnce s params
   subsOnce :: (Ident, SizeT) -> SymbSize -> SymbSize
   subsOnce (k, v) = Sym.subst k (Sym.con v)
 
-compile :: (RealFloat precT, Show precT) => P.Program (WorstCasePrims SizeT precT) -> precT -> IO String
+compile :: (RealFloat prec, Show prec) => P.Program (WorstCasePrims SizeT prec) -> prec -> IO String
 compile prog eps = do
   let prog_rn = if P.checkVarsUnique prog then prog else P.renameVars' prog
   prog' <- either fail pure $ A.annotateProgWithErrorBudget (P.failProb eps) prog_rn

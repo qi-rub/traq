@@ -98,22 +98,22 @@ mkUProcName s = s ++ "_U"
 data ProcSignature size = ProcSignature {in_tys, out_tys, aux_tys :: [P.VarType size]}
 
 -- | A global lowering context.
-data LoweringCtx sizeT
+data LoweringCtx size
   = LoweringCtx
       -- | The set of already used identifiers (to generate unique ones)
       (Set.Set Ident)
       -- | The typing context: mapping all variables in context to their types.
-      (P.TypingCtx sizeT)
+      (P.TypingCtx size)
       -- | Signature of each uproc
-      (Map.Map Ident (ProcSignature sizeT))
+      (Map.Map Ident (ProcSignature size))
   deriving (Generic, HasDefault)
 
-type instance SizeType (LoweringCtx sizeT) = sizeT
+type instance SizeType (LoweringCtx size) = size
 
-instance HasUniqNamesCtx (LoweringCtx sizeT) where
+instance HasUniqNamesCtx (LoweringCtx size) where
   _uniqNamesCtx focus (LoweringCtx a b c) = focus a <&> \a' -> LoweringCtx a' b c
 
-instance P.HasTypingCtx (LoweringCtx sizeT) where
+instance P.HasTypingCtx (LoweringCtx size) where
   _typingCtx focus (LoweringCtx a b c) = focus b <&> \b' -> LoweringCtx a b' c
 
 _procSignatures :: Lens' (LoweringCtx size) (Map.Map Ident (ProcSignature size))

@@ -34,11 +34,11 @@ data PrimSearchKind
   deriving (Eq, Read, Show, Enum)
 
 -- Primitive @search@ which returns a uniformly random solution
-data PrimSearch sizeT precT = PrimSearch {search_kind :: PrimSearchKind, search_ty :: P.VarType sizeT}
+data PrimSearch size prec = PrimSearch {search_kind :: PrimSearchKind, search_ty :: P.VarType size}
   deriving (Eq, Read, Show)
 
-type instance SizeType (PrimSearch sizeT precT) = sizeT
-type instance PrecType (PrimSearch sizeT precT) = precT
+type instance SizeType (PrimSearch size prec) = size
+type instance PrecType (PrimSearch size prec) = prec
 
 type instance PrimFnShape (PrimSearch size prec) = BooleanPredicate
 
@@ -64,7 +64,7 @@ instance (Show size) => SerializePrim (PrimSearch size prec) where
 
   printPrimParams PrimSearch{search_ty} = [PP.toCodeWord search_ty]
 
-instance (P.TypingReqs sizeT) => TypeCheckPrim (PrimSearch sizeT precT) sizeT where
+instance (P.TypingReqs size) => TypeCheckPrim (PrimSearch size prec) size where
   inferRetTypesPrim PrimSearch{search_kind, search_ty} (BooleanPredicate pred_ty) = do
     when (pred_ty /= P.FnType [search_ty] [P.tbool]) $
       throwError $
@@ -74,7 +74,7 @@ instance (P.TypingReqs sizeT) => TypeCheckPrim (PrimSearch sizeT precT) sizeT wh
       AllK -> [P.tbool]
       SearchK -> [P.tbool, search_ty]
 
-instance EvalPrim (PrimSearch sizeT precT) sizeT precT where
+instance EvalPrim (PrimSearch size prec) size prec where
   evalPrim PrimSearch{search_kind, search_ty} (BooleanPredicate eval_pred) = do
     let search_range = P.domain search_ty
     res <- forM search_range $ \v -> do

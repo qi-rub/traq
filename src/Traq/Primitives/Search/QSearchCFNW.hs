@@ -70,7 +70,7 @@ _QSearch_alpha :: (Floating prec) => prec
 _QSearch_alpha = 9.2
 
 -- | https://arxiv.org/pdf/2203.04975v2, Eq. 4
-_EQSearchWorst :: forall sizeT precT. (Integral sizeT, Floating precT) => sizeT -> A.FailProb precT -> precT
+_EQSearchWorst :: forall size prec. (Integral size, Floating prec) => size -> A.FailProb prec -> prec
 _EQSearchWorst n eps = (max_iter_per_rep + 1) * n_reps
  where
   -- using +1 instead of ceiling
@@ -78,13 +78,13 @@ _EQSearchWorst n eps = (max_iter_per_rep + 1) * n_reps
   n_reps = logBase 3 (1 / A.getFailProb eps) + 1
 
 -- | https://arxiv.org/pdf/2203.04975v2, Eq. 3
-_F :: forall sizeT precT. (Integral sizeT, Floating precT) => sizeT -> sizeT -> precT
+_F :: forall size prec. (Integral size, Floating prec) => size -> size -> prec
 _F n t
   | 4 * t >= n = 2.0344
   | otherwise = 3.1 * sqrt (fromIntegral n / fromIntegral t)
 
 -- | https://arxiv.org/pdf/2203.04975v2, Eq. 2
-_EQSearch :: forall sizeT precT. (Integral sizeT, Floating precT) => sizeT -> sizeT -> A.FailProb precT -> precT
+_EQSearch :: forall size prec. (Integral size, Floating prec) => size -> size -> A.FailProb prec -> prec
 _EQSearch n t eps
   | t == 0 = _EQSearchWorst n eps
   | otherwise = _F n t * (1 + 1 / (1 - term))
@@ -95,21 +95,21 @@ _EQSearch n t eps
 -- QSearch_Zalka: from https://arxiv.org/abs/quant-ph/9711070
 -- --------------------------------------------------------------------------------
 
-_QSearchZalka :: forall sizeT precT. (Integral sizeT, Floating precT) => sizeT -> A.FailProb precT -> precT
+_QSearchZalka :: forall size prec. (Integral size, Floating prec) => size -> A.FailProb prec -> prec
 _QSearchZalka n eps = nq_simple
  where
   -- Section 2.1 simple algorithm cost
   -- +1 for extra query at the end to obtain the flag bit (and result)
-  nq_simple :: precT
+  nq_simple :: prec
   nq_simple = fromIntegral (_QSearchZalka_max_iter n + 1) * _QSearchZalka_n_reps eps
 
 -- Section 2.2 Improved Algorithm (i.e. sqrt log(1/eps) instead of log(1/eps))
 -- log_fac = ceiling log_fac
--- log_fac :: precT
+-- log_fac :: prec
 -- log_fac = log (1 / eps) / (2 * log (4 / 3))
 
 -- number of queries of the original algorithm.
--- nq :: precT
+-- nq :: prec
 -- nq = 5 * log_fac + pi * sqrt (fromIntegral n * log_fac)
 
 -- Section 2.1 simple algorithm cost
@@ -126,11 +126,11 @@ _QSearchZalka_n_reps eps = 1 + logBase (1 - p) (A.getFailProb eps)
 -- Primitive Class Implementation
 -- ================================================================================
 
-newtype QSearchCFNW sizeT precT = QSearchCFNW (PrimSearch sizeT precT)
+newtype QSearchCFNW size prec = QSearchCFNW (PrimSearch size prec)
   deriving (Eq, Show, Read, Generic)
 
-type instance SizeType (QSearchCFNW sizeT precT) = sizeT
-type instance PrecType (QSearchCFNW sizeT precT) = precT
+type instance SizeType (QSearchCFNW size prec) = size
+type instance PrecType (QSearchCFNW size prec) = prec
 
 type instance PrimFnShape (QSearchCFNW size prec) = BooleanPredicate
 
@@ -139,11 +139,11 @@ instance P.MapSize (QSearchCFNW size prec) where
 
   mapSize f (QSearchCFNW p) = QSearchCFNW (P.mapSize f p)
 
-instance PrimSearch sizeT precT :<: QSearchCFNW sizeT precT where
+instance PrimSearch size prec :<: QSearchCFNW size prec where
   inject = QSearchCFNW
   project (QSearchCFNW p) = Just p
 
-instance (Show sizeT) => SerializePrim (QSearchCFNW sizeT precT) where
+instance (Show size) => SerializePrim (QSearchCFNW size prec) where
   primNames = ["any", "search"]
   primNameOf (QSearchCFNW p) = primNameOf p
   parsePrimParams tp s = QSearchCFNW <$> parsePrimParams tp s
@@ -166,8 +166,8 @@ getSearchType (QSearchCFNW (PrimSearch{search_ty})) = search_ty
 
 -- | Compute the unitary cost using the QSearch_Zalka cost formula.
 instance
-  (P.TypingReqs sizeT, Integral sizeT, Floating precT) =>
-  UnitaryCostPrim (QSearchCFNW sizeT precT) sizeT precT
+  (P.TypingReqs size, Integral size, Floating prec) =>
+  UnitaryCostPrim (QSearchCFNW size prec) size prec
   where
   unitaryQueryCosts prim eps = BooleanPredicate $ strongQueries $ _QSearchZalka _N eps
    where
@@ -176,8 +176,8 @@ instance
   unitaryExprCosts _ _ = Alg.zero
 
 instance
-  (P.TypingReqs sizeT, Integral sizeT, A.SizeToPrec sizeT precT, Floating precT) =>
-  QuantumHavocCostPrim (QSearchCFNW sizeT precT) sizeT precT
+  (P.TypingReqs size, Integral size, A.SizeToPrec size prec, Floating prec) =>
+  QuantumHavocCostPrim (QSearchCFNW size prec) size prec
   where
   quantumQueryCostsUnitary prim eps = BooleanPredicate $ strongQueries $ _EQSearchWorst _N eps
    where
@@ -187,7 +187,7 @@ instance
 
   quantumExprCosts = Alg.zero
 
-instance (sizeT ~ SizeT, Floating precT, Prob.RVType precT precT) => QuantumExpCostPrim (QSearchCFNW sizeT precT) sizeT precT where
+instance (size ~ SizeT, Floating prec, Prob.RVType prec prec) => QuantumExpCostPrim (QSearchCFNW size prec) size prec where
   quantumExpQueryCostsUnitary prim eps (BooleanPredicate eval_pred) =
     BooleanPredicate $ strongQueries $ _EQSearch _N _K eps
    where
@@ -228,7 +228,7 @@ addPredCall c x b = do
   mk_pred <- view $ to pred_call_builder
   writeElem $ mk_pred c x b
 
-withComputed :: (sizeT ~ SizeType ext) => CQPL.UStmt sizeT -> UQSearchBuilder ext a -> UQSearchBuilder ext a
+withComputed :: (size ~ SizeType ext) => CQPL.UStmt size -> UQSearchBuilder ext a -> UQSearchBuilder ext a
 withComputed s m = do
   writeElem s
   a <- m
@@ -236,19 +236,19 @@ withComputed s m = do
   return a
 
 addGroverIteration ::
-  forall ext sizeT precT.
-  ( Integral sizeT
-  , RealFloat precT
-  , P.TypingReqs sizeT
-  , sizeT ~ SizeType ext
-  , precT ~ PrecType ext
+  forall ext size prec.
+  ( Integral size
+  , RealFloat prec
+  , P.TypingReqs size
+  , size ~ SizeType ext
+  , prec ~ PrecType ext
   ) =>
   -- | ctrl
-  CQPL.Arg sizeT ->
+  CQPL.Arg size ->
   -- | x
-  CQPL.Arg sizeT ->
+  CQPL.Arg size ->
   -- | b
-  CQPL.Arg sizeT ->
+  CQPL.Arg size ->
   UQSearchBuilder ext ()
 addGroverIteration c x b = do
   x_ty <- view $ to search_arg_type
@@ -259,19 +259,19 @@ addGroverIteration c x b = do
   writeElem $ CQPL.UnitaryS [x] unifX
 
 algoQSearchZalkaRandomIterStep ::
-  forall ext sizeT precT.
-  ( Integral sizeT
-  , RealFloat precT
-  , P.TypingReqs sizeT
-  , sizeT ~ SizeType ext
-  , precT ~ PrecType ext
+  forall ext size prec.
+  ( Integral size
+  , RealFloat prec
+  , P.TypingReqs size
+  , size ~ SizeType ext
+  , prec ~ PrecType ext
   ) =>
   -- | max num of iteration
-  sizeT ->
-  CQPL.Arg sizeT ->
-  CQPL.Arg sizeT ->
-  CQPL.Arg sizeT ->
-  CQPL.Arg sizeT ->
+  size ->
+  CQPL.Arg size ->
+  CQPL.Arg size ->
+  CQPL.Arg size ->
+  CQPL.Arg size ->
   UQSearchBuilder ext ()
 algoQSearchZalkaRandomIterStep r r_reg ctrl_bit x_reg b_reg = do
   let r_ty = P.Fin r
@@ -306,15 +306,15 @@ algoQSearchZalkaRandomIterStep r r_reg ctrl_bit x_reg b_reg = do
     addPredCall ctrl_bit x_reg b_reg
 
 algoQSearchZalka ::
-  forall ext sizeT precT.
-  ( Integral sizeT
-  , RealFloat precT
-  , P.TypingReqs sizeT
-  , sizeT ~ SizeType ext
-  , precT ~ PrecType ext
+  forall ext size prec.
+  ( Integral size
+  , RealFloat prec
+  , P.TypingReqs size
+  , size ~ SizeType ext
+  , prec ~ PrecType ext
   ) =>
   -- | max. error (TV/trace-norm)
-  A.FailProb precT ->
+  A.FailProb prec ->
   -- | output bit
   Ident ->
   -- | output value of search
@@ -324,7 +324,7 @@ algoQSearchZalka eps out_bit out_val = do
   s_ty <- view $ to search_arg_type
   let n = P.domainSize s_ty
 
-  let n_iter = floor (_QSearchZalka_n_reps eps) :: sizeT
+  let n_iter = floor (_QSearchZalka_n_reps eps) :: size
 
   ctrl_bits <- lift $ Compiler.allocAncillaWithPref "ctrl" (P.Arr n_iter P.tbool)
   b_regs <- lift $ Compiler.allocAncillaWithPref "pred_out" (P.Arr n_iter P.tbool)
@@ -460,10 +460,10 @@ type QSearchCompilerT ext =
 
 allocReg ::
   ( m ~ QSearchCompilerT ext
-  , sizeT ~ SizeType ext
+  , size ~ SizeType ext
   ) =>
   Ident ->
-  P.VarType sizeT ->
+  P.VarType size ->
   m Ident
 allocReg prefix ty = do
   reg <- lift $ Compiler.newIdent prefix
@@ -472,16 +472,16 @@ allocReg prefix ty = do
 
 -- | Run K grover iterations
 groverK ::
-  forall sizeT.
+  forall size.
   -- | number of rounds
-  P.MetaParam sizeT ->
+  P.MetaParam size ->
   -- | the element and type to search for. @x : T@
-  (Ident, P.VarType sizeT) ->
+  (Ident, P.VarType size) ->
   -- | the output bit
   Ident ->
   -- | run the predicate
-  (Ident -> Ident -> CQPL.UStmt sizeT) ->
-  CQPL.UStmt sizeT
+  (Ident -> Ident -> CQPL.UStmt size) ->
+  CQPL.UStmt size
 groverK k (x, x_ty) b mk_pred =
   CQPL.USeqS
     [ prepb
@@ -493,7 +493,7 @@ groverK k (x, x_ty) b mk_pred =
   unifX = CQPL.DistrU (P.UniformE x_ty)
 
   -- map b to |-> and x to uniform
-  prepb, prepx :: CQPL.UStmt sizeT
+  prepb, prepx :: CQPL.UStmt size
   prepb =
     CQPL.USeqS
       [ CQPL.UnitaryS [CQPL.Arg b] (CQPL.BasicGateU CQPL.XGate)
@@ -501,7 +501,7 @@ groverK k (x, x_ty) b mk_pred =
       ]
   prepx = CQPL.UnitaryS [CQPL.Arg x] unifX
 
-  grover_iterate :: CQPL.UStmt sizeT
+  grover_iterate :: CQPL.UStmt size
   grover_iterate =
     CQPL.USeqS
       [ mk_pred x b
@@ -512,25 +512,25 @@ groverK k (x, x_ty) b mk_pred =
 
 -- | Implementation of the hybrid quantum search algorithm \( \textbf{QSearch} \).
 algoQSearch ::
-  forall ext sizeT precT.
-  ( Integral sizeT
-  , RealFloat precT
-  , sizeT ~ SizeT
-  , Show sizeT
-  , Show precT
-  , P.TypingReqs sizeT
-  , SizeType ext ~ sizeT
+  forall ext size prec.
+  ( Integral size
+  , RealFloat prec
+  , size ~ SizeT
+  , Show size
+  , Show prec
+  , P.TypingReqs size
+  , SizeType ext ~ size
   ) =>
   -- | search elem type
-  P.VarType sizeT ->
+  P.VarType size ->
   -- | number of classical samples
-  sizeT ->
+  size ->
   -- | max fail prob
-  A.FailProb precT ->
+  A.FailProb prec ->
   -- | grover_k caller: k, x, b
-  (Either (CQPL.MetaParam sizeT) Ident -> Ident -> Ident -> CQPL.Stmt sizeT) ->
+  (Either (CQPL.MetaParam size) Ident -> Ident -> Ident -> CQPL.Stmt size) ->
   -- | cqpl predicate caller
-  (Ident -> Ident -> CQPL.Stmt sizeT) ->
+  (Ident -> Ident -> CQPL.Stmt size) ->
   -- | output bit
   Ident ->
   -- | output value

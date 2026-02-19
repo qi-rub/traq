@@ -26,11 +26,11 @@ import qualified Traq.ProtoLang as P
 -- ================================================================================
 
 -- | Primitive implementing brute-force classical search.
-newtype DetSearch sizeT precT = DetSearch (PrimSearch sizeT precT)
+newtype DetSearch size prec = DetSearch (PrimSearch size prec)
   deriving (Eq, Show, Read, Generic)
 
-type instance SizeType (DetSearch sizeT precT) = sizeT
-type instance PrecType (DetSearch sizeT precT) = precT
+type instance SizeType (DetSearch size prec) = size
+type instance PrecType (DetSearch size prec) = prec
 
 type instance PrimFnShape (DetSearch size prec) = BooleanPredicate
 
@@ -38,7 +38,7 @@ instance P.MapSize (DetSearch size prec) where
   type MappedSize (DetSearch size prec) size' = DetSearch size' prec
   mapSize f (DetSearch p) = DetSearch (P.mapSize f p)
 
-instance PrimSearch sizeT precT :<: DetSearch sizeT precT
+instance PrimSearch size prec :<: DetSearch size prec
 
 instance (Show size) => SerializePrim (DetSearch size prec) where
   primNames = ["any"]

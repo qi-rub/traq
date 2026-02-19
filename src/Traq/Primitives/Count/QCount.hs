@@ -16,11 +16,11 @@ import Traq.Prelude
 import Traq.Primitives.Class
 import qualified Traq.ProtoLang as P
 
-data QCount sizeT precT = QCount {arg_ty :: P.VarType sizeT}
+data QCount size prec = QCount {arg_ty :: P.VarType size}
   deriving (Eq, Show, Read)
 
-type instance SizeType (QCount sizeT precT) = sizeT
-type instance PrecType (QCount sizeT precT) = precT
+type instance SizeType (QCount size prec) = size
+type instance PrecType (QCount size prec) = prec
 
 newtype QCountFunArg a = QCountFunArg {fun :: a}
 
@@ -32,13 +32,13 @@ instance ValidPrimShape QCountFunArg where
 
   shapeToList QCountFunArg{fun} = [fun]
 
-instance (Show sizeT) => SerializePrim (QCount sizeT precT) where
+instance (Show size) => SerializePrim (QCount size prec) where
   primNames = ["count"]
   parsePrimParams tp _ = QCount <$> P.varType tp
   printPrimParams QCount{arg_ty} = [show arg_ty]
 
 -- Type check
-instance (Eq sizeT, Integral sizeT) => TypeCheckPrim (QCount sizeT precT) sizeT where
+instance (Eq size, Integral size) => TypeCheckPrim (QCount size prec) size where
   inferRetTypesPrim QCount{arg_ty} QCountFunArg{fun} = do
     let P.FnType param_tys ret_tys = fun
 

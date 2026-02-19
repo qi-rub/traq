@@ -71,10 +71,10 @@ import Traq.Utils.ASTRewriting
 import qualified Traq.Utils.Printing as PP
 
 -- | Compile-time constant parameters
-data MetaParam sizeT = MetaName String | MetaSize sizeT | MetaValue Integer
+data MetaParam size = MetaName String | MetaSize size | MetaValue Integer
   deriving (Eq, Show, Read)
 
-instance (Show sizeT) => PP.ToCodeString (MetaParam sizeT) where
+instance (Show size) => PP.ToCodeString (MetaParam size) where
   build (MetaName n) = PP.putWord $ "#" ++ n
   build (MetaSize n) = PP.putWord $ show n
   build (MetaValue n) = PP.putWord $ show n
@@ -84,24 +84,24 @@ instance (Show sizeT) => PP.ToCodeString (MetaParam sizeT) where
 -- ================================================================================
 
 -- | Types
-data VarType sizeT
-  = Fin sizeT -- Fin<N> = [0, ..., N - 1]
-  | Bitvec sizeT -- Bitvec<n> = {0, 1}^n
-  | Arr sizeT (VarType sizeT) -- Arr<N, T>
-  | Tup [VarType sizeT] -- (T_1, ..., T_k)
+data VarType size
+  = Fin size -- Fin<N> = [0, ..., N - 1]
+  | Bitvec size -- Bitvec<n> = {0, 1}^n
+  | Arr size (VarType size) -- Arr<N, T>
+  | Tup [VarType size] -- (T_1, ..., T_k)
   deriving (Eq, Show, Read, Functor)
 
-type instance SizeType (VarType sizeT) = sizeT
+type instance SizeType (VarType size) = size
 
-_Fin :: Traversal' (VarType sizeT) sizeT
+_Fin :: Traversal' (VarType size) size
 _Fin focus (Fin n) = Fin <$> focus n
 _Fin _ t = pure t
 
-_Arr :: Traversal' (VarType sizeT) (sizeT, VarType sizeT)
+_Arr :: Traversal' (VarType size) (size, VarType size)
 _Arr focus (Arr n t) = uncurry Arr <$> focus (n, t)
 _Arr _ t = pure t
 
-_Tup :: Traversal' (VarType sizeT) [VarType sizeT]
+_Tup :: Traversal' (VarType size) [VarType size]
 _Tup focus (Tup ts) = Tup <$> focus ts
 _Tup _ t = pure t
 
@@ -114,30 +114,30 @@ instance (Show a) => PP.ToCodeString (VarType a) where
     PP.putWord $ printf "Tup<%s>" $ PP.commaList ws
 
 -- | Basic Values
-data Value sizeT
+data Value size
   = -- | value of type @Fin n@
-    FinV sizeT
+    FinV size
   | -- | value of type @Arr n t@
-    ArrV [Value sizeT]
+    ArrV [Value size]
   | -- | tuple value
-    TupV [Value sizeT]
+    TupV [Value size]
   deriving (Eq, Ord, Show, Read, Functor)
 
-type instance SizeType (Value sizeT) = sizeT
+type instance SizeType (Value size) = size
 
-_FinV :: Traversal' (Value sizeT) sizeT
+_FinV :: Traversal' (Value size) size
 _FinV focus (FinV n) = FinV <$> focus n
 _FinV _ t = pure t
 
-_ArrV :: Traversal' (Value sizeT) [Value sizeT]
+_ArrV :: Traversal' (Value size) [Value size]
 _ArrV focus (ArrV vs) = ArrV <$> focus vs
 _ArrV _ t = pure t
 
-_TupV :: Traversal' (Value sizeT) [Value sizeT]
+_TupV :: Traversal' (Value size) [Value size]
 _TupV focus (TupV vs) = TupV <$> focus vs
 _TupV _ t = pure t
 
-instance (Show sizeT) => PP.ToCodeString (Value sizeT) where
+instance (Show size) => PP.ToCodeString (Value size) where
   build (FinV v) = PP.putWord $ show v
   build (ArrV vs) = PP.joined (printf "[%s]" . PP.commaList) $ mapM_ PP.build vs
   build (TupV vs) = PP.joined (printf "(%s)" . PP.commaList) $ mapM_ PP.build vs
@@ -195,37 +195,37 @@ instance PP.ToCodeString NAryOp where
   build MultiOrOp = PP.putWord "or"
 
 -- | Basic arithmetic and logical expressions
-data BasicExpr sizeT
+data BasicExpr size
   = VarE {var :: Ident}
   | ParamE {param :: Ident} -- compile-time constant parameter
-  | DefaultE {ty :: VarType sizeT} -- initialize to default value of `ty`
-  | ConstE {val :: Value sizeT, ty :: VarType sizeT}
-  | UnOpE {un_op :: UnOp, operand :: BasicExpr sizeT}
-  | BinOpE {bin_op :: BinOp, lhs, rhs :: BasicExpr sizeT}
-  | TernaryE {branch, lhs, rhs :: BasicExpr sizeT}
-  | NAryE {op :: NAryOp, operands :: [BasicExpr sizeT]}
+  | DefaultE {ty :: VarType size} -- initialize to default value of `ty`
+  | ConstE {val :: Value size, ty :: VarType size}
+  | UnOpE {un_op :: UnOp, operand :: BasicExpr size}
+  | BinOpE {bin_op :: BinOp, lhs, rhs :: BasicExpr size}
+  | TernaryE {branch, lhs, rhs :: BasicExpr size}
+  | NAryE {op :: NAryOp, operands :: [BasicExpr size]}
   | -- array
-    IndexE {arr_expr :: BasicExpr sizeT, ix_val :: sizeT}
-  | DynIndexE {arr_expr, ix_expr :: BasicExpr sizeT}
-  | UpdateArrE {arr_expr, ix_expr, rhs :: BasicExpr sizeT}
+    IndexE {arr_expr :: BasicExpr size, ix_val :: size}
+  | DynIndexE {arr_expr, ix_expr :: BasicExpr size}
+  | UpdateArrE {arr_expr, ix_expr, rhs :: BasicExpr size}
   | -- tuple
-    ProjectE {tup_expr :: BasicExpr sizeT, tup_ix_val :: Int}
+    ProjectE {tup_expr :: BasicExpr size, tup_ix_val :: Int}
   deriving (Eq, Show, Read, Functor)
 
 -- Helpers for shorter expressions
-instance IsString (BasicExpr sizeT) where
+instance IsString (BasicExpr size) where
   fromString ('#' : s) = ParamE s
   fromString s = VarE s
 
-notE :: BasicExpr sizeT -> BasicExpr sizeT
+notE :: BasicExpr size -> BasicExpr size
 notE = UnOpE NotOp
 
-(.<=.), (.+.), (.&&.) :: BasicExpr sizeT -> BasicExpr sizeT -> BasicExpr sizeT
+(.<=.), (.+.), (.&&.) :: BasicExpr size -> BasicExpr size -> BasicExpr size
 (.<=.) = BinOpE LEqOp
 (.+.) = BinOpE AddOp
 (.&&.) = BinOpE AndOp
 
-instance (Show sizeT) => PP.ToCodeString (BasicExpr sizeT) where
+instance (Show size) => PP.ToCodeString (BasicExpr size) where
   build VarE{var} = PP.putWord var
   build ParamE{param} = PP.putWord $ printf "#%s" param
   build DefaultE{ty} = PP.putWord . printf "default : %s" =<< PP.fromBuild ty
@@ -256,14 +256,14 @@ instance (Show sizeT) => PP.ToCodeString (BasicExpr sizeT) where
 -- ================================================================================
 
 -- | An expression denoting a probablity distribution.
-data DistrExpr sizeT
-  = UniformE {sample_ty :: VarType sizeT}
+data DistrExpr size
+  = UniformE {sample_ty :: VarType size}
   | BernoulliE {prob_one :: Double}
   deriving (Eq, Show, Read, Functor)
 
-type instance SizeType (DistrExpr sizeT) = sizeT
+type instance SizeType (DistrExpr size) = size
 
-instance (Show sizeT) => PP.ToCodeString (DistrExpr sizeT) where
+instance (Show size) => PP.ToCodeString (DistrExpr size) where
   build UniformE{sample_ty} = PP.putWord . printf "uniform : %s" =<< PP.fromBuild sample_ty
   build BernoulliE{prob_one} = PP.putWord $ printf "bernoulli[%s]" (show prob_one)
 
@@ -378,7 +378,7 @@ instance (Show (SizeType ext), PP.ToCodeString ext) => PP.ToCodeString (NamedFun
         PP.putLine $ printf "return %s" (PP.commaList ret_names)
       PP.putLine "end"
      where
-      -- showTypedVar :: Ident -> VarType sizeT -> String
+      -- showTypedVar :: Ident -> VarType size -> String
       showTypedVar x ty = printf "%s: %s" x <$> PP.fromBuild ty
   -- declare
   build
@@ -422,9 +422,9 @@ instance (Show (SizeType ext), PP.ToCodeString ext) => PP.ToCodeString (Program 
   build (Program fs) = mapM_ (\f -> PP.build f >> PP.endl) fs
 
 {- | Void extension (i.e. only use the core language)
-Usage: @p :: Program (Core sizeT precT)@
+Usage: @p :: Program (Core size prec)@
 -}
-data Core sizeT precT
+data Core size prec
   deriving (Eq, Read, Show)
 
 type instance SizeType (Core size prec) = size

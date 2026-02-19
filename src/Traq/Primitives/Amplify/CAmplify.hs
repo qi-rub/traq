@@ -25,15 +25,15 @@ import Traq.Primitives.Class
 import qualified Traq.ProtoLang as P
 
 -- | Classical (probabilistic) bounded repetition.
-newtype CAmplify sizeT precT = CAmplify (Amplify sizeT precT)
+newtype CAmplify size prec = CAmplify (Amplify size prec)
   deriving (Eq, Show, Read, Generic)
 
-type instance SizeType (CAmplify sizeT precT) = sizeT
-type instance PrecType (CAmplify sizeT precT) = precT
+type instance SizeType (CAmplify size prec) = size
+type instance PrecType (CAmplify size prec) = prec
 
 type instance PrimFnShape (CAmplify size prec) = SamplerFn
 
-instance Amplify sizeT precT :<: CAmplify sizeT precT
+instance Amplify size prec :<: CAmplify size prec
 
 instance P.MapSize (CAmplify size prec) where
   type MappedSize (CAmplify size prec) size' = CAmplify size' prec
@@ -46,10 +46,10 @@ instance (Show prec, Fractional prec) => SerializePrim (CAmplify size prec) wher
   parsePrimParams tp name = CAmplify <$> parsePrimParams tp name
   printPrimParams (CAmplify prim) = printPrimParams prim
 
-instance (P.TypingReqs sizeT) => TypeCheckPrim (CAmplify sizeT precT) sizeT where
+instance (P.TypingReqs size) => TypeCheckPrim (CAmplify size prec) size where
   inferRetTypesPrim (CAmplify p) = inferRetTypesPrim p
 
-instance (P.EvalReqs sizeT precT, Ord precT) => EvalPrim (CAmplify sizeT precT) sizeT precT where
+instance (P.EvalReqs size prec, Ord prec) => EvalPrim (CAmplify size prec) size prec where
   evalPrim (CAmplify p) = evalPrim p
 
 -- ================================================================================
@@ -57,11 +57,11 @@ instance (P.EvalReqs sizeT precT, Ord precT) => EvalPrim (CAmplify sizeT precT) 
 -- ================================================================================
 
 -- | Maximum queries
-_QMax :: forall precT. (Floating precT) => A.FailProb precT -> precT -> precT
+_QMax :: forall prec. (Floating prec) => A.FailProb prec -> prec -> prec
 _QMax eps p_min = logBase (1 / (1 - p_min)) (1 / A.getFailProb eps)
 
 -- | Expected queries
-_EQ :: forall precT. (Floating precT, Ord precT) => A.FailProb precT -> precT -> precT -> precT
+_EQ :: forall prec. (Floating prec, Ord prec) => A.FailProb prec -> prec -> prec -> prec
 _EQ eps p_min p_good
   | p_good >= p_min = 1 / p_good
   | p_good == 0 = _QMax eps p_min

@@ -30,11 +30,11 @@ import qualified Traq.ProtoLang as P
 The sampler must return a sample and a boolean flag,
 and if there is a good sample, it should return one with probability at least p_min.
 -}
-data Amplify sizeT precT = Amplify {p_min :: precT}
+data Amplify size prec = Amplify {p_min :: prec}
   deriving (Eq, Show, Read)
 
-type instance SizeType (Amplify sizeT precT) = sizeT
-type instance PrecType (Amplify sizeT precT) = precT
+type instance SizeType (Amplify size prec) = size
+type instance PrecType (Amplify size prec) = prec
 
 newtype SamplerFn a = SamplerFn a
 
@@ -57,7 +57,7 @@ instance (Show prec, Fractional prec) => SerializePrim (Amplify size prec) where
   printPrimParams Amplify{p_min} = [show p_min]
 
 -- Type check
-instance (P.TypingReqs sizeT) => TypeCheckPrim (Amplify sizeT precT) sizeT where
+instance (P.TypingReqs size) => TypeCheckPrim (Amplify size prec) size where
   inferRetTypesPrim _ (SamplerFn sampler_ty) = do
     let P.FnType param_types ret_types = sampler_ty
 
@@ -76,8 +76,8 @@ and get success probability Psucc := P(b=1) conditioned on μ. Finally, returnin
 based on Psucc.
 -}
 instance
-  (Ord precT, sizeT ~ SizeT, P.EvalReqs sizeT precT) =>
-  EvalPrim (Amplify sizeT precT) sizeT precT
+  (Ord prec, size ~ SizeT, P.EvalReqs size prec) =>
+  EvalPrim (Amplify size prec) size prec
   where
   evalPrim Amplify{p_min} (SamplerFn sampler) = do
     -- result distribution

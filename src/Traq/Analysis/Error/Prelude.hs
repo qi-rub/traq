@@ -28,14 +28,14 @@ import Traq.ProtoLang.Syntax (FunCtx)
 -- ================================================================================
 
 -- | Wrapper for values representing a failure probability in [0, 1]
-newtype FailProb precT = FailProb precT
+newtype FailProb prec = FailProb prec
   deriving (Eq, Read, Show, Num, Ord)
 
 -- | Safe constructor
-failProb :: (Num precT) => precT -> FailProb precT
+failProb :: (Num prec) => prec -> FailProb prec
 failProb = FailProb
 
-getFailProb :: FailProb precT -> precT
+getFailProb :: FailProb prec -> prec
 getFailProb (FailProb p) = p
 
 -- | Helper: split an epsilon into `n` equal parts.

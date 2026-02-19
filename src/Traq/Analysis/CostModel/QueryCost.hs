@@ -21,15 +21,15 @@ import Traq.Data.Default
 import Traq.Analysis.CostModel.Class
 import Traq.Prelude
 
-data QueryCost precT = QueryCost
-  { uqueries :: Map.Map Ident precT
-  , cqueries :: Map.Map Ident precT
+data QueryCost prec = QueryCost
+  { uqueries :: Map.Map Ident prec
+  , cqueries :: Map.Map Ident prec
   }
   deriving (Eq, Ord, Show, Read, Generic, HasDefault, Functor)
 
-type instance PrecType (QueryCost precT) = precT
+type instance PrecType (QueryCost prec) = prec
 
-type Ticks precT = Map.Map Ident precT
+type Ticks prec = Map.Map Ident prec
 
 totalQueryCost ::
   forall a.
@@ -79,10 +79,10 @@ instance (Alg.Rig a) => CostModel (QueryCost a) where
 {- | A simple cost that counts the number of queries to all external functions.
 It treats unitary and classical queries as the same.
 -}
-newtype SimpleQueryCost precT = SimpleQueryCost {getCost :: precT}
+newtype SimpleQueryCost prec = SimpleQueryCost {getCost :: prec}
   deriving (Eq, Ord, Show, Read, Generic, HasDefault, Functor)
 
-type instance PrecType (SimpleQueryCost precT) = precT
+type instance PrecType (SimpleQueryCost prec) = prec
 
 instance (Alg.Additive a) => Alg.Additive (SimpleQueryCost a) where
   (SimpleQueryCost a) + (SimpleQueryCost a') = SimpleQueryCost (a Alg.+ a')

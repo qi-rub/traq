@@ -14,7 +14,7 @@ import Traq.ProtoLang.Parser (programParser)
 import Test.Hspec
 import TestHelpers
 
-exampleProgram :: sizeT -> sizeT -> P.Program (TreeSearch sizeT precT)
+exampleProgram :: size -> size -> P.Program (TreeSearch size prec)
 exampleProgram n two =
   P.Program
     [ P.NamedFunDef "child" child

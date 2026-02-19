@@ -40,14 +40,14 @@ import qualified Traq.ProtoLang as P
 -- ================================================================================
 
 -- | Allocate an ancilla register, and update the typing context.
-allocAncillaWithPref :: (sizeT ~ SizeType ext) => Ident -> P.VarType sizeT -> CompilerT ext Ident
+allocAncillaWithPref :: (size ~ SizeType ext) => Ident -> P.VarType size -> CompilerT ext Ident
 allocAncillaWithPref pref ty = do
   name <- newIdent pref
   zoom P._typingCtx $ Ctx.put name ty
   return name
 
 -- | Allocate an ancilla register @aux_<<n>>@, and update the typing context.
-allocAncilla :: (sizeT ~ SizeType ext) => P.VarType sizeT -> CompilerT ext Ident
+allocAncilla :: (size ~ SizeType ext) => P.VarType size -> CompilerT ext Ident
 allocAncilla = allocAncillaWithPref "aux"
 
 -- | Allocate fresh set of auxiliaries corresponding to the types of given vars.

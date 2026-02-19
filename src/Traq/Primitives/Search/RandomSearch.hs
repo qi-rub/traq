@@ -25,15 +25,15 @@ import qualified Traq.ProtoLang as P
 -- ================================================================================
 
 -- | Number of predicate queries to unitarily implement random search.
-_URandomSearch :: forall sizeT precT. (Integral sizeT, Floating precT) => sizeT -> precT
+_URandomSearch :: forall size prec. (Integral size, Floating prec) => size -> prec
 _URandomSearch = fromIntegral
 
 -- | Worst case number of predicate queries to implement random search.
-_ERandomSearchWorst :: forall sizeT precT. (Integral sizeT, Floating precT) => sizeT -> P.FailProb precT -> precT
+_ERandomSearchWorst :: forall size prec. (Integral size, Floating prec) => size -> P.FailProb prec -> prec
 _ERandomSearchWorst n eps = fromIntegral n * log (1 / P.getFailProb eps)
 
 -- | Expected number of predicate queries to implement random search.
-_ERandomSearch :: forall sizeT precT. (Integral sizeT, Floating precT) => sizeT -> sizeT -> P.FailProb precT -> precT
+_ERandomSearch :: forall size prec. (Integral size, Floating prec) => size -> size -> P.FailProb prec -> prec
 _ERandomSearch n 0 eps = _ERandomSearchWorst n eps
 _ERandomSearch n k _ = fromIntegral n / fromIntegral k
 
@@ -44,11 +44,11 @@ _ERandomSearch n k _ = fromIntegral n / fromIntegral k
 {- | Primitive implementing search using classical random sampling.
  The unitary mode does a brute-force loop.
 -}
-newtype RandomSearch sizeT precT = RandomSearch (PrimSearch sizeT precT)
+newtype RandomSearch size prec = RandomSearch (PrimSearch size prec)
   deriving (Eq, Show, Read, Generic)
 
-type instance SizeType (RandomSearch sizeT precT) = sizeT
-type instance PrecType (RandomSearch sizeT precT) = precT
+type instance SizeType (RandomSearch size prec) = size
+type instance PrecType (RandomSearch size prec) = prec
 
 type instance PrimFnShape (RandomSearch size prec) = BooleanPredicate
 

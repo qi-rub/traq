@@ -54,10 +54,10 @@ ensureEqual expected actual err = do
 
 -- | Verify that the argument types match the deduced types
 verifyArgTys ::
-  forall sizeT m.
-  (P.TypingReqs sizeT, MonadError Err.MyError m) =>
-  [P.VarType sizeT] ->
-  [P.VarType sizeT] ->
+  forall size m.
+  (P.TypingReqs size, MonadError Err.MyError m) =>
+  [P.VarType size] ->
+  [P.VarType size] ->
   m ()
 verifyArgTys arg_tys tys = do
   when (length arg_tys /= length tys) $
@@ -91,15 +91,15 @@ getArgTy (ArrElemArg arg _) = do
 
 -- | Verify that the arguments match the deduced types
 verifyArgs ::
-  forall sizeT env m.
-  ( P.TypingReqs sizeT
+  forall size env m.
+  ( P.TypingReqs size
   , MonadError Err.MyError m
   , MonadReader env m
   , P.HasTypingCtx env
-  , sizeT ~ SizeType env
+  , size ~ SizeType env
   ) =>
-  [Arg sizeT] ->
-  [P.VarType sizeT] ->
+  [Arg size] ->
+  [P.VarType size] ->
   m ()
 verifyArgs args tys = do
   arg_tys <- forM args getArgTy
@@ -110,19 +110,19 @@ verifyArgs args tys = do
 -- ================================================================================
 
 -- | Env for type checking
-data CheckingCtx sizeT = CheckingCtx (ProcCtx sizeT) (P.TypingCtx sizeT)
+data CheckingCtx size = CheckingCtx (ProcCtx size) (P.TypingCtx size)
   deriving (Generic, HasDefault)
 
-type instance SizeType (CheckingCtx sizeT) = sizeT
+type instance SizeType (CheckingCtx size) = size
 
-instance HasProcCtx (CheckingCtx sizeT) where
+instance HasProcCtx (CheckingCtx size) where
   _procCtx focus (CheckingCtx p t) = focus p <&> \p' -> CheckingCtx p' t
 
-instance P.HasTypingCtx (CheckingCtx sizeT) where
+instance P.HasTypingCtx (CheckingCtx size) where
   _typingCtx focus (CheckingCtx p t) = focus t <&> \t' -> CheckingCtx p t'
 
 -- | Monad for type checking
-type TypeChecker sizeT = ReaderT (CheckingCtx sizeT) (Either Err.MyError)
+type TypeChecker size = ReaderT (CheckingCtx size) (Either Err.MyError)
 
 -- ================================================================================
 -- Type Checking
@@ -139,7 +139,7 @@ typeCheckBasicGate (PhaseOnZero _) _ = return ()
 typeCheckBasicGate COPY tys = let n = length tys `div` 2 in verifyArgTys (take n tys) (drop n tys)
 typeCheckBasicGate SWAP tys = let n = length tys `div` 2 in verifyArgTys (take n tys) (drop n tys)
 
-typeCheckUnitary :: forall sizeT. (P.TypingReqs sizeT) => Unitary sizeT -> [P.VarType sizeT] -> TypeChecker sizeT ()
+typeCheckUnitary :: forall size. (P.TypingReqs size) => Unitary size -> [P.VarType size] -> TypeChecker size ()
 typeCheckUnitary (BasicGateU g) tys = typeCheckBasicGate g tys
 typeCheckUnitary (DistrU (P.UniformE ty)) tys = verifyArgTys tys [ty]
 typeCheckUnitary (DistrU (P.BernoulliE _)) tys = verifyArgTys tys [P.tbool]
@@ -162,7 +162,7 @@ typeCheckUnitary (Controlled u) tys = do
   typeCheckUnitary u (tail tys)
 typeCheckUnitary (Adjoint u) tys = typeCheckUnitary u tys
 
-typeCheckUStmt :: forall sizeT. (P.TypingReqs sizeT) => UStmt sizeT -> TypeChecker sizeT ()
+typeCheckUStmt :: forall size. (P.TypingReqs size) => UStmt size -> TypeChecker size ()
 -- single statements
 typeCheckUStmt USkipS = return ()
 typeCheckUStmt (UCommentS _) = return ()
@@ -187,7 +187,7 @@ typeCheckUStmt UForInRangeS{iter_meta_var, iter_lim, uloop_body} = do
     typeCheckUStmt' uloop_body
 typeCheckUStmt UWithComputedS{with_ustmt, body_ustmt} = mapM_ typeCheckUStmt' [with_ustmt, body_ustmt]
 
-typeCheckUStmt' :: (P.TypingReqs sizeT) => UStmt sizeT -> TypeChecker sizeT ()
+typeCheckUStmt' :: (P.TypingReqs size) => UStmt size -> TypeChecker size ()
 typeCheckUStmt' s = do
   gamma <- view P._typingCtx
   typeCheckUStmt s
@@ -196,10 +196,10 @@ typeCheckUStmt' s = do
 
 -- | Check a statement
 typeCheckStmt ::
-  forall sizeT.
-  (P.TypingReqs sizeT) =>
-  Stmt sizeT ->
-  TypeChecker sizeT ()
+  forall size.
+  (P.TypingReqs size) =>
+  Stmt size ->
+  TypeChecker size ()
 typeCheckStmt SkipS = return ()
 typeCheckStmt (CommentS _) = return ()
 -- Simple statements
@@ -267,12 +267,12 @@ typeCheckStmt s = case desugarS s of
   Nothing -> error $ "Unable to TypeCheck: " ++ show s
 
 typeCheckUProcBody ::
-  forall sizeT.
-  (P.TypingReqs sizeT) =>
-  UProcBody sizeT ->
+  forall size.
+  (P.TypingReqs size) =>
+  UProcBody size ->
   -- | parameter types
-  [P.VarType sizeT] ->
-  TypeChecker sizeT ()
+  [P.VarType size] ->
+  TypeChecker size ()
 -- declaration with a tick
 typeCheckUProcBody UProcDecl{} _ = return ()
 -- definition with a body
@@ -286,12 +286,12 @@ typeCheckUProcBody procdef@UProcBody{uproc_param_names, uproc_body_stmt} tys = d
 
 -- | Check a procedure def
 typeCheckCProcBody ::
-  forall sizeT.
-  (P.TypingReqs sizeT) =>
-  CProcBody sizeT ->
+  forall size.
+  (P.TypingReqs size) =>
+  CProcBody size ->
   -- | parameter types
-  [P.VarType sizeT] ->
-  TypeChecker sizeT ()
+  [P.VarType size] ->
+  TypeChecker size ()
 -- declaration with a tick
 typeCheckCProcBody CProcDecl{} _ = return ()
 -- definition with a body
@@ -308,10 +308,10 @@ typeCheckCProcBody CProcBody{cproc_param_names, cproc_local_vars, cproc_body_stm
     typeCheckStmt cproc_body_stmt
 
 typeCheckProc ::
-  forall sizeT.
-  (P.TypingReqs sizeT) =>
-  ProcDef sizeT ->
-  TypeChecker sizeT ()
+  forall size.
+  (P.TypingReqs size) =>
+  ProcDef size ->
+  TypeChecker size ()
 typeCheckProc ProcDef{proc_name, proc_param_types, proc_body} =
   case proc_body of
     ProcBodyC cbody -> typeCheckCProcBody cbody proc_param_types
@@ -320,9 +320,9 @@ typeCheckProc ProcDef{proc_name, proc_param_types, proc_body} =
 
 -- | Check an entire program given the input bindings.
 typeCheckProgram ::
-  forall sizeT.
-  (P.TypingReqs sizeT) =>
-  Program sizeT ->
+  forall size.
+  (P.TypingReqs size) =>
+  Program size ->
   Either Err.MyError ()
 typeCheckProgram (Program ps) = do
   let env =

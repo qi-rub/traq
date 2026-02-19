@@ -44,13 +44,13 @@ References:
 
  1. [Breaking Symmetric Cryptosystems using Quantum Period Finding](https://arxiv.org/pdf/1602.05973)
 -}
-newtype SimonsFindXorPeriod sizeT precT = SimonsFindXorPeriod (FindXorPeriod sizeT precT)
+newtype SimonsFindXorPeriod size prec = SimonsFindXorPeriod (FindXorPeriod size prec)
   deriving (Eq, Show, Read, Generic)
 
-type instance SizeType (SimonsFindXorPeriod sizeT precT) = sizeT
-type instance PrecType (SimonsFindXorPeriod sizeT precT) = precT
+type instance SizeType (SimonsFindXorPeriod size prec) = size
+type instance PrecType (SimonsFindXorPeriod size prec) = prec
 
-type instance PrimFnShape (SimonsFindXorPeriod sizeT precT) = FindXorPeriodArg
+type instance PrimFnShape (SimonsFindXorPeriod size prec) = FindXorPeriodArg
 
 instance P.MapSize (SimonsFindXorPeriod size prec) where
   type MappedSize (SimonsFindXorPeriod size prec) size' = (SimonsFindXorPeriod size' prec)
@@ -60,11 +60,11 @@ instance P.MapSize (SimonsFindXorPeriod size prec) where
 -- Basic Instances
 -- ================================================================================
 
-instance FindXorPeriod sizeT precT :<: SimonsFindXorPeriod sizeT precT
+instance FindXorPeriod size prec :<: SimonsFindXorPeriod size prec
 
-instance IsA (FindXorPeriod sizeT precT) (SimonsFindXorPeriod sizeT precT)
+instance IsA (FindXorPeriod size prec) (SimonsFindXorPeriod size prec)
 
-instance (Show sizeT) => SerializePrim (SimonsFindXorPeriod sizeT Double) where
+instance (Show size) => SerializePrim (SimonsFindXorPeriod size Double) where
   primNames = ["findXorPeriod"]
   parsePrimParams tp s = SimonsFindXorPeriod <$> parsePrimParams tp s
   printPrimParams (SimonsFindXorPeriod prim) = printPrimParams prim
@@ -81,15 +81,15 @@ instance
 
 -- | Number of queries as described in Theorem 1.
 _SimonsQueries ::
-  forall sizeT precT.
-  (Floating precT, P.SizeToPrec sizeT precT) =>
+  forall size prec.
+  (Floating prec, P.SizeToPrec size prec) =>
   -- | bitsize
-  sizeT ->
+  size ->
   -- | p_0: maximum probability of spurious collisions for non-period values.
-  precT ->
+  prec ->
   -- | maximum allowed failure probability.
-  P.FailProb precT ->
-  precT
+  P.FailProb prec ->
+  prec
 _SimonsQueries n p0 eps = q
  where
   {- Sketch:

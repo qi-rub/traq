@@ -36,15 +36,15 @@ import Traq.Primitives.Class
 import qualified Traq.ProtoLang as P
 
 -- | Quantum Amplitude Amplification.
-newtype QAmplify sizeT precT = QAmplify (Amplify sizeT precT)
+newtype QAmplify size prec = QAmplify (Amplify size prec)
   deriving (Eq, Show, Read, Generic)
 
-type instance SizeType (QAmplify sizeT precT) = sizeT
-type instance PrecType (QAmplify sizeT precT) = precT
+type instance SizeType (QAmplify size prec) = size
+type instance PrecType (QAmplify size prec) = prec
 
 type instance PrimFnShape (QAmplify size prec) = SamplerFn
 
-instance Amplify sizeT precT :<: QAmplify sizeT precT
+instance Amplify size prec :<: QAmplify size prec
 
 instance P.MapSize (QAmplify size prec) where
   type MappedSize (QAmplify size prec) size' = QAmplify size' prec
@@ -57,10 +57,10 @@ instance (Show prec, Fractional prec) => SerializePrim (QAmplify size prec) wher
   parsePrimParams tp name = QAmplify <$> parsePrimParams tp name
   printPrimParams (QAmplify prim) = printPrimParams prim
 
-instance (P.TypingReqs sizeT) => TypeCheckPrim (QAmplify sizeT precT) sizeT where
+instance (P.TypingReqs size) => TypeCheckPrim (QAmplify size prec) size where
   inferRetTypesPrim (QAmplify p) = inferRetTypesPrim p
 
-instance (P.EvalReqs sizeT precT, Ord precT) => EvalPrim (QAmplify sizeT precT) sizeT precT where
+instance (P.EvalReqs size prec, Ord prec) => EvalPrim (QAmplify size prec) size prec where
   evalPrim (QAmplify p) = evalPrim p
 
 -- ================================================================================
@@ -68,7 +68,7 @@ instance (P.EvalReqs sizeT precT, Ord precT) => EvalPrim (QAmplify sizeT precT) 
 -- ================================================================================
 
 -- | Fixed-Point Amplitude Amplification.
-_FPAA_L :: forall precT. (Floating precT) => A.FailProb precT -> precT -> precT
+_FPAA_L :: forall prec. (Floating prec) => A.FailProb prec -> prec -> prec
 _FPAA_L eps p_min = acosh (1 / sqrt (A.getFailProb eps)) / acosh (1 / sqrt (1 - p_min))
 
 instance (P.TypingReqs size, Floating prec) => UnitaryCostPrim (QAmplify size prec) size prec where
@@ -87,11 +87,11 @@ _WQSearch_N_Runs eps = logBase 3 (1 / A.getFailProb eps)
 _WQSearch_Q_Max :: forall prec. (Floating prec) => prec -> prec
 _WQSearch_Q_Max p_min = _WQSearch_alpha / sqrt p_min
 
-_WQSearch :: forall precT. (Floating precT) => A.FailProb precT -> precT -> precT
+_WQSearch :: forall prec. (Floating prec) => A.FailProb prec -> prec -> prec
 _WQSearch eps p_min = _WQSearch_N_Runs eps * _WQSearch_Q_Max p_min
 
 -- | Eq. 3 of https://arxiv.org/abs/2203.04975
-_F :: forall precT. (Floating precT, Ord precT) => precT -> precT
+_F :: forall prec. (Floating prec, Ord prec) => prec -> prec
 _F p_good
   | p_good >= 0.25 = 2.0344
   | otherwise = _WQSearch_alpha / (3 * sqrt p_good)
@@ -99,7 +99,7 @@ _F p_good
 {- | Cost of quantum search adapted to general amplitude amplification.
 Eq. 2 of https://arxiv.org/abs/2203.04975
 -}
-_EQSearch :: forall precT. (Floating precT, Ord precT) => A.FailProb precT -> precT -> precT -> precT
+_EQSearch :: forall prec. (Floating prec, Ord prec) => A.FailProb prec -> prec -> prec -> prec
 _EQSearch eps p_min p_good
   | p_good == 0 = _WQSearch eps p_min
   | otherwise = _F p_good * (1 + 1 / (1 - term))

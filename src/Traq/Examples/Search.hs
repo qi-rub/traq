@@ -6,13 +6,13 @@ import Traq.Primitives.Search.Prelude
 import Traq.Primitives.Search.QSearchCFNW
 import Traq.ProtoLang.Syntax
 
-arraySearch :: forall precT. SizeT -> Program (DefaultPrims SizeT precT)
+arraySearch :: forall prec. SizeT -> Program (DefaultPrims SizeT prec)
 arraySearch n = Program [NamedFunDef "Oracle" oracle_decl, NamedFunDef "main" main_def]
  where
-  oracle_decl :: FunDef (DefaultPrims SizeT precT)
+  oracle_decl :: FunDef (DefaultPrims SizeT prec)
   oracle_decl = FunDef{param_types = [Fin n], ret_types = [Fin 2], mbody = Nothing}
 
-  main_def :: FunDef (DefaultPrims SizeT precT)
+  main_def :: FunDef (DefaultPrims SizeT prec)
   main_def =
     FunDef
       { param_types = []
@@ -30,13 +30,13 @@ arraySearch n = Program [NamedFunDef "Oracle" oracle_decl, NamedFunDef "main" ma
               }
       }
 
-arraySearchIx :: forall precT. SizeT -> Program (DefaultPrims SizeT precT)
+arraySearchIx :: forall prec. SizeT -> Program (DefaultPrims SizeT prec)
 arraySearchIx n = Program [NamedFunDef "Oracle" oracle_decl, NamedFunDef "check" check, NamedFunDef "main" main_def]
  where
-  oracle_decl :: FunDef (DefaultPrims SizeT precT)
+  oracle_decl :: FunDef (DefaultPrims SizeT prec)
   oracle_decl = FunDef{param_types = [Fin n], ret_types = [Fin 2], mbody = Nothing}
 
-  check :: FunDef (DefaultPrims SizeT precT)
+  check :: FunDef (DefaultPrims SizeT prec)
   check =
     FunDef
       { param_types = [Fin n]
@@ -54,7 +54,7 @@ arraySearchIx n = Program [NamedFunDef "Oracle" oracle_decl, NamedFunDef "check"
       , ret_types = [Fin 2]
       }
 
-  main_def :: FunDef (DefaultPrims SizeT precT)
+  main_def :: FunDef (DefaultPrims SizeT prec)
   main_def =
     FunDef
       { param_types = []

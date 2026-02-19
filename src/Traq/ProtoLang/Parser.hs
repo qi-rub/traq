@@ -76,7 +76,7 @@ protoLangTokenParser = makeTokenParser protoLangDef
 class Parseable ext where
   parseE :: TokenParser () -> Parser ext
 
-instance Parseable (Core SymbSize precT) where
+instance Parseable (Core SymbSize prec) where
   parseE _ = fail "no parse"
 
 symbSize :: TokenParser () -> Parser SymbSize

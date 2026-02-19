@@ -63,7 +63,7 @@ freeVars = Set.fromList . freeVarsList
 instance HasFreeVars (Core size prec) where
   freeVarsList = \case {}
 
-instance HasFreeVars (BasicExpr sizeT) where
+instance HasFreeVars (BasicExpr size) where
   freeVarsList VarE{var} = [var]
   freeVarsList ConstE{} = []
   freeVarsList ParamE{} = []
@@ -77,7 +77,7 @@ instance HasFreeVars (BasicExpr sizeT) where
   freeVarsList UpdateArrE{arr_expr, ix_expr, rhs} = concatMap freeVarsList [arr_expr, ix_expr, rhs]
   freeVarsList ProjectE{tup_expr} = freeVarsList tup_expr
 
-instance HasFreeVars (DistrExpr sizeT) where
+instance HasFreeVars (DistrExpr size) where
   freeVarsList UniformE{} = []
   freeVarsList BernoulliE{} = []
 

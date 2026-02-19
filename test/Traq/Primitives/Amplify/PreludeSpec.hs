@@ -15,7 +15,7 @@ import qualified Traq.Utils.Printing as PP
 import Test.Hspec
 import TestHelpers
 
-exampleProgram1 :: (Num sizeT, Fractional precT) => sizeT -> P.Program (Primitive (Amplify sizeT precT))
+exampleProgram1 :: (Num size, Fractional prec) => size -> P.Program (Primitive (Amplify size prec))
 exampleProgram1 n = P.Program [P.NamedFunDef "sampler" sampler, P.NamedFunDef "main" main_fun]
  where
   node_ty = P.Fin n
@@ -60,7 +60,7 @@ exampleProgram1 n = P.Program [P.NamedFunDef "sampler" sampler, P.NamedFunDef "m
               Amplify{p_min = 0.02}
       }
 
-exampleProgram2 :: (Num sizeT, Fractional precT) => sizeT -> P.Program (Primitive (Amplify sizeT precT))
+exampleProgram2 :: (Num size, Fractional prec) => size -> P.Program (Primitive (Amplify size prec))
 exampleProgram2 n = P.Program [P.NamedFunDef "f" fDef, P.NamedFunDef "main" mainDef]
  where
   node_ty = P.Fin n
@@ -131,7 +131,7 @@ exampleProgram2 n = P.Program [P.NamedFunDef "f" fDef, P.NamedFunDef "main" main
               }
       }
 
-exampleProgram3 :: (Num sizeT, Fractional precT) => sizeT -> P.Program (Primitive (Amplify sizeT precT))
+exampleProgram3 :: (Num size, Fractional prec) => size -> P.Program (Primitive (Amplify size prec))
 exampleProgram3 n = P.Program [P.NamedFunDef "sampler" sampler, P.NamedFunDef "main" mainDef]
  where
   node_ty = P.Fin n

@@ -20,7 +20,7 @@ import qualified Traq.ProtoLang as P
 import Test.Hspec
 import TestHelpers
 
-loopExample :: forall ext sizeT. (Num sizeT, sizeT ~ SizeType ext) => sizeT -> sizeT -> Program ext
+loopExample :: forall ext size. (Num size, size ~ SizeType ext) => size -> size -> Program ext
 loopExample n w =
   Program
     [ NamedFunDef
