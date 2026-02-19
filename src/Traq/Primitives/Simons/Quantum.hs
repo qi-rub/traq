@@ -90,7 +90,7 @@ _SimonsQueries ::
   -- | maximum allowed failure probability.
   P.FailProb prec ->
   prec
-_SimonsQueries n p0 eps = q
+_SimonsQueries n p0 eps = q + 1
  where
   {- Sketch:
     We need to pick @c@ such that @(2 * ((1 + p0)/2)^c)^n <= eps@ (see Theorem 1)
@@ -195,7 +195,7 @@ instance
     proc_name <- lift $ Compiler.newIdent "USimon"
     i <- lift $ Compiler.newIdent "i"
 
-    let nq = ceiling $ _SimonsQueries n p_0 eps
+    let nq = floor $ _SimonsQueries n p_0 eps
     xts <- forM (simons_uproc & CQPL.proc_param_types) $ \t -> do
       let t' = P.Arr nq t
       x <- lift $ Compiler.allocAncillaWithPref (proc_name ++ "_aux") t'
@@ -254,7 +254,7 @@ instance
     proc_name <- lift $ Compiler.newIdent "QSimon"
     i <- lift $ Compiler.newIdent "i"
 
-    let nq = ceiling $ _SimonsQueries n p_0 eps
+    let nq = floor $ _SimonsQueries n p_0 eps
     xts <- forM arg_tys $ \t -> do
       let t' = P.Arr nq t
       x <- lift $ Compiler.allocAncillaWithPref (proc_name ++ "__u") t'

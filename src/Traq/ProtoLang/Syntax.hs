@@ -71,13 +71,12 @@ import Traq.Utils.ASTRewriting
 import qualified Traq.Utils.Printing as PP
 
 -- | Compile-time constant parameters
-data MetaParam size = MetaName String | MetaSize size | MetaValue Integer
+data MetaParam size = MetaName String | MetaSize size
   deriving (Eq, Show, Read)
 
 instance (Show size) => PP.ToCodeString (MetaParam size) where
   build (MetaName n) = PP.putWord $ "#" ++ n
   build (MetaSize n) = PP.putWord $ show n
-  build (MetaValue n) = PP.putWord $ show n
 
 -- ================================================================================
 -- Types and Values

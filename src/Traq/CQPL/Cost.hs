@@ -64,11 +64,9 @@ instance HasCost (UStmt size) where
   cost UCallS{uproc_id} = cachedProcCost uproc_id
   cost (USeqS ss) = Alg.sum <$> mapM cost ss
   cost URepeatS{n_iter = P.MetaSize k, uloop_body} = Alg.sinnum (fromIntegral k) <$> cost uloop_body
-  cost URepeatS{n_iter = P.MetaValue k, uloop_body} = Alg.sinnum (fromIntegral k) <$> cost uloop_body
-  cost URepeatS{n_iter = P.MetaName _} = throwError "unsupported meta parameter substitution"
+  cost URepeatS{n_iter = P.MetaName _} = return Alg.zero
   cost UForInRangeS{iter_lim = P.MetaSize k, uloop_body} = Alg.sinnum (fromIntegral k) <$> cost uloop_body
-  cost UForInRangeS{iter_lim = P.MetaValue k, uloop_body} = Alg.sinnum (fromIntegral k) <$> cost uloop_body
-  cost UForInRangeS{iter_lim = _} = throwError "unsupported meta parameter substitution"
+  cost UForInRangeS{iter_lim = P.MetaName _} = return Alg.zero
   cost UWithComputedS{with_ustmt, body_ustmt} = do
     wc <- cost with_ustmt
     bc <- cost body_ustmt
@@ -82,18 +80,20 @@ instance HasCost (Stmt size) where
   cost RandomS{} = return Alg.zero
   cost RandomDynS{} = return Alg.zero
   -- single statements
-  cost CallS{fun = FunctionCall p, meta_params = []} = cachedProcCost p
-  cost CallS{fun = UProcAndMeas up, meta_params = []} = cachedProcCost up
-  cost CallS{} = throwError "unsupported cost: proc call with params"
+  cost CallS{fun = FunctionCall p} = cachedProcCost p
+  cost CallS{fun = UProcAndMeas up} = cachedProcCost up
   -- compound statements
   cost (SeqS ss) = Alg.sum <$> mapM cost ss
   cost IfThenElseS{s_true, s_false} = max <$> cost s_true <*> cost s_false
   cost RepeatS{n_iter = P.MetaSize k, loop_body} = Alg.sinnum (fromIntegral k) <$> cost loop_body
-  cost RepeatS{n_iter = P.MetaValue k, loop_body} = Alg.sinnum (fromIntegral k) <$> cost loop_body
   cost RepeatS{} = throwError "unsupported cost"
+  cost WhileK{n_iter = P.MetaSize k, loop_body} = Alg.sinnum (fromIntegral k) <$> cost loop_body
   cost WhileK{} = throwError "unsupported cost"
+  cost WhileKWithCondExpr{n_iter = P.MetaSize k, loop_body} = Alg.sinnum (fromIntegral k) <$> cost loop_body
   cost WhileKWithCondExpr{} = throwError "unsupported cost"
-  cost ForInArray{} = throwError "unsupported cost"
+  cost ForInArray{loop_values, loop_body} = Alg.sinnum (fromIntegral (length loop_values)) <$> cost loop_body
+  cost ForInRangeS{iter_lim = P.MetaSize k, loop_body} = Alg.sinnum (fromIntegral k) <$> cost loop_body
+  cost ForInRangeS{} = throwError "unsupported cost"
 
 instance HasCost (ProcDef size) where
   cost ProcDef{proc_name, proc_body = ProcBodyC CProcDecl} = pure $ C.query C.Classical proc_name

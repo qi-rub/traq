@@ -431,7 +431,8 @@ test-suite spec
   build-tool-depends:
       hspec-discover:hspec-discover
   build-depends:
-      HUnit-approx
+      HUnit
+    , HUnit-approx
     , QuickCheck
     , algebra ==4.3.*
     , base >=4.10 && <5

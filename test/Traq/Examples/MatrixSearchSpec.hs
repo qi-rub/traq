@@ -91,7 +91,7 @@ spec = describe "MatrixSearch" $ do
         ex_uqpl <- expectRight $ Compiler.lowerProgramU ex'
         let uqpl_cost = getCost . fst $ CQPL.programCost ex_uqpl
         let proto_cost = getCost $ A.costUProg ex'
-        uqpl_cost `shouldSatisfy` (<= proto_cost)
+        uqpl_cost `shouldBeLE` proto_cost
 
     describe "lower to CQPL" $ do
       let eps = A.failProb (0.001 :: Double)
@@ -103,6 +103,13 @@ spec = describe "MatrixSearch" $ do
         ex' <- expectRight $ A.annotateProgWithErrorBudget eps ex
         ex_cqpl <- expectRight $ Compiler.lowerProgram ex'
         assertRight $ CQPL.typeCheckProgram ex_cqpl
+
+      it "cost" $ do
+        ex' <- expectRight $ A.annotateProgWithErrorBudget eps ex
+        ex_cqpl <- expectRight $ Compiler.lowerProgram ex'
+        let cost = fst (CQPL.programCost ex_cqpl) :: SimpleQueryCost Double
+        let cost_from_analysis = getCost $ A.costQProg ex'
+        getCost cost `shouldBeLE` cost_from_analysis
 
   describe "symbolic" $ do
     let n = Sym.var "n" :: Sym.Sym Int

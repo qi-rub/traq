@@ -3,9 +3,11 @@ module TestHelpers where
 import Control.Monad (forM_)
 import Data.Either
 import Data.Maybe
+import Text.Printf (printf)
 
 import qualified Traq.Data.Probability as Prob
 
+import Test.HUnit
 import Test.HUnit.Approx
 import Test.Hspec
 
@@ -51,3 +53,6 @@ shouldBeDistribution mu vals = do
   assertApproxEqual "mass" epsilon (sum $ map snd vals) $ Prob.mass mu
   forM_ vals $ \(x, p) ->
     assertApproxEqual ("Prob[" <> show x <> "]") epsilon p $ Prob.probabilityOf (== x) mu
+
+shouldBeLE :: (Ord a, Show a) => a -> a -> Expectation
+shouldBeLE x y = assertBool (printf "failed: %s <= %s" (show x) (show y)) (x <= y)

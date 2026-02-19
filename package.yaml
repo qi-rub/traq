@@ -117,6 +117,7 @@ tests:
         - traq
         - hspec >= 2.11.0
         - QuickCheck
+        - HUnit
         - HUnit-approx
       cpp-options: -DTEST
       build-tools: hspec-discover
