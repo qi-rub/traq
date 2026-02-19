@@ -30,32 +30,14 @@ import Traq.Primitives.Class
 import qualified Traq.ProtoLang as P
 
 -- ================================================================================
--- Cost Formulas
--- ================================================================================
-
--- [1], Page 16, below Eq. 11
-_EQMax :: forall sizeT precT. (Floating precT, P.SizeToPrec sizeT precT) => sizeT -> precT
-_EQMax n = 6.3505 * sqrt_n + 2.8203
- where
-  sqrt_n :: precT
-  sqrt_n = sqrt $ P.sizeToPrec n
-
--- [1], Corollary 1.
-_WQMax :: forall sizeT precT. (Floating precT, P.SizeToPrec sizeT precT) => sizeT -> P.FailProb precT -> precT
-_WQMax n eps = 3 * _EQMax n * log_eps
- where
-  log_eps :: precT
-  log_eps = log (1 / P.getFailProb eps)
-
--- ================================================================================
 -- Primitive Class Implementation
 -- ================================================================================
 
-data QMax sizeT precT = QMax {arg_ty :: P.VarType sizeT}
+data QMax size prec = QMax {arg_ty :: P.VarType size}
   deriving (Eq, Show, Read)
 
-type instance SizeType (QMax sizeT precT) = sizeT
-type instance PrecType (QMax sizeT precT) = precT
+type instance SizeType (QMax size prec) = size
+type instance PrecType (QMax size prec) = prec
 
 newtype QMaxFunArg a = QMaxFunArg {fun :: a}
 
@@ -72,13 +54,13 @@ instance P.MapSize (QMax size prec) where
 
   mapSize f (QMax t) = QMax (P.mapSize f t)
 
-instance (Show sizeT) => SerializePrim (QMax sizeT precT) where
+instance (Show size) => SerializePrim (QMax size prec) where
   primNames = ["max"]
   parsePrimParams tp _ = QMax <$> P.varType tp
   printPrimParams QMax{arg_ty} = [show arg_ty]
 
 -- Type check
-instance (Eq sizeT) => TypeCheckPrim (QMax sizeT precT) sizeT where
+instance (Eq size) => TypeCheckPrim (QMax size prec) size where
   inferRetTypesPrim QMax{arg_ty} QMaxFunArg{fun = fun_type} = do
     let P.FnType param_types ret_types = fun_type
 
@@ -96,7 +78,7 @@ instance (Eq sizeT) => TypeCheckPrim (QMax sizeT precT) sizeT where
 {- | Evaluate an `any` call by evaluating the predicate on each element of the search space
  and or-ing the results.
 -}
-instance EvalPrim (QMax sizeT precT) sizeT precT where
+instance EvalPrim (QMax size prec) size prec where
   evalPrim QMax{arg_ty} QMaxFunArg{fun = fun_eval} = do
     let search_range = P.domain arg_ty
 
@@ -109,16 +91,12 @@ instance EvalPrim (QMax sizeT precT) sizeT precT where
     return [P.FinV $ maximum vs]
 
 -- ================================================================================
--- Abstract Costs
+-- Unitary
 -- ================================================================================
 
--- | Compute the unitary cost using the QSearch_Zalka cost formula.
 instance
-  ( Integral sizeT
-  , Floating precT
-  , P.SizeToPrec sizeT precT
-  ) =>
-  UnitaryCostPrim (QMax sizeT precT) sizeT precT
+  (Integral size, Floating prec, P.SizeToPrec size prec) =>
+  UnitaryCostPrim (QMax size prec) size prec
   where
   unitaryQueryCosts QMax{arg_ty} eps = QMaxFunArg{fun = strongQueries $ _WQMax _N eps}
    where
@@ -126,12 +104,31 @@ instance
 
   unitaryExprCosts _ _ = Alg.zero
 
+instance UnitaryCompilePrim (QMax size prec) size prec where
+  compileUPrim QMax{} eps = do
+    error "TODO: CompileU QMax"
+
+-- ================================================================================
+-- Quantum
+-- ================================================================================
+
+-- [1], Page 16, below Eq. 11
+_EQMax :: forall size prec. (Floating prec, P.SizeToPrec size prec) => size -> prec
+_EQMax n = 6.3505 * sqrt_n + 2.8203
+ where
+  sqrt_n :: prec
+  sqrt_n = sqrt $ P.sizeToPrec n
+
+-- [1], Corollary 1.
+_WQMax :: forall size prec. (Floating prec, P.SizeToPrec size prec) => size -> P.FailProb prec -> prec
+_WQMax n eps = 3 * _EQMax n * log_eps
+ where
+  log_eps :: prec
+  log_eps = log (1 / P.getFailProb eps)
+
 instance
-  ( Integral sizeT
-  , Floating precT
-  , P.SizeToPrec sizeT precT
-  ) =>
-  QuantumHavocCostPrim (QMax sizeT precT) sizeT precT
+  (Integral size, Floating prec, P.SizeToPrec size prec) =>
+  QuantumHavocCostPrim (QMax size prec) size prec
   where
   quantumQueryCostsUnitary QMax{arg_ty} eps = QMaxFunArg{fun = strongQueries $ _WQMax _N eps}
    where
@@ -143,11 +140,8 @@ instance
   quantumExprCosts = Alg.zero
 
 instance
-  ( Floating precT
-  , Integral sizeT
-  , P.SizeToPrec sizeT precT
-  ) =>
-  QuantumExpCostPrim (QMax sizeT precT) sizeT precT
+  (Floating prec, Integral size, P.SizeToPrec size prec) =>
+  QuantumExpCostPrim (QMax size prec) size prec
   where
   quantumExpQueryCostsUnitary QMax{arg_ty} _ _ = QMaxFunArg{fun = strongQueries $ _EQMax _N}
    where
@@ -157,14 +151,6 @@ instance
   quantumExpQueryCostsQuantum _ _ _ = QMaxFunArg{fun = []}
 
   quantumExpExprCosts = Alg.zero
-
--- ================================================================================
--- Compilation
--- ================================================================================
-
-instance UnitaryCompilePrim (QMax size prec) size prec where
-  compileUPrim QMax{} eps = do
-    error "TODO: CompileU QMax"
 
 instance QuantumCompilePrim (QMax size prec) size prec where
   compileQPrim QMax{} eps = do
