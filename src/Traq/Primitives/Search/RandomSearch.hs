@@ -14,7 +14,7 @@ import qualified Numeric.Algebra as Alg
 
 import qualified Traq.Data.Probability as Prob
 
-import qualified Traq.Analysis as P
+import qualified Traq.Analysis as A
 import Traq.Prelude
 import Traq.Primitives.Class
 import Traq.Primitives.Search.Prelude
@@ -29,11 +29,11 @@ _URandomSearch :: forall size prec. (Integral size, Floating prec) => size -> pr
 _URandomSearch = fromIntegral
 
 -- | Worst case number of predicate queries to implement random search.
-_ERandomSearchWorst :: forall size prec. (Integral size, Floating prec) => size -> P.FailProb prec -> prec
-_ERandomSearchWorst n eps = fromIntegral n * log (1 / P.getFailProb eps)
+_ERandomSearchWorst :: forall size prec. (Integral size, Floating prec) => size -> A.FailProb prec -> prec
+_ERandomSearchWorst n eps = fromIntegral n * log (1 / A.getFailProb eps)
 
 -- | Expected number of predicate queries to implement random search.
-_ERandomSearch :: forall size prec. (Integral size, Floating prec) => size -> size -> P.FailProb prec -> prec
+_ERandomSearch :: forall size prec. (Integral size, Floating prec) => size -> size -> A.FailProb prec -> prec
 _ERandomSearch n 0 eps = _ERandomSearchWorst n eps
 _ERandomSearch n k _ = fromIntegral n / fromIntegral k
 
@@ -78,7 +78,7 @@ instance (P.TypingReqs size, Integral size, Floating prec) => UnitaryCostPrim (R
 
   unitaryExprCosts _ _ = Alg.zero
 
-instance (P.TypingReqs size, Integral size, Floating prec, P.SizeToPrec size prec) => QuantumHavocCostPrim (RandomSearch size prec) size prec where
+instance (P.TypingReqs size, Integral size, Floating prec, A.SizeToPrec size prec) => QuantumHavocCostPrim (RandomSearch size prec) size prec where
   -- only classical queries
   quantumQueryCostsQuantum (RandomSearch PrimSearch{search_ty}) eps =
     BooleanPredicate $ _ERandomSearchWorst _N eps

@@ -24,7 +24,7 @@ import Traq.Control.Monad
 import qualified Traq.Data.Context as Ctx
 import Traq.Data.Subtyping
 
-import qualified Traq.Analysis as P
+import qualified Traq.Analysis as A
 import qualified Traq.CQPL as CQPL
 import qualified Traq.Compiler as Compiler
 import Traq.Prelude
@@ -82,13 +82,13 @@ instance
 -- | Number of queries as described in Theorem 1.
 _SimonsQueries ::
   forall size prec.
-  (Floating prec, P.SizeToPrec size prec) =>
+  (Floating prec, A.SizeToPrec size prec) =>
   -- | bitsize
   size ->
   -- | p_0: maximum probability of spurious collisions for non-period values.
   prec ->
   -- | maximum allowed failure probability.
-  P.FailProb prec ->
+  A.FailProb prec ->
   prec
 _SimonsQueries n p0 eps = q + 1
  where
@@ -99,12 +99,12 @@ _SimonsQueries n p0 eps = q + 1
     ==> n + log_2 (1/eps) <= q * log_2(2 / (1+p0))
   -}
 
-  q_num = P.sizeToPrec n + logBase 2 (1 / P.getFailProb eps)
+  q_num = A.sizeToPrec n + logBase 2 (1 / A.getFailProb eps)
   q_den = logBase 2 (2 / (1 + p0))
   q = q_num / q_den
 
 instance
-  (P.TypingReqs size, Floating prec, Ord prec, Show prec, P.SizeToPrec size prec) =>
+  (P.TypingReqs size, Floating prec, Ord prec, Show prec, A.SizeToPrec size prec) =>
   UnitaryCostPrim (SimonsFindXorPeriod size prec) size prec
   where
   unitaryQueryCosts prim eps =
@@ -115,7 +115,7 @@ instance
 
 -- | Same as unitary compilation.
 instance
-  (P.TypingReqs size, Floating prec, Ord prec, Show prec, P.SizeToPrec size prec) =>
+  (P.TypingReqs size, Floating prec, Ord prec, Show prec, A.SizeToPrec size prec) =>
   QuantumHavocCostPrim (SimonsFindXorPeriod size prec) size prec
   where
   quantumQueryCostsQuantum _ _ = FindXorPeriodArg{fun = 0}

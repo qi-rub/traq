@@ -15,7 +15,7 @@ import qualified Numeric.Algebra as Alg
 import qualified Traq.Data.Probability as Prob
 import Traq.Data.Subtyping
 
-import qualified Traq.Analysis as P
+import qualified Traq.Analysis as A
 import Traq.Prelude
 import Traq.Primitives.Class
 import Traq.Primitives.Search.Prelude
@@ -62,7 +62,7 @@ instance (P.TypingReqs size, Integral size, Num prec) => UnitaryCostPrim (DetSea
 
   unitaryExprCosts _ _ = Alg.zero
 
-instance (P.TypingReqs size, Integral size, Num prec, P.SizeToPrec size prec) => QuantumHavocCostPrim (DetSearch size prec) size prec where
+instance (P.TypingReqs size, Integral size, Num prec, A.SizeToPrec size prec) => QuantumHavocCostPrim (DetSearch size prec) size prec where
   -- only classical queries
   quantumQueryCostsQuantum (DetSearch PrimSearch{search_ty}) _ = BooleanPredicate (fromIntegral _N)
    where

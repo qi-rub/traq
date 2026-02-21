@@ -9,7 +9,6 @@ import Text.Read (readMaybe)
 import qualified Traq.Data.Symbolic as Sym
 
 import qualified Traq.Analysis as A
-import qualified Traq.Analysis as P
 import qualified Traq.CQPL as CQPL
 import qualified Traq.Compiler.Quantum as CompileQ
 import Traq.Prelude
@@ -65,7 +64,7 @@ subsNM params s = Sym.unSym $ foldr subsOnce s params
 compile :: (RealFloat prec, Show prec) => P.Program (WorstCasePrims SizeT prec) -> prec -> IO String
 compile prog eps = do
   let prog_rn = if P.checkVarsUnique prog then prog else P.renameVars' prog
-  prog' <- either fail pure $ A.annotateProgWithErrorBudget (P.failProb eps) prog_rn
+  prog' <- either fail pure $ A.annotateProgWithErrorBudget (A.failProb eps) prog_rn
   cqpl_prog <- either fail pure $ CompileQ.lowerProgram prog'
   let nqubits = CQPL.numQubits cqpl_prog
 

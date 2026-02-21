@@ -25,7 +25,6 @@ import Text.Printf (printf)
 import qualified Numeric.Algebra as Alg
 
 import qualified Traq.Analysis as A
-import qualified Traq.Analysis as P
 import Traq.Prelude
 import Traq.Primitives.Class
 import qualified Traq.ProtoLang as P
@@ -96,7 +95,7 @@ instance EvalPrim (QMax size prec) size prec where
 -- ================================================================================
 
 instance
-  (Integral size, Floating prec, P.SizeToPrec size prec) =>
+  (Integral size, Floating prec, A.SizeToPrec size prec) =>
   UnitaryCostPrim (QMax size prec) size prec
   where
   unitaryQueryCosts QMax{arg_ty} _ = QMaxFunArg{fun = weakQueries (A.sizeToPrec _N)}
@@ -114,21 +113,21 @@ instance UnitaryCompilePrim (QMax size prec) size prec where
 -- ================================================================================
 
 -- [1], Page 16, below Eq. 11
-_EQMax :: forall size prec. (Floating prec, P.SizeToPrec size prec) => size -> prec
+_EQMax :: forall size prec. (Floating prec, A.SizeToPrec size prec) => size -> prec
 _EQMax n = 6.3505 * sqrt_n + 2.8203
  where
   sqrt_n :: prec
-  sqrt_n = sqrt $ P.sizeToPrec n
+  sqrt_n = sqrt $ A.sizeToPrec n
 
 -- [1], Corollary 1.
-_WQMax :: forall size prec. (Floating prec, P.SizeToPrec size prec) => size -> P.FailProb prec -> prec
+_WQMax :: forall size prec. (Floating prec, A.SizeToPrec size prec) => size -> A.FailProb prec -> prec
 _WQMax n eps = 3 * _EQMax n * log_eps
  where
   log_eps :: prec
-  log_eps = log (1 / P.getFailProb eps)
+  log_eps = log (1 / A.getFailProb eps)
 
 instance
-  (Integral size, Floating prec, P.SizeToPrec size prec) =>
+  (Integral size, Floating prec, A.SizeToPrec size prec) =>
   QuantumHavocCostPrim (QMax size prec) size prec
   where
   quantumQueryCostsUnitary QMax{arg_ty} eps = QMaxFunArg{fun = strongQueries $ _WQMax _N eps}
@@ -141,7 +140,7 @@ instance
   quantumExprCosts = Alg.zero
 
 instance
-  (Floating prec, Integral size, P.SizeToPrec size prec) =>
+  (Floating prec, Integral size, A.SizeToPrec size prec) =>
   QuantumExpCostPrim (QMax size prec) size prec
   where
   quantumExpQueryCostsUnitary QMax{arg_ty} _ _ = QMaxFunArg{fun = strongQueries $ _EQMax _N}

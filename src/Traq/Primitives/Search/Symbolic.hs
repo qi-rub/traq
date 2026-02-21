@@ -20,7 +20,7 @@ import qualified Numeric.Algebra as Alg
 import Traq.Data.Subtyping
 import qualified Traq.Data.Symbolic as Sym
 
-import qualified Traq.Analysis as P
+import qualified Traq.Analysis as A
 import Traq.Prelude
 import Traq.Primitives.Class
 import Traq.Primitives.Search.Prelude
@@ -61,11 +61,11 @@ instance (P.TypingReqs size) => TypeCheckPrim (QSearchSym size prec) (Sym.Sym si
 getSearchType :: QSearchSym size prec -> P.VarType (Sym.Sym size)
 getSearchType (QSearchSym (PrimSearch _ ty)) = ty
 
-_QryU :: forall size prec. (Show size, Show prec) => Sym.Sym size -> P.FailProb (Sym.Sym prec) -> Sym.Sym prec
-_QryU n delta = Sym.var $ printf "QryU(%s, %s)" (show n) (show $ P.getFailProb delta)
+_QryU :: forall size prec. (Show size, Show prec) => Sym.Sym size -> A.FailProb (Sym.Sym prec) -> Sym.Sym prec
+_QryU n delta = Sym.var $ printf "QryU(%s, %s)" (show n) (show $ A.getFailProb delta)
 
-_QryQmax :: forall size prec. (Show size, Show prec) => Sym.Sym size -> P.FailProb (Sym.Sym prec) -> Sym.Sym prec
-_QryQmax n eps = Sym.var $ printf "QryQmax(%s, %s)" (show n) (show $ P.getFailProb eps)
+_QryQmax :: forall size prec. (Show size, Show prec) => Sym.Sym size -> A.FailProb (Sym.Sym prec) -> Sym.Sym prec
+_QryQmax n eps = Sym.var $ printf "QryQmax(%s, %s)" (show n) (show $ A.getFailProb eps)
 
 domainSizeSym :: (Num size, Eq size, Show size) => P.VarType (Sym.Sym size) -> Sym.Sym size
 domainSizeSym (P.Fin _N) = _N

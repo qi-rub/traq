@@ -8,7 +8,6 @@ import Text.Printf (printf)
 import qualified Traq.Data.Symbolic as Sym
 
 import qualified Traq.Analysis as A
-import qualified Traq.Analysis as P
 import Traq.Analysis.CostModel.QueryCost (QueryCost (..))
 import qualified Traq.CQPL as CQPL
 import qualified Traq.Compiler as Compiler
@@ -56,10 +55,10 @@ concreteEx = do
   printDivider
   putStrLn $ PP.toCodeString ex
 
-  let eps = P.failProb (0.001 :: Double)
+  let eps = A.failProb (0.001 :: Double)
   ex' <- either fail pure $ A.annotateProgWithErrorBudget eps ex
 
-  let u_formula_cost = P.costUProg ex' :: QueryCost Double
+  let u_formula_cost = A.costUProg ex' :: QueryCost Double
 
   printDivider
   Right exU <- return $ Compiler.lowerProgramU ex'
@@ -82,7 +81,7 @@ concreteQEx = do
   printDivider
   putStrLn $ PP.toCodeString ex
 
-  let eps = P.failProb (0.001 :: Double)
+  let eps = A.failProb (0.001 :: Double)
   ex' <- either fail pure $ A.annotateProgWithErrorBudget eps ex
 
   printDivider
