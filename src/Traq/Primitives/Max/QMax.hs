@@ -20,11 +20,19 @@ module Traq.Primitives.Max.QMax (
 
 import Control.Monad (forM, when)
 import Control.Monad.Except (throwError)
+import Control.Monad.Trans (lift)
 import Text.Printf (printf)
 
+import Lens.Micro.GHC
+import Lens.Micro.Mtl
 import qualified Numeric.Algebra as Alg
 
+import Traq.Control.Monad
+import qualified Traq.Data.Context as Ctx
+
 import qualified Traq.Analysis as A
+import qualified Traq.CQPL as CQPL
+import qualified Traq.Compiler as Compiler
 import Traq.Prelude
 import Traq.Primitives.Class
 import qualified Traq.ProtoLang as P
@@ -39,15 +47,15 @@ data QMax size prec = QMax {arg_ty :: P.VarType size}
 type instance SizeType (QMax size prec) = size
 type instance PrecType (QMax size prec) = prec
 
-newtype QMaxFunArg a = QMaxFunArg {fun :: a}
+newtype QMaxFunArg a = QMaxFunArg a
 
 type instance PrimFnShape (QMax size prec) = QMaxFunArg
 
 instance ValidPrimShape QMaxFunArg where
-  listToShape [fun] = Right QMaxFunArg{fun}
+  listToShape [fun] = Right $ QMaxFunArg fun
   listToShape _ = Left "max expects exactly one function argument"
 
-  shapeToList QMaxFunArg{fun} = [fun]
+  shapeToList (QMaxFunArg fun) = [fun]
 
 instance P.MapSize (QMax size prec) where
   type MappedSize (QMax size prec) size' = QMax size' prec
@@ -61,7 +69,7 @@ instance (Show size) => SerializePrim (QMax size prec) where
 
 -- Type check
 instance (Eq size) => TypeCheckPrim (QMax size prec) size where
-  inferRetTypesPrim QMax{arg_ty} QMaxFunArg{fun = fun_type} = do
+  inferRetTypesPrim QMax{arg_ty} (QMaxFunArg fun_type) = do
     let P.FnType param_types ret_types = fun_type
 
     when (param_types /= [arg_ty]) $
@@ -79,7 +87,7 @@ instance (Eq size) => TypeCheckPrim (QMax size prec) size where
  and or-ing the results.
 -}
 instance EvalPrim (QMax size prec) size prec where
-  evalPrim QMax{arg_ty} QMaxFunArg{fun = fun_eval} = do
+  evalPrim QMax{arg_ty} (QMaxFunArg fun_eval) = do
     let search_range = P.domain arg_ty
 
     vs <- forM search_range $ \val -> do
@@ -98,15 +106,52 @@ instance
   (Integral size, Floating prec, A.SizeToPrec size prec) =>
   UnitaryCostPrim (QMax size prec) size prec
   where
-  unitaryQueryCosts QMax{arg_ty} _ = QMaxFunArg{fun = weakQueries (A.sizeToPrec _N)}
+  unitaryQueryCosts QMax{arg_ty} _ = QMaxFunArg (weakQueries (A.sizeToPrec _N))
    where
     _N = P.domainSize arg_ty
 
   unitaryExprCosts _ _ = Alg.zero
 
-instance UnitaryCompilePrim (QMax size prec) size prec where
-  compileUPrim QMax{arg_ty} _ = do
-    error "TODO: CompileU QMax"
+instance (P.TypingReqs size, Integral size, RealFloat prec, Show prec) => UnitaryCompilePrim (QMax size prec) size prec where
+  compileUPrim QMax{arg_ty} eps = do
+    -- Return variables and their types
+    rets <- view $ to ret_vars
+    ret_tys <- forM rets $ \x -> do
+      mty <- use $ P._typingCtx . Ctx.at x
+      maybeWithError "" mty
+
+    -- Function argument: unitary call builder and aux types
+    QMaxFunArg call_ufun <- view $ to mk_ucall
+    QMaxFunArg fun_aux_tys <- view $ to uproc_aux_types
+
+    -- Allocate ancillas for the function argument
+    fun_aux <- lift $ mapM Compiler.allocAncilla fun_aux_tys
+
+    -- Procedure name
+    proc_name <- lift $ Compiler.newIdent "UMax"
+
+    -- Build parameters
+    let all_params =
+          Compiler.withTag CQPL.ParamOut (zip rets ret_tys)
+            ++ Compiler.withTag CQPL.ParamAux (zip fun_aux fun_aux_tys)
+
+    -- Body: TODO
+    let uproc_body_stmt = CQPL.UCommentS "TODO: max-finding circuit"
+
+    return
+      CQPL.ProcDef
+        { CQPL.info_comment = ""
+        , CQPL.proc_name = proc_name
+        , CQPL.proc_meta_params = []
+        , CQPL.proc_param_types = map (view _3) all_params
+        , CQPL.proc_body =
+            CQPL.ProcBodyU $
+              CQPL.UProcBody
+                { CQPL.uproc_param_names = map (view _1) all_params
+                , CQPL.uproc_param_tags = map (view _2) all_params
+                , CQPL.uproc_body_stmt
+                }
+        }
 
 -- ================================================================================
 -- Quantum
@@ -130,12 +175,12 @@ instance
   (Integral size, Floating prec, A.SizeToPrec size prec) =>
   QuantumHavocCostPrim (QMax size prec) size prec
   where
-  quantumQueryCostsUnitary QMax{arg_ty} eps = QMaxFunArg{fun = strongQueries $ _WQMax _N eps}
+  quantumQueryCostsUnitary QMax{arg_ty} eps = QMaxFunArg (strongQueries $ _WQMax _N eps)
    where
     _N = P.domainSize arg_ty
 
   -- no quantum queries
-  quantumQueryCostsQuantum _ _ = QMaxFunArg{fun = 0}
+  quantumQueryCostsQuantum _ _ = QMaxFunArg 0
 
   quantumExprCosts = Alg.zero
 
@@ -143,12 +188,12 @@ instance
   (Floating prec, Integral size, A.SizeToPrec size prec) =>
   QuantumExpCostPrim (QMax size prec) size prec
   where
-  quantumExpQueryCostsUnitary QMax{arg_ty} _ _ = QMaxFunArg{fun = strongQueries $ _EQMax _N}
+  quantumExpQueryCostsUnitary QMax{arg_ty} _ _ = QMaxFunArg (strongQueries $ _EQMax _N)
    where
     _N = P.domainSize arg_ty
 
   -- no quantum queries
-  quantumExpQueryCostsQuantum _ _ _ = QMaxFunArg{fun = []}
+  quantumExpQueryCostsQuantum _ _ _ = QMaxFunArg []
 
   quantumExpExprCosts = Alg.zero
 
