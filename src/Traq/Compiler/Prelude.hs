@@ -1,6 +1,7 @@
 {-# LANGUAGE DeriveAnyClass #-}
 {-# LANGUAGE DeriveGeneric #-}
 {-# LANGUAGE DerivingStrategies #-}
+{-# LANGUAGE DuplicateRecordFields #-}
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE GeneralisedNewtypeDeriving #-}
 
@@ -15,6 +16,15 @@ module Traq.Compiler.Prelude (
   -- * Compilation Monad
   CompilerT,
   compileWith,
+
+  -- ** proc builder
+  ProcBuilderT,
+  allocLocal,
+  addUStmt,
+  withUStmt,
+  addStmt,
+  withStmt,
+  buildProc,
 
   -- ** State
   LoweringCtx,
@@ -35,7 +45,7 @@ import Control.Monad.Except (MonadError (throwError))
 import Control.Monad.Extra (loopM)
 import Control.Monad.RWS (RWST, runRWST)
 import Control.Monad.State (MonadState)
-import Control.Monad.Writer (MonadWriter)
+import Control.Monad.Writer (MonadWriter, WriterT (..), censor)
 import qualified Data.Map as Map
 import qualified Data.Set as Set
 import GHC.Generics (Generic)
@@ -183,3 +193,91 @@ compileWith compiler prog = do
   (_, _, output) <- runRWST (compiler prog) config lowering_ctx
 
   return $ CQPL.Program $ output ^. _loweredProcs
+
+-- ================================================================================
+-- Helper to build procs
+-- ================================================================================
+
+-- | Transformer to build CQPL procs in the compiler.
+type VarList size = [(Ident, P.VarType size)]
+
+type ProcBuilderT size =
+  WriterT
+    (VarList size, [CQPL.UStmt size], [CQPL.Stmt size])
+
+type IsProcBuilder m' size m =
+  ( m' ~ ProcBuilderT size m
+  , Monad m
+  , MonadError String m
+  , MonadState (LoweringCtx size) m
+  )
+
+allocLocal ::
+  (IsProcBuilder m' size m) =>
+  Ident ->
+  P.VarType size ->
+  m' Ident
+allocLocal pref ty = do
+  x <- newIdent pref
+  writeElemAt _1 (x, ty)
+  return x
+
+addUStmt :: (IsProcBuilder m' size m) => CQPL.UStmt size -> m' ()
+addUStmt = writeElemAt _2
+
+withUStmt :: (IsProcBuilder m' size m) => (CQPL.UStmt size -> CQPL.UStmt size) -> m' a -> m' a
+withUStmt f = censor (_2 %~ f')
+ where
+  f' ss = [f (CQPL.USeqS ss)]
+
+addStmt :: (IsProcBuilder m' size m) => CQPL.Stmt size -> m' ()
+addStmt = writeElemAt _3
+
+withStmt :: (IsProcBuilder m' size m) => (CQPL.Stmt size -> CQPL.Stmt size) -> m' a -> m' a
+withStmt f = censor (_3 %~ f')
+ where
+  f' ss = [f (CQPL.SeqS ss)]
+
+buildProc ::
+  (IsProcBuilder m' size m) =>
+  Ident ->
+  [Ident] ->
+  [(Ident, P.VarType size)] ->
+  m' () ->
+  m (CQPL.ProcDef size)
+buildProc proc_name proc_meta_params params m = do
+  ((), (local_vars, ubody, cbody)) <- runWriterT m
+
+  case (ubody, cbody) of
+    ([], []) -> throwError "buildProc: no body statements!"
+    ([], _) ->
+      pure $
+        CQPL.ProcDef
+          { info_comment = ""
+          , proc_name
+          , proc_meta_params
+          , proc_param_types = map snd params
+          , proc_body =
+              CQPL.ProcBodyC
+                CQPL.CProcBody
+                  { cproc_param_names = map fst params
+                  , cproc_local_vars = local_vars
+                  , cproc_body_stmt = CQPL.SeqS cbody
+                  }
+          }
+    (_, []) ->
+      pure $
+        CQPL.ProcDef
+          { info_comment = ""
+          , proc_name
+          , proc_meta_params
+          , proc_param_types = map snd params ++ map snd local_vars
+          , proc_body =
+              CQPL.ProcBodyU
+                CQPL.UProcBody
+                  { uproc_param_names = map fst params ++ map fst local_vars
+                  , uproc_param_tags = replicate (length params) CQPL.ParamUnk ++ replicate (length local_vars) CQPL.ParamAux
+                  , uproc_body_stmt = CQPL.USeqS ubody
+                  }
+          }
+    _ -> throwError "buildProc: contains both ustmt and stmt"
