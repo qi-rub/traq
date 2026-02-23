@@ -36,6 +36,7 @@ import qualified Traq.Compiler as Compiler
 import Traq.Prelude
 import Traq.Primitives.Class
 import qualified Traq.ProtoLang as P
+import qualified Traq.Utils.Printing as PP
 
 -- ================================================================================
 -- Primitive Class Implementation
@@ -113,7 +114,7 @@ instance
   unitaryExprCosts _ _ = Alg.zero
 
 instance (P.TypingReqs size, Integral size, RealFloat prec, Show prec) => UnitaryCompilePrim (QMax size prec) size prec where
-  compileUPrim QMax{arg_ty} eps = do
+  compileUPrim QMax{arg_ty} _ = do
     -- Return variables and their types
     rets <- view $ to ret_vars
     ret_tys <- forM rets $ \x -> do
@@ -128,12 +129,20 @@ instance (P.TypingReqs size, Integral size, RealFloat prec, Show prec) => Unitar
     proc_name <- Compiler.newIdent "UMax"
 
     Compiler.buildProc proc_name [] (zip rets ret_tys) $ do
-      -- Allocate ancillas for the function argument
       let _N = P.domainSize arg_ty
+      inp <- Compiler.allocLocalWithPrefix "inp" $ P.Arr _N arg_ty
+      oup <- mapM (Compiler.allocLocalWithPrefix "out" . P.Arr _N) ret_tys
       aux <- mapM (Compiler.allocLocal . P.Arr _N) fun_aux_tys
 
-      -- Body: TODO
-      Compiler.addUStmt $ CQPL.UCommentS "TODO: max-finding circuit"
+      i <- Compiler.newIdent "x"
+      Compiler.withUStmt (CQPL.UForInDomainS i arg_ty False) $ do
+        let inp_ix = CQPL.ArrElemArg (CQPL.Arg inp) (P.MetaName i)
+        let oup_ix = map ((`CQPL.ArrElemArg` P.MetaName i) . CQPL.Arg) oup
+        let aux_ix = map ((`CQPL.ArrElemArg` P.MetaName i) . CQPL.Arg) aux
+
+        Compiler.addUStmt $ call_ufun (inp_ix : oup_ix ++ aux_ix)
+
+      Compiler.addUStmt $ CQPL.UCommentS $ printf "unitarily compute: %s := max(%s);" (PP.commaList rets) (PP.commaList oup)
 
 -- ================================================================================
 -- Quantum
