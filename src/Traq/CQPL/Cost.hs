@@ -67,6 +67,7 @@ instance HasCost (UStmt size) where
   cost URepeatS{n_iter = P.MetaName _} = return Alg.zero
   cost UForInRangeS{iter_lim = P.MetaSize k, uloop_body} = Alg.sinnum (fromIntegral k) <$> cost uloop_body
   cost UForInRangeS{iter_lim = P.MetaName _} = return Alg.zero
+  cost UForInDomainS{iter_ty, uloop_body} = Alg.sinnum (fromIntegral (P.domainSize iter_ty)) <$> cost uloop_body
   cost UWithComputedS{with_ustmt, body_ustmt} = do
     wc <- cost with_ustmt
     bc <- cost body_ustmt

@@ -129,7 +129,8 @@ instance (P.TypingReqs size, Integral size, RealFloat prec, Show prec) => Unitar
 
     Compiler.buildProc proc_name [] (zip rets ret_tys) $ do
       -- Allocate ancillas for the function argument
-      fun_aux <- mapM Compiler.allocLocal fun_aux_tys
+      let _N = P.domainSize arg_ty
+      aux <- mapM (Compiler.allocLocal . P.Arr _N) fun_aux_tys
 
       -- Body: TODO
       Compiler.addUStmt $ CQPL.UCommentS "TODO: max-finding circuit"

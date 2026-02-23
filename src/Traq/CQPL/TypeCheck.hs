@@ -185,6 +185,9 @@ typeCheckUStmt UForInRangeS{iter_meta_var, iter_lim, uloop_body} = do
         _ -> error "unsupported loop limit"
   local (P._typingCtx . Ctx.ins ('#' : iter_meta_var) .~ iter_lim_ty) $ do
     typeCheckUStmt' uloop_body
+typeCheckUStmt UForInDomainS{iter_meta_var, iter_ty, uloop_body} = do
+  local (P._typingCtx . Ctx.ins ('#' : iter_meta_var) .~ iter_ty) $ do
+    typeCheckUStmt' uloop_body
 typeCheckUStmt UWithComputedS{with_ustmt, body_ustmt} = mapM_ typeCheckUStmt' [with_ustmt, body_ustmt]
 
 typeCheckUStmt' :: (P.TypingReqs size) => UStmt size -> TypeChecker size ()

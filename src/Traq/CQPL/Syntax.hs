@@ -154,6 +154,12 @@ data UStmt size
       , dagger :: Bool
       , uloop_body :: UStmt size
       }
+  | UForInDomainS
+      { iter_meta_var :: Ident
+      , iter_ty :: P.VarType size
+      , dagger :: Bool
+      , uloop_body :: UStmt size
+      }
   | UWithComputedS {with_ustmt, body_ustmt :: UStmt size}
   deriving (Eq, Show, Read)
 
@@ -170,6 +176,7 @@ instance HasAdjoint (UStmt size) where
   adjoint s@UnitaryS{unitary} = s{unitary = adjoint unitary}
   adjoint (URepeatS k s) = URepeatS k (adjoint s)
   adjoint s@UForInRangeS{dagger} = s{dagger = not dagger}
+  adjoint s@UForInDomainS{dagger} = s{dagger = not dagger}
   adjoint s@UWithComputedS{body_ustmt = b} = s{body_ustmt = adjoint b}
 
 showDagger :: Bool -> String
@@ -206,6 +213,10 @@ instance (Show size) => PP.ToCodeString (UStmt size) where
    where
     range_str :: String
     range_str | dagger = "%s - 1 .. 0" | otherwise = "0 .. < %s"
+  build UForInDomainS{iter_meta_var, iter_ty, dagger, uloop_body} = do
+    ty <- PP.fromBuild iter_ty
+    let header = printf "for (#%s in %s%s)" iter_meta_var (if dagger then "reversed " else "") ty
+    PP.bracedBlockWith header $ PP.build uloop_body
 
 -- ================================================================================
 -- Classical Statements
