@@ -20,7 +20,6 @@ module Traq.Primitives.Max.QMax (
 
 import Control.Monad (forM, when)
 import Control.Monad.Except (throwError)
-import Control.Monad.Trans (lift)
 import Text.Printf (printf)
 
 import Lens.Micro.GHC
@@ -42,7 +41,7 @@ import qualified Traq.Utils.Printing as PP
 -- Primitive Class Implementation
 -- ================================================================================
 
-data QMax size prec = QMax {arg_ty :: P.VarType size}
+newtype QMax size prec = QMax {arg_ty :: P.VarType size}
   deriving (Eq, Show, Read)
 
 type instance SizeType (QMax size prec) = size
@@ -188,8 +187,8 @@ instance
 
   quantumExpExprCosts = Alg.zero
 
-instance QuantumCompilePrim (QMax size prec) size prec where
-  compileQPrim QMax{} eps = do
+instance (P.TypingReqs size, Integral size, RealFloat prec, Show prec) => QuantumCompilePrim (QMax size prec) size prec where
+  compileQPrim QMax{arg_ty} eps = do
     -- Return variables and their types
     rets <- view $ to ret_vars
     ret_tys <- forM rets $ \x -> do
@@ -204,6 +203,11 @@ instance QuantumCompilePrim (QMax size prec) size prec where
     proc_name <- Compiler.newIdent "QMax"
 
     Compiler.buildProc proc_name [] (zip rets ret_tys) $ do
+      let _N = P.domainSize arg_ty
+      inp <- Compiler.allocLocalWithPrefix "inp" $ P.Arr _N arg_ty
+      oup <- mapM (Compiler.allocLocalWithPrefix "out" . P.Arr _N) ret_tys
+      aux <- mapM (Compiler.allocLocal . P.Arr _N) fun_aux_tys
+
       -- Allocate ancillas for the function argument
       fun_aux <- mapM Compiler.allocLocal fun_aux_tys
 

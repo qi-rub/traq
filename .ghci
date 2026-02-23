@@ -1,7 +1,7 @@
 :set -DTEST -isrc -itest
 
-:set -XNamedFieldPuns
 :set -XLambdaCase
+:set -XNamedFieldPuns
 :set -XScopedTypeVariables 
 :set -XApplicativeDo 
 :set -XRankNTypes 
@@ -9,6 +9,8 @@
 :set -XTypeFamilies 
 :set -XTypeOperators
 :set -XMultiWayIf
+:set -XEmptyCase
+:set -XConstraintKinds
 
 :set -XFlexibleInstances
 :set -XFunctionalDependencies 
