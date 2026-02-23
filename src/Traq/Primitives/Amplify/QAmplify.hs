@@ -12,10 +12,8 @@ module Traq.Primitives.Amplify.QAmplify (
   _EQSearch,
 ) where
 
-import Control.Monad (forM, replicateM, when)
+import Control.Monad (forM, when)
 import Control.Monad.Trans (lift)
-import Control.Monad.Writer (WriterT (..), censor)
-import Data.Bifunctor (second)
 import GHC.Generics (Generic)
 
 import Lens.Micro.GHC
@@ -213,61 +211,23 @@ mkGroverK = do
   ret_tys <- forM rets $ \x ->
     use (P._typingCtx . Ctx.at x) >>= maybeWithError "missing variable"
 
-  (SamplerFn mk_sampler_call) <- view $ to mk_ucall
-  (SamplerFn aux_tys) <- view $ to uproc_aux_types
-  aux_vars <- replicateM (length aux_tys) $ Compiler.newIdent "aux"
+  Compiler.buildProc proc_name [meta_k] (zip rets ret_tys) $ do
+    (SamplerFn mk_sampler_call) <- view $ to mk_ucall
+    (SamplerFn aux_tys) <- view $ to uproc_aux_types
+    aux_vars <- mapM Compiler.allocLocal aux_tys
 
-  let sampler_call = mk_sampler_call (map CQPL.Arg (rets ++ aux_vars))
+    let sampler_call = mk_sampler_call (map CQPL.Arg (rets ++ aux_vars))
 
-  let grover_iteration =
-        CQPL.USeqS
-          [ CQPL.UnitaryS [CQPL.Arg b] $ CQPL.BasicGateU CQPL.ZGate
-          , CQPL.adjoint sampler_call
-          , CQPL.UnitaryS (map CQPL.Arg (rets ++ aux_vars)) $ CQPL.BasicGateU (CQPL.PhaseOnZero pi)
-          , sampler_call
-          ]
-
-  let uproc_body_stmt =
-        CQPL.USeqS
-          [ sampler_call
-          , CQPL.URepeatS{n_iter = P.MetaName meta_k, uloop_body = grover_iteration}
-          ]
-
-  let params =
-        Compiler.withTag CQPL.ParamOut (zip rets ret_tys)
-          ++ Compiler.withTag CQPL.ParamAux (zip aux_vars aux_tys)
-  return $
-    CQPL.ProcDef
-      { CQPL.info_comment = ""
-      , CQPL.proc_name
-      , CQPL.proc_meta_params = [meta_k]
-      , CQPL.proc_param_types = map (view _3) params
-      , CQPL.proc_body =
-          CQPL.ProcBodyU $
-            CQPL.UProcBody
-              { CQPL.uproc_param_names = map (view _1) params
-              , CQPL.uproc_param_tags = map (view _2) params
-              , CQPL.uproc_body_stmt
-              }
-      }
-
-type LocalVars = [(Ident, P.VarType SizeT)]
-type AlgoMonad ext prec =
-  WriterT (LocalVars, [CQPL.Stmt SizeT]) (PrimCompileMonad ext (QAmplify SizeT prec))
-
-allocLocal :: (m ~ AlgoMonad ext prec) => Ident -> P.VarType SizeT -> m Ident
-allocLocal pref ty = do
-  x <- Compiler.newIdent pref
-  writeElemAt _1 (x, ty)
-  return x
-
-addStmt :: (m ~ AlgoMonad ext prec) => CQPL.Stmt SizeT -> m ()
-addStmt = writeElemAt _2
-
-withStmt :: (m ~ AlgoMonad ext prec) => (CQPL.Stmt SizeT -> CQPL.Stmt SizeT) -> m a -> m a
-withStmt f = censor (second f')
- where
-  f' ss = [f (CQPL.SeqS ss)]
+    Compiler.addUStmt sampler_call
+    Compiler.withUStmt (CQPL.URepeatS (P.MetaName meta_k)) $
+      -- grover_iteration
+      mapM_
+        Compiler.addUStmt
+        [ CQPL.UnitaryS [CQPL.Arg b] $ CQPL.BasicGateU CQPL.ZGate
+        , CQPL.adjoint sampler_call
+        , CQPL.UnitaryS (map CQPL.Arg (rets ++ aux_vars)) $ CQPL.BasicGateU (CQPL.PhaseOnZero pi)
+        , sampler_call
+        ]
 
 -- compute the limits for sampling `j` in each iteration.
 qamplifySamplingRanges :: forall prec. (RealFloat prec) => prec -> [SizeT]
@@ -298,30 +258,32 @@ buildQAmplify ::
   forall ext prec m.
   ( RealFloat prec
   , SizeType ext ~ SizeT
-  , m ~ AlgoMonad ext prec
+  , m ~ Compiler.ProcBuilderT SizeT (PrimCompileMonad ext (QAmplify SizeT prec))
   ) =>
   -- | n_samples: number of classical samples
   SizeT ->
+  -- | ret vars
+  [Ident] ->
+  -- | ret types
+  [P.VarType SizeT] ->
   -- | eps: max fail prob
   A.FailProb prec ->
   -- | p_min: min success probability of sampler
   prec ->
   m ()
-buildQAmplify n_samples eps p_min = do
-  -- rets
-  rets <- view $ to ret_vars
+buildQAmplify n_samples rets _ret_tys eps p_min = do
   let b = head rets
 
   -- flag
-  not_done <- allocLocal "not_done" P.tbool
-  addStmt $ CQPL.AssignS [not_done] (P.ConstE (P.FinV 0) P.tbool)
+  not_done <- Compiler.allocLocalWithPrefix "not_done" P.tbool
+  Compiler.addStmt $ CQPL.AssignS [not_done] (P.ConstE (P.FinV 0) P.tbool)
 
   -- classical sampling
   SamplerFn mkSamplerCCall <- view $ to mk_call
   let sampler_call_c = mkSamplerCCall (map CQPL.Arg rets)
 
   when (n_samples /= 0) $
-    addStmt $
+    Compiler.addStmt $
       CQPL.WhileKWithCondExpr
         (CQPL.MetaSize n_samples)
         not_done
@@ -333,17 +295,17 @@ buildQAmplify n_samples eps p_min = do
   lift $ Compiler.addProc uproc_grover_k
 
   let j_type = P.Fin (ceiling $ _WQSearch_Q_Max p_min) -- type for j and Q_sum
-  q_sum <- allocLocal "Q_sum" j_type
-  j <- allocLocal "j" j_type
-  j_lim <- allocLocal "j_lim" j_type
+  q_sum <- Compiler.allocLocalWithPrefix "Q_sum" j_type
+  j <- Compiler.allocLocalWithPrefix "j" j_type
+  j_lim <- Compiler.allocLocalWithPrefix "j_lim" j_type
 
   let n_runs = ceiling $ _WQSearch_N_Runs eps
 
-  withStmt (CQPL.RepeatS (CQPL.MetaSize n_runs)) $ do
-    addStmt $ CQPL.AssignS [q_sum] (P.ConstE{P.val = P.FinV 0, P.ty = j_type})
+  Compiler.withStmt (CQPL.RepeatS (CQPL.MetaSize n_runs)) $ do
+    Compiler.addStmt $ CQPL.AssignS [q_sum] (P.ConstE{P.val = P.FinV 0, P.ty = j_type})
 
     let sampling_ranges = qamplifySamplingRanges p_min
-    withStmt
+    Compiler.withStmt
       ( \s ->
           CQPL.ForInArray
             { CQPL.loop_index = j_lim
@@ -353,17 +315,17 @@ buildQAmplify n_samples eps p_min = do
             }
       )
       $ do
-        addStmt $ CQPL.RandomDynS j j_lim
-        addStmt $ CQPL.AssignS [q_sum] (P.BinOpE P.AddOp (P.VarE q_sum) (P.VarE j))
-        addStmt $ CQPL.AssignS [not_done] (P.VarE not_done P..&&. (P.VarE q_sum P..<=. P.VarE j_lim))
-        withStmt (CQPL.ifThenS not_done) $ do
-          addStmt $
+        Compiler.addStmt $ CQPL.RandomDynS j j_lim
+        Compiler.addStmt $ CQPL.AssignS [q_sum] (P.BinOpE P.AddOp (P.VarE q_sum) (P.VarE j))
+        Compiler.addStmt $ CQPL.AssignS [not_done] (P.VarE not_done P..&&. (P.VarE q_sum P..<=. P.VarE j_lim))
+        Compiler.withStmt (CQPL.ifThenS not_done) $ do
+          Compiler.addStmt $
             CQPL.CallS
               { CQPL.fun = CQPL.UProcAndMeas (CQPL.proc_name uproc_grover_k)
               , CQPL.meta_params = [Right j]
               , CQPL.args = map CQPL.Arg rets
               }
-          addStmt $ CQPL.AssignS [not_done] (P.VarE not_done P..&&. P.notE (P.VarE b))
+          Compiler.addStmt $ CQPL.AssignS [not_done] (P.VarE not_done P..&&. P.notE (P.VarE b))
 
 instance (RealFloat prec) => QuantumCompilePrim (QAmplify SizeT prec) SizeT prec where
   compileQPrim (QAmplify Amplify{p_min}) eps = do
@@ -372,19 +334,5 @@ instance (RealFloat prec) => QuantumCompilePrim (QAmplify SizeT prec) SizeT prec
       use (P._typingCtx . Ctx.at x) >>= maybeWithError "missing variable"
 
     proc_name <- Compiler.newIdent "QAmplify"
-    ((), (local_vars, body)) <- runWriterT $ withSandbox $ buildQAmplify 0 eps p_min
-
-    return $
-      CQPL.ProcDef
-        { CQPL.info_comment = ""
-        , CQPL.proc_name
-        , CQPL.proc_meta_params = []
-        , CQPL.proc_param_types = ret_tys
-        , CQPL.proc_body =
-            CQPL.ProcBodyC $
-              CQPL.CProcBody
-                { CQPL.cproc_param_names = rets
-                , CQPL.cproc_local_vars = local_vars
-                , CQPL.cproc_body_stmt = CQPL.SeqS body
-                }
-        }
+    Compiler.buildProc proc_name [] (zip rets ret_tys) $ do
+      buildQAmplify 0 rets ret_tys eps p_min

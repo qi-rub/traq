@@ -19,6 +19,7 @@ module Traq.Compiler.Prelude (
 
   -- ** proc builder
   ProcBuilderT,
+  allocLocalWithPrefix,
   allocLocal,
   addUStmt,
   withUStmt,
@@ -212,15 +213,21 @@ type IsProcBuilder m' size m =
   , MonadState (LoweringCtx size) m
   )
 
-allocLocal ::
+allocLocalWithPrefix ::
   (IsProcBuilder m' size m) =>
   Ident ->
   P.VarType size ->
   m' Ident
-allocLocal pref ty = do
+allocLocalWithPrefix pref ty = do
   x <- newIdent pref
   writeElemAt _1 (x, ty)
   return x
+
+allocLocal ::
+  (IsProcBuilder m' size m) =>
+  P.VarType size ->
+  m' Ident
+allocLocal = allocLocalWithPrefix "aux"
 
 addUStmt :: (IsProcBuilder m' size m) => CQPL.UStmt size -> m' ()
 addUStmt = writeElemAt _2
@@ -246,7 +253,7 @@ buildProc ::
   m' () ->
   m (CQPL.ProcDef size)
 buildProc proc_name proc_meta_params params m = do
-  ((), (local_vars, ubody, cbody)) <- runWriterT m
+  ((), (local_vars, ubody, cbody)) <- runWriterT $ withSandboxOf P._typingCtx m
 
   case (ubody, cbody) of
     ([], []) -> throwError "buildProc: no body statements!"
