@@ -210,7 +210,7 @@ mkGroverK = do
   ret_tys <- forM rets $ \x ->
     use (P._typingCtx . Ctx.at x) >>= maybeWithError "missing variable"
 
-  Compiler.buildProc "Grover" [meta_k] (zip rets ret_tys) $ do
+  Compiler.buildUProc "Grover" [meta_k] (zip rets ret_tys) $ do
     (SamplerFn mk_sampler_call) <- view $ to mk_ucall
     (SamplerFn aux_tys) <- view $ to uproc_aux_types
     aux_vars <- mapM Compiler.allocLocal aux_tys

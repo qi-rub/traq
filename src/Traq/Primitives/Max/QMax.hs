@@ -124,7 +124,7 @@ instance (P.TypingReqs size, Integral size, RealFloat prec, Show prec) => Unitar
     QMaxFunArg call_ufun <- view $ to mk_ucall
     QMaxFunArg fun_aux_tys <- view $ to uproc_aux_types
 
-    Compiler.buildProc "UMax" [] (zip rets ret_tys) $ do
+    Compiler.buildUProc "UMax" [] (zip rets ret_tys) $ do
       let _N = P.domainSize arg_ty
       inp <- Compiler.allocLocalWithPrefix "inp" $ P.Arr _N arg_ty
       oup <- mapM (Compiler.allocLocalWithPrefix "out" . P.Arr _N) ret_tys

@@ -25,6 +25,7 @@ module Traq.Compiler.Prelude (
   withUStmt,
   addStmt,
   withStmt,
+  buildUProc,
   buildProc,
 
   -- ** State
@@ -245,20 +246,20 @@ withStmt f = censor (_3 %~ f')
  where
   f' ss = [f (CQPL.SeqS ss)]
 
-buildProc ::
+buildProcHelper ::
   (IsProcBuilder m' size m) =>
+  Bool ->
   Ident ->
   [Ident] ->
   [(Ident, P.VarType size)] ->
   m' () ->
   m (CQPL.ProcDef size)
-buildProc proc_name_basic proc_meta_params params m = do
+buildProcHelper is_uproc proc_name_basic proc_meta_params params m = do
   proc_name <- newIdent proc_name_basic
   ((), (local_vars, ubody, cbody)) <- runWriterT $ withSandboxOf P._typingCtx m
 
-  case (ubody, cbody) of
-    ([], []) -> throwError "buildProc: no body statements!"
-    ([], _) ->
+  case (ubody, cbody, is_uproc) of
+    ([], _, False) ->
       pure $
         CQPL.ProcDef
           { info_comment = ""
@@ -273,7 +274,7 @@ buildProc proc_name_basic proc_meta_params params m = do
                   , cproc_body_stmt = CQPL.SeqS cbody
                   }
           }
-    (_, []) ->
+    (_, [], True) ->
       pure $
         CQPL.ProcDef
           { info_comment = ""
@@ -288,4 +289,15 @@ buildProc proc_name_basic proc_meta_params params m = do
                   , uproc_body_stmt = CQPL.USeqS ubody
                   }
           }
-    _ -> throwError "buildProc: contains both ustmt and stmt"
+    _ -> throwError "buildProc: invalid body statements"
+
+buildUProc
+  , buildProc ::
+    (IsProcBuilder m' size m) =>
+    Ident ->
+    [Ident] ->
+    [(Ident, P.VarType size)] ->
+    m' () ->
+    m (CQPL.ProcDef size)
+buildUProc = buildProcHelper True
+buildProc = buildProcHelper False
