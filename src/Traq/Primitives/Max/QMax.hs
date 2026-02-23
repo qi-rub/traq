@@ -18,7 +18,7 @@ module Traq.Primitives.Max.QMax (
   _WQMax,
 ) where
 
-import Control.Monad (forM, when)
+import Control.Monad (forM, forM_, when)
 import Control.Monad.Except (throwError)
 import Text.Printf (printf)
 
@@ -198,15 +198,31 @@ instance (P.TypingReqs size, Integral size, RealFloat prec, Show prec) => Quantu
     QMaxFunArg fun_aux_tys <- view $ to uproc_aux_types
 
     -- Build cmp :: (arg_ty, arg_ty) -> Bool
+    x <- Compiler.newIdent "x"
+    y <- Compiler.newIdent "x"
+    b <- Compiler.newIdent "b"
+    cmp <- Compiler.buildUProc "Compare" [] [(x, arg_ty), (y, arg_ty), (b, P.tbool)] $ do
+      (outs_x, outs_y) <- forOf each (x, y) $ \i -> do
+        out <- mapM (Compiler.allocLocalWithPrefix "out") ret_tys
+        aux <- mapM Compiler.allocLocal fun_aux_tys
+        Compiler.addUStmt $ call_ufun $ map CQPL.Arg (i : out ++ aux)
+        return out
 
+      lt <- Compiler.allocLocalWithPrefix "lt" (P.Arr (fromIntegral $ length outs_x) P.tbool)
+
+      forM_ (zip3 [0 ..] outs_x outs_y) $ \(i, out_x, out_y) -> do
+        Compiler.addUStmt $
+          CQPL.UnitaryS [CQPL.Arg out_x, CQPL.Arg out_y, CQPL.ArrElemArg (CQPL.Arg lt) (P.MetaSize i)] $
+            CQPL.RevEmbedU ["a", "b"] $
+              P.BinOpE P.LtOp (P.VarE "a") (P.VarE "b")
+
+      Compiler.addUStmt $
+        CQPL.UnitaryS [CQPL.Arg lt, CQPL.Arg b] $
+          CQPL.RevEmbedU ["a"] $
+            P.UnOpE P.AllOp (P.VarE "a")
+
+    Compiler.addProc cmp
+
+    -- Build the main algorithm
     Compiler.buildProc "QMax" [] (zip rets ret_tys) $ do
-      let _N = P.domainSize arg_ty
-      inp <- Compiler.allocLocalWithPrefix "inp" $ P.Arr _N arg_ty
-      oup <- mapM (Compiler.allocLocalWithPrefix "out" . P.Arr _N) ret_tys
-      aux <- mapM (Compiler.allocLocal . P.Arr _N) fun_aux_tys
-
-      -- Allocate ancillas for the function argument
-      fun_aux <- mapM Compiler.allocLocal fun_aux_tys
-
-      -- Body: TODO
       Compiler.addStmt $ CQPL.CommentS "TODO: max-finding circuit"

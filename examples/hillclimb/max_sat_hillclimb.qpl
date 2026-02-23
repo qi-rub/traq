@@ -52,7 +52,7 @@ uproc USearch(hillclimb_iter_x : Arr<20, Fin<2>>, hillclimb_iter_ok_1 : OUT Fin<
     call-adj good_U(hillclimb_iter_x, s_arg[#run_ix], aux_11, aux, aux_1, aux_2, aux_3, aux_4, aux_5, aux_6, aux_7, aux_8, aux_9, aux_10);
     ctrl[#run_ix] *= X;
   }
-  pred_out, hillclimb_iter_ok_1 *= Embed[(a) => or a];
+  pred_out, hillclimb_iter_ok_1 *= Embed[(a) => multi_or a];
   s_arg, pred_out, hillclimb_iter_i_1 *= Embed[(a, f) => (a selectOn f)];
 }
 

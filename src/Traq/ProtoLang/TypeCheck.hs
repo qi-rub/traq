@@ -97,6 +97,8 @@ typeCheckBasicExpr UnOpE{un_op, operand} = do
       return tbool
     AnyOp -> do
       return tbool
+    AllOp -> do
+      return tbool
     MajOp -> do
       case arg_ty of
         Arr _ t -> return t

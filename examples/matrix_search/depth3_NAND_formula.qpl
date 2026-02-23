@@ -40,7 +40,7 @@ uproc UAny(i1 : Fin<20>, j1 : Fin<10>, or_1_1 : OUT Fin<2>, s_result : OUT Fin<1
     call-adj NOR_0_U(i1, j1, s_arg[#run_ix], aux_3, aux, aux_1, aux_2);
     ctrl[#run_ix] *= X;
   }
-  pred_out, or_1_1 *= Embed[(a) => or a];
+  pred_out, or_1_1 *= Embed[(a) => multi_or a];
   s_arg, pred_out, s_result *= Embed[(a, f) => (a selectOn f)];
 }
 
@@ -116,7 +116,7 @@ uproc UAny_1(i2 : Fin<20>, or_2_1 : OUT Fin<2>, s_result_2 : OUT Fin<10>, aux_7 
     call-adj NOR_1_U(i2, s_arg_1[#run_ix], aux_28, aux_7, aux_8, aux_9, aux_10, aux_11, aux_12, aux_13, aux_14, aux_15, aux_16, aux_17, aux_18, aux_19, aux_20, aux_21, aux_22, aux_23, aux_24, aux_25, aux_26, aux_27);
     ctrl_1[#run_ix] *= X;
   }
-  pred_out_1, or_2_1 *= Embed[(a) => or a];
+  pred_out_1, or_2_1 *= Embed[(a) => multi_or a];
   s_arg_1, pred_out_1, s_result_2 *= Embed[(a, f) => (a selectOn f)];
 }
 
@@ -192,7 +192,7 @@ uproc UAny_2(or_3_1 : OUT Fin<2>, s_result_4 : OUT Fin<20>, aux_50 : AUX Fin<2>,
     call-adj NOR_2_U(s_arg_2[#run_ix], aux_107, aux_50, aux_51, aux_52, aux_53, aux_54, aux_55, aux_56, aux_57, aux_58, aux_59, aux_60, aux_61, aux_62, aux_63, aux_64, aux_65, aux_66, aux_67, aux_68, aux_69, aux_70, aux_71, aux_72, aux_73, aux_74, aux_75, aux_76, aux_77, aux_78, aux_79, aux_80, aux_81, aux_82, aux_83, aux_84, aux_85, aux_86, aux_87, aux_88, aux_89, aux_90, aux_91, aux_92, aux_93, aux_94, aux_95, aux_96, aux_97, aux_98, aux_99, aux_100, aux_101, aux_102, aux_103, aux_104, aux_105, aux_106);
     ctrl_2[#run_ix] *= X;
   }
-  pred_out_2, or_3_1 *= Embed[(a) => or a];
+  pred_out_2, or_3_1 *= Embed[(a) => multi_or a];
   s_arg_2, pred_out_2, s_result_4 *= Embed[(a, f) => (a selectOn f)];
 }
 
