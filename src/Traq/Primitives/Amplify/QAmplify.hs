@@ -203,7 +203,6 @@ mkGroverK ::
   ) =>
   m (CQPL.ProcDef size)
 mkGroverK = do
-  proc_name <- Compiler.newIdent "Grover"
   meta_k <- Compiler.newIdent "k"
 
   rets <- view $ to ret_vars
@@ -211,7 +210,7 @@ mkGroverK = do
   ret_tys <- forM rets $ \x ->
     use (P._typingCtx . Ctx.at x) >>= maybeWithError "missing variable"
 
-  Compiler.buildProc proc_name [meta_k] (zip rets ret_tys) $ do
+  Compiler.buildProc "Grover" [meta_k] (zip rets ret_tys) $ do
     (SamplerFn mk_sampler_call) <- view $ to mk_ucall
     (SamplerFn aux_tys) <- view $ to uproc_aux_types
     aux_vars <- mapM Compiler.allocLocal aux_tys
@@ -333,6 +332,5 @@ instance (RealFloat prec) => QuantumCompilePrim (QAmplify SizeT prec) SizeT prec
     ret_tys <- forM rets $ \x ->
       use (P._typingCtx . Ctx.at x) >>= maybeWithError "missing variable"
 
-    proc_name <- Compiler.newIdent "QAmplify"
-    Compiler.buildProc proc_name [] (zip rets ret_tys) $ do
+    Compiler.buildProc "QAmplify" [] (zip rets ret_tys) $ do
       buildQAmplify 0 rets ret_tys eps p_min

@@ -252,7 +252,8 @@ buildProc ::
   [(Ident, P.VarType size)] ->
   m' () ->
   m (CQPL.ProcDef size)
-buildProc proc_name proc_meta_params params m = do
+buildProc proc_name_basic proc_meta_params params m = do
+  proc_name <- newIdent proc_name_basic
   ((), (local_vars, ubody, cbody)) <- runWriterT $ withSandboxOf P._typingCtx m
 
   case (ubody, cbody) of

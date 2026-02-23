@@ -124,10 +124,7 @@ instance (P.TypingReqs size, Integral size, RealFloat prec, Show prec) => Unitar
     QMaxFunArg call_ufun <- view $ to mk_ucall
     QMaxFunArg fun_aux_tys <- view $ to uproc_aux_types
 
-    -- Procedure name
-    proc_name <- Compiler.newIdent "UMax"
-
-    Compiler.buildProc proc_name [] (zip rets ret_tys) $ do
+    Compiler.buildProc "UMax" [] (zip rets ret_tys) $ do
       let _N = P.domainSize arg_ty
       inp <- Compiler.allocLocalWithPrefix "inp" $ P.Arr _N arg_ty
       oup <- mapM (Compiler.allocLocalWithPrefix "out" . P.Arr _N) ret_tys
@@ -196,13 +193,13 @@ instance (P.TypingReqs size, Integral size, RealFloat prec, Show prec) => Quantu
       maybeWithError "" mty
 
     -- Function argument: unitary call builder and aux types
+    -- f :: arg_ty -> ret_tys
     QMaxFunArg call_ufun <- view $ to mk_ucall
     QMaxFunArg fun_aux_tys <- view $ to uproc_aux_types
 
-    -- Procedure name
-    proc_name <- Compiler.newIdent "QMax"
+    -- Build cmp :: (arg_ty, arg_ty) -> Bool
 
-    Compiler.buildProc proc_name [] (zip rets ret_tys) $ do
+    Compiler.buildProc "QMax" [] (zip rets ret_tys) $ do
       let _N = P.domainSize arg_ty
       inp <- Compiler.allocLocalWithPrefix "inp" $ P.Arr _N arg_ty
       oup <- mapM (Compiler.allocLocalWithPrefix "out" . P.Arr _N) ret_tys
