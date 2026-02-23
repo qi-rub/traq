@@ -124,34 +124,15 @@ instance (P.TypingReqs size, Integral size, RealFloat prec, Show prec) => Unitar
     QMaxFunArg call_ufun <- view $ to mk_ucall
     QMaxFunArg fun_aux_tys <- view $ to uproc_aux_types
 
-    -- Allocate ancillas for the function argument
-    fun_aux <- lift $ mapM Compiler.allocAncilla fun_aux_tys
-
     -- Procedure name
-    proc_name <- lift $ Compiler.newIdent "UMax"
+    proc_name <- Compiler.newIdent "UMax"
 
-    -- Build parameters
-    let all_params =
-          Compiler.withTag CQPL.ParamOut (zip rets ret_tys)
-            ++ Compiler.withTag CQPL.ParamAux (zip fun_aux fun_aux_tys)
+    Compiler.buildProc proc_name [] (zip rets ret_tys) $ do
+      -- Allocate ancillas for the function argument
+      fun_aux <- mapM Compiler.allocLocal fun_aux_tys
 
-    -- Body: TODO
-    let uproc_body_stmt = CQPL.UCommentS "TODO: max-finding circuit"
-
-    return
-      CQPL.ProcDef
-        { CQPL.info_comment = ""
-        , CQPL.proc_name = proc_name
-        , CQPL.proc_meta_params = []
-        , CQPL.proc_param_types = map (view _3) all_params
-        , CQPL.proc_body =
-            CQPL.ProcBodyU $
-              CQPL.UProcBody
-                { CQPL.uproc_param_names = map (view _1) all_params
-                , CQPL.uproc_param_tags = map (view _2) all_params
-                , CQPL.uproc_body_stmt
-                }
-        }
+      -- Body: TODO
+      Compiler.addUStmt $ CQPL.UCommentS "TODO: max-finding circuit"
 
 -- ================================================================================
 -- Quantum
@@ -199,4 +180,22 @@ instance
 
 instance QuantumCompilePrim (QMax size prec) size prec where
   compileQPrim QMax{} eps = do
-    error "TODO: CompileQ QMax"
+    -- Return variables and their types
+    rets <- view $ to ret_vars
+    ret_tys <- forM rets $ \x -> do
+      mty <- use $ P._typingCtx . Ctx.at x
+      maybeWithError "" mty
+
+    -- Function argument: unitary call builder and aux types
+    QMaxFunArg call_ufun <- view $ to mk_ucall
+    QMaxFunArg fun_aux_tys <- view $ to uproc_aux_types
+
+    -- Procedure name
+    proc_name <- Compiler.newIdent "QMax"
+
+    Compiler.buildProc proc_name [] (zip rets ret_tys) $ do
+      -- Allocate ancillas for the function argument
+      fun_aux <- mapM Compiler.allocLocal fun_aux_tys
+
+      -- Body: TODO
+      Compiler.addStmt $ CQPL.CommentS "TODO: max-finding circuit"

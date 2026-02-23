@@ -1,0 +1,72 @@
+ext uproc Phi_U(Arr<20, Fin<2>>, Fin<1000>);
+
+ext proc Phi(Arr<20, Fin<2>>, Fin<1000>);
+
+uproc good_U(good_x : IN Arr<20, Fin<2>>, good_i : IN Fin<20>, good_w' : OUT Fin<1000>, good_w : AUX Fin<1000>, good_b : AUX Fin<2>, good_b' : AUX Fin<2>, good_x' : AUX Arr<20, Fin<2>>, good_w_1 : AUX Fin<1000>, good_b_1 : AUX Fin<2>, good_b'_1 : AUX Fin<2>, good_x'_1 : AUX Arr<20, Fin<2>>, good_w'_1 : AUX Fin<1000>) {
+  call Phi_U(good_x, good_w_1);
+  good_w, good_w_1 *= SWAP;
+  good_i, good_x, good_b_1 *= Embed[(good_i, good_x) => good_x[good_i]];
+  good_b, good_b_1 *= SWAP;
+  good_b, good_b'_1 *= Embed[(good_b) => not good_b];
+  good_b', good_b'_1 *= SWAP;
+  good_b, good_i, good_x, good_x'_1 *= Embed[(good_b, good_i, good_x) => update good_x[good_i] = good_b];
+  good_x', good_x'_1 *= SWAP;
+  call Phi_U(good_x', good_w'_1);
+  good_w', good_w'_1 *= SWAP;
+}
+
+proc good(good_x : Arr<20, Fin<2>>, good_i : Fin<20>, good_w' : Fin<1000>) { locals : (good_w : Fin<1000>, good_b : Fin<2>, good_b' : Fin<2>, good_x' : Arr<20, Fin<2>>) } {
+  call Phi(good_x, good_w);
+  good_b := good_x[good_i];
+  good_b' := not good_b;
+  good_x' := update good_x[good_i] = good_b;
+  call Phi(good_x', good_w');
+}
+
+uproc UMax(hillclimb_iter_x : Arr<20, Fin<2>>, hillclimb_iter_i_1 : Fin<1000>, aux : AUX Fin<1000>, aux_1 : AUX Fin<2>, aux_2 : AUX Fin<2>, aux_3 : AUX Arr<20, Fin<2>>, aux_4 : AUX Fin<1000>, aux_5 : AUX Fin<2>, aux_6 : AUX Fin<2>, aux_7 : AUX Arr<20, Fin<2>>, aux_8 : AUX Fin<1000>) {
+  // TODO: max-finding circuit
+}
+
+uproc hillclimb_iter_U(hillclimb_iter_x : IN Arr<20, Fin<2>>, hillclimb_iter_x' : OUT Arr<20, Fin<2>>, hillclimb_iter_i : AUX Fin<1000>, hillclimb_iter_b : AUX Fin<2>, hillclimb_iter_b' : AUX Fin<2>, hillclimb_iter_i_1 : AUX Fin<1000>, aux_prim : AUX Fin<1000>, aux_prim_1 : AUX Fin<2>, aux_prim_2 : AUX Fin<2>, aux_prim_3 : AUX Arr<20, Fin<2>>, aux_prim_4 : AUX Fin<1000>, aux_prim_5 : AUX Fin<2>, aux_prim_6 : AUX Fin<2>, aux_prim_7 : AUX Arr<20, Fin<2>>, aux_prim_8 : AUX Fin<1000>, hillclimb_iter_b_1 : AUX Fin<2>, hillclimb_iter_b'_1 : AUX Fin<2>, hillclimb_iter_x'_1 : AUX Arr<20, Fin<2>>) {
+  call UMax(hillclimb_iter_x, hillclimb_iter_i_1, aux_prim, aux_prim_1, aux_prim_2, aux_prim_3, aux_prim_4, aux_prim_5, aux_prim_6, aux_prim_7, aux_prim_8);
+  hillclimb_iter_i, hillclimb_iter_i_1 *= SWAP;
+  hillclimb_iter_i, hillclimb_iter_x, hillclimb_iter_b_1 *= Embed[(hillclimb_iter_i, hillclimb_iter_x) => hillclimb_iter_x[hillclimb_iter_i]];
+  hillclimb_iter_b, hillclimb_iter_b_1 *= SWAP;
+  hillclimb_iter_b, hillclimb_iter_b'_1 *= Embed[(hillclimb_iter_b) => not hillclimb_iter_b];
+  hillclimb_iter_b', hillclimb_iter_b'_1 *= SWAP;
+  hillclimb_iter_b, hillclimb_iter_i, hillclimb_iter_x, hillclimb_iter_x'_1 *= Embed[(hillclimb_iter_b, hillclimb_iter_i, hillclimb_iter_x) => update hillclimb_iter_x[hillclimb_iter_i] = hillclimb_iter_b];
+  hillclimb_iter_x', hillclimb_iter_x'_1 *= SWAP;
+}
+
+proc QMax(hillclimb_iter_x : Arr<20, Fin<2>>, hillclimb_iter_i : Fin<1000>) { locals : (aux_9 : Fin<1000>, aux_10 : Fin<2>, aux_11 : Fin<2>, aux_12 : Arr<20, Fin<2>>, aux_13 : Fin<1000>, aux_14 : Fin<2>, aux_15 : Fin<2>, aux_16 : Arr<20, Fin<2>>, aux_17 : Fin<1000>) } {
+  // TODO: max-finding circuit
+}
+
+proc hillclimb_iter(hillclimb_iter_x : Arr<20, Fin<2>>, hillclimb_iter_x' : Arr<20, Fin<2>>) { locals : (hillclimb_iter_i : Fin<1000>, hillclimb_iter_b : Fin<2>, hillclimb_iter_b' : Fin<2>) } {
+  call QMax(hillclimb_iter_x, hillclimb_iter_i);
+  hillclimb_iter_b := hillclimb_iter_x[hillclimb_iter_i];
+  hillclimb_iter_b' := not hillclimb_iter_b;
+  hillclimb_iter_x' := update hillclimb_iter_x[hillclimb_iter_i] = hillclimb_iter_b;
+}
+
+uproc hillclimb_3_U(hillclimb_3_x_3 : OUT Arr<20, Fin<2>>, hillclimb_3_x_0 : AUX Arr<20, Fin<2>>, hillclimb_3_x_1 : AUX Arr<20, Fin<2>>, hillclimb_3_x_2 : AUX Arr<20, Fin<2>>, hillclimb_3_x_0_1 : AUX Arr<20, Fin<2>>, hillclimb_3_x_0_1_1 : AUX Arr<20, Fin<2>>, hillclimb_3_x_1_1 : AUX Arr<20, Fin<2>>, aux_18 : AUX Fin<1000>, aux_19 : AUX Fin<2>, aux_20 : AUX Fin<2>, aux_21 : AUX Fin<1000>, aux_22 : AUX Fin<1000>, aux_23 : AUX Fin<2>, aux_24 : AUX Fin<2>, aux_25 : AUX Arr<20, Fin<2>>, aux_26 : AUX Fin<1000>, aux_27 : AUX Fin<2>, aux_28 : AUX Fin<2>, aux_29 : AUX Arr<20, Fin<2>>, aux_30 : AUX Fin<1000>, aux_31 : AUX Fin<2>, aux_32 : AUX Fin<2>, aux_33 : AUX Arr<20, Fin<2>>, hillclimb_3_x_2_1 : AUX Arr<20, Fin<2>>, aux_34 : AUX Fin<1000>, aux_35 : AUX Fin<2>, aux_36 : AUX Fin<2>, aux_37 : AUX Fin<1000>, aux_38 : AUX Fin<1000>, aux_39 : AUX Fin<2>, aux_40 : AUX Fin<2>, aux_41 : AUX Arr<20, Fin<2>>, aux_42 : AUX Fin<1000>, aux_43 : AUX Fin<2>, aux_44 : AUX Fin<2>, aux_45 : AUX Arr<20, Fin<2>>, aux_46 : AUX Fin<1000>, aux_47 : AUX Fin<2>, aux_48 : AUX Fin<2>, aux_49 : AUX Arr<20, Fin<2>>, hillclimb_3_x_3_1 : AUX Arr<20, Fin<2>>, aux_50 : AUX Fin<1000>, aux_51 : AUX Fin<2>, aux_52 : AUX Fin<2>, aux_53 : AUX Fin<1000>, aux_54 : AUX Fin<1000>, aux_55 : AUX Fin<2>, aux_56 : AUX Fin<2>, aux_57 : AUX Arr<20, Fin<2>>, aux_58 : AUX Fin<1000>, aux_59 : AUX Fin<2>, aux_60 : AUX Fin<2>, aux_61 : AUX Arr<20, Fin<2>>, aux_62 : AUX Fin<1000>, aux_63 : AUX Fin<2>, aux_64 : AUX Fin<2>, aux_65 : AUX Arr<20, Fin<2>>) {
+  hillclimb_3_x_0_1 *= Distr[uniform : Arr<20, Fin<2>>];
+  hillclimb_3_x_0_1, hillclimb_3_x_0_1_1 *= COPY;
+  hillclimb_3_x_0, hillclimb_3_x_0_1 *= SWAP;
+  call hillclimb_iter_U(hillclimb_3_x_0, hillclimb_3_x_1_1, aux_18, aux_19, aux_20, aux_21, aux_22, aux_23, aux_24, aux_25, aux_26, aux_27, aux_28, aux_29, aux_30, aux_31, aux_32, aux_33);
+  hillclimb_3_x_1, hillclimb_3_x_1_1 *= SWAP;
+  call hillclimb_iter_U(hillclimb_3_x_1, hillclimb_3_x_2_1, aux_34, aux_35, aux_36, aux_37, aux_38, aux_39, aux_40, aux_41, aux_42, aux_43, aux_44, aux_45, aux_46, aux_47, aux_48, aux_49);
+  hillclimb_3_x_2, hillclimb_3_x_2_1 *= SWAP;
+  call hillclimb_iter_U(hillclimb_3_x_2, hillclimb_3_x_3_1, aux_50, aux_51, aux_52, aux_53, aux_54, aux_55, aux_56, aux_57, aux_58, aux_59, aux_60, aux_61, aux_62, aux_63, aux_64, aux_65);
+  hillclimb_3_x_3, hillclimb_3_x_3_1 *= SWAP;
+}
+
+proc hillclimb_3(hillclimb_3_x_3 : Arr<20, Fin<2>>) { locals : (hillclimb_3_x_0 : Arr<20, Fin<2>>, hillclimb_3_x_1 : Arr<20, Fin<2>>, hillclimb_3_x_2 : Arr<20, Fin<2>>) } {
+  hillclimb_3_x_0 :=$ uniform : Arr<20, Fin<2>>;
+  call hillclimb_iter(hillclimb_3_x_0, hillclimb_3_x_1);
+  call hillclimb_iter(hillclimb_3_x_1, hillclimb_3_x_2);
+  call hillclimb_iter(hillclimb_3_x_2, hillclimb_3_x_3);
+}
+
+
+// qubits: 534
