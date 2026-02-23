@@ -11,7 +11,6 @@ module Traq.Compiler.Unitary (
   -- ** Helpers
   allocAncillaWithPref,
   allocAncilla,
-  ControlFlag (..),
   withTag,
 
   -- * Internal
@@ -55,8 +54,6 @@ freshAux :: (m ~ CompilerT ext) => [Ident] -> m [Ident]
 freshAux xs = do
   tys <- zoom P._typingCtx $ mapM Ctx.lookup xs
   zipWithM allocAncillaWithPref xs tys
-
-data ControlFlag = WithControl | WithoutControl deriving (Eq, Show, Read, Enum)
 
 withTag :: ParamTag -> [(Ident, P.VarType a)] -> [(Ident, ParamTag, P.VarType a)]
 withTag tag = map $ \(x, ty) -> (x, tag, ty)

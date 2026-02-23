@@ -151,8 +151,8 @@ data UStmt size
   | UForInRangeS
       { iter_meta_var :: Ident
       , iter_lim :: P.MetaParam size
-      , uloop_body :: UStmt size
       , dagger :: Bool
+      , uloop_body :: UStmt size
       }
   | UWithComputedS {with_ustmt, body_ustmt :: UStmt size}
   deriving (Eq, Show, Read)
