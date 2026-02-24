@@ -46,12 +46,16 @@ uproc Compare(hillclimb_iter_x : Arr<20, Fin<2>>, y : Fin<1000>, x_1 : Fin<20>, 
   y, out_1, b *= Embed[(a, b) => (a < b)];
 }
 
-proc QMax(hillclimb_iter_x : Arr<20, Fin<2>>, hillclimb_iter_w : Fin<1000>, hillclimb_iter_i : Fin<20>) { locals : (fuel : Fin<750>, x_2 : Fin<20>, y_1 : Fin<1000>) } {
+proc QSearch(hillclimb_iter_x : Arr<20, Fin<2>>, fuel : Fin<750>, y : Fin<1000>, x : Fin<20>) { locals : () } {
+  // TODO: QSearch body
+}
+
+proc QMax(hillclimb_iter_x : Arr<20, Fin<2>>, hillclimb_iter_w : Fin<1000>, hillclimb_iter_i : Fin<20>) { locals : (fuel : Fin<750>) } {
   fuel := 749:Fin<750>;
-  x_2 :=$ uniform : Fin<20>;
-  call good(hillclimb_iter_x, x_2, y_1);
+  hillclimb_iter_i :=$ uniform : Fin<20>;
+  call good(hillclimb_iter_x, hillclimb_iter_i, hillclimb_iter_w);
   repeat (750) {
-    // TODO: loop body
+    call QSearch(hillclimb_iter_x, fuel, hillclimb_iter_w, hillclimb_iter_i);
   }
 }
 

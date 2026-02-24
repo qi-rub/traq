@@ -115,15 +115,12 @@ instance
   unitaryExprCosts _ _ = Alg.zero
 
 instance (P.TypingReqs size, Integral size, RealFloat prec, Show prec) => UnitaryCompilePrim (QMax size prec) size prec where
-  compileUPrim QMax{arg_ty} _ = do
+  compileUPrim QMax{arg_ty, res_ty} _ = do
     -- Return variables and their types
     (res_var, argmax_var) <-
       view (to ret_vars) >>= \case
         [x, y] -> pure (x, y)
         _ -> throwError "typecheck failed"
-    res_ty <- do
-      mty <- use $ P._typingCtx . Ctx.at res_var
-      maybeWithError "" mty
 
     -- Function argument: unitary call builder and aux types
     QMaxFunArg call_ufun <- view $ to mk_ucall
@@ -192,10 +189,10 @@ instance
 instance (P.TypingReqs size, Integral size, RealFloat prec, Show prec, A.SizeToPrec size prec) => QuantumCompilePrim (QMax size prec) size prec where
   compileQPrim QMax{arg_ty, res_ty} eps = do
     -- Return variables and their types
-    rets <- view $ to ret_vars
-    ret_tys <- forM rets $ \x -> do
-      mty <- use $ P._typingCtx . Ctx.at x
-      maybeWithError "" mty
+    (res_var, argmax_var) <-
+      view (to ret_vars) >>= \case
+        [x, y] -> pure (x, y)
+        _ -> throwError "typecheck failed"
 
     -- Build cmp :: (res_ty, arg_ty) -> Bool
     cmp <- do
@@ -219,22 +216,31 @@ instance (P.TypingReqs size, Integral size, RealFloat prec, Show prec, A.SizeToP
       Compiler.addProc cmp
       return cmp
 
-    -- Build the main algorithm
-    Compiler.buildProc "QMax" [] (zip rets ret_tys) $ do
-      let _N = P.domainSize arg_ty
-      let max_queries = ceiling (_WQMax _N eps) :: size
+    let _N = P.domainSize arg_ty
+    let max_queries = ceiling (_WQMax _N eps) :: size
+    let fuel_ty = P.Fin max_queries
 
-      fuel <- Compiler.allocLocalWithPrefix "fuel" (P.Fin max_queries)
-      Compiler.addStmt $ CQPL.AssignS [fuel] (P.ConstE (P.FinV $ max_queries - 1) (P.Fin max_queries))
+    -- Build: qsearch with bounded fuel
+    qsearch <- do
+      p <- Compiler.buildProc "QSearch" [] [("fuel", fuel_ty), ("y", res_ty), ("x", arg_ty)] $ do
+        Compiler.addStmt $ CQPL.CommentS "TODO: QSearch body"
+
+      Compiler.addProc p
+      return p
+
+    -- Build the main algorithm
+    Compiler.buildProc "QMax" [] [(res_var, res_ty), (argmax_var, arg_ty)] $ do
+      fuel <- Compiler.allocLocalWithPrefix "fuel" fuel_ty
+      Compiler.addStmt $ CQPL.AssignS [fuel] (P.ConstE (P.FinV $ max_queries - 1) fuel_ty)
 
       -- choose x \in arg_ty uniformly at random
-      x <- Compiler.allocLocalWithPrefix "x" arg_ty
+      let x = argmax_var
       Compiler.addStmt $ CQPL.RandomS [x] (P.UniformE arg_ty)
 
       -- set y <- f(x);
-      y <- Compiler.allocLocalWithPrefix "y" res_ty
+      let y = res_var
       QMaxFunArg call_fun <- lift $ view $ to mk_call
       Compiler.addStmt $ call_fun [CQPL.Arg x, CQPL.Arg y]
 
       Compiler.withStmt (CQPL.RepeatS (P.MetaSize max_queries)) $ do
-        Compiler.addStmt $ CQPL.CommentS "TODO: loop body"
+        Compiler.addStmt $ CQPL.CallS (CQPL.FunctionCall (CQPL.proc_name qsearch)) [] [CQPL.Arg fuel, CQPL.Arg y, CQPL.Arg x]
