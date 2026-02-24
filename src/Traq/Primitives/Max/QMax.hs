@@ -198,31 +198,43 @@ instance (P.TypingReqs size, Integral size, RealFloat prec, Show prec, A.SizeToP
       maybeWithError "" mty
 
     -- Build cmp :: (res_ty, arg_ty) -> Bool
-    x <- Compiler.newIdent "x"
-    prev <- Compiler.newIdent "y"
-    b <- Compiler.newIdent "b"
-    cmp <- Compiler.buildUProc "Compare" [] [(prev, res_ty), (x, arg_ty), (b, P.tbool)] $ do
-      -- f :: arg_ty -> res_ty
-      QMaxFunArg call_ufun <- lift $ view $ to mk_ucall
-      QMaxFunArg aux_tys <- lift $ view $ to uproc_aux_types
+    cmp <- do
+      x <- Compiler.newIdent "x"
+      prev <- Compiler.newIdent "y"
+      b <- Compiler.newIdent "b"
+      cmp <- Compiler.buildUProc "Compare" [] [(prev, res_ty), (x, arg_ty), (b, P.tbool)] $ do
+        -- f :: arg_ty -> res_ty
+        QMaxFunArg call_ufun <- lift $ view $ to mk_ucall
+        QMaxFunArg aux_tys <- lift $ view $ to uproc_aux_types
 
-      out <- Compiler.allocLocalWithPrefix "out" res_ty
-      aux <- mapM Compiler.allocLocal aux_tys
-      Compiler.addUStmt $ call_ufun $ map CQPL.Arg (x : out : aux)
+        out <- Compiler.allocLocalWithPrefix "out" res_ty
+        aux <- mapM Compiler.allocLocal aux_tys
+        Compiler.addUStmt $ call_ufun $ map CQPL.Arg (x : out : aux)
 
-      Compiler.addUStmt $
-        CQPL.UnitaryS [CQPL.Arg prev, CQPL.Arg out, CQPL.Arg b] $
-          CQPL.RevEmbedU ["a", "b"] $
-            P.BinOpE P.LtOp (P.VarE "a") (P.VarE "b")
+        Compiler.addUStmt $
+          CQPL.UnitaryS [CQPL.Arg prev, CQPL.Arg out, CQPL.Arg b] $
+            CQPL.RevEmbedU ["a", "b"] $
+              P.BinOpE P.LtOp (P.VarE "a") (P.VarE "b")
 
-    Compiler.addProc cmp
+      Compiler.addProc cmp
+      return cmp
 
     -- Build the main algorithm
     Compiler.buildProc "QMax" [] (zip rets ret_tys) $ do
       let _N = P.domainSize arg_ty
       let max_queries = ceiling (_WQMax _N eps) :: size
 
-      fuel <- Compiler.allocLocalWithPrefix "fuel" (P.Fin (max_queries + 1))
-      Compiler.addStmt $ CQPL.AssignS [fuel] $ error "const max_queries"
+      fuel <- Compiler.allocLocalWithPrefix "fuel" (P.Fin max_queries)
+      Compiler.addStmt $ CQPL.AssignS [fuel] (P.ConstE (P.FinV $ max_queries - 1) (P.Fin max_queries))
 
-      Compiler.addStmt $ CQPL.CommentS "TODO: max-finding circuit"
+      -- choose x \in arg_ty uniformly at random
+      x <- Compiler.allocLocalWithPrefix "x" arg_ty
+      Compiler.addStmt $ CQPL.RandomS [x] (P.UniformE arg_ty)
+
+      -- set y <- f(x);
+      y <- Compiler.allocLocalWithPrefix "y" res_ty
+      QMaxFunArg call_fun <- lift $ view $ to mk_call
+      Compiler.addStmt $ call_fun [CQPL.Arg x, CQPL.Arg y]
+
+      Compiler.withStmt (CQPL.RepeatS (P.MetaSize max_queries)) $ do
+        Compiler.addStmt $ CQPL.CommentS "TODO: loop body"
