@@ -23,11 +23,11 @@ proc good(good_x : Arr<20, Fin<2>>, good_i : Fin<20>, good_w' : Fin<1000>) { loc
   call Phi(good_x', good_w');
 }
 
-uproc UMax(hillclimb_iter_x : Arr<20, Fin<2>>, hillclimb_iter_w_1 : Fin<1000>, hillclimb_iter_i_1 : Fin<20>, inp : AUX Arr<20, Fin<20>>, out : AUX Arr<20, Fin<1000>>, aux : AUX Arr<20, Fin<1000>>, aux_1 : AUX Arr<20, Fin<2>>, aux_2 : AUX Arr<20, Fin<2>>, aux_3 : AUX Arr<20, Arr<20, Fin<2>>>, aux_4 : AUX Arr<20, Fin<1000>>, aux_5 : AUX Arr<20, Fin<2>>, aux_6 : AUX Arr<20, Fin<2>>, aux_7 : AUX Arr<20, Arr<20, Fin<2>>>, aux_8 : AUX Arr<20, Fin<1000>>) {
+uproc UMax(hillclimb_iter_x : Arr<20, Fin<2>>, ret : Fin<1000>, ret_1 : Fin<20>, inp : AUX Arr<20, Fin<20>>, out : AUX Arr<20, Fin<1000>>, aux : AUX Arr<20, Fin<1000>>, aux_1 : AUX Arr<20, Fin<2>>, aux_2 : AUX Arr<20, Fin<2>>, aux_3 : AUX Arr<20, Arr<20, Fin<2>>>, aux_4 : AUX Arr<20, Fin<1000>>, aux_5 : AUX Arr<20, Fin<2>>, aux_6 : AUX Arr<20, Fin<2>>, aux_7 : AUX Arr<20, Arr<20, Fin<2>>>, aux_8 : AUX Arr<20, Fin<1000>>) {
   for (#x in Fin<20>) {
     call good_U(hillclimb_iter_x, inp[#x], out[#x], aux[#x], aux_1[#x], aux_2[#x], aux_3[#x], aux_4[#x], aux_5[#x], aux_6[#x], aux_7[#x], aux_8[#x]);
   }
-  // unitarily compute: hillclimb_iter_w_1 := max(out); hillclimb_iter_i_1 := argmax(out);
+  // unitarily compute: ret := max(out); ret_1 := argmax(out);
 }
 
 uproc hillclimb_iter_U(hillclimb_iter_x : IN Arr<20, Fin<2>>, hillclimb_iter_x' : OUT Arr<20, Fin<2>>, hillclimb_iter_w : AUX Fin<1000>, hillclimb_iter_i : AUX Fin<20>, hillclimb_iter_b : AUX Fin<2>, hillclimb_iter_b' : AUX Fin<2>, hillclimb_iter_w_1 : AUX Fin<1000>, hillclimb_iter_i_1 : AUX Fin<20>, aux_prim : AUX Arr<20, Fin<20>>, aux_prim_1 : AUX Arr<20, Fin<1000>>, aux_prim_2 : AUX Arr<20, Fin<1000>>, aux_prim_3 : AUX Arr<20, Fin<2>>, aux_prim_4 : AUX Arr<20, Fin<2>>, aux_prim_5 : AUX Arr<20, Arr<20, Fin<2>>>, aux_prim_6 : AUX Arr<20, Fin<1000>>, aux_prim_7 : AUX Arr<20, Fin<2>>, aux_prim_8 : AUX Arr<20, Fin<2>>, aux_prim_9 : AUX Arr<20, Arr<20, Fin<2>>>, aux_prim_10 : AUX Arr<20, Fin<1000>>, hillclimb_iter_b_1 : AUX Fin<2>, hillclimb_iter_b'_1 : AUX Fin<2>, hillclimb_iter_x'_1 : AUX Arr<20, Fin<2>>) {
@@ -46,16 +46,16 @@ uproc Compare(hillclimb_iter_x : Arr<20, Fin<2>>, y : Fin<1000>, x_1 : Fin<20>, 
   y, out_1, b *= Embed[(a, b) => (a < b)];
 }
 
-proc QSearch(hillclimb_iter_x : Arr<20, Fin<2>>, fuel : Fin<750>, y : Fin<1000>, x : Fin<20>) { locals : () } {
+proc QSearch_infty(hillclimb_iter_x : Arr<20, Fin<2>>, fuel : Fin<750>, y : Fin<1000>, x : Fin<20>) { locals : () } {
   // TODO: QSearch body
 }
 
-proc QMax(hillclimb_iter_x : Arr<20, Fin<2>>, hillclimb_iter_w : Fin<1000>, hillclimb_iter_i : Fin<20>) { locals : (fuel : Fin<750>) } {
+proc QMax(hillclimb_iter_x : Arr<20, Fin<2>>, ret_2 : Fin<1000>, ret_3 : Fin<20>) { locals : (fuel : Fin<750>) } {
   fuel := 749:Fin<750>;
-  hillclimb_iter_i :=$ uniform : Fin<20>;
-  call good(hillclimb_iter_x, hillclimb_iter_i, hillclimb_iter_w);
+  ret_3 :=$ uniform : Fin<20>;
+  call good(hillclimb_iter_x, ret_3, ret_2);
   repeat (750) {
-    call QSearch(hillclimb_iter_x, fuel, hillclimb_iter_w, hillclimb_iter_i);
+    call QSearch_infty(hillclimb_iter_x, fuel, ret_2, ret_3);
   }
 }
 

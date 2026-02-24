@@ -215,7 +215,7 @@ instance (P.TypingReqs size, Integral size, RealFloat prec, Show prec, A.SizeToP
 
     -- Build: qsearch with bounded fuel
     qsearch <- do
-      p <- Compiler.buildProc "QSearch" [] [("fuel", fuel_ty), ("y", res_ty), ("x", arg_ty)] $ do
+      p <- Compiler.buildProc "QSearch_infty" [] [("fuel", fuel_ty), ("y", res_ty), ("x", arg_ty)] $ do
         Compiler.addStmt $ CQPL.CommentS "TODO: QSearch body"
 
       Compiler.addProc p

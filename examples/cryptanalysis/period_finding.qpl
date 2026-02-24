@@ -10,11 +10,11 @@ uproc SimonOneRound_U(x : OUT BitVec<20>, y : AUX BitVec<20>, yy : AUX BitVec<20
   x *= Adj-Distr[uniform : BitVec<20>];
 }
 
-uproc USimon(s_1 : OUT BitVec<20>, USimon_aux : AUX Arr<31, BitVec<20>>, USimon_aux_1 : AUX Arr<31, BitVec<20>>, USimon_aux_2 : AUX Arr<31, BitVec<20>>) {
+uproc USimon(ret : OUT BitVec<20>, USimon_aux : AUX Arr<31, BitVec<20>>, USimon_aux_1 : AUX Arr<31, BitVec<20>>, USimon_aux_2 : AUX Arr<31, BitVec<20>>) {
   for (#i in 0 .. < 31) {
     call SimonOneRound_U(USimon_aux[#i], USimon_aux_1[#i], USimon_aux_2[#i]);
   }
-  // simon's post-processing: unitarily solve linear system: (s_1) . (USimon_aux) = 0
+  // simon's post-processing: unitarily solve linear system: (ret) . (USimon_aux) = 0
 }
 
 uproc main_U(s : OUT BitVec<20>, s_1 : AUX BitVec<20>, x : AUX BitVec<20>, y : AUX BitVec<20>, yy : AUX BitVec<20>, USimon_aux : AUX Arr<31, BitVec<20>>, USimon_aux_1 : AUX Arr<31, BitVec<20>>, USimon_aux_2 : AUX Arr<31, BitVec<20>>, aux_prim : AUX Arr<31, BitVec<20>>, aux_prim_1 : AUX Arr<31, BitVec<20>>, aux_prim_2 : AUX Arr<31, BitVec<20>>) {
@@ -30,11 +30,11 @@ uproc SimonOneRound_U_1(x_1 : OUT BitVec<20>, y_1 : AUX BitVec<20>, yy_1 : AUX B
   x_1 *= Adj-Distr[uniform : BitVec<20>];
 }
 
-proc QSimon(s : BitVec<20>) { locals : (QSimon__u : Arr<31, BitVec<20>>) } {
+proc QSimon(ret_1 : BitVec<20>) { locals : (QSimon__u : Arr<31, BitVec<20>>) } {
   for (#i_1 in 0 .. < 31) {
     meas SimonOneRound_U_1(QSimon__u[#i_1]);
   }
-  // simon's post-processing: solve linear system: (s) . (QSimon__u) = 0
+  // simon's post-processing: solve linear system: (ret_1) . (QSimon__u) = 0
 }
 
 proc main(s : BitVec<20>) { locals : (x_1 : BitVec<20>, y_1 : BitVec<20>, yy_1 : BitVec<20>, QSimon__u : Arr<31, BitVec<20>>) } {
