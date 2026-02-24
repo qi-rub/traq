@@ -66,8 +66,7 @@ uproc Grover[k](i1 : Fin<20>, j1 : Fin<10>, x : IN Fin<10>, or_1 : OUT Fin<2>, a
   or_1 *= X;
 }
 
-// QAny[3.801194009254654e-32]
-proc QAny(i1 : Fin<20>, j1 : Fin<10>, or_1 : Fin<2>) { locals : (not_done : Fin<2>, Q_sum : Fin<30>, j : Fin<30>, j_lim : Fin<30>, s_result_1 : Fin<10>) } {
+proc QAny(i1 : Fin<20>, j1 : Fin<10>, or_1 : Fin<2>) { locals : (s_result_1 : Fin<10>, not_done : Fin<2>, Q_sum : Fin<30>, j : Fin<30>, j_lim : Fin<30>) } {
   repeat (66) {
     Q_sum := 0:Fin<30>;
     for (j_lim in [1:Fin<30>, 1:Fin<30>, 1:Fin<30>, 2:Fin<30>, 2:Fin<30>, 2:Fin<30>, 3:Fin<30>, 3:Fin<30>, 3:Fin<30>, 3:Fin<30>, 3:Fin<30>, 3:Fin<30>, 3:Fin<30>]) {
@@ -85,7 +84,7 @@ proc QAny(i1 : Fin<20>, j1 : Fin<10>, or_1 : Fin<2>) { locals : (not_done : Fin<
   }
 }
 
-proc NOR_1(i1 : Fin<20>, j1 : Fin<10>, nor_1 : Fin<2>) { locals : (or_1 : Fin<2>, s_result_1 : Fin<10>) } {
+proc NOR_1(i1 : Fin<20>, j1 : Fin<10>, nor_1 : Fin<2>) { locals : (or_1 : Fin<2>) } {
   call QAny(i1, j1, or_1);
   nor_1 := not or_1;
 }
@@ -142,8 +141,7 @@ uproc Grover_1[k](i2 : Fin<20>, x_1 : IN Fin<10>, or_2 : OUT Fin<2>, aux_29 : AU
   or_2 *= X;
 }
 
-// QAny[1.3387056295712027e-13]
-proc QAny_1(i2 : Fin<20>, or_2 : Fin<2>) { locals : (not_done_1 : Fin<2>, Q_sum_1 : Fin<30>, j_1 : Fin<30>, j_lim_1 : Fin<30>, s_result_3 : Fin<10>) } {
+proc QAny_1(i2 : Fin<20>, or_2 : Fin<2>) { locals : (s_result_3 : Fin<10>, not_done_1 : Fin<2>, Q_sum_1 : Fin<30>, j_1 : Fin<30>, j_lim_1 : Fin<30>) } {
   repeat (27) {
     Q_sum_1 := 0:Fin<30>;
     for (j_lim_1 in [1:Fin<30>, 1:Fin<30>, 1:Fin<30>, 2:Fin<30>, 2:Fin<30>, 2:Fin<30>, 3:Fin<30>, 3:Fin<30>, 3:Fin<30>, 3:Fin<30>, 3:Fin<30>, 3:Fin<30>, 3:Fin<30>]) {
@@ -161,7 +159,7 @@ proc QAny_1(i2 : Fin<20>, or_2 : Fin<2>) { locals : (not_done_1 : Fin<2>, Q_sum_
   }
 }
 
-proc NOR_2(i2 : Fin<20>, nor_2 : Fin<2>) { locals : (or_2 : Fin<2>, s_result_3 : Fin<10>) } {
+proc NOR_2(i2 : Fin<20>, nor_2 : Fin<2>) { locals : (or_2 : Fin<2>) } {
   call QAny_1(i2, or_2);
   nor_2 := not or_2;
 }
@@ -216,8 +214,7 @@ uproc Grover_2[k](x_2 : IN Fin<20>, or_3 : OUT Fin<2>, aux_108 : AUX Fin<2>, aux
   or_3 *= X;
 }
 
-// QAny[5.0e-4]
-proc QAny_2(or_3 : Fin<2>) { locals : (not_done_2 : Fin<2>, Q_sum_2 : Fin<42>, j_2 : Fin<42>, j_lim_2 : Fin<42>, s_result_5 : Fin<20>) } {
+proc QAny_2(or_3 : Fin<2>) { locals : (s_result_5 : Fin<20>, not_done_2 : Fin<2>, Q_sum_2 : Fin<42>, j_2 : Fin<42>, j_lim_2 : Fin<42>) } {
   repeat (7) {
     Q_sum_2 := 0:Fin<42>;
     for (j_lim_2 in [1:Fin<42>, 1:Fin<42>, 1:Fin<42>, 2:Fin<42>, 2:Fin<42>, 2:Fin<42>, 3:Fin<42>, 4:Fin<42>, 4:Fin<42>, 4:Fin<42>, 4:Fin<42>, 4:Fin<42>, 4:Fin<42>, 4:Fin<42>]) {
@@ -235,7 +232,7 @@ proc QAny_2(or_3 : Fin<2>) { locals : (not_done_2 : Fin<2>, Q_sum_2 : Fin<42>, j
   }
 }
 
-proc Depth3Nand(or_3 : Fin<2>) { locals : (s_result_5 : Fin<20>) } {
+proc Depth3Nand(or_3 : Fin<2>) { locals : () } {
   call QAny_2(or_3);
 }
 

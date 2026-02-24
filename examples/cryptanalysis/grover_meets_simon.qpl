@@ -117,7 +117,6 @@ uproc Grover[k](x_2 : IN BitVec<20>, outerAttack_ok : OUT Fin<2>, aux_38 : AUX B
   outerAttack_ok *= X;
 }
 
-// QSearch[5.0e-4]
 proc QSearch(outerAttack_ok : Fin<2>, outerAttack_k0 : BitVec<20>) { locals : (not_done : Fin<2>, Q_sum : Fin<9421>, j : Fin<9421>, j_lim : Fin<9421>) } {
   repeat (7) {
     Q_sum := 0:Fin<9421>;

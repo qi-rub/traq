@@ -31,10 +31,11 @@ module Traq.Primitives.Search.QSearchCFNW (
 ) where
 
 import Control.Monad (replicateM, when)
-import Control.Monad.Except (throwError)
+import Control.Monad.Except (MonadError, throwError)
 import Control.Monad.RWS (RWST, evalRWST)
+import Control.Monad.State (MonadState)
 import Control.Monad.Trans (lift)
-import Control.Monad.Writer (WriterT (..), censor, execWriterT, listen)
+import Control.Monad.Writer (censor, listen)
 import Data.Maybe (fromJust)
 import Data.String (fromString)
 import GHC.Generics (Generic)
@@ -452,24 +453,6 @@ instance
 -- CQ Lowering
 -- ================================================================================
 
--- | the generated QSearch procedure: body stmts and local vars
-type QSearchCompilerT ext =
-  WriterT
-    ([CQPL.Stmt (SizeType ext)], [(Ident, P.VarType (SizeType ext))])
-    (Compiler.CompilerT ext)
-
-allocReg ::
-  ( m ~ QSearchCompilerT ext
-  , size ~ SizeType ext
-  ) =>
-  Ident ->
-  P.VarType size ->
-  m Ident
-allocReg prefix ty = do
-  reg <- lift $ Compiler.newIdent prefix
-  writeElemAt _2 (reg, ty)
-  return reg
-
 -- | Run K grover iterations
 groverK ::
   forall size.
@@ -512,14 +495,15 @@ groverK k (x, x_ty) b mk_pred =
 
 -- | Implementation of the hybrid quantum search algorithm \( \textbf{QSearch} \).
 algoQSearch ::
-  forall ext size prec.
+  forall size prec m.
   ( Integral size
   , RealFloat prec
   , size ~ SizeT
   , Show size
   , Show prec
   , P.TypingReqs size
-  , SizeType ext ~ size
+  , MonadError String m
+  , MonadState (Compiler.LoweringCtx size) m
   ) =>
   -- | search elem type
   P.VarType size ->
@@ -535,13 +519,12 @@ algoQSearch ::
   Ident ->
   -- | output value
   Ident ->
-  -- | the generated QSearch procedure: body stmts and local vars
-  QSearchCompilerT ext ()
+  Compiler.ProcBuilderT size m ()
 algoQSearch ty n_samples eps grover_k_caller pred_caller ok x = do
-  not_done <- allocReg "not_done" P.tbool
-  q_sum <- allocReg "Q_sum" j_type
-  j <- allocReg "j" j_type
-  j_lim <- allocReg "j_lim" j_type
+  not_done <- Compiler.allocLocalWithPrefix "not_done" P.tbool
+  q_sum <- Compiler.allocLocalWithPrefix "Q_sum" j_type
+  j <- Compiler.allocLocalWithPrefix "j" j_type
+  j_lim <- Compiler.allocLocalWithPrefix "j_lim" j_type
 
   -- classical sampling
   when (n_samples /= 0) $ do
@@ -551,7 +534,7 @@ algoQSearch ty n_samples eps grover_k_caller pred_caller ok x = do
               [ CQPL.RandomS [x] (P.UniformE ty)
               , pred_caller x ok
               ]
-    writeElemAt _1 classicalSampling
+    Compiler.addStmt classicalSampling
 
   -- quantum search
 
@@ -586,7 +569,7 @@ algoQSearch ty n_samples eps grover_k_caller pred_caller ok x = do
 
   let quantumSampling = CQPL.RepeatS (CQPL.MetaSize n_runs) quantumSamplingOneRound
 
-  writeElemAt _1 quantumSampling
+  Compiler.addStmt quantumSampling
  where
   n = P.domainSize ty
 
@@ -630,18 +613,17 @@ instance
     (BooleanPredicate call_upred) <- view $ to mk_ucall
     (BooleanPredicate pred_aux_tys) <- view $ to uproc_aux_types
 
-    (ret, x_out) <- case search_kind of
+    (ret, x_out_param) <- case search_kind of
       SearchK -> do
         view (to ret_vars) >>= \case
-          [b, x_out] -> pure (b, x_out)
+          [b, x_out] -> pure (b, Just x_out)
           _ -> throwError "search must return (bool, T)"
       _ -> do
         b <-
           view (to ret_vars) >>= \case
             [b] -> pure b
             _ -> throwError "bool predicate must return single bool"
-        x_out <- lift $ Compiler.allocAncillaWithPref "s_result" search_ty
-        return (b, x_out)
+        return (b, Nothing)
 
     -- make the Grover_k uproc
     -- TODO this should ideally be done by algoQSearch, but requires a lot of aux information.
@@ -682,33 +664,17 @@ instance
             , CQPL.args = [CQPL.Arg x, CQPL.Arg b]
             }
 
-    -- emit the QSearch algorithm
-    let qsearch_params =
-          case search_kind of
-            SearchK -> [(ret, P.tbool), (x_out, search_ty)]
-            _ -> [(ret, P.tbool)]
-
     (BooleanPredicate meas_upred) <- view $ to mk_meas
     let pred_caller x b = meas_upred [CQPL.Arg x, CQPL.Arg b]
 
-    (qsearch_body, qsearch_local_vars) <-
-      lift $
-        execWriterT $
-          algoQSearch search_ty 0 eps grover_k_caller pred_caller ret x_out
+    -- emit the QSearch algorithm
+    let qsearch_params = case search_kind of
+          SearchK -> [(ret, P.tbool), (fromJust x_out_param, search_ty)]
+          _ -> [(ret, P.tbool)]
 
-    let prim_name = (case search_kind of AnyK -> "QAny"; AllK -> "QAll"; SearchK -> "QSearch")
-    qsearch_proc_name <- Compiler.newIdent prim_name
-    return
-      CQPL.ProcDef
-        { CQPL.info_comment = printf "%s[%s]" prim_name (show $ A.getFailProb eps)
-        , CQPL.proc_name = qsearch_proc_name
-        , CQPL.proc_meta_params = []
-        , CQPL.proc_param_types = map snd qsearch_params
-        , CQPL.proc_body =
-            CQPL.ProcBodyC $
-              CQPL.CProcBody
-                { CQPL.cproc_param_names = map fst qsearch_params
-                , CQPL.cproc_local_vars = qsearch_local_vars ++ [(x_out, search_ty) | search_kind /= SearchK]
-                , CQPL.cproc_body_stmt = CQPL.SeqS qsearch_body
-                }
-        }
+    let prim_name = case search_kind of AnyK -> "QAny"; AllK -> "QAll"; SearchK -> "QSearch"
+    Compiler.buildProc prim_name [] qsearch_params $ do
+      x_out <- case x_out_param of
+        Just x -> pure x
+        Nothing -> Compiler.allocLocalWithPrefix "s_result" search_ty
+      algoQSearch search_ty 0 eps grover_k_caller pred_caller ret x_out

@@ -82,7 +82,6 @@ uproc Grover[k](hillclimb_iter_x : Arr<20, Fin<2>>, x : IN Fin<20>, hillclimb_it
   hillclimb_iter_ok *= X;
 }
 
-// QSearch[3.333333333333333e-4]
 proc QSearch(hillclimb_iter_x : Arr<20, Fin<2>>, hillclimb_iter_ok : Fin<2>, hillclimb_iter_i : Fin<20>) { locals : (not_done : Fin<2>, Q_sum : Fin<42>, j : Fin<42>, j_lim : Fin<42>) } {
   repeat (8) {
     Q_sum := 0:Fin<42>;
