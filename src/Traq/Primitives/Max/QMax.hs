@@ -18,8 +18,9 @@ module Traq.Primitives.Max.QMax (
   _WQMax,
 ) where
 
-import Control.Monad (forM, forM_, when)
+import Control.Monad (forM, forM_, replicateM, when)
 import Control.Monad.Except (throwError)
+import Text.Parsec.Token (GenTokenParser (..))
 import Text.Printf (printf)
 
 import Lens.Micro.GHC
@@ -41,7 +42,7 @@ import qualified Traq.Utils.Printing as PP
 -- Primitive Class Implementation
 -- ================================================================================
 
-newtype QMax size prec = QMax {arg_ty :: P.VarType size}
+data QMax size prec = QMax {arg_ty, res_ty :: P.VarType size}
   deriving (Eq, Show, Read)
 
 type instance SizeType (QMax size prec) = size
@@ -60,12 +61,12 @@ instance ValidPrimShape QMaxFunArg where
 instance P.MapSize (QMax size prec) where
   type MappedSize (QMax size prec) size' = QMax size' prec
 
-  mapSize f (QMax t) = QMax (P.mapSize f t)
+  mapSize f (QMax t r) = QMax (P.mapSize f t) (P.mapSize f r)
 
 instance (Show size) => SerializePrim (QMax size prec) where
   primNames = ["max"]
-  parsePrimParams tp _ = QMax <$> P.varType tp
-  printPrimParams QMax{arg_ty} = [show arg_ty]
+  parsePrimParams tp _ = QMax <$> P.varType tp <*> (comma tp >> P.varType tp)
+  printPrimParams QMax{arg_ty, res_ty} = [PP.toCodeString arg_ty, PP.toCodeString res_ty]
 
 -- Type check
 instance (Eq size) => TypeCheckPrim (QMax size prec) size where
@@ -75,13 +76,13 @@ instance (Eq size) => TypeCheckPrim (QMax size prec) size where
     when (param_types /= [arg_ty]) $
       throwError "max: argument does not match specified type."
 
-    case ret_types of
-      [P.Fin _] -> pure ()
+    res_ty <- case ret_types of
+      [P.Fin n] -> pure $ P.Fin n
       _ ->
         throwError $
           printf "`max` fun arg must return a single value, got %d values" (length ret_types)
 
-    return ret_types
+    return [arg_ty, res_ty]
 
 {- | Evaluate an `any` call by evaluating the predicate on each element of the search space
  and or-ing the results.
@@ -115,30 +116,33 @@ instance
 instance (P.TypingReqs size, Integral size, RealFloat prec, Show prec) => UnitaryCompilePrim (QMax size prec) size prec where
   compileUPrim QMax{arg_ty} _ = do
     -- Return variables and their types
-    rets <- view $ to ret_vars
-    ret_tys <- forM rets $ \x -> do
-      mty <- use $ P._typingCtx . Ctx.at x
+    (res_var, argmax_var) <-
+      view (to ret_vars) >>= \case
+        [x, y] -> pure (x, y)
+        _ -> throwError "typecheck failed"
+    res_ty <- do
+      mty <- use $ P._typingCtx . Ctx.at res_var
       maybeWithError "" mty
 
     -- Function argument: unitary call builder and aux types
     QMaxFunArg call_ufun <- view $ to mk_ucall
     QMaxFunArg fun_aux_tys <- view $ to uproc_aux_types
 
-    Compiler.buildUProc "UMax" [] (zip rets ret_tys) $ do
+    Compiler.buildUProc "UMax" [] [(res_var, res_ty), (argmax_var, arg_ty)] $ do
       let _N = P.domainSize arg_ty
       inp <- Compiler.allocLocalWithPrefix "inp" $ P.Arr _N arg_ty
-      oup <- mapM (Compiler.allocLocalWithPrefix "out" . P.Arr _N) ret_tys
+      oup <- Compiler.allocLocalWithPrefix "out" $ P.Arr _N res_ty
       aux <- mapM (Compiler.allocLocal . P.Arr _N) fun_aux_tys
 
       i <- Compiler.newIdent "x"
       Compiler.withUStmt (CQPL.UForInDomainS i arg_ty False) $ do
         let inp_ix = CQPL.ArrElemArg (CQPL.Arg inp) (P.MetaName i)
-        let oup_ix = map ((`CQPL.ArrElemArg` P.MetaName i) . CQPL.Arg) oup
+        let oup_ix = CQPL.ArrElemArg (CQPL.Arg oup) (P.MetaName i)
         let aux_ix = map ((`CQPL.ArrElemArg` P.MetaName i) . CQPL.Arg) aux
 
-        Compiler.addUStmt $ call_ufun (inp_ix : oup_ix ++ aux_ix)
+        Compiler.addUStmt $ call_ufun (inp_ix : oup_ix : aux_ix)
 
-      Compiler.addUStmt $ CQPL.UCommentS $ printf "unitarily compute: %s := max(%s);" (PP.commaList rets) (PP.commaList oup)
+      Compiler.addUStmt $ CQPL.UCommentS $ printf "unitarily compute: %s := max(%s); %s := argmax(%s);" res_var oup argmax_var oup
 
 -- ================================================================================
 -- Quantum
@@ -184,7 +188,7 @@ instance
 
   quantumExpExprCosts = Alg.zero
 
-instance (P.TypingReqs size, Integral size, RealFloat prec, Show prec) => QuantumCompilePrim (QMax size prec) size prec where
+instance (P.TypingReqs size, Integral size, RealFloat prec, Show prec, A.SizeToPrec size prec) => QuantumCompilePrim (QMax size prec) size prec where
   compileQPrim QMax{arg_ty} eps = do
     -- Return variables and their types
     rets <- view $ to ret_vars
@@ -199,18 +203,16 @@ instance (P.TypingReqs size, Integral size, RealFloat prec, Show prec) => Quantu
 
     -- Build cmp :: (arg_ty, arg_ty) -> Bool
     x <- Compiler.newIdent "x"
-    y <- Compiler.newIdent "x"
+    prevs <- replicateM (length ret_tys) (Compiler.newIdent "x")
     b <- Compiler.newIdent "b"
-    cmp <- Compiler.buildUProc "Compare" [] [(x, arg_ty), (y, arg_ty), (b, P.tbool)] $ do
-      (outs_x, outs_y) <- forOf each (x, y) $ \i -> do
-        out <- mapM (Compiler.allocLocalWithPrefix "out") ret_tys
-        aux <- mapM Compiler.allocLocal fun_aux_tys
-        Compiler.addUStmt $ call_ufun $ map CQPL.Arg (i : out ++ aux)
-        return out
+    cmp <- Compiler.buildUProc "Compare" [] (zip prevs ret_tys ++ [(x, arg_ty), (b, P.tbool)]) $ do
+      outs <- mapM (Compiler.allocLocalWithPrefix "out") ret_tys
+      aux <- mapM Compiler.allocLocal fun_aux_tys
+      Compiler.addUStmt $ call_ufun $ map CQPL.Arg (x : outs ++ aux)
 
-      lt <- Compiler.allocLocalWithPrefix "lt" (P.Arr (fromIntegral $ length outs_x) P.tbool)
+      lt <- Compiler.allocLocalWithPrefix "lt" (P.Arr (fromIntegral $ length prevs) P.tbool)
 
-      forM_ (zip3 [0 ..] outs_x outs_y) $ \(i, out_x, out_y) -> do
+      forM_ (zip3 [0 ..] prevs outs) $ \(i, out_x, out_y) -> do
         Compiler.addUStmt $
           CQPL.UnitaryS [CQPL.Arg out_x, CQPL.Arg out_y, CQPL.ArrElemArg (CQPL.Arg lt) (P.MetaSize i)] $
             CQPL.RevEmbedU ["a", "b"] $
@@ -225,4 +227,6 @@ instance (P.TypingReqs size, Integral size, RealFloat prec, Show prec) => Quantu
 
     -- Build the main algorithm
     Compiler.buildProc "QMax" [] (zip rets ret_tys) $ do
+      let _N = P.domainSize arg_ty
+      let max_queries = ceiling (_WQMax _N eps) :: size
       Compiler.addStmt $ CQPL.CommentS "TODO: max-finding circuit"
