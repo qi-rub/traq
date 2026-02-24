@@ -20,6 +20,7 @@ module Traq.Primitives.Max.QMax (
 
 import Control.Monad (forM, when)
 import Control.Monad.Except (throwError)
+import Control.Monad.Trans (lift)
 import Text.Parsec.Token (GenTokenParser (..))
 import Text.Printf (printf)
 
@@ -196,18 +197,17 @@ instance (P.TypingReqs size, Integral size, RealFloat prec, Show prec, A.SizeToP
       mty <- use $ P._typingCtx . Ctx.at x
       maybeWithError "" mty
 
-    -- Function argument: unitary call builder and aux types
-    -- f :: arg_ty -> res_ty
-    QMaxFunArg call_ufun <- view $ to mk_ucall
-    QMaxFunArg fun_aux_tys <- view $ to uproc_aux_types
-
     -- Build cmp :: (res_ty, arg_ty) -> Bool
     x <- Compiler.newIdent "x"
     prev <- Compiler.newIdent "y"
     b <- Compiler.newIdent "b"
     cmp <- Compiler.buildUProc "Compare" [] [(prev, res_ty), (x, arg_ty), (b, P.tbool)] $ do
+      -- f :: arg_ty -> res_ty
+      QMaxFunArg call_ufun <- lift $ view $ to mk_ucall
+      QMaxFunArg aux_tys <- lift $ view $ to uproc_aux_types
+
       out <- Compiler.allocLocalWithPrefix "out" res_ty
-      aux <- mapM Compiler.allocLocal fun_aux_tys
+      aux <- mapM Compiler.allocLocal aux_tys
       Compiler.addUStmt $ call_ufun $ map CQPL.Arg (x : out : aux)
 
       Compiler.addUStmt $
@@ -221,4 +221,8 @@ instance (P.TypingReqs size, Integral size, RealFloat prec, Show prec, A.SizeToP
     Compiler.buildProc "QMax" [] (zip rets ret_tys) $ do
       let _N = P.domainSize arg_ty
       let max_queries = ceiling (_WQMax _N eps) :: size
+
+      fuel <- Compiler.allocLocalWithPrefix "fuel" (P.Fin (max_queries + 1))
+      Compiler.addStmt $ CQPL.AssignS [fuel] $ error "const max_queries"
+
       Compiler.addStmt $ CQPL.CommentS "TODO: max-finding circuit"
