@@ -23,6 +23,7 @@ module Traq.Primitives.Search.QSearchCFNW (
   algoQSearchZalka,
 
   -- * CQ Implementation
+  groverK,
 
   -- * Cost Formulas
   _EQSearch,

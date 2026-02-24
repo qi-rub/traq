@@ -33,6 +33,7 @@ import qualified Traq.CQPL as CQPL
 import qualified Traq.Compiler as Compiler
 import Traq.Prelude
 import Traq.Primitives.Class
+import Traq.Primitives.Search.QSearchCFNW (groverK)
 import qualified Traq.ProtoLang as P
 import qualified Traq.Utils.Printing as PP
 
@@ -209,14 +210,68 @@ instance (P.TypingReqs size, Integral size, RealFloat prec, Show prec, A.SizeToP
       Compiler.addProc cmp
       return cmp
 
-    let _N = P.domainSize arg_ty
-    let max_queries = ceiling (_WQMax _N eps) :: size
+    grover_k <- do
+      meta_k <- Compiler.newIdent "k"
+      x <- Compiler.newIdent "x"
+      prev <- Compiler.newIdent "y"
+      b <- Compiler.newIdent "b"
+
+      uproc <- Compiler.buildUProc "Grover" [meta_k] [(prev, res_ty), (x, arg_ty), (b, P.tbool)] $ do
+        let aux_tys = CQPL.proc_param_types cmp & drop 3
+        aux_vars <- mapM Compiler.allocLocal aux_tys
+        Compiler.addUStmt $
+          groverK
+            (P.MetaName meta_k)
+            (x, arg_ty)
+            b
+            (\_ _ -> CQPL.UCallS (CQPL.proc_name cmp) False (map CQPL.Arg ([prev, x, b] ++ aux_vars)))
+
+      Compiler.addProc uproc
+      return uproc
+
+    let n = P.domainSize arg_ty
+    let max_queries = ceiling (_WQMax n eps) :: size
     let fuel_ty = P.Fin max_queries
 
     -- Build: qsearch with bounded fuel
     qsearch <- do
-      p <- Compiler.buildProc "QSearch_infty" [] [("fuel", fuel_ty), ("y", res_ty), ("x", arg_ty)] $ do
-        Compiler.addStmt $ CQPL.CommentS "TODO: QSearch body"
+      (fuel, y, x) <- forOf each ("fuel", "y", "x") Compiler.newIdent
+      p <- Compiler.buildProc "QSearch_infty" [] [(fuel, fuel_ty), (y, res_ty), (x, arg_ty)] $ do
+        -- compute the limits for sampling `j` in each iteration.
+        sampling_ranges <- do
+          let lambda = 6 / 5
+          let sqrt_n = sqrt (fromIntegral n)
+
+          let go :: size -> [size] -> [size]
+              go _ [] = []
+              go lim (q : _) | q > lim = []
+              go lim (q : qs) = q : go (lim - q) qs
+
+          let nxt :: Float -> Float; nxt m = min (lambda * m) sqrt_n
+          let js_f :: [Float]; js_f = lambda : map nxt js_f
+          let js :: [size]; js = map floor js_f
+
+          return $ go max_queries js
+
+        -- body
+        j_lim <- Compiler.allocLocalWithPrefix "j_lim" fuel_ty
+        j <- Compiler.allocLocalWithPrefix "j" fuel_ty
+        not_done <- Compiler.allocLocalWithPrefix "not_done" P.tbool
+        b <- Compiler.allocLocalWithPrefix "b" P.tbool
+        Compiler.addStmt $ CQPL.AssignS [not_done] (P.ConstE (P.FinV 1) P.tbool)
+
+        Compiler.withStmt (CQPL.ForInArray j_lim fuel_ty [P.ConstE (P.FinV v_j) fuel_ty | v_j <- sampling_ranges]) $ do
+          Compiler.addStmt $ CQPL.RandomDynS j j_lim
+          Compiler.addStmt $ CQPL.AssignS [not_done] (P.VarE not_done P..&&. (P.VarE j P..<=. P.VarE fuel))
+          Compiler.withStmt (CQPL.ifThenS not_done) $ do
+            Compiler.addStmt $ CQPL.AssignS [fuel] (P.BinOpE P.SubOp (P.VarE fuel) (P.VarE j))
+            Compiler.addStmt $
+              CQPL.CallS
+                { CQPL.fun = CQPL.UProcAndMeas (CQPL.proc_name grover_k)
+                , CQPL.meta_params = [Right j]
+                , CQPL.args = map CQPL.Arg [y, x, b]
+                }
+            Compiler.addStmt $ CQPL.AssignS [not_done] (P.VarE not_done P..&&. P.notE (P.VarE b))
 
       Compiler.addProc p
       return p
