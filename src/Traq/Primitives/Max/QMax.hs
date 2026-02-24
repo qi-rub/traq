@@ -18,7 +18,7 @@ module Traq.Primitives.Max.QMax (
   _WQMax,
 ) where
 
-import Control.Monad (forM, forM_, replicateM, when)
+import Control.Monad (forM, when)
 import Control.Monad.Except (throwError)
 import Text.Parsec.Token (GenTokenParser (..))
 import Text.Printf (printf)
@@ -82,7 +82,7 @@ instance (Eq size) => TypeCheckPrim (QMax size prec) size where
         throwError $
           printf "`max` fun arg must return a single value, got %d values" (length ret_types)
 
-    return [arg_ty, res_ty]
+    return [res_ty, arg_ty]
 
 {- | Evaluate an `any` call by evaluating the predicate on each element of the search space
  and or-ing the results.
@@ -189,7 +189,7 @@ instance
   quantumExpExprCosts = Alg.zero
 
 instance (P.TypingReqs size, Integral size, RealFloat prec, Show prec, A.SizeToPrec size prec) => QuantumCompilePrim (QMax size prec) size prec where
-  compileQPrim QMax{arg_ty} eps = do
+  compileQPrim QMax{arg_ty, res_ty} eps = do
     -- Return variables and their types
     rets <- view $ to ret_vars
     ret_tys <- forM rets $ \x -> do
@@ -197,31 +197,23 @@ instance (P.TypingReqs size, Integral size, RealFloat prec, Show prec, A.SizeToP
       maybeWithError "" mty
 
     -- Function argument: unitary call builder and aux types
-    -- f :: arg_ty -> ret_tys
+    -- f :: arg_ty -> res_ty
     QMaxFunArg call_ufun <- view $ to mk_ucall
     QMaxFunArg fun_aux_tys <- view $ to uproc_aux_types
 
-    -- Build cmp :: (arg_ty, arg_ty) -> Bool
+    -- Build cmp :: (res_ty, arg_ty) -> Bool
     x <- Compiler.newIdent "x"
-    prevs <- replicateM (length ret_tys) (Compiler.newIdent "x")
+    prev <- Compiler.newIdent "y"
     b <- Compiler.newIdent "b"
-    cmp <- Compiler.buildUProc "Compare" [] (zip prevs ret_tys ++ [(x, arg_ty), (b, P.tbool)]) $ do
-      outs <- mapM (Compiler.allocLocalWithPrefix "out") ret_tys
+    cmp <- Compiler.buildUProc "Compare" [] [(prev, res_ty), (x, arg_ty), (b, P.tbool)] $ do
+      out <- Compiler.allocLocalWithPrefix "out" res_ty
       aux <- mapM Compiler.allocLocal fun_aux_tys
-      Compiler.addUStmt $ call_ufun $ map CQPL.Arg (x : outs ++ aux)
-
-      lt <- Compiler.allocLocalWithPrefix "lt" (P.Arr (fromIntegral $ length prevs) P.tbool)
-
-      forM_ (zip3 [0 ..] prevs outs) $ \(i, out_x, out_y) -> do
-        Compiler.addUStmt $
-          CQPL.UnitaryS [CQPL.Arg out_x, CQPL.Arg out_y, CQPL.ArrElemArg (CQPL.Arg lt) (P.MetaSize i)] $
-            CQPL.RevEmbedU ["a", "b"] $
-              P.BinOpE P.LtOp (P.VarE "a") (P.VarE "b")
+      Compiler.addUStmt $ call_ufun $ map CQPL.Arg (x : out : aux)
 
       Compiler.addUStmt $
-        CQPL.UnitaryS [CQPL.Arg lt, CQPL.Arg b] $
-          CQPL.RevEmbedU ["a"] $
-            P.UnOpE P.AllOp (P.VarE "a")
+        CQPL.UnitaryS [CQPL.Arg prev, CQPL.Arg out, CQPL.Arg b] $
+          CQPL.RevEmbedU ["a", "b"] $
+            P.BinOpE P.LtOp (P.VarE "a") (P.VarE "b")
 
     Compiler.addProc cmp
 
