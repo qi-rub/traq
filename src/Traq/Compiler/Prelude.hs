@@ -47,7 +47,7 @@ import Control.Monad.Except (MonadError (throwError))
 import Control.Monad.Extra (loopM)
 import Control.Monad.RWS (RWST, runRWST)
 import Control.Monad.State (MonadState)
-import Control.Monad.Writer (MonadWriter, WriterT (..), censor)
+import Control.Monad.Writer (MonadWriter, WriterT (..), censor, execWriterT)
 import qualified Data.Map as Map
 import qualified Data.Set as Set
 import GHC.Generics (Generic)
@@ -256,7 +256,9 @@ buildProcHelper ::
   m (CQPL.ProcDef size)
 buildProcHelper is_uproc proc_name_basic proc_meta_params params m = do
   proc_name <- newIdent proc_name_basic
-  ((), (local_vars, ubody, cbody)) <- runWriterT $ withSandboxOf P._typingCtx m
+  (local_vars, ubody, cbody) <- execWriterT $ withSandboxOf P._typingCtx $ do
+    P._typingCtx .= mempty
+    m
 
   case (ubody, cbody, is_uproc) of
     ([], _, False) ->

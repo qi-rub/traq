@@ -376,16 +376,16 @@ instance
     (BooleanPredicate call_pred) <- view $ to mk_ucall
     (BooleanPredicate pred_aux_tys) <- view $ to uproc_aux_types
 
+    ret_tys <- view $ to prim_ret_types
     (ret, x_out) <- case search_kind of
       SearchK -> do
-        view (to ret_vars) >>= \case
-          [b, x_out] -> pure (b, x_out)
-          _ -> throwError "search must return (bool, T)"
+        when (length ret_tys /= 2) $ throwError "search must return (bool, T)"
+        b <- Compiler.newIdent "ret"
+        x_out <- Compiler.newIdent "ret"
+        pure (b, x_out)
       _ -> do
-        b <-
-          view (to ret_vars) >>= \case
-            [b] -> pure b
-            _ -> throwError "bool predicate must return single bool"
+        when (length ret_tys /= 1) $ throwError "bool predicate must return single bool"
+        b <- Compiler.newIdent "ret"
         x_out <- lift $ Compiler.allocAncillaWithPref "s_result" search_ty
         return (b, x_out)
 
@@ -613,16 +613,16 @@ instance
     (BooleanPredicate call_upred) <- view $ to mk_ucall
     (BooleanPredicate pred_aux_tys) <- view $ to uproc_aux_types
 
+    ret_tys <- view $ to prim_ret_types
     (ret, x_out_param) <- case search_kind of
       SearchK -> do
-        view (to ret_vars) >>= \case
-          [b, x_out] -> pure (b, Just x_out)
-          _ -> throwError "search must return (bool, T)"
+        when (length ret_tys /= 2) $ throwError "search must return (bool, T)"
+        b <- Compiler.newIdent "ret"
+        x_out <- Compiler.newIdent "ret"
+        pure (b, Just x_out)
       _ -> do
-        b <-
-          view (to ret_vars) >>= \case
-            [b] -> pure b
-            _ -> throwError "bool predicate must return single bool"
+        when (length ret_tys /= 1) $ throwError "bool predicate must return single bool"
+        b <- Compiler.newIdent "ret"
         return (b, Nothing)
 
     -- make the Grover_k uproc

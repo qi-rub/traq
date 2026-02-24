@@ -316,13 +316,16 @@ instance
               >>= maybeWithError (printf "could not find uproc `%s` for fun `%s`" uproc_name pfun_name)
           return $ Compiler.aux_tys sign
 
+    prim_ret_types <- forM rets $ \x ->
+      use (P._typingCtx . Ctx.at x) >>= maybeWithError "missing variable"
+
     let builder =
           PrimCompileEnv
             { mk_ucall
             , mk_call = reshapeUnsafe $ replicate (length par_funs) (error "cannot call proc from UPrim")
             , mk_meas = reshapeUnsafe $ replicate (length par_funs) (error "cannot meas uproc from UPrim")
             , uproc_aux_types
-            , ret_vars = rets
+            , prim_ret_types
             }
     let arg_bounder = prependBoundArgs (map Compiler.mkUProcName pfun_names) bound_args
     prim_proc_raw <-
@@ -558,13 +561,16 @@ instance
             , args = placeArgsWithExcess (map (fmap CQPL.Arg) pfun_args) xs
             }
 
+    prim_ret_types <- forM rets $ \x ->
+      use (P._typingCtx . Ctx.at x) >>= maybeWithError "missing variable"
+
     let builder =
           PrimCompileEnv
             { mk_ucall
             , mk_call
             , mk_meas
             , uproc_aux_types
-            , ret_vars = rets
+            , prim_ret_types
             }
     let arg_bounder =
           prependBoundArgs

@@ -11,7 +11,7 @@ module Traq.Primitives.Simons.Quantum (
   _SimonsQueries,
 ) where
 
-import Control.Monad (forM)
+import Control.Monad (forM, replicateM)
 import Control.Monad.Trans (lift)
 import GHC.Generics (Generic)
 import Text.Printf (printf)
@@ -20,8 +20,6 @@ import Lens.Micro.GHC
 import Lens.Micro.Mtl
 import qualified Numeric.Algebra as Alg
 
-import Traq.Control.Monad
-import qualified Traq.Data.Context as Ctx
 import Traq.Data.Subtyping
 
 import qualified Traq.Analysis as A
@@ -182,12 +180,8 @@ instance
   UnitaryCompilePrim (SimonsFindXorPeriod size prec) size prec
   where
   compileUPrim (SimonsFindXorPeriod FindXorPeriod{n, p_0}) eps = do
-    rets <- view $ to ret_vars
-
-    -- arguments (types) over which we compute the period
-    arg_tys <- forM rets $ \x -> do
-      mty <- use $ P._typingCtx . Ctx.at x
-      maybeWithError "" mty
+    arg_tys <- view $ to prim_ret_types
+    rets <- replicateM (length arg_tys) $ Compiler.newIdent "ret"
 
     simons_uproc <- simonsOneRound arg_tys
     Compiler.addProc simons_uproc
@@ -241,12 +235,8 @@ instance
   QuantumCompilePrim (SimonsFindXorPeriod size prec) size prec
   where
   compileQPrim (SimonsFindXorPeriod FindXorPeriod{n, p_0}) eps = do
-    rets <- view $ to ret_vars
-
-    -- arguments (types) over which we compute the period
-    arg_tys <- forM rets $ \x -> do
-      mty <- use $ P._typingCtx . Ctx.at x
-      maybeWithError "" mty
+    arg_tys <- view $ to prim_ret_types
+    rets <- replicateM (length arg_tys) $ Compiler.newIdent "ret"
 
     simons_uproc <- simonsOneRound arg_tys
     Compiler.addProc simons_uproc

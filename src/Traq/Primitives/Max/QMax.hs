@@ -28,9 +28,6 @@ import Lens.Micro.GHC
 import Lens.Micro.Mtl
 import qualified Numeric.Algebra as Alg
 
-import Traq.Control.Monad
-import qualified Traq.Data.Context as Ctx
-
 import qualified Traq.Analysis as A
 import qualified Traq.CQPL as CQPL
 import qualified Traq.Compiler as Compiler
@@ -116,11 +113,9 @@ instance
 
 instance (P.TypingReqs size, Integral size, RealFloat prec, Show prec) => UnitaryCompilePrim (QMax size prec) size prec where
   compileUPrim QMax{arg_ty, res_ty} _ = do
-    -- Return variables and their types
-    (res_var, argmax_var) <-
-      view (to ret_vars) >>= \case
-        [x, y] -> pure (x, y)
-        _ -> throwError "typecheck failed"
+    -- Return variables
+    res_var <- Compiler.newIdent "ret"
+    argmax_var <- Compiler.newIdent "ret"
 
     -- Function argument: unitary call builder and aux types
     QMaxFunArg call_ufun <- view $ to mk_ucall
@@ -188,11 +183,9 @@ instance
 
 instance (P.TypingReqs size, Integral size, RealFloat prec, Show prec, A.SizeToPrec size prec) => QuantumCompilePrim (QMax size prec) size prec where
   compileQPrim QMax{arg_ty, res_ty} eps = do
-    -- Return variables and their types
-    (res_var, argmax_var) <-
-      view (to ret_vars) >>= \case
-        [x, y] -> pure (x, y)
-        _ -> throwError "typecheck failed"
+    -- Return variables
+    res_var <- Compiler.newIdent "ret"
+    argmax_var <- Compiler.newIdent "ret"
 
     -- Build cmp :: (res_ty, arg_ty) -> Bool
     cmp <- do

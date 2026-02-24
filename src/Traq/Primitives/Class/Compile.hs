@@ -41,8 +41,8 @@ data PrimCompileEnv shape size = PrimCompileEnv
   -- ^ helper to generate a call-and-meas to a unitary proc arg.
   , uproc_aux_types :: shape [P.VarType size]
   -- ^ auxiliary variables for each unitary function argument.
-  , ret_vars :: [Ident]
-  -- ^ return variables to store the result in.
+  , prim_ret_types :: [P.VarType size]
+  -- ^ return variables types.
   }
 
 reshapeBuilder ::

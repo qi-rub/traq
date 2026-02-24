@@ -12,7 +12,7 @@ module Traq.Primitives.Amplify.QAmplify (
   _EQSearch,
 ) where
 
-import Control.Monad (forM, when)
+import Control.Monad (forM, replicateM, when)
 import Control.Monad.Trans (lift)
 import GHC.Generics (Generic)
 
@@ -135,11 +135,9 @@ instance (P.EvalReqs size prec, Floating prec, Ord prec) => QuantumExpCostPrim (
 instance (Floating prec, RealFrac prec) => UnitaryCompilePrim (QAmplify size prec) size prec where
   compileUPrim (QAmplify Amplify{p_min}) eps = do
     -- return vars and types
-    rets <- view $ to ret_vars
+    ret_tys <- view $ to prim_ret_types
+    rets <- replicateM (length ret_tys) $ Compiler.newIdent "ret"
     let b = head rets
-    ret_tys <- forM rets $ \x -> do
-      mty <- use $ P._typingCtx . Ctx.at x
-      maybeWithError "" mty
 
     -- sampler
     (SamplerFn call_upred) <- view $ to mk_ucall
@@ -205,10 +203,9 @@ mkGroverK ::
 mkGroverK = do
   meta_k <- Compiler.newIdent "k"
 
-  rets <- view $ to ret_vars
+  ret_tys <- view $ to prim_ret_types
+  rets <- replicateM (length ret_tys) $ Compiler.newIdent "ret"
   let b = head rets
-  ret_tys <- forM rets $ \x ->
-    use (P._typingCtx . Ctx.at x) >>= maybeWithError "missing variable"
 
   Compiler.buildUProc "Grover" [meta_k] (zip rets ret_tys) $ do
     (SamplerFn mk_sampler_call) <- view $ to mk_ucall
@@ -328,9 +325,8 @@ buildQAmplify n_samples rets _ret_tys eps p_min = do
 
 instance (RealFloat prec) => QuantumCompilePrim (QAmplify SizeT prec) SizeT prec where
   compileQPrim (QAmplify Amplify{p_min}) eps = do
-    rets <- view $ to ret_vars
-    ret_tys <- forM rets $ \x ->
-      use (P._typingCtx . Ctx.at x) >>= maybeWithError "missing variable"
+    ret_tys <- view $ to prim_ret_types
+    rets <- replicateM (length ret_tys) $ Compiler.newIdent "ret"
 
     Compiler.buildProc "QAmplify" [] (zip rets ret_tys) $ do
       buildQAmplify 0 rets ret_tys eps p_min
