@@ -15,7 +15,7 @@ proc IsEntryZero(i0 : Fin<20>, j0 : Fin<10>, e' : Fin<2>) { locals : (e : Fin<2>
 }
 
 // UAny[Fin 10, 2.6774112591424054e-13]
-uproc UAny(i : Fin<20>, hasZero_1 : OUT Fin<2>, s_result : OUT Fin<10>, aux : AUX Fin<2>, aux_1 : AUX Fin<2>, aux_2 : AUX Fin<2>, aux_3 : AUX Fin<2>, ctrl : AUX Arr<59, Fin<2>>, pred_out : AUX Arr<59, Fin<2>>, n_iter : AUX Arr<59, Fin<3>>, s_arg : AUX Arr<59, Fin<10>>) {
+uproc UAny(i : Fin<20>, ret : OUT Fin<2>, s_result : OUT Fin<10>, aux : AUX Fin<2>, aux_1 : AUX Fin<2>, aux_2 : AUX Fin<2>, aux_3 : AUX Fin<2>, ctrl : AUX Arr<59, Fin<2>>, pred_out : AUX Arr<59, Fin<2>>, n_iter : AUX Arr<59, Fin<3>>, s_arg : AUX Arr<59, Fin<10>>) {
   for (#run_ix in 0 .. < 59) {
     n_iter[#run_ix] *= Distr[uniform : Fin<3>];
     pred_out[#run_ix] *= X;
@@ -40,7 +40,7 @@ uproc UAny(i : Fin<20>, hasZero_1 : OUT Fin<2>, s_result : OUT Fin<10>, aux : AU
     call-adj IsEntryZero_U(i, s_arg[#run_ix], aux_3, aux, aux_1, aux_2);
     ctrl[#run_ix] *= X;
   }
-  pred_out, hasZero_1 *= Embed[(a) => or a];
+  pred_out, ret *= Embed[(a) => multi_or a];
   s_arg, pred_out, s_result *= Embed[(a, f) => (a selectOn f)];
 }
 
@@ -52,22 +52,21 @@ uproc IsRowAllOnes_U(i : IN Fin<20>, okr : OUT Fin<2>, hasZero : AUX Fin<2>, has
 }
 
 // Grover[...]
-uproc Grover[k](i : Fin<20>, x : IN Fin<10>, hasZero : OUT Fin<2>, aux_4 : AUX Fin<2>, aux_5 : AUX Fin<2>, aux_6 : AUX Fin<2>) {
-  hasZero *= X;
-  hasZero *= H;
+uproc Grover[k](i : Fin<20>, x : IN Fin<10>, ret_1 : OUT Fin<2>, aux_4 : AUX Fin<2>, aux_5 : AUX Fin<2>, aux_6 : AUX Fin<2>) {
+  ret_1 *= X;
+  ret_1 *= H;
   x *= Distr[uniform : Fin<10>];
   repeat (#k) {
-    call IsEntryZero_U(i, x, hasZero, aux_4, aux_5, aux_6);
+    call IsEntryZero_U(i, x, ret_1, aux_4, aux_5, aux_6);
     x *= Adj-Distr[uniform : Fin<10>];
     x *= PhaseOnZero(3.141592653589793);
     x *= Distr[uniform : Fin<10>];
   }
-  hasZero *= H;
-  hasZero *= X;
+  ret_1 *= H;
+  ret_1 *= X;
 }
 
-// QAny[2.6774112591424054e-13]
-proc QAny(i : Fin<20>, hasZero : Fin<2>) { locals : (not_done : Fin<2>, Q_sum : Fin<30>, j : Fin<30>, j_lim : Fin<30>, s_result_1 : Fin<10>) } {
+proc QAny(i : Fin<20>, ret_1 : Fin<2>) { locals : (s_result_1 : Fin<10>, not_done : Fin<2>, Q_sum : Fin<30>, j : Fin<30>, j_lim : Fin<30>) } {
   repeat (27) {
     Q_sum := 0:Fin<30>;
     for (j_lim in [1:Fin<30>, 1:Fin<30>, 1:Fin<30>, 2:Fin<30>, 2:Fin<30>, 2:Fin<30>, 3:Fin<30>, 3:Fin<30>, 3:Fin<30>, 3:Fin<30>, 3:Fin<30>, 3:Fin<30>, 3:Fin<30>]) {
@@ -75,9 +74,9 @@ proc QAny(i : Fin<20>, hasZero : Fin<2>) { locals : (not_done : Fin<2>, Q_sum : 
       Q_sum := (Q_sum + j);
       not_done := (not_done && (Q_sum <= j_lim));
       if (not_done) {
-        meas Grover[j](i, s_result_1, hasZero);
-        meas IsEntryZero_U(i, s_result_1, hasZero);
-        not_done := (not_done && hasZero);
+        meas Grover[j](i, s_result_1, ret_1);
+        meas IsEntryZero_U(i, s_result_1, ret_1);
+        not_done := (not_done && ret_1);
       } else {
         skip;
       }
@@ -85,13 +84,13 @@ proc QAny(i : Fin<20>, hasZero : Fin<2>) { locals : (not_done : Fin<2>, Q_sum : 
   }
 }
 
-proc IsRowAllOnes(i : Fin<20>, okr : Fin<2>) { locals : (hasZero : Fin<2>, s_result_1 : Fin<10>) } {
+proc IsRowAllOnes(i : Fin<20>, okr : Fin<2>) { locals : (hasZero : Fin<2>) } {
   call QAny(i, hasZero);
   okr := not hasZero;
 }
 
 // UAny[Fin 20, 5.0e-4]
-uproc UAny_1(ok_1 : OUT Fin<2>, s_result_2 : OUT Fin<20>, aux_7 : AUX Fin<2>, aux_8 : AUX Fin<2>, aux_9 : AUX Fin<10>, aux_10 : AUX Fin<2>, aux_11 : AUX Fin<2>, aux_12 : AUX Fin<2>, aux_13 : AUX Fin<2>, aux_14 : AUX Arr<59, Fin<2>>, aux_15 : AUX Arr<59, Fin<2>>, aux_16 : AUX Arr<59, Fin<3>>, aux_17 : AUX Arr<59, Fin<10>>, aux_18 : AUX Fin<10>, aux_19 : AUX Fin<2>, aux_20 : AUX Fin<2>, aux_21 : AUX Fin<2>, aux_22 : AUX Fin<2>, aux_23 : AUX Arr<59, Fin<2>>, aux_24 : AUX Arr<59, Fin<2>>, aux_25 : AUX Arr<59, Fin<3>>, aux_26 : AUX Arr<59, Fin<10>>, aux_27 : AUX Fin<2>, aux_28 : AUX Fin<2>, ctrl_1 : AUX Arr<16, Fin<2>>, pred_out_1 : AUX Arr<16, Fin<2>>, n_iter_1 : AUX Arr<16, Fin<4>>, s_arg_1 : AUX Arr<16, Fin<20>>) {
+uproc UAny_1(ret_2 : OUT Fin<2>, s_result_2 : OUT Fin<20>, aux_7 : AUX Fin<2>, aux_8 : AUX Fin<2>, aux_9 : AUX Fin<10>, aux_10 : AUX Fin<2>, aux_11 : AUX Fin<2>, aux_12 : AUX Fin<2>, aux_13 : AUX Fin<2>, aux_14 : AUX Arr<59, Fin<2>>, aux_15 : AUX Arr<59, Fin<2>>, aux_16 : AUX Arr<59, Fin<3>>, aux_17 : AUX Arr<59, Fin<10>>, aux_18 : AUX Fin<10>, aux_19 : AUX Fin<2>, aux_20 : AUX Fin<2>, aux_21 : AUX Fin<2>, aux_22 : AUX Fin<2>, aux_23 : AUX Arr<59, Fin<2>>, aux_24 : AUX Arr<59, Fin<2>>, aux_25 : AUX Arr<59, Fin<3>>, aux_26 : AUX Arr<59, Fin<10>>, aux_27 : AUX Fin<2>, aux_28 : AUX Fin<2>, ctrl_1 : AUX Arr<16, Fin<2>>, pred_out_1 : AUX Arr<16, Fin<2>>, n_iter_1 : AUX Arr<16, Fin<4>>, s_arg_1 : AUX Arr<16, Fin<20>>) {
   for (#run_ix in 0 .. < 16) {
     n_iter_1[#run_ix] *= Distr[uniform : Fin<4>];
     pred_out_1[#run_ix] *= X;
@@ -116,7 +115,7 @@ uproc UAny_1(ok_1 : OUT Fin<2>, s_result_2 : OUT Fin<20>, aux_7 : AUX Fin<2>, au
     call-adj IsRowAllOnes_U(s_arg_1[#run_ix], aux_28, aux_7, aux_8, aux_9, aux_10, aux_11, aux_12, aux_13, aux_14, aux_15, aux_16, aux_17, aux_18, aux_19, aux_20, aux_21, aux_22, aux_23, aux_24, aux_25, aux_26, aux_27);
     ctrl_1[#run_ix] *= X;
   }
-  pred_out_1, ok_1 *= Embed[(a) => or a];
+  pred_out_1, ret_2 *= Embed[(a) => multi_or a];
   s_arg_1, pred_out_1, s_result_2 *= Embed[(a, f) => (a selectOn f)];
 }
 
@@ -126,22 +125,21 @@ uproc HasAllOnesRow_U(ok : OUT Fin<2>, ok_1 : AUX Fin<2>, s_result_2 : AUX Fin<2
 }
 
 // Grover[...]
-uproc Grover_1[k](x_1 : IN Fin<20>, ok : OUT Fin<2>, aux_29 : AUX Fin<2>, aux_30 : AUX Fin<2>, aux_31 : AUX Fin<10>, aux_32 : AUX Fin<2>, aux_33 : AUX Fin<2>, aux_34 : AUX Fin<2>, aux_35 : AUX Fin<2>, aux_36 : AUX Arr<59, Fin<2>>, aux_37 : AUX Arr<59, Fin<2>>, aux_38 : AUX Arr<59, Fin<3>>, aux_39 : AUX Arr<59, Fin<10>>, aux_40 : AUX Fin<10>, aux_41 : AUX Fin<2>, aux_42 : AUX Fin<2>, aux_43 : AUX Fin<2>, aux_44 : AUX Fin<2>, aux_45 : AUX Arr<59, Fin<2>>, aux_46 : AUX Arr<59, Fin<2>>, aux_47 : AUX Arr<59, Fin<3>>, aux_48 : AUX Arr<59, Fin<10>>, aux_49 : AUX Fin<2>) {
-  ok *= X;
-  ok *= H;
+uproc Grover_1[k](x_1 : IN Fin<20>, ret_3 : OUT Fin<2>, aux_29 : AUX Fin<2>, aux_30 : AUX Fin<2>, aux_31 : AUX Fin<10>, aux_32 : AUX Fin<2>, aux_33 : AUX Fin<2>, aux_34 : AUX Fin<2>, aux_35 : AUX Fin<2>, aux_36 : AUX Arr<59, Fin<2>>, aux_37 : AUX Arr<59, Fin<2>>, aux_38 : AUX Arr<59, Fin<3>>, aux_39 : AUX Arr<59, Fin<10>>, aux_40 : AUX Fin<10>, aux_41 : AUX Fin<2>, aux_42 : AUX Fin<2>, aux_43 : AUX Fin<2>, aux_44 : AUX Fin<2>, aux_45 : AUX Arr<59, Fin<2>>, aux_46 : AUX Arr<59, Fin<2>>, aux_47 : AUX Arr<59, Fin<3>>, aux_48 : AUX Arr<59, Fin<10>>, aux_49 : AUX Fin<2>) {
+  ret_3 *= X;
+  ret_3 *= H;
   x_1 *= Distr[uniform : Fin<20>];
   repeat (#k) {
-    call IsRowAllOnes_U(x_1, ok, aux_29, aux_30, aux_31, aux_32, aux_33, aux_34, aux_35, aux_36, aux_37, aux_38, aux_39, aux_40, aux_41, aux_42, aux_43, aux_44, aux_45, aux_46, aux_47, aux_48, aux_49);
+    call IsRowAllOnes_U(x_1, ret_3, aux_29, aux_30, aux_31, aux_32, aux_33, aux_34, aux_35, aux_36, aux_37, aux_38, aux_39, aux_40, aux_41, aux_42, aux_43, aux_44, aux_45, aux_46, aux_47, aux_48, aux_49);
     x_1 *= Adj-Distr[uniform : Fin<20>];
     x_1 *= PhaseOnZero(3.141592653589793);
     x_1 *= Distr[uniform : Fin<20>];
   }
-  ok *= H;
-  ok *= X;
+  ret_3 *= H;
+  ret_3 *= X;
 }
 
-// QAny[5.0e-4]
-proc QAny_1(ok : Fin<2>) { locals : (not_done_1 : Fin<2>, Q_sum_1 : Fin<42>, j_1 : Fin<42>, j_lim_1 : Fin<42>, s_result_3 : Fin<20>) } {
+proc QAny_1(ret_3 : Fin<2>) { locals : (s_result_3 : Fin<20>, not_done_1 : Fin<2>, Q_sum_1 : Fin<42>, j_1 : Fin<42>, j_lim_1 : Fin<42>) } {
   repeat (7) {
     Q_sum_1 := 0:Fin<42>;
     for (j_lim_1 in [1:Fin<42>, 1:Fin<42>, 1:Fin<42>, 2:Fin<42>, 2:Fin<42>, 2:Fin<42>, 3:Fin<42>, 4:Fin<42>, 4:Fin<42>, 4:Fin<42>, 4:Fin<42>, 4:Fin<42>, 4:Fin<42>, 4:Fin<42>]) {
@@ -149,9 +147,9 @@ proc QAny_1(ok : Fin<2>) { locals : (not_done_1 : Fin<2>, Q_sum_1 : Fin<42>, j_1
       Q_sum_1 := (Q_sum_1 + j_1);
       not_done_1 := (not_done_1 && (Q_sum_1 <= j_lim_1));
       if (not_done_1) {
-        meas Grover_1[j_1](s_result_3, ok);
-        meas IsRowAllOnes_U(s_result_3, ok);
-        not_done_1 := (not_done_1 && ok);
+        meas Grover_1[j_1](s_result_3, ret_3);
+        meas IsRowAllOnes_U(s_result_3, ret_3);
+        not_done_1 := (not_done_1 && ret_3);
       } else {
         skip;
       }
@@ -159,7 +157,7 @@ proc QAny_1(ok : Fin<2>) { locals : (not_done_1 : Fin<2>, Q_sum_1 : Fin<42>, j_1
   }
 }
 
-proc HasAllOnesRow(ok : Fin<2>) { locals : (s_result_3 : Fin<20>) } {
+proc HasAllOnesRow(ok : Fin<2>) { locals : () } {
   call QAny_1(ok);
 }
 

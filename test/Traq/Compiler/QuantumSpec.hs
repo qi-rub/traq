@@ -15,7 +15,7 @@ import qualified Traq.ProtoLang as P
 import Test.Hspec
 import TestHelpers
 
-_ProcBodyC :: Traversal' (ProcBody sizeT) (CProcBody sizeT)
+_ProcBodyC :: Traversal' (ProcBody size) (CProcBody size)
 _ProcBodyC _focus (ProcBodyC cb) = ProcBodyC <$> _focus cb
 _ProcBodyC _ b = pure b
 

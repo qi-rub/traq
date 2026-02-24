@@ -12,9 +12,9 @@ import qualified Traq.ProtoLang as P
 import Test.Hspec
 import TestHelpers
 
-type Prim sizeT precT = Primitive (CAmplify sizeT precT)
+type Prim size prec = Primitive (CAmplify size prec)
 
-exampleProgram :: (Num sizeT, Fractional precT) => sizeT -> P.Program (Prim sizeT precT)
+exampleProgram :: (Num size, Fractional prec) => size -> P.Program (Prim size prec)
 exampleProgram n = P.Program [P.NamedFunDef "sampler" sampler, P.NamedFunDef "main" main_fun]
  where
   node_ty = P.Fin n

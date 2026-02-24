@@ -11,7 +11,6 @@ module Traq.Compiler.Unitary (
   -- ** Helpers
   allocAncillaWithPref,
   allocAncilla,
-  ControlFlag (..),
   withTag,
 
   -- * Internal
@@ -40,14 +39,14 @@ import qualified Traq.ProtoLang as P
 -- ================================================================================
 
 -- | Allocate an ancilla register, and update the typing context.
-allocAncillaWithPref :: (sizeT ~ SizeType ext) => Ident -> P.VarType sizeT -> CompilerT ext Ident
+allocAncillaWithPref :: (size ~ SizeType ext) => Ident -> P.VarType size -> CompilerT ext Ident
 allocAncillaWithPref pref ty = do
   name <- newIdent pref
   zoom P._typingCtx $ Ctx.put name ty
   return name
 
 -- | Allocate an ancilla register @aux_<<n>>@, and update the typing context.
-allocAncilla :: (sizeT ~ SizeType ext) => P.VarType sizeT -> CompilerT ext Ident
+allocAncilla :: (size ~ SizeType ext) => P.VarType size -> CompilerT ext Ident
 allocAncilla = allocAncillaWithPref "aux"
 
 -- | Allocate fresh set of auxiliaries corresponding to the types of given vars.
@@ -55,8 +54,6 @@ freshAux :: (m ~ CompilerT ext) => [Ident] -> m [Ident]
 freshAux xs = do
   tys <- zoom P._typingCtx $ mapM Ctx.lookup xs
   zipWithM allocAncillaWithPref xs tys
-
-data ControlFlag = WithControl | WithoutControl deriving (Eq, Show, Read, Enum)
 
 withTag :: ParamTag -> [(Ident, P.VarType a)] -> [(Ident, ParamTag, P.VarType a)]
 withTag tag = map $ \(x, ty) -> (x, tag, ty)

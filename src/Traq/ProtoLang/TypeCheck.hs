@@ -50,22 +50,22 @@ import Traq.ProtoLang.Syntax
 -- ================================================================================
 
 -- | A context mapping variables to their types.
-type TypingCtx sizeT = Ctx.Context (VarType sizeT)
+type TypingCtx size = Ctx.Context (VarType size)
 
 class HasTypingCtx p where
-  _typingCtx :: (sizeT ~ SizeType p) => Lens' p (TypingCtx sizeT)
+  _typingCtx :: (size ~ SizeType p) => Lens' p (TypingCtx size)
 
-instance HasTypingCtx (TypingCtx sizeT) where _typingCtx = id
+instance HasTypingCtx (TypingCtx size) where _typingCtx = id
 
 -- ================================================================================
 -- Typecheckable size types
 -- ================================================================================
 
--- | Type @sizeT@ that can be type-checked.
-type TypingReqs sizeT = (Eq sizeT, Show sizeT, Num sizeT)
+-- | Type @size@ that can be type-checked.
+type TypingReqs size = (Eq size, Show size, Num size)
 
 -- | Boolean type in our language.
-tbool :: (Num sizeT) => VarType sizeT
+tbool :: (Num size) => VarType size
 tbool = Fin 2
 
 -- ================================================================================
@@ -73,13 +73,13 @@ tbool = Fin 2
 -- ================================================================================
 
 typeCheckBasicExpr ::
-  forall sizeT m.
-  ( TypingReqs sizeT
+  forall size m.
+  ( TypingReqs size
   , MonadError String m
-  , MonadReader (TypingCtx sizeT) m
+  , MonadReader (TypingCtx size) m
   ) =>
-  BasicExpr sizeT ->
-  m (VarType sizeT)
+  BasicExpr size ->
+  m (VarType size)
 typeCheckBasicExpr VarE{var} = Ctx.lookup' var
 typeCheckBasicExpr ParamE{param} = do
   -- TODO use a separate context for params
@@ -96,6 +96,8 @@ typeCheckBasicExpr UnOpE{un_op, operand} = do
       unless (arg_ty == tbool) $ throwError ("`not` requires bool, got " <> show arg_ty)
       return tbool
     AnyOp -> do
+      return tbool
+    AllOp -> do
       return tbool
     MajOp -> do
       case arg_ty of
@@ -207,7 +209,7 @@ lookupFunE ::
   ( MonadError String m
   , MonadReader r m
   , HasFunCtx r primT
-  , sizeT ~ SizeType r
+  , size ~ SizeType r
   ) =>
   Ident ->
   m (FunDef primT)
@@ -231,56 +233,56 @@ type TypeChecker ext =
 -- --------------------------------------------------------------------------------
 -- Primitives
 -- --------------------------------------------------------------------------------
-class (TypingReqs sizeT, sizeT ~ SizeType ext) => TypeInferrable ext sizeT | ext -> sizeT where
+class (TypingReqs size, size ~ SizeType ext) => TypeInferrable ext size | ext -> size where
   inferTypes ::
     forall ext' m.
     ( m ~ TypeChecker ext'
-    , sizeT ~ SizeType ext'
+    , size ~ SizeType ext'
     ) =>
     ext ->
-    m [VarType sizeT]
+    m [VarType size]
   default inferTypes ::
     forall ext' m.
     ( Generic ext
-    , GTypeInferrable (Rep ext) sizeT
+    , GTypeInferrable (Rep ext) size
     , m ~ TypeChecker ext'
-    , sizeT ~ SizeType ext'
+    , size ~ SizeType ext'
     ) =>
     ext ->
-    m [VarType sizeT]
+    m [VarType size]
   inferTypes p = ginferTypes (from p)
 
-instance (TypingReqs sizeT) => TypeInferrable (Core sizeT precT) sizeT where
+instance (TypingReqs size) => TypeInferrable (Core size prec) size where
   inferTypes = \case {}
 
-class (TypingReqs sizeT) => GTypeInferrable f sizeT | f -> sizeT where
+class (TypingReqs size) => GTypeInferrable f size | f -> size where
   ginferTypes ::
     forall ext' m ext.
     ( m ~ TypeChecker ext'
-    , sizeT ~ SizeType ext'
+    , size ~ SizeType ext'
     ) =>
     f ext ->
-    m [VarType sizeT]
+    m [VarType size]
 
-instance (GTypeInferrable p1 sizeT, GTypeInferrable p2 sizeT) => GTypeInferrable (p1 :+: p2) sizeT where
+instance (GTypeInferrable p1 size, GTypeInferrable p2 size) => GTypeInferrable (p1 :+: p2) size where
   ginferTypes (L1 p) = ginferTypes p
   ginferTypes (R1 p) = ginferTypes p
 
-instance (GTypeInferrable p sizeT) => GTypeInferrable (M1 i c p) sizeT where
+instance (GTypeInferrable p size) => GTypeInferrable (M1 i c p) size where
   ginferTypes (M1 x) = ginferTypes x
 
-instance (TypeInferrable p sizeT, sizeT ~ SizeType p) => GTypeInferrable (K1 i p) sizeT where
+instance (TypeInferrable p size, size ~ SizeType p) => GTypeInferrable (K1 i p) size where
   ginferTypes (K1 x) = inferTypes x
 
 -- --------------------------------------------------------------------------------
 -- Core Language
 -- --------------------------------------------------------------------------------
 
-instance (TypingReqs sizeT) => TypeInferrable (DistrExpr sizeT) sizeT where
+instance (TypingReqs size) => TypeInferrable (DistrExpr size) size where
   inferTypes UniformE{sample_ty} = pure [sample_ty]
   inferTypes BernoulliE{} = pure [tbool]
 
-instance (TypeInferrable ext sizeT) => TypeInferrable (Expr ext) sizeT where
+instance (TypeInferrable ext size) => TypeInferrable (Expr ext) size where
   inferTypes BasicExprE{basic_expr} = do
     gamma <- use id
     lift $ do
@@ -316,7 +318,7 @@ instance (TypeInferrable ext sizeT) => TypeInferrable (Expr ext) sizeT where
         (Fin _) -> return ret_types
         _ -> throwError "Last type of the loop function should be a Fin type."
 
-instance (TypeInferrable ext sizeT) => TypeInferrable (Stmt ext) sizeT where
+instance (TypeInferrable ext size) => TypeInferrable (Stmt ext) size where
   -- single statement
   inferTypes ExprS{rets, expr} = do
     out_tys <- inferTypes expr
@@ -344,8 +346,8 @@ instance (TypeInferrable ext sizeT) => TypeInferrable (Stmt ext) sizeT where
 
 -- | Type check a single function.
 typeCheckFun ::
-  ( TypeInferrable primT sizeT
-  , sizeT ~ SizeType primT
+  ( TypeInferrable primT size
+  , size ~ SizeType primT
   ) =>
   FunCtx primT ->
   FunDef primT ->
@@ -379,7 +381,7 @@ typeCheckFun _ FunDef{mbody = Nothing} = return ()
 
 -- | Type check a full program (i.e. list of functions).
 typeCheckProg ::
-  (TypeInferrable primT sizeT) =>
+  (TypeInferrable primT size) =>
   Program primT ->
   Either String ()
 typeCheckProg (Program fs) =

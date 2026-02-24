@@ -34,16 +34,16 @@ References:
   "On the Power of Quantum Computation"
   https://epubs.siam.org/doi/10.1137/S0097539796298637
 -}
-data FindXorPeriod sizeT precT = FindXorPeriod {n :: sizeT, p_0 :: precT}
+data FindXorPeriod size prec = FindXorPeriod {n :: size, p_0 :: prec}
   deriving (Eq, Show, Read)
 
-type instance SizeType (FindXorPeriod sizeT precT) = sizeT
-type instance PrecType (FindXorPeriod sizeT precT) = precT
+type instance SizeType (FindXorPeriod size prec) = size
+type instance PrecType (FindXorPeriod size prec) = prec
 
 newtype FindXorPeriodArg a = FindXorPeriodArg {fun :: a}
   deriving (Eq, Show)
 
-type instance PrimFnShape (FindXorPeriod sizeT precT) = FindXorPeriodArg
+type instance PrimFnShape (FindXorPeriod size prec) = FindXorPeriodArg
 
 instance ValidPrimShape FindXorPeriodArg where
   listToShape [fun] = Right FindXorPeriodArg{fun}
@@ -56,7 +56,7 @@ instance P.MapSize (FindXorPeriod size prec) where
   mapSize f FindXorPeriod{n, ..} = FindXorPeriod{n = f n, ..}
 
 -- Pretty Printing
-instance (Show sizeT) => SerializePrim (FindXorPeriod sizeT Double) where
+instance (Show size) => SerializePrim (FindXorPeriod size Double) where
   primNames = ["findXorPeriod"]
   parsePrimParams TokenParser{..} _ = do
     n <- (Sym.con . fromInteger <$> integer) <|> (Sym.var <$> identifier)
@@ -74,8 +74,8 @@ bitsize (P.Arr n t) = (n *) <$> bitsize t
 bitsize (P.Tup ts) = sum <$> mapM bitsize ts
 
 instance
-  (P.TypingReqs sizeT, Num precT, Ord precT, Show precT) =>
-  TypeCheckPrim (FindXorPeriod sizeT precT) sizeT
+  (P.TypingReqs size, Num prec, Ord prec, Show prec) =>
+  TypeCheckPrim (FindXorPeriod size prec) size
   where
   inferRetTypesPrim FindXorPeriod{n, p_0} FindXorPeriodArg{fun} = do
     when (p_0 < 0 || p_0 > 1) $

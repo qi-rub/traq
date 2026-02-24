@@ -18,7 +18,7 @@ import Traq.Primitives.Simons.Quantum
 import qualified Traq.ProtoLang as P
 
 import Test.Hspec
-import TestHelpers (assertRight, expectRight)
+import TestHelpers
 
 examplePath :: String
 examplePath = "examples/cryptanalysis/even_mansour.traq"
@@ -85,3 +85,10 @@ spec = describe "FindXorPeriod" $ do
         ex' <- expectRight $ A.annotateProgWith (P._exts (A.annSinglePrim eps)) program
         ex_uqpl <- expectRight $ Compiler.lowerProgram ex'
         assertRight $ CQPL.typeCheckProgram ex_uqpl
+
+      it "cost" $ \program -> do
+        ex' <- expectRight $ A.annotateProgWith (P._exts (A.annSinglePrim eps)) program
+        ex_cqpl <- expectRight $ Compiler.lowerProgram ex'
+        let cost = fst (CQPL.programCost ex_cqpl) :: SimpleQueryCost Double
+        let cost_from_analysis = getCost $ A.costQProg ex'
+        getCost cost `shouldBeLE` cost_from_analysis

@@ -32,12 +32,12 @@ import qualified Traq.ProtoLang as P
 type CostMap c = Map.Map Ident c
 
 -- | Environment: the list of procedures.
-type CostEnv sizeT = ProcCtx sizeT
+type CostEnv size = ProcCtx size
 
 -- | Monad to compute unitary cost.
-type CostCalculator sizeT c =
+type CostCalculator size c =
   ReaderT
-    (CostEnv sizeT)
+    (CostEnv size)
     ( StateT
         (CostMap c)
         (Either String)
@@ -45,36 +45,35 @@ type CostCalculator sizeT c =
 
 class HasCost t where
   cost ::
-    forall sizeT precT costT m.
-    ( sizeT ~ SizeType t
-    , Integral sizeT
+    forall size prec costT m.
+    ( size ~ SizeType t
+    , Integral size
     , C.CostModel costT
-    , precT ~ PrecType costT
+    , prec ~ PrecType costT
     , Ord costT
-    , Floating precT
-    , m ~ CostCalculator sizeT costT
+    , Floating prec
+    , m ~ CostCalculator size costT
     ) =>
     t ->
     m costT
 
-instance HasCost (UStmt sizeT) where
+instance HasCost (UStmt size) where
   cost USkipS = return Alg.zero
   cost (UCommentS _) = return Alg.zero
   cost UnitaryS{} = return Alg.zero
   cost UCallS{uproc_id} = cachedProcCost uproc_id
   cost (USeqS ss) = Alg.sum <$> mapM cost ss
   cost URepeatS{n_iter = P.MetaSize k, uloop_body} = Alg.sinnum (fromIntegral k) <$> cost uloop_body
-  cost URepeatS{n_iter = P.MetaValue k, uloop_body} = Alg.sinnum (fromIntegral k) <$> cost uloop_body
-  cost URepeatS{n_iter = P.MetaName _} = throwError "unsupported meta parameter substitution"
+  cost URepeatS{n_iter = P.MetaName _} = return Alg.zero
   cost UForInRangeS{iter_lim = P.MetaSize k, uloop_body} = Alg.sinnum (fromIntegral k) <$> cost uloop_body
-  cost UForInRangeS{iter_lim = P.MetaValue k, uloop_body} = Alg.sinnum (fromIntegral k) <$> cost uloop_body
-  cost UForInRangeS{iter_lim = _} = throwError "unsupported meta parameter substitution"
+  cost UForInRangeS{iter_lim = P.MetaName _} = return Alg.zero
+  cost UForInDomainS{iter_ty, uloop_body} = Alg.sinnum (fromIntegral (P.domainSize iter_ty)) <$> cost uloop_body
   cost UWithComputedS{with_ustmt, body_ustmt} = do
     wc <- cost with_ustmt
     bc <- cost body_ustmt
     return $ wc Alg.+ wc Alg.+ bc
 
-instance HasCost (Stmt sizeT) where
+instance HasCost (Stmt size) where
   -- zero-cost statements
   cost SkipS = return Alg.zero
   cost (CommentS _) = return Alg.zero
@@ -82,32 +81,34 @@ instance HasCost (Stmt sizeT) where
   cost RandomS{} = return Alg.zero
   cost RandomDynS{} = return Alg.zero
   -- single statements
-  cost CallS{fun = FunctionCall p, meta_params = []} = cachedProcCost p
-  cost CallS{fun = UProcAndMeas up, meta_params = []} = cachedProcCost up
-  cost CallS{} = throwError "unsupported cost: proc call with params"
+  cost CallS{fun = FunctionCall p} = cachedProcCost p
+  cost CallS{fun = UProcAndMeas up} = cachedProcCost up
   -- compound statements
   cost (SeqS ss) = Alg.sum <$> mapM cost ss
   cost IfThenElseS{s_true, s_false} = max <$> cost s_true <*> cost s_false
   cost RepeatS{n_iter = P.MetaSize k, loop_body} = Alg.sinnum (fromIntegral k) <$> cost loop_body
-  cost RepeatS{n_iter = P.MetaValue k, loop_body} = Alg.sinnum (fromIntegral k) <$> cost loop_body
   cost RepeatS{} = throwError "unsupported cost"
+  cost WhileK{n_iter = P.MetaSize k, loop_body} = Alg.sinnum (fromIntegral k) <$> cost loop_body
   cost WhileK{} = throwError "unsupported cost"
+  cost WhileKWithCondExpr{n_iter = P.MetaSize k, loop_body} = Alg.sinnum (fromIntegral k) <$> cost loop_body
   cost WhileKWithCondExpr{} = throwError "unsupported cost"
-  cost ForInArray{} = throwError "unsupported cost"
+  cost ForInArray{loop_values, loop_body} = Alg.sinnum (fromIntegral (length loop_values)) <$> cost loop_body
+  cost ForInRangeS{iter_lim = P.MetaSize k, loop_body} = Alg.sinnum (fromIntegral k) <$> cost loop_body
+  cost ForInRangeS{} = throwError "unsupported cost"
 
-instance HasCost (ProcDef sizeT) where
+instance HasCost (ProcDef size) where
   cost ProcDef{proc_name, proc_body = ProcBodyC CProcDecl} = pure $ C.query C.Classical proc_name
   cost ProcDef{proc_name, proc_body = ProcBodyU UProcDecl} = pure $ C.query C.Unitary proc_name
   cost ProcDef{proc_body = ProcBodyC CProcBody{cproc_body_stmt}} = cost cproc_body_stmt
   cost ProcDef{proc_body = ProcBodyU UProcBody{uproc_body_stmt}} = cost uproc_body_stmt
 
 cachedProcCost ::
-  ( Integral sizeT
+  ( Integral size
   , C.CostModel c
-  , precT ~ PrecType c
+  , prec ~ PrecType c
   , Ord c
-  , Floating precT
-  , m ~ CostCalculator sizeT c
+  , Floating prec
+  , m ~ CostCalculator size c
   ) =>
   Ident ->
   m c
@@ -123,14 +124,14 @@ cachedProcCost name = get_cached_cost >>= maybe calc_cost return
     return c
 
 programCost ::
-  forall sizeT c precT.
-  ( Integral sizeT
+  forall size c prec.
+  ( Integral size
   , C.CostModel c
-  , precT ~ PrecType c
+  , prec ~ PrecType c
   , Ord c
-  , Floating precT
+  , Floating prec
   ) =>
-  Program sizeT ->
+  Program size ->
   (c, CostMap c)
 programCost (Program ps) =
   either (\e -> error $ "could not compute cost: " ++ e) id $ do

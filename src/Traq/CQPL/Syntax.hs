@@ -106,17 +106,17 @@ instance HasAdjoint BasicGate where
   adjoint g = g
 
 -- | Unitary operators in CQPL
-data Unitary sizeT
+data Unitary size
   = BasicGateU BasicGate
-  | RevEmbedU [Ident] (P.BasicExpr sizeT)
-  | DistrU (P.DistrExpr sizeT)
-  | Controlled (Unitary sizeT)
-  | Adjoint (Unitary sizeT)
+  | RevEmbedU [Ident] (P.BasicExpr size)
+  | DistrU (P.DistrExpr size)
+  | Controlled (Unitary size)
+  | Adjoint (Unitary size)
   deriving (Eq, Show, Read)
 
-type instance SizeType (Unitary sizeT) = sizeT
+type instance SizeType (Unitary size) = size
 
-instance (Show sizeT) => PP.ToCodeString (Unitary sizeT) where
+instance (Show size) => PP.ToCodeString (Unitary size) where
   build (BasicGateU g) = PP.build g
   build (RevEmbedU xs e) = do
     e_s <- PP.fromBuild e
@@ -127,7 +127,7 @@ instance (Show sizeT) => PP.ToCodeString (Unitary sizeT) where
   build (Controlled u) = PP.putWord . ("Ctrl-" <>) =<< PP.fromBuild u
   build (Adjoint u) = PP.putWord . ("Adj-" <>) =<< PP.fromBuild u
 
-instance HasAdjoint (Unitary sizeT) where
+instance HasAdjoint (Unitary size) where
   adjoint (BasicGateU g) = BasicGateU (adjoint g)
   adjoint u@(RevEmbedU _ _) = u
   adjoint (Controlled u) = Controlled (adjoint u)
@@ -139,30 +139,36 @@ instance HasAdjoint (Unitary sizeT) where
 -- --------------------------------------------------------------------------------
 
 -- | Unitary Statement
-data UStmt sizeT
+data UStmt size
   = USkipS
-  | UnitaryS {qargs :: [Arg sizeT], unitary :: Unitary sizeT} -- q... *= U
-  | UCallS {uproc_id :: Ident, dagger :: Bool, qargs :: [Arg sizeT]} -- call F(q...)
-  | USeqS [UStmt sizeT] -- W1; W2; ...
+  | UnitaryS {qargs :: [Arg size], unitary :: Unitary size} -- q... *= U
+  | UCallS {uproc_id :: Ident, dagger :: Bool, qargs :: [Arg size]} -- call F(q...)
+  | USeqS [UStmt size] -- W1; W2; ...
   | -- placeholders
     UCommentS String
   | -- syntax sugar
-    URepeatS {n_iter :: P.MetaParam sizeT, uloop_body :: UStmt sizeT} -- repeat k do S;
+    URepeatS {n_iter :: P.MetaParam size, uloop_body :: UStmt size} -- repeat k do S;
   | UForInRangeS
       { iter_meta_var :: Ident
-      , iter_lim :: P.MetaParam sizeT
-      , uloop_body :: UStmt sizeT
+      , iter_lim :: P.MetaParam size
       , dagger :: Bool
+      , uloop_body :: UStmt size
       }
-  | UWithComputedS {with_ustmt, body_ustmt :: UStmt sizeT}
+  | UForInDomainS
+      { iter_meta_var :: Ident
+      , iter_ty :: P.VarType size
+      , dagger :: Bool
+      , uloop_body :: UStmt size
+      }
+  | UWithComputedS {with_ustmt, body_ustmt :: UStmt size}
   deriving (Eq, Show, Read)
 
-type instance SizeType (UStmt sizeT) = sizeT
+type instance SizeType (UStmt size) = size
 
-mkForInRangeS :: Ident -> P.MetaParam sizeT -> UStmt sizeT -> UStmt sizeT
+mkForInRangeS :: Ident -> P.MetaParam size -> UStmt size -> UStmt size
 mkForInRangeS iter_meta_var iter_lim uloop_body = UForInRangeS{iter_meta_var, iter_lim, uloop_body, dagger = False}
 
-instance HasAdjoint (UStmt sizeT) where
+instance HasAdjoint (UStmt size) where
   adjoint s@(UCommentS _) = s
   adjoint USkipS = USkipS
   adjoint s@UCallS{dagger} = s{dagger = not dagger}
@@ -170,13 +176,14 @@ instance HasAdjoint (UStmt sizeT) where
   adjoint s@UnitaryS{unitary} = s{unitary = adjoint unitary}
   adjoint (URepeatS k s) = URepeatS k (adjoint s)
   adjoint s@UForInRangeS{dagger} = s{dagger = not dagger}
+  adjoint s@UForInDomainS{dagger} = s{dagger = not dagger}
   adjoint s@UWithComputedS{body_ustmt = b} = s{body_ustmt = adjoint b}
 
 showDagger :: Bool -> String
 showDagger True = "-adj"
 showDagger False = ""
 
-instance (Show sizeT) => PP.ToCodeString (UStmt sizeT) where
+instance (Show size) => PP.ToCodeString (UStmt size) where
   build USkipS = PP.putLine "skip;"
   build (UCommentS c) = PP.putComment c
   build UnitaryS{qargs, unitary} = PP.concatenated $ do
@@ -206,6 +213,10 @@ instance (Show sizeT) => PP.ToCodeString (UStmt sizeT) where
    where
     range_str :: String
     range_str | dagger = "%s - 1 .. 0" | otherwise = "0 .. < %s"
+  build UForInDomainS{iter_meta_var, iter_ty, dagger, uloop_body} = do
+    ty <- PP.fromBuild iter_ty
+    let header = printf "for (#%s in %s%s)" iter_meta_var (if dagger then "reversed " else "") ty
+    PP.bracedBlockWith header $ PP.build uloop_body
 
 -- ================================================================================
 -- Classical Statements
@@ -218,29 +229,29 @@ data FunctionCall
   deriving (Eq, Show, Read)
 
 -- | CQ Statement
-data Stmt sizeT
+data Stmt size
   = SkipS
   | CommentS String
-  | AssignS {rets :: [Ident], expr :: P.BasicExpr sizeT}
-  | RandomS {rets :: [Ident], distr_expr :: P.DistrExpr sizeT}
+  | AssignS {rets :: [Ident], expr :: P.BasicExpr size}
+  | RandomS {rets :: [Ident], distr_expr :: P.DistrExpr size}
   | RandomDynS {ret :: Ident, max_var :: Ident}
-  | CallS {fun :: FunctionCall, meta_params :: [Either (MetaParam sizeT) Ident], args :: [Arg sizeT]}
-  | SeqS [Stmt sizeT]
-  | IfThenElseS {cond :: Ident, s_true, s_false :: Stmt sizeT}
-  | RepeatS {n_iter :: MetaParam sizeT, loop_body :: Stmt sizeT}
+  | CallS {fun :: FunctionCall, meta_params :: [Either (MetaParam size) Ident], args :: [Arg size]}
+  | SeqS [Stmt size]
+  | IfThenElseS {cond :: Ident, s_true, s_false :: Stmt size}
+  | RepeatS {n_iter :: MetaParam size, loop_body :: Stmt size}
   | -- syntax sugar
-    WhileK {n_iter :: MetaParam sizeT, cond :: Ident, loop_body :: Stmt sizeT}
-  | WhileKWithCondExpr {n_iter :: MetaParam sizeT, cond :: Ident, cond_expr :: P.BasicExpr sizeT, loop_body :: Stmt sizeT}
-  | ForInArray {loop_index :: Ident, loop_index_ty :: VarType sizeT, loop_values :: [P.BasicExpr sizeT], loop_body :: Stmt sizeT}
-  | ForInRangeS {iter_meta_var :: Ident, iter_lim :: P.MetaParam sizeT, loop_body :: Stmt sizeT}
+    WhileK {n_iter :: MetaParam size, cond :: Ident, loop_body :: Stmt size}
+  | WhileKWithCondExpr {n_iter :: MetaParam size, cond :: Ident, cond_expr :: P.BasicExpr size, loop_body :: Stmt size}
+  | ForInArray {loop_index :: Ident, loop_index_ty :: VarType size, loop_values :: [P.BasicExpr size], loop_body :: Stmt size}
+  | ForInRangeS {iter_meta_var :: Ident, iter_lim :: P.MetaParam size, loop_body :: Stmt size}
   deriving (Eq, Show, Read)
 
-type instance SizeType (Stmt sizeT) = sizeT
+type instance SizeType (Stmt size) = size
 
-ifThenS :: Ident -> Stmt sizeT -> Stmt sizeT
+ifThenS :: Ident -> Stmt size -> Stmt size
 ifThenS cond s_true = IfThenElseS{cond, s_true, s_false = SkipS}
 
-instance (Show sizeT) => PP.ToCodeString (Stmt sizeT) where
+instance (Show size) => PP.ToCodeString (Stmt size) where
   build SkipS = PP.putLine "skip;"
   build AssignS{rets, expr} = do
     e_s <- PP.fromBuild expr
@@ -306,20 +317,20 @@ instance PP.ToCodeString ParamTag where
   build ParamUnk = PP.putWord ""
 
 -- | Unitary Procedure body: either a statement (with parameter name bindings) or a tick.
-data UProcBody sizeT
+data UProcBody size
   = UProcBody
       { uproc_param_names :: [Ident]
       , uproc_param_tags :: [ParamTag]
-      , uproc_body_stmt :: UStmt sizeT
+      , uproc_body_stmt :: UStmt size
       }
   | UProcDecl
   deriving (Eq, Show, Read)
 
-type instance SizeType (UProcBody sizeT) = sizeT
+type instance SizeType (UProcBody size) = size
 
 buildUProcBody ::
-  (MonadWriter [String] m, MonadFail m, Show sizeT) =>
-  UProcBody sizeT ->
+  (MonadWriter [String] m, MonadFail m, Show size) =>
+  UProcBody size ->
   String ->
   [String] ->
   m ()
@@ -335,18 +346,18 @@ buildUProcBody UProcBody{uproc_param_names, uproc_param_tags, uproc_body_stmt} n
   PP.bracedBlockWith header $ PP.build uproc_body_stmt
 
 -- | Classical Procedure body: either a tick, or statement with bindings for parameters names, and optionally using local variables.
-data CProcBody sizeT
+data CProcBody size
   = CProcBody
       { cproc_param_names :: [Ident]
-      , cproc_local_vars :: [(Ident, VarType sizeT)]
-      , cproc_body_stmt :: Stmt sizeT
+      , cproc_local_vars :: [(Ident, VarType size)]
+      , cproc_body_stmt :: Stmt size
       }
   | CProcDecl
   deriving (Eq, Show, Read)
 
 buildCProcBody ::
-  (MonadWriter [String] m, MonadFail m, Show sizeT) =>
-  CProcBody sizeT ->
+  (MonadWriter [String] m, MonadFail m, Show size) =>
+  CProcBody size ->
   String ->
   [String] ->
   m ()
@@ -368,52 +379,52 @@ buildCProcBody CProcBody{cproc_param_names, cproc_local_vars, cproc_body_stmt} n
           (PP.commaList local_list)
   PP.bracedBlockWith header $ PP.build cproc_body_stmt
 
-type instance SizeType (CProcBody sizeT) = sizeT
+type instance SizeType (CProcBody size) = size
 
-data ProcBody sizeT
-  = ProcBodyU (UProcBody sizeT)
-  | ProcBodyC (CProcBody sizeT)
+data ProcBody size
+  = ProcBodyU (UProcBody size)
+  | ProcBodyC (CProcBody size)
   deriving (Eq, Read, Show)
 
 class ClassifyProc p where
   isUProc :: p -> Bool
   isCProc :: p -> Bool
 
-instance ClassifyProc (ProcBody sizeT) where
+instance ClassifyProc (ProcBody size) where
   isUProc (ProcBodyU _) = True
   isUProc _ = False
 
   isCProc (ProcBodyC _) = True
   isCProc _ = False
 
-type instance SizeType (ProcBody sizeT) = sizeT
+type instance SizeType (ProcBody size) = size
 
 buildProcBody ::
-  (MonadWriter [String] m, MonadFail m, Show sizeT) =>
-  ProcBody sizeT ->
+  (MonadWriter [String] m, MonadFail m, Show size) =>
+  ProcBody size ->
   String ->
   [String] ->
   m ()
 buildProcBody (ProcBodyU p) = buildUProcBody p
 buildProcBody (ProcBodyC p) = buildCProcBody p
 
-data ProcDef sizeT
+data ProcDef size
   = ProcDef
   { info_comment :: String
   , proc_name :: Ident
   , proc_meta_params :: [Ident]
-  , proc_param_types :: [VarType sizeT]
-  , proc_body :: ProcBody sizeT
+  , proc_param_types :: [VarType size]
+  , proc_body :: ProcBody size
   }
   deriving (Eq, Read, Show)
 
-instance ClassifyProc (ProcDef sizeT) where
+instance ClassifyProc (ProcDef size) where
   isUProc = isUProc . proc_body
   isCProc = isCProc . proc_body
 
-type instance SizeType (ProcDef sizeT) = sizeT
+type instance SizeType (ProcDef size) = size
 
-instance (Show sizeT) => PP.ToCodeString (ProcDef sizeT) where
+instance (Show size) => PP.ToCodeString (ProcDef size) where
   build ProcDef{info_comment, proc_name, proc_meta_params, proc_param_types, proc_body} = do
     PP.putComment info_comment
 
@@ -432,20 +443,20 @@ instance (Show sizeT) => PP.ToCodeString (ProcDef sizeT) where
 -- ================================================================================
 
 -- | CQ procedures
-type ProcCtx sizeT = Ctx.Context (ProcDef sizeT)
+type ProcCtx size = Ctx.Context (ProcDef size)
 
 class HasProcCtx s where
-  _procCtx :: (sizeT ~ SizeType s, precT ~ PrecType s) => Lens' s (ProcCtx sizeT)
+  _procCtx :: (size ~ SizeType s, prec ~ PrecType s) => Lens' s (ProcCtx size)
 
-instance HasProcCtx (ProcCtx sizeT) where _procCtx = id
+instance HasProcCtx (ProcCtx size) where _procCtx = id
 
 -- | CQ Program
-newtype Program sizeT = Program [ProcDef sizeT]
+newtype Program size = Program [ProcDef size]
   deriving (Eq, Show, Read)
 
-type instance SizeType (Program sizeT) = sizeT
+type instance SizeType (Program size) = size
 
-instance (Show sizeT) => PP.ToCodeString (Program sizeT) where
+instance (Show size) => PP.ToCodeString (Program size) where
   build (Program ps) = do
     mapM_ (PP.build >=> const PP.endl) ps
 
@@ -453,29 +464,29 @@ instance (Show sizeT) => PP.ToCodeString (Program sizeT) where
 -- Lenses
 -- ================================================================================
 
-instance HasAst (Stmt sizeT) where
+instance HasAst (Stmt size) where
   _ast focus (SeqS ss) = SeqS <$> traverse focus ss
   _ast focus (IfThenElseS cond s_true s_false) = IfThenElseS cond <$> focus s_true <*> focus s_false
   _ast focus (RepeatS n_iter loop_body) = RepeatS n_iter <$> focus loop_body
   _ast _ s = pure s
 
-instance HasStmt (Stmt sizeT) where
-  type StmtOf (Stmt sizeT) = Stmt sizeT
+instance HasStmt (Stmt size) where
+  type StmtOf (Stmt size) = Stmt size
   _stmt = id
 
-instance HasStmt (CProcBody sizeT) where
-  type StmtOf (CProcBody sizeT) = Stmt sizeT
+instance HasStmt (CProcBody size) where
+  type StmtOf (CProcBody size) = Stmt size
   _stmt focus b@CProcBody{cproc_body_stmt} = focus cproc_body_stmt <&> \s' -> b{cproc_body_stmt = s'}
   _stmt _ b@CProcDecl{} = pure b
 
-instance HasStmt (ProcDef sizeT) where
-  type StmtOf (ProcDef sizeT) = Stmt sizeT
+instance HasStmt (ProcDef size) where
+  type StmtOf (ProcDef size) = Stmt size
   _stmt focus p@ProcDef{proc_body = ProcBodyC b} =
     _stmt focus b <&> \b' -> p{proc_body = ProcBodyC b'}
   _stmt _ p = pure p
 
-instance HasStmt (Program sizeT) where
-  type StmtOf (Program sizeT) = Stmt sizeT
+instance HasStmt (Program size) where
+  type StmtOf (Program size) = Stmt size
   _stmt focus (Program ps) = Program <$> traverse (_stmt focus) ps
 
 -- ================================================================================
@@ -485,25 +496,25 @@ instance HasStmt (Program sizeT) where
 -- | bounded while loop
 whileK ::
   -- | iteration limit
-  MetaParam sizeT ->
+  MetaParam size ->
   -- | loop condition
   Ident ->
   -- | loop body
-  Stmt sizeT ->
-  Stmt sizeT
+  Stmt size ->
+  Stmt size
 whileK k cond body = RepeatS k $ IfThenElseS cond body SkipS
 
 -- | bounded while loop given an expression for the loop condition
 whileKWithCondExpr ::
   -- | iteration limit
-  MetaParam sizeT ->
+  MetaParam size ->
   -- | loop condition variable
   Ident ->
   -- | loop condition expression
-  P.BasicExpr sizeT ->
+  P.BasicExpr size ->
   -- | loop body
-  Stmt sizeT ->
-  Stmt sizeT
+  Stmt size ->
+  Stmt size
 whileKWithCondExpr k cond_var cond_expr body =
   SeqS
     [ compute_cond
@@ -512,7 +523,7 @@ whileKWithCondExpr k cond_var cond_expr body =
  where
   compute_cond = AssignS [cond_var] cond_expr
 
-forInArray :: Ident -> VarType sizeT -> [P.BasicExpr sizeT] -> Stmt sizeT -> Stmt sizeT
+forInArray :: Ident -> VarType size -> [P.BasicExpr size] -> Stmt size -> Stmt size
 forInArray i _ty ix_vals s =
   SeqS
     [ SeqS [AssignS{rets = [i], expr = v}, s]
@@ -523,12 +534,12 @@ forInArray i _ty ix_vals s =
 class CanDesugar p where
   desugarS :: p -> Maybe p
 
-instance CanDesugar (Stmt sizeT) where
+instance CanDesugar (Stmt size) where
   desugarS WhileK{n_iter, cond, loop_body} = Just $ whileK n_iter cond loop_body
   desugarS WhileKWithCondExpr{n_iter, cond, cond_expr, loop_body} = Just $ whileKWithCondExpr n_iter cond cond_expr loop_body
   desugarS ForInArray{loop_index, loop_index_ty, loop_values, loop_body} = Just $ forInArray loop_index loop_index_ty loop_values loop_body
   desugarS _ = Nothing
 
-instance CanDesugar (UStmt sizeT) where
+instance CanDesugar (UStmt size) where
   desugarS UWithComputedS{with_ustmt, body_ustmt} = Just $ USeqS [with_ustmt, body_ustmt, adjoint with_ustmt]
   desugarS _ = Nothing

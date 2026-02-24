@@ -30,7 +30,7 @@ import qualified Traq.Utils.Printing as PP
 
  @checkNode@ returns a boolean value.
 -}
-data TreeSearch sizeT precT = TreeSearch
+data TreeSearch size prec = TreeSearch
   { getChildren :: Ident
   , getChildrenArgs :: [Ident]
   , checkNode :: Ident
@@ -38,11 +38,11 @@ data TreeSearch sizeT precT = TreeSearch
   }
   deriving (Eq, Show, Read)
 
-type instance SizeType (TreeSearch sizeT precT) = sizeT
-type instance PrecType (TreeSearch sizeT precT) = precT
+type instance SizeType (TreeSearch size prec) = size
+type instance PrecType (TreeSearch size prec) = prec
 
 -- Printing
-instance PP.ToCodeString (TreeSearch sizeT precT) where
+instance PP.ToCodeString (TreeSearch size prec) where
   build TreeSearch{getChildren, getChildrenArgs, checkNode, checkNodeArgs} =
     PP.putWord $
       printf
@@ -53,7 +53,7 @@ instance PP.ToCodeString (TreeSearch sizeT precT) where
         (PP.commaList checkNodeArgs)
 
 -- Parsing
-instance P.Parseable (TreeSearch sizeT precT) where
+instance P.Parseable (TreeSearch size prec) where
   parseE tp = do
     symbol tp "@treesearch"
     (getChildren, checkNode) <- brackets tp $ do
@@ -66,7 +66,7 @@ instance P.Parseable (TreeSearch sizeT precT) where
     return TreeSearch{getChildren, getChildrenArgs, checkNode, checkNodeArgs}
 
 -- Type check
-instance (P.TypingReqs sizeT) => P.TypeInferrable (TreeSearch sizeT precT) sizeT where
+instance (P.TypingReqs size) => P.TypeInferrable (TreeSearch size prec) size where
   inferTypes TreeSearch{getChildren, getChildrenArgs, checkNode, checkNodeArgs} = do
     P.FunDef{P.param_types = gc_param_tys, P.ret_types = gc_ret_tys} <-
       view (Ctx.at getChildren)
@@ -99,10 +99,10 @@ instance (P.TypingReqs sizeT) => P.TypeInferrable (TreeSearch sizeT precT) sizeT
 
 -- | Evaluation
 runTreeSearch ::
-  (Monad m, sizeT ~ SizeT) =>
-  (P.Value sizeT -> m (P.Value sizeT, P.Value sizeT)) ->
-  (P.Value sizeT -> m Bool) ->
-  P.Value sizeT ->
+  (Monad m, size ~ SizeT) =>
+  (P.Value size -> m (P.Value size, P.Value size)) ->
+  (P.Value size -> m Bool) ->
+  P.Value size ->
   m Bool
 runTreeSearch _ _ (P.FinV 0) = return False
 runTreeSearch child check u = do
@@ -113,7 +113,7 @@ runTreeSearch child check u = do
       (l, r) <- child u
       (||) <$> check l <*> check r
 
-instance (P.EvalReqs SizeT precT) => P.Evaluatable (TreeSearch SizeT precT) SizeT precT where
+instance (P.EvalReqs SizeT prec) => P.Evaluatable (TreeSearch SizeT prec) SizeT prec where
   eval TreeSearch{getChildren, getChildrenArgs, checkNode, checkNodeArgs} sigma = do
     child_fun <- view $ P._funCtx . Ctx.at getChildren . to (fromMaybe (error "unable to find predicate, please typecheck first!"))
     check_fun <- view $ P._funCtx . Ctx.at checkNode . to (fromMaybe (error "unable to find predicate, please typecheck first!"))

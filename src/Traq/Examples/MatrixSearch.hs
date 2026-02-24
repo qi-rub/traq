@@ -10,11 +10,11 @@ import Traq.ProtoLang.Syntax
 import Traq.ProtoLang.TypeCheck (tbool)
 
 mkMatrixExample ::
-  forall ext sizeT.
-  (sizeT ~ SizeType ext, Num sizeT) =>
-  (VarType sizeT -> PartialFun -> Expr ext) ->
-  sizeT ->
-  sizeT ->
+  forall ext size.
+  (size ~ SizeType ext, Num size) =>
+  (VarType size -> PartialFun -> Expr ext) ->
+  size ->
+  size ->
   Program ext
 mkMatrixExample mkAny n m =
   Program
@@ -24,7 +24,7 @@ mkMatrixExample mkAny n m =
     , NamedFunDef check_matrix_name check_matrix
     ]
  where
-  tyI, tyJ :: VarType sizeT
+  tyI, tyJ :: VarType size
   tyI = Fin n
   tyJ = Fin m
 
@@ -104,5 +104,5 @@ mkMatrixExample mkAny n m =
    where
     ok = "ok"
 
-matrixExampleS :: SizeT -> SizeT -> Program (DefaultPrims SizeT precT)
+matrixExampleS :: SizeT -> SizeT -> Program (DefaultPrims SizeT prec)
 matrixExampleS = mkMatrixExample (\ty pfun -> PrimCallE $ Primitive [pfun] $ QAny $ QSearchCFNW $ PrimSearch AnyK ty)

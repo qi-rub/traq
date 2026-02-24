@@ -9,6 +9,7 @@ import Lens.Micro.GHC
 import qualified Traq.Data.Symbolic as Sym
 
 import qualified Traq.Analysis as A
+import Traq.Analysis.CostModel.QueryCost (SimpleQueryCost (getCost))
 import qualified Traq.CQPL as CQPL
 import qualified Traq.Compiler as Compiler
 import Traq.Prelude
@@ -43,16 +44,24 @@ spec = describe "Steep max-k-sat" $ do
     ex <- loadExample
     assertRight $ P.typeCheckProg ex
 
-  xdescribe "Compile" $ do
+  describe "Compile" $ do
     let eps = A.failProb (0.0001 :: Double)
 
     it "lowers" $ do
-      ex <- loadExample
+      ex <- P.renameVars' <$> loadExample
       ex' <- expectRight $ A.annotateProgWith (P._exts (A.annSinglePrim eps)) ex
       assertRight $ Compiler.lowerProgram ex'
 
     it "typechecks" $ do
-      ex <- loadExample
+      ex <- P.renameVars' <$> loadExample
       ex' <- expectRight $ A.annotateProgWith (P._exts (A.annSinglePrim eps)) ex
       ex_uqpl <- expectRight $ Compiler.lowerProgram ex'
       assertRight $ CQPL.typeCheckProgram ex_uqpl
+
+    it "cost" $ do
+      ex <- P.renameVars' <$> loadExample
+      ex' <- expectRight $ A.annotateProgWith (P._exts (A.annSinglePrim eps)) ex
+      ex_cqpl <- expectRight $ Compiler.lowerProgram ex'
+      let cost = fst (CQPL.programCost ex_cqpl) :: SimpleQueryCost Double
+      let cost_from_analysis = getCost $ A.costQProg ex'
+      getCost cost `shouldBeLE` cost_from_analysis

@@ -11,6 +11,7 @@ import Lens.Micro.GHC
 import qualified Traq.Data.Symbolic as Sym
 
 import qualified Traq.Analysis as A
+import Traq.Analysis.CostModel.QueryCost (SimpleQueryCost (getCost))
 import qualified Traq.CQPL as CQPL
 import qualified Traq.Compiler as Compiler
 import Traq.Prelude
@@ -56,3 +57,11 @@ spec = describe "Grover Meets Simon" $ do
       ex' <- expectRight $ A.annotateProgWithErrorBudget eps ex
       ex_uqpl <- expectRight $ Compiler.lowerProgram ex'
       assertRight $ CQPL.typeCheckProgram ex_uqpl
+
+    it "cost" $ do
+      ex <- P.renameVars' <$> loadExample
+      ex' <- expectRight $ A.annotateProgWithErrorBudget eps ex
+      ex_cqpl <- expectRight $ Compiler.lowerProgram ex'
+      let cost = fst (CQPL.programCost ex_cqpl) :: SimpleQueryCost Double
+      let cost_from_analysis = getCost $ A.costQProg ex'
+      getCost cost `shouldBeLE` cost_from_analysis

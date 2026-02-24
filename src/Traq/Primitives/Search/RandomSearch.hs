@@ -14,7 +14,7 @@ import qualified Numeric.Algebra as Alg
 
 import qualified Traq.Data.Probability as Prob
 
-import qualified Traq.Analysis as P
+import qualified Traq.Analysis as A
 import Traq.Prelude
 import Traq.Primitives.Class
 import Traq.Primitives.Search.Prelude
@@ -25,15 +25,15 @@ import qualified Traq.ProtoLang as P
 -- ================================================================================
 
 -- | Number of predicate queries to unitarily implement random search.
-_URandomSearch :: forall sizeT precT. (Integral sizeT, Floating precT) => sizeT -> precT
+_URandomSearch :: forall size prec. (Integral size, Floating prec) => size -> prec
 _URandomSearch = fromIntegral
 
 -- | Worst case number of predicate queries to implement random search.
-_ERandomSearchWorst :: forall sizeT precT. (Integral sizeT, Floating precT) => sizeT -> P.FailProb precT -> precT
-_ERandomSearchWorst n eps = fromIntegral n * log (1 / P.getFailProb eps)
+_ERandomSearchWorst :: forall size prec. (Integral size, Floating prec) => size -> A.FailProb prec -> prec
+_ERandomSearchWorst n eps = fromIntegral n * log (1 / A.getFailProb eps)
 
 -- | Expected number of predicate queries to implement random search.
-_ERandomSearch :: forall sizeT precT. (Integral sizeT, Floating precT) => sizeT -> sizeT -> P.FailProb precT -> precT
+_ERandomSearch :: forall size prec. (Integral size, Floating prec) => size -> size -> A.FailProb prec -> prec
 _ERandomSearch n 0 eps = _ERandomSearchWorst n eps
 _ERandomSearch n k _ = fromIntegral n / fromIntegral k
 
@@ -44,11 +44,11 @@ _ERandomSearch n k _ = fromIntegral n / fromIntegral k
 {- | Primitive implementing search using classical random sampling.
  The unitary mode does a brute-force loop.
 -}
-newtype RandomSearch sizeT precT = RandomSearch (PrimSearch sizeT precT)
+newtype RandomSearch size prec = RandomSearch (PrimSearch size prec)
   deriving (Eq, Show, Read, Generic)
 
-type instance SizeType (RandomSearch sizeT precT) = sizeT
-type instance PrecType (RandomSearch sizeT precT) = precT
+type instance SizeType (RandomSearch size prec) = size
+type instance PrecType (RandomSearch size prec) = prec
 
 type instance PrimFnShape (RandomSearch size prec) = BooleanPredicate
 
@@ -78,7 +78,7 @@ instance (P.TypingReqs size, Integral size, Floating prec) => UnitaryCostPrim (R
 
   unitaryExprCosts _ _ = Alg.zero
 
-instance (P.TypingReqs size, Integral size, Floating prec, P.SizeToPrec size prec) => QuantumHavocCostPrim (RandomSearch size prec) size prec where
+instance (P.TypingReqs size, Integral size, Floating prec, A.SizeToPrec size prec) => QuantumHavocCostPrim (RandomSearch size prec) size prec where
   -- only classical queries
   quantumQueryCostsQuantum (RandomSearch PrimSearch{search_ty}) eps =
     BooleanPredicate $ _ERandomSearchWorst _N eps

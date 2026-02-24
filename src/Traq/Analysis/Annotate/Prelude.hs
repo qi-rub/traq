@@ -33,6 +33,9 @@ import Lens.Micro.Mtl
 import qualified Traq.Data.Context as Ctx
 import Traq.Data.Default (HasDefault (..))
 
+import Traq.Analysis.Cost.Prelude
+import Traq.Analysis.Cost.Quantum
+import Traq.Analysis.Cost.Unitary
 import Traq.Analysis.Error.Prelude
 import Traq.Prelude
 import Traq.ProtoLang
@@ -62,6 +65,15 @@ instance (Evaluatable ext size prec) => Evaluatable (AnnFailProb ext) size prec 
 
 instance (HasFreeVars ext) => HasFreeVars (AnnFailProb ext) where
   freeVarsList (AnnFailProb _ e) = freeVarsList e
+
+instance (CostReqs size prec) => CostU (AnnFailProb (Core size prec)) size prec where
+  costU (AnnFailProb _ e) = costU e
+
+instance (CostReqs size prec) => CostQ (AnnFailProb (Core size prec)) size prec where
+  costQ (AnnFailProb _ e) = costQ e
+
+instance (CostReqs size prec, EvalReqs size prec) => ExpCostQ (AnnFailProb (Core size prec)) size prec where
+  expCostQ (AnnFailProb _ e) = expCostQ e
 
 -- ============================================================================
 -- RS Monad to perform annotation

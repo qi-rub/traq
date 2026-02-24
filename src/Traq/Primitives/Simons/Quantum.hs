@@ -11,7 +11,7 @@ module Traq.Primitives.Simons.Quantum (
   _SimonsQueries,
 ) where
 
-import Control.Monad (forM)
+import Control.Monad (forM, replicateM)
 import Control.Monad.Trans (lift)
 import GHC.Generics (Generic)
 import Text.Printf (printf)
@@ -20,11 +20,9 @@ import Lens.Micro.GHC
 import Lens.Micro.Mtl
 import qualified Numeric.Algebra as Alg
 
-import Traq.Control.Monad
-import qualified Traq.Data.Context as Ctx
 import Traq.Data.Subtyping
 
-import qualified Traq.Analysis as P
+import qualified Traq.Analysis as A
 import qualified Traq.CQPL as CQPL
 import qualified Traq.Compiler as Compiler
 import Traq.Prelude
@@ -44,13 +42,13 @@ References:
 
  1. [Breaking Symmetric Cryptosystems using Quantum Period Finding](https://arxiv.org/pdf/1602.05973)
 -}
-newtype SimonsFindXorPeriod sizeT precT = SimonsFindXorPeriod (FindXorPeriod sizeT precT)
+newtype SimonsFindXorPeriod size prec = SimonsFindXorPeriod (FindXorPeriod size prec)
   deriving (Eq, Show, Read, Generic)
 
-type instance SizeType (SimonsFindXorPeriod sizeT precT) = sizeT
-type instance PrecType (SimonsFindXorPeriod sizeT precT) = precT
+type instance SizeType (SimonsFindXorPeriod size prec) = size
+type instance PrecType (SimonsFindXorPeriod size prec) = prec
 
-type instance PrimFnShape (SimonsFindXorPeriod sizeT precT) = FindXorPeriodArg
+type instance PrimFnShape (SimonsFindXorPeriod size prec) = FindXorPeriodArg
 
 instance P.MapSize (SimonsFindXorPeriod size prec) where
   type MappedSize (SimonsFindXorPeriod size prec) size' = (SimonsFindXorPeriod size' prec)
@@ -60,11 +58,11 @@ instance P.MapSize (SimonsFindXorPeriod size prec) where
 -- Basic Instances
 -- ================================================================================
 
-instance FindXorPeriod sizeT precT :<: SimonsFindXorPeriod sizeT precT
+instance FindXorPeriod size prec :<: SimonsFindXorPeriod size prec
 
-instance IsA (FindXorPeriod sizeT precT) (SimonsFindXorPeriod sizeT precT)
+instance IsA (FindXorPeriod size prec) (SimonsFindXorPeriod size prec)
 
-instance (Show sizeT) => SerializePrim (SimonsFindXorPeriod sizeT Double) where
+instance (Show size) => SerializePrim (SimonsFindXorPeriod size Double) where
   primNames = ["findXorPeriod"]
   parsePrimParams tp s = SimonsFindXorPeriod <$> parsePrimParams tp s
   printPrimParams (SimonsFindXorPeriod prim) = printPrimParams prim
@@ -81,16 +79,16 @@ instance
 
 -- | Number of queries as described in Theorem 1.
 _SimonsQueries ::
-  forall sizeT precT.
-  (Floating precT, P.SizeToPrec sizeT precT) =>
+  forall size prec.
+  (Floating prec, A.SizeToPrec size prec) =>
   -- | bitsize
-  sizeT ->
+  size ->
   -- | p_0: maximum probability of spurious collisions for non-period values.
-  precT ->
+  prec ->
   -- | maximum allowed failure probability.
-  P.FailProb precT ->
-  precT
-_SimonsQueries n p0 eps = q
+  A.FailProb prec ->
+  prec
+_SimonsQueries n p0 eps = q + 1
  where
   {- Sketch:
     We need to pick @c@ such that @(2 * ((1 + p0)/2)^c)^n <= eps@ (see Theorem 1)
@@ -99,12 +97,12 @@ _SimonsQueries n p0 eps = q
     ==> n + log_2 (1/eps) <= q * log_2(2 / (1+p0))
   -}
 
-  q_num = P.sizeToPrec n + logBase 2 (1 / P.getFailProb eps)
+  q_num = A.sizeToPrec n + logBase 2 (1 / A.getFailProb eps)
   q_den = logBase 2 (2 / (1 + p0))
   q = q_num / q_den
 
 instance
-  (P.TypingReqs size, Floating prec, Ord prec, Show prec, P.SizeToPrec size prec) =>
+  (P.TypingReqs size, Floating prec, Ord prec, Show prec, A.SizeToPrec size prec) =>
   UnitaryCostPrim (SimonsFindXorPeriod size prec) size prec
   where
   unitaryQueryCosts prim eps =
@@ -115,7 +113,7 @@ instance
 
 -- | Same as unitary compilation.
 instance
-  (P.TypingReqs size, Floating prec, Ord prec, Show prec, P.SizeToPrec size prec) =>
+  (P.TypingReqs size, Floating prec, Ord prec, Show prec, A.SizeToPrec size prec) =>
   QuantumHavocCostPrim (SimonsFindXorPeriod size prec) size prec
   where
   quantumQueryCostsQuantum _ _ = FindXorPeriodArg{fun = 0}
@@ -182,12 +180,8 @@ instance
   UnitaryCompilePrim (SimonsFindXorPeriod size prec) size prec
   where
   compileUPrim (SimonsFindXorPeriod FindXorPeriod{n, p_0}) eps = do
-    rets <- view $ to ret_vars
-
-    -- arguments (types) over which we compute the period
-    arg_tys <- forM rets $ \x -> do
-      mty <- use $ P._typingCtx . Ctx.at x
-      maybeWithError "" mty
+    arg_tys <- view $ to prim_ret_types
+    rets <- replicateM (length arg_tys) $ Compiler.newIdent "ret"
 
     simons_uproc <- simonsOneRound arg_tys
     Compiler.addProc simons_uproc
@@ -195,7 +189,7 @@ instance
     proc_name <- lift $ Compiler.newIdent "USimon"
     i <- lift $ Compiler.newIdent "i"
 
-    let nq = ceiling $ _SimonsQueries n p_0 eps
+    let nq = floor $ _SimonsQueries n p_0 eps
     xts <- forM (simons_uproc & CQPL.proc_param_types) $ \t -> do
       let t' = P.Arr nq t
       x <- lift $ Compiler.allocAncillaWithPref (proc_name ++ "_aux") t'
@@ -241,12 +235,8 @@ instance
   QuantumCompilePrim (SimonsFindXorPeriod size prec) size prec
   where
   compileQPrim (SimonsFindXorPeriod FindXorPeriod{n, p_0}) eps = do
-    rets <- view $ to ret_vars
-
-    -- arguments (types) over which we compute the period
-    arg_tys <- forM rets $ \x -> do
-      mty <- use $ P._typingCtx . Ctx.at x
-      maybeWithError "" mty
+    arg_tys <- view $ to prim_ret_types
+    rets <- replicateM (length arg_tys) $ Compiler.newIdent "ret"
 
     simons_uproc <- simonsOneRound arg_tys
     Compiler.addProc simons_uproc
@@ -254,7 +244,7 @@ instance
     proc_name <- lift $ Compiler.newIdent "QSimon"
     i <- lift $ Compiler.newIdent "i"
 
-    let nq = ceiling $ _SimonsQueries n p_0 eps
+    let nq = floor $ _SimonsQueries n p_0 eps
     xts <- forM arg_tys $ \t -> do
       let t' = P.Arr nq t
       x <- lift $ Compiler.allocAncillaWithPref (proc_name ++ "__u") t'

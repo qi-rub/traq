@@ -66,14 +66,14 @@ import Traq.ProtoLang.Syntax
 -- ================================================================================
 
 -- | default value of a given type
-defaultV :: forall sizeT. (sizeT ~ SizeT) => VarType sizeT -> Value sizeT
+defaultV :: forall size. (size ~ SizeT) => VarType size -> Value size
 defaultV (Fin _) = FinV 0
 defaultV (Bitvec _) = FinV 0
 defaultV (Arr n t) = ArrV $ replicate n (defaultV t)
 defaultV (Tup ts) = TupV $ map defaultV ts
 
 -- | Check if a given runtime value is of a given type.
-validateValueType :: forall sizeT. (sizeT ~ SizeT) => VarType sizeT -> Value sizeT -> Bool
+validateValueType :: forall size. (size ~ SizeT) => VarType size -> Value size -> Bool
 validateValueType (Fin n) (FinV v) = 0 <= v && v < n
 validateValueType (Arr n t) (ArrV vs) = length vs == n && all (validateValueType t) vs
 validateValueType (Tup ts) (TupV vs) = length vs == length ts && and (zipWith validateValueType ts vs)
@@ -119,14 +119,14 @@ valueToBool :: Value SizeT -> Bool
 valueToBool = fromValue
 
 -- | Size of the value set of a given type.
-domainSize :: (Integral sizeT) => VarType sizeT -> sizeT
+domainSize :: (Integral size) => VarType size -> size
 domainSize (Fin _N) = _N
 domainSize (Bitvec n) = 2 ^ n
 domainSize (Arr n t) = domainSize t ^ n
 domainSize (Tup ts) = product $ map domainSize ts
 
 -- | Set of all values of a given type
-domain :: (Integral sizeT) => VarType sizeT -> [Value sizeT]
+domain :: (Integral size) => VarType size -> [Value size]
 domain (Fin _N) = FinV <$> [0 .. _N - 1]
 domain (Bitvec n) = FinV <$> [0 .. 2 ^ n - 1]
 domain (Arr n t) = ArrV <$> replicateM (fromIntegral n) (domain t)
@@ -143,10 +143,10 @@ bitsize (Tup ts) = sum <$> mapM bitsize ts
 -- Evaluating Basic Expressions
 -- ================================================================================
 
-evalUnOp :: (sizeT ~ SizeT) => UnOp -> Value sizeT -> Value sizeT
+evalUnOp :: (size ~ SizeT) => UnOp -> Value size -> Value size
 evalUnOp NotOp = toValue . not . fromValue
 
-evalBinOp :: (sizeT ~ SizeT) => BinOp -> Value sizeT -> Value sizeT -> Value sizeT
+evalBinOp :: (size ~ SizeT) => BinOp -> Value size -> Value size -> Value size
 evalBinOp AddOp (FinV x) (FinV y) = FinV $ x + y
 evalBinOp MulOp (FinV x) (FinV y) = FinV $ x * y
 evalBinOp SubOp (FinV x) (FinV y) = FinV $ x - y
@@ -157,36 +157,36 @@ evalBinOp EqOp (FinV x) (FinV y) = toValue $ x == y
 evalBinOp AndOp v1 v2 = toValue $ fromValue v1 && fromValue v2
 evalBinOp op lhs rhs = error $ printf "evalBinOp failed: %s (%s) (%s)" (show op) (show lhs) (show rhs)
 
-evalOp :: (sizeT ~ SizeT) => NAryOp -> [Value sizeT] -> Value sizeT
+evalOp :: (size ~ SizeT) => NAryOp -> [Value size] -> Value size
 evalOp MultiOrOp = toValue . any valueToBool
 
 -- | @elemOfArr i a@ returns a[i]
-elemOfArr :: (sizeT ~ SizeT) => Value sizeT -> Value sizeT -> Value sizeT
+elemOfArr :: (size ~ SizeT) => Value size -> Value size -> Value size
 elemOfArr (FinV i) (ArrV xs) = xs !! i
 elemOfArr (FinV i) (TupV xs) = xs !! i
 elemOfArr i arr = error $ printf "invalid inputs: elemOfArr[ix: %s, arr: %s]" (show i) (show arr)
 
 -- | @modifyArr a i v@ sets a[i] to v.
-modifyArr :: (sizeT ~ SizeT) => Value sizeT -> Value sizeT -> Value sizeT -> Value sizeT
+modifyArr :: (size ~ SizeT) => Value size -> Value size -> Value size -> Value size
 modifyArr (ArrV xs) (FinV i) v = ArrV $ xs & ix i .~ v
 modifyArr _ _ _ = error "invalid inputs"
 
 -- | The deterministic state of the program
-type ProgramState sizeT = Ctx.Context (Value sizeT)
+type ProgramState size = Ctx.Context (Value size)
 
 class HasProgramState p where
-  _state :: (sizeT ~ SizeType p) => Lens' p (ProgramState sizeT)
+  _state :: (size ~ SizeType p) => Lens' p (ProgramState size)
 
-instance HasProgramState (ProgramState sizeT) where _state = id
+instance HasProgramState (ProgramState size) where _state = id
 
 evalBasicExpr ::
   ( MonadReader env m
   , HasProgramState env
-  , sizeT ~ SizeType env
-  , sizeT ~ SizeT
+  , size ~ SizeType env
+  , size ~ SizeT
   ) =>
-  BasicExpr sizeT ->
-  m (Value sizeT)
+  BasicExpr size ->
+  m (Value size)
 evalBasicExpr VarE{var} = view $ _state . Ctx.at var . non' (error $ "cannot find variable " <> var)
 evalBasicExpr DefaultE{ty} = return $ defaultV ty
 evalBasicExpr ConstE{val} = return val
@@ -225,17 +225,17 @@ evalBasicExpr ProjectE{tup_expr, tup_ix_val} = do
 -- ================================================================================
 
 -- | Inject runtime data into a program
-type FunInterp sizeT = [Value sizeT] -> [Value sizeT]
+type FunInterp size = [Value size] -> [Value size]
 
-type instance SizeType (FunInterp sizeT) = sizeT
+type instance SizeType (FunInterp size) = size
 
 -- | A mapping of data intepretations
-type FunInterpCtx sizeT = Map.Map Ident (FunInterp sizeT)
+type FunInterpCtx size = Map.Map Ident (FunInterp size)
 
 class HasFunInterpCtx p where
-  _funInterpCtx :: (sizeT ~ SizeType p) => Lens' p (FunInterpCtx sizeT)
+  _funInterpCtx :: (size ~ SizeType p) => Lens' p (FunInterpCtx size)
 
-instance HasFunInterpCtx (FunInterpCtx sizeT) where _funInterpCtx = id
+instance HasFunInterpCtx (FunInterpCtx size) where _funInterpCtx = id
 
 -- | Environment for evaluation
 data EvaluationEnv ext = EvaluationEnv (FunCtx ext) (FunInterpCtx (SizeType ext))
@@ -260,7 +260,7 @@ instance HasFunInterpCtx (EvaluationEnv ext) where
 -- ================================================================================
 
 -- | Base probability monad to evaluate the program.
-type EvaluationMonad precT = Prob.ExpMonad precT
+type EvaluationMonad prec = Prob.ExpMonad prec
 
 -- | Non-deterministic evaluation monad (i.e. no state)
 type Evaluator ext = ReaderT (EvaluationEnv ext) (EvaluationMonad (PrecType ext))
@@ -270,64 +270,64 @@ type Evaluator ext = ReaderT (EvaluationEnv ext) (EvaluationMonad (PrecType ext)
 -- --------------------------------------------------------------------------------
 
 -- | Constraints to be satisfied to support evaluation.
-type EvalReqs sizeT precT =
-  ( sizeT ~ SizeT
-  , Prob.ProbType precT
-  , Prob.RVType precT precT
-  , Fractional precT
+type EvalReqs size prec =
+  ( size ~ SizeT
+  , Prob.ProbType prec
+  , Prob.RVType prec prec
+  , Fractional prec
   )
 
 -- | Primitives that support evaluation.
 class
-  (EvalReqs sizeT precT, sizeT ~ SizeType ext, precT ~ PrecType ext) =>
-  Evaluatable ext sizeT precT
-    | ext -> sizeT precT
+  (EvalReqs size prec, size ~ SizeType ext, prec ~ PrecType ext) =>
+  Evaluatable ext size prec
+    | ext -> size prec
   where
   eval ::
     forall ext' m.
-    ( Evaluatable ext' sizeT precT
+    ( Evaluatable ext' size prec
     , m ~ Evaluator ext'
-    , SizeType ext' ~ sizeT
-    , PrecType ext' ~ precT
+    , SizeType ext' ~ size
+    , PrecType ext' ~ prec
     ) =>
     ext ->
-    ProgramState sizeT ->
-    m [Value sizeT]
+    ProgramState size ->
+    m [Value size]
   default eval ::
     forall ext' m.
     ( Generic ext
-    , GEvaluatable (Rep ext) sizeT precT
-    , Evaluatable ext' sizeT precT
+    , GEvaluatable (Rep ext) size prec
+    , Evaluatable ext' size prec
     , m ~ Evaluator ext'
-    , SizeType ext' ~ sizeT
-    , PrecType ext' ~ precT
+    , SizeType ext' ~ size
+    , PrecType ext' ~ prec
     ) =>
     ext ->
-    ProgramState sizeT ->
-    m [Value sizeT]
+    ProgramState size ->
+    m [Value size]
   eval x = geval (from x)
 
-instance (EvalReqs SizeT precT) => Evaluatable (Core SizeT precT) SizeT precT where
+instance (EvalReqs SizeT prec) => Evaluatable (Core SizeT prec) SizeT prec where
   eval p = case p of {}
 
-class GEvaluatable f sizeT precT | f -> sizeT precT where
+class GEvaluatable f size prec | f -> size prec where
   geval ::
     forall ext' m ext.
     ( m ~ Evaluator ext'
-    , Evaluatable ext' sizeT precT
+    , Evaluatable ext' size prec
     ) =>
     f ext ->
-    ProgramState sizeT ->
-    m [Value sizeT]
+    ProgramState size ->
+    m [Value size]
 
-instance (GEvaluatable f1 sizeT precT, GEvaluatable f2 sizeT precT) => GEvaluatable (f1 :+: f2) sizeT precT where
+instance (GEvaluatable f1 size prec, GEvaluatable f2 size prec) => GEvaluatable (f1 :+: f2) size prec where
   geval (L1 p) = geval p
   geval (R1 p) = geval p
 
-instance (GEvaluatable f sizeT precT) => GEvaluatable (M1 i c f) sizeT precT where
+instance (GEvaluatable f size prec) => GEvaluatable (M1 i c f) size prec where
   geval (M1 x) = geval x
 
-instance (Evaluatable f sizeT precT) => GEvaluatable (K1 i f) sizeT precT where
+instance (Evaluatable f size prec) => GEvaluatable (K1 i f) size prec where
   geval (K1 x) = eval x
 
 -- --------------------------------------------------------------------------------
@@ -335,24 +335,24 @@ instance (Evaluatable f sizeT precT) => GEvaluatable (K1 i f) sizeT precT where
 -- --------------------------------------------------------------------------------
 
 lookupS ::
-  forall sizeT env m.
+  forall size env m.
   ( MonadState env m
   , HasProgramState env
-  , sizeT ~ SizeType env
+  , size ~ SizeType env
   ) =>
   Ident ->
-  m (Value sizeT)
+  m (Value size)
 lookupS x = use $ _state . Ctx.at x . non' (error $ "cannot find variable " ++ x)
 
 evalRandomSampleExpr ::
   ( MonadReader env m
   , HasProgramState env
-  , sizeT ~ SizeType env
-  , Prob.MonadProb precT m
-  , EvalReqs sizeT precT
+  , size ~ SizeType env
+  , Prob.MonadProb prec m
+  , EvalReqs size prec
   ) =>
-  DistrExpr sizeT ->
-  m (Value sizeT)
+  DistrExpr size ->
+  m (Value size)
 evalRandomSampleExpr UniformE{sample_ty} = Prob.uniform (domain sample_ty)
 evalRandomSampleExpr BernoulliE{prob_one} = toValue <$> Prob.bernoulli (realToFrac prob_one)
 
@@ -447,10 +447,10 @@ instance Eval1 Program where
 
 -- | Entry-point: run the program (i.e. last function)
 runProgram ::
-  forall ext precT m.
-  ( Evaluatable ext SizeT precT
-  , EvalReqs SizeT precT
-  , m ~ EvaluationMonad precT
+  forall ext prec m.
+  ( Evaluatable ext SizeT prec
+  , EvalReqs SizeT prec
+  , m ~ EvaluationMonad prec
   ) =>
   Program ext ->
   FunInterpCtx SizeT ->

@@ -1,6 +1,7 @@
 {-# LANGUAGE DeriveAnyClass #-}
 {-# LANGUAGE DeriveGeneric #-}
 {-# LANGUAGE DerivingStrategies #-}
+{-# LANGUAGE DuplicateRecordFields #-}
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE GeneralisedNewtypeDeriving #-}
 
@@ -15,6 +16,17 @@ module Traq.Compiler.Prelude (
   -- * Compilation Monad
   CompilerT,
   compileWith,
+
+  -- ** proc builder
+  ProcBuilderT,
+  allocLocalWithPrefix,
+  allocLocal,
+  addUStmt,
+  withUStmt,
+  addStmt,
+  withStmt,
+  buildUProc,
+  buildProc,
 
   -- ** State
   LoweringCtx,
@@ -35,7 +47,7 @@ import Control.Monad.Except (MonadError (throwError))
 import Control.Monad.Extra (loopM)
 import Control.Monad.RWS (RWST, runRWST)
 import Control.Monad.State (MonadState)
-import Control.Monad.Writer (MonadWriter)
+import Control.Monad.Writer (MonadWriter, WriterT (..), censor, execWriterT)
 import qualified Data.Map as Map
 import qualified Data.Set as Set
 import GHC.Generics (Generic)
@@ -98,22 +110,22 @@ mkUProcName s = s ++ "_U"
 data ProcSignature size = ProcSignature {in_tys, out_tys, aux_tys :: [P.VarType size]}
 
 -- | A global lowering context.
-data LoweringCtx sizeT
+data LoweringCtx size
   = LoweringCtx
       -- | The set of already used identifiers (to generate unique ones)
       (Set.Set Ident)
       -- | The typing context: mapping all variables in context to their types.
-      (P.TypingCtx sizeT)
+      (P.TypingCtx size)
       -- | Signature of each uproc
-      (Map.Map Ident (ProcSignature sizeT))
+      (Map.Map Ident (ProcSignature size))
   deriving (Generic, HasDefault)
 
-type instance SizeType (LoweringCtx sizeT) = sizeT
+type instance SizeType (LoweringCtx size) = size
 
-instance HasUniqNamesCtx (LoweringCtx sizeT) where
+instance HasUniqNamesCtx (LoweringCtx size) where
   _uniqNamesCtx focus (LoweringCtx a b c) = focus a <&> \a' -> LoweringCtx a' b c
 
-instance P.HasTypingCtx (LoweringCtx sizeT) where
+instance P.HasTypingCtx (LoweringCtx size) where
   _typingCtx focus (LoweringCtx a b c) = focus b <&> \b' -> LoweringCtx a b' c
 
 _procSignatures :: Lens' (LoweringCtx size) (Map.Map Ident (ProcSignature size))
@@ -183,3 +195,111 @@ compileWith compiler prog = do
   (_, _, output) <- runRWST (compiler prog) config lowering_ctx
 
   return $ CQPL.Program $ output ^. _loweredProcs
+
+-- ================================================================================
+-- Helper to build procs
+-- ================================================================================
+
+-- | Transformer to build CQPL procs in the compiler.
+type VarList size = [(Ident, P.VarType size)]
+
+type ProcBuilderT size =
+  WriterT
+    (VarList size, [CQPL.UStmt size], [CQPL.Stmt size])
+
+type IsProcBuilder m' size m =
+  ( m' ~ ProcBuilderT size m
+  , Monad m
+  , MonadError String m
+  , MonadState (LoweringCtx size) m
+  )
+
+allocLocalWithPrefix ::
+  (IsProcBuilder m' size m) =>
+  Ident ->
+  P.VarType size ->
+  m' Ident
+allocLocalWithPrefix pref ty = do
+  x <- newIdent pref
+  writeElemAt _1 (x, ty)
+  return x
+
+allocLocal ::
+  (IsProcBuilder m' size m) =>
+  P.VarType size ->
+  m' Ident
+allocLocal = allocLocalWithPrefix "aux"
+
+addUStmt :: (IsProcBuilder m' size m) => CQPL.UStmt size -> m' ()
+addUStmt = writeElemAt _2
+
+withUStmt :: (IsProcBuilder m' size m) => (CQPL.UStmt size -> CQPL.UStmt size) -> m' a -> m' a
+withUStmt f = censor (_2 %~ f')
+ where
+  f' ss = [f (CQPL.USeqS ss)]
+
+addStmt :: (IsProcBuilder m' size m) => CQPL.Stmt size -> m' ()
+addStmt = writeElemAt _3
+
+withStmt :: (IsProcBuilder m' size m) => (CQPL.Stmt size -> CQPL.Stmt size) -> m' a -> m' a
+withStmt f = censor (_3 %~ f')
+ where
+  f' ss = [f (CQPL.SeqS ss)]
+
+buildProcHelper ::
+  (IsProcBuilder m' size m) =>
+  Bool ->
+  Ident ->
+  [Ident] ->
+  [(Ident, P.VarType size)] ->
+  m' () ->
+  m (CQPL.ProcDef size)
+buildProcHelper is_uproc proc_name_basic proc_meta_params params m = do
+  proc_name <- newIdent proc_name_basic
+  (local_vars, ubody, cbody) <- execWriterT $ withSandboxOf P._typingCtx $ do
+    P._typingCtx .= mempty
+    m
+
+  case (ubody, cbody, is_uproc) of
+    ([], _, False) ->
+      pure $
+        CQPL.ProcDef
+          { info_comment = ""
+          , proc_name
+          , proc_meta_params
+          , proc_param_types = map snd params
+          , proc_body =
+              CQPL.ProcBodyC
+                CQPL.CProcBody
+                  { cproc_param_names = map fst params
+                  , cproc_local_vars = local_vars
+                  , cproc_body_stmt = CQPL.SeqS cbody
+                  }
+          }
+    (_, [], True) ->
+      pure $
+        CQPL.ProcDef
+          { info_comment = ""
+          , proc_name
+          , proc_meta_params
+          , proc_param_types = map snd params ++ map snd local_vars
+          , proc_body =
+              CQPL.ProcBodyU
+                CQPL.UProcBody
+                  { uproc_param_names = map fst params ++ map fst local_vars
+                  , uproc_param_tags = replicate (length params) CQPL.ParamUnk ++ replicate (length local_vars) CQPL.ParamAux
+                  , uproc_body_stmt = CQPL.USeqS ubody
+                  }
+          }
+    _ -> throwError "buildProc: invalid body statements"
+
+buildUProc
+  , buildProc ::
+    (IsProcBuilder m' size m) =>
+    Ident ->
+    [Ident] ->
+    [(Ident, P.VarType size)] ->
+    m' () ->
+    m (CQPL.ProcDef size)
+buildUProc = buildProcHelper True
+buildProc = buildProcHelper False

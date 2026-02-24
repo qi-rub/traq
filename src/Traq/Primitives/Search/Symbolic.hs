@@ -20,7 +20,7 @@ import qualified Numeric.Algebra as Alg
 import Traq.Data.Subtyping
 import qualified Traq.Data.Symbolic as Sym
 
-import qualified Traq.Analysis as P
+import qualified Traq.Analysis as A
 import Traq.Prelude
 import Traq.Primitives.Class
 import Traq.Primitives.Search.Prelude
@@ -29,19 +29,19 @@ import qualified Traq.ProtoLang as P
 -- ================================================================================
 -- Primitive Class Implementation
 -- ================================================================================
-newtype QSearchSym sizeT precT = QSearchSym (PrimSearch (Sym.Sym sizeT) (Sym.Sym precT))
+newtype QSearchSym size prec = QSearchSym (PrimSearch (Sym.Sym size) (Sym.Sym prec))
   deriving (Eq, Show, Generic)
 
-type instance SizeType (QSearchSym sizeT precT) = Sym.Sym sizeT
-type instance PrecType (QSearchSym sizeT precT) = Sym.Sym precT
+type instance SizeType (QSearchSym size prec) = Sym.Sym size
+type instance PrecType (QSearchSym size prec) = Sym.Sym prec
 
 type instance PrimFnShape (QSearchSym size prec) = BooleanPredicate
 
-instance PrimSearch (Sym.Sym sizeT) (Sym.Sym precT) :<: QSearchSym sizeT precT where
+instance PrimSearch (Sym.Sym size) (Sym.Sym prec) :<: QSearchSym size prec where
   inject = QSearchSym
   project (QSearchSym p) = Just p
 
-instance (Show sizeT) => SerializePrim (QSearchSym sizeT precT) where
+instance (Show size) => SerializePrim (QSearchSym size prec) where
   primNames = ["any_sym", "search_sym"]
 
   parsePrimParams tp "any_sym" = QSearchSym <$> parsePrimParams tp "any"
@@ -51,7 +51,7 @@ instance (Show sizeT) => SerializePrim (QSearchSym sizeT precT) where
   printPrimParams (QSearchSym prim) = printPrimParams prim
 
 -- Type check
-instance (P.TypingReqs sizeT) => TypeCheckPrim (QSearchSym sizeT precT) (Sym.Sym sizeT) where
+instance (P.TypingReqs size) => TypeCheckPrim (QSearchSym size prec) (Sym.Sym size) where
   inferRetTypesPrim (QSearchSym p) = inferRetTypesPrim p
 
 -- ================================================================================
@@ -61,11 +61,11 @@ instance (P.TypingReqs sizeT) => TypeCheckPrim (QSearchSym sizeT precT) (Sym.Sym
 getSearchType :: QSearchSym size prec -> P.VarType (Sym.Sym size)
 getSearchType (QSearchSym (PrimSearch _ ty)) = ty
 
-_QryU :: forall sizeT precT. (Show sizeT, Show precT) => Sym.Sym sizeT -> P.FailProb (Sym.Sym precT) -> Sym.Sym precT
-_QryU n delta = Sym.var $ printf "QryU(%s, %s)" (show n) (show $ P.getFailProb delta)
+_QryU :: forall size prec. (Show size, Show prec) => Sym.Sym size -> A.FailProb (Sym.Sym prec) -> Sym.Sym prec
+_QryU n delta = Sym.var $ printf "QryU(%s, %s)" (show n) (show $ A.getFailProb delta)
 
-_QryQmax :: forall sizeT precT. (Show sizeT, Show precT) => Sym.Sym sizeT -> P.FailProb (Sym.Sym precT) -> Sym.Sym precT
-_QryQmax n eps = Sym.var $ printf "QryQmax(%s, %s)" (show n) (show $ P.getFailProb eps)
+_QryQmax :: forall size prec. (Show size, Show prec) => Sym.Sym size -> A.FailProb (Sym.Sym prec) -> Sym.Sym prec
+_QryQmax n eps = Sym.var $ printf "QryQmax(%s, %s)" (show n) (show $ A.getFailProb eps)
 
 domainSizeSym :: (Num size, Eq size, Show size) => P.VarType (Sym.Sym size) -> Sym.Sym size
 domainSizeSym (P.Fin _N) = _N
@@ -74,8 +74,8 @@ domainSizeSym (P.Arr n t) = n * domainSizeSym t
 domainSizeSym (P.Tup ts) = product $ map domainSizeSym ts
 
 instance
-  (P.TypingReqs sizeT, Show precT, Num precT, Eq precT) =>
-  UnitaryCostPrim (QSearchSym sizeT precT) (Sym.Sym sizeT) (Sym.Sym precT)
+  (P.TypingReqs size, Show prec, Num prec, Eq prec) =>
+  UnitaryCostPrim (QSearchSym size prec) (Sym.Sym size) (Sym.Sym prec)
   where
   unitaryQueryCosts prim eps = BooleanPredicate $ strongQueries $ _QryU _N eps
    where
@@ -84,8 +84,8 @@ instance
   unitaryExprCosts _ _ = Alg.zero
 
 instance
-  (P.TypingReqs sizeT, Show precT, Num precT, Eq precT) =>
-  QuantumHavocCostPrim (QSearchSym sizeT precT) (Sym.Sym sizeT) (Sym.Sym precT)
+  (P.TypingReqs size, Show prec, Num prec, Eq prec) =>
+  QuantumHavocCostPrim (QSearchSym size prec) (Sym.Sym size) (Sym.Sym prec)
   where
   quantumQueryCostsUnitary prim eps = BooleanPredicate $ strongQueries $ _QryQmax _N eps
    where

@@ -40,19 +40,19 @@ import qualified Traq.ProtoLang as P
 -- Default primitives: Supports exp cost and compile
 -- ================================================================================
 
-data DefaultPrimCollection sizeT precT
-  = QAny (QSearchCFNW sizeT precT)
-  | RAny (RandomSearch sizeT precT)
-  | DAny (DetSearch sizeT precT)
-  | CAmp (CAmplify sizeT precT)
-  | QAmp (QAmplify sizeT precT)
-  | QMax' (QMax sizeT precT)
+data DefaultPrimCollection size prec
+  = QAny (QSearchCFNW size prec)
+  | RAny (RandomSearch size prec)
+  | DAny (DetSearch size prec)
+  | CAmp (CAmplify size prec)
+  | QAmp (QAmplify size prec)
+  | QMax' (QMax size prec)
   deriving (Eq, Show, Generic)
 
-type instance SizeType (DefaultPrimCollection sizeT precT) = sizeT
-type instance PrecType (DefaultPrimCollection sizeT precT) = precT
+type instance SizeType (DefaultPrimCollection size prec) = size
+type instance PrecType (DefaultPrimCollection size prec) = prec
 
-type instance PrimFnShape (DefaultPrimCollection sizeT precT) = []
+type instance PrimFnShape (DefaultPrimCollection size prec) = []
 
 instance P.MapSize (DefaultPrimCollection size prec) where
   type MappedSize (DefaultPrimCollection size prec) size' = DefaultPrimCollection size' prec
@@ -121,7 +121,7 @@ instance
   (size ~ SizeT, P.TypingReqs size, Integral size, RealFloat prec, Show prec) =>
   QuantumCompilePrim (DefaultPrimCollection size prec) size prec
 
-type DefaultPrims sizeT precT = Primitive (DefaultPrimCollection sizeT precT)
+type DefaultPrims size prec = Primitive (DefaultPrimCollection size prec)
 
 type DefaultPrims' = DefaultPrims SizeT Double
 
@@ -134,10 +134,10 @@ data WorstCasePrimCollection size prec
   | Simon (SimonsFindXorPeriod size prec)
   deriving (Eq, Show, Generic)
 
-type instance SizeType (WorstCasePrimCollection sizeT precT) = sizeT
-type instance PrecType (WorstCasePrimCollection sizeT precT) = precT
+type instance SizeType (WorstCasePrimCollection size prec) = size
+type instance PrecType (WorstCasePrimCollection size prec) = prec
 
-type instance PrimFnShape (WorstCasePrimCollection sizeT precT) = []
+type instance PrimFnShape (WorstCasePrimCollection size prec) = []
 
 instance P.MapSize (WorstCasePrimCollection size prec) where
   type MappedSize (WorstCasePrimCollection size prec) size' = WorstCasePrimCollection size' prec
@@ -175,6 +175,6 @@ instance
   (size ~ SizeT, RealFloat prec, Show prec) =>
   QuantumCompilePrim (WorstCasePrimCollection size prec) size prec
 
-type WorstCasePrims sizeT precT = Primitive (WorstCasePrimCollection sizeT precT)
+type WorstCasePrims size prec = Primitive (WorstCasePrimCollection size prec)
 
 type WorstCasePrims' = WorstCasePrims SizeT Double
