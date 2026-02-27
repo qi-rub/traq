@@ -31,7 +31,7 @@ import Control.Monad (forM_, unless, when, zipWithM_)
 import Control.Monad.Except (MonadError, throwError)
 import Control.Monad.RWS (RWST (runRWST))
 import Control.Monad.Reader (MonadReader, runReaderT)
-import Control.Monad.State (evalStateT)
+import Control.Monad.State (MonadState, evalStateT)
 import Control.Monad.Trans (lift)
 import GHC.Generics
 import Text.Printf (printf)
@@ -76,17 +76,12 @@ typeCheckBasicExpr ::
   forall size m.
   ( TypingReqs size
   , MonadError String m
-  , MonadReader (TypingCtx size) m
+  , MonadState (TypingCtx size) m
   ) =>
   BasicExpr size ->
   m (VarType size)
-typeCheckBasicExpr VarE{var} = Ctx.lookup' var
-typeCheckBasicExpr ParamE{param} = do
-  -- TODO use a separate context for params
-  -- throwError $ printf "unsupported: typechecking for parameters (got: #%s)" param
-  -- gamma <- view id
-  -- throwError $ printf "UNSUPPORTED #%s : %s" param (show gamma)
-  Ctx.lookup' $ '#' : param
+typeCheckBasicExpr VarE{var} = Ctx.lookup var
+typeCheckBasicExpr ParamE{param} = Ctx.lookup $ '#' : param
 typeCheckBasicExpr DefaultE{ty} = return ty
 typeCheckBasicExpr ConstE{ty} = return ty
 typeCheckBasicExpr UnOpE{un_op, operand} = do
@@ -284,10 +279,8 @@ instance (TypingReqs size) => TypeInferrable (DistrExpr size) size where
 
 instance (TypeInferrable ext size) => TypeInferrable (Expr ext) size where
   inferTypes BasicExprE{basic_expr} = do
-    gamma <- use id
-    lift $ do
-      ty <- runReaderT ?? gamma $ typeCheckBasicExpr basic_expr
-      return [ty]
+    ty <- typeCheckBasicExpr basic_expr
+    return [ty]
   inferTypes RandomSampleE{distr_expr} = inferTypes distr_expr
   -- f(x, ...)
   inferTypes FunCallE{fname, args} = do
