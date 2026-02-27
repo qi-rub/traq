@@ -27,10 +27,13 @@ import qualified Traq.Utils.Printing as PP
 -- Compile QPL -> py (+Qualtran)
 -- ============================================================
 class ToQualtranPy a where
-  toPy :: (MonadWriter [String] m, MonadFail m) => a -> m ()
+  mkPy :: (MonadWriter [String] m, MonadFail m) => a -> m ()
 
 instance ToQualtranPy (CQPL.Program size) where
-  toPy _ = pure ()
+  mkPy _ = pure ()
+
+toPy :: (MonadFail m) => CQPL.Program SizeT -> m String
+toPy = fmap unlines . execWriterT . mkPy
 
 -- ============================================================
 -- CLI
@@ -122,8 +125,9 @@ main = do
       ".qpl" -> loadQPLProgram
       ext -> fail $ "Unsupported file extension: " ++ ext
 
-  py_prog_str <- fmap unlines . execWriterT $ toPy qpl_prog
+  py_preamble <- readFile "tools/qualtran_prelude.py"
+  py_prog_str <- toPy qpl_prog
+  let py_postamble = ""
 
-  case out_file of
-    Nothing -> putStr py_prog_str
-    Just fp -> writeFile fp py_prog_str
+  let py_str = unlines [py_preamble, py_prog_str, py_postamble]
+  maybe putStr writeFile out_file py_str

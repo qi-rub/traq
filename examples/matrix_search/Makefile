@@ -15,6 +15,7 @@ matrix_search.py: matrix_search.traq $(PROJ_DEPS)
 		-o examples/matrix_search/$@ \
 		-p 0.001 \
 		--arg N=20 --arg M=10
+	black $@
 
 depth3_NAND_formula.qpl: depth3_NAND_formula.traq $(PROJ_DEPS)
 	cd ../../ && cabal run compile -- \
