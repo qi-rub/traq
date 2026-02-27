@@ -66,6 +66,7 @@ _exe_opts: &exe_opts
     - random
     - random-shuffle
     - timeit ^>= 2.0
+    - filepath
   default-extensions:
     - RecordWildCards
 

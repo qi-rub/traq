@@ -145,6 +145,7 @@ executable compile
     , base >=4.10 && <5
     , containers >=0.6 && <1
     , extra >=1.8 && <2
+    , filepath
     , lens ==5.3.*
     , microlens-ghc ==0.4.*
     , microlens-mtl ==0.2.*
@@ -361,6 +362,7 @@ executable qpltoqualtranpy
     , base >=4.10 && <5
     , containers >=0.6 && <1
     , extra >=1.8 && <2
+    , filepath
     , lens ==5.3.*
     , microlens-ghc ==0.4.*
     , microlens-mtl ==0.2.*
