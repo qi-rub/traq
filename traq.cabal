@@ -1,6 +1,6 @@
 cabal-version: 1.18
 
--- This file has been generated from package.yaml by hpack version 0.38.1.
+-- This file has been generated from package.yaml by hpack version 0.39.1.
 --
 -- see: https://github.com/sol/hpack
 
@@ -38,6 +38,7 @@ library
       Traq.Analysis.Prelude
       Traq.Compiler
       Traq.Compiler.Prelude
+      Traq.Compiler.Qualtran
       Traq.Compiler.Quantum
       Traq.Compiler.Unitary
       Traq.Control.Monad

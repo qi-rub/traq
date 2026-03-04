@@ -3,25 +3,27 @@ module Traq.Utils.Printing (
   toCodeString,
   toCodeWord,
   toCodeStringM,
+  fromBuild,
+  listenWord,
 
-  -- * Simple builders
+  -- * Helpers
+
+  -- ** Simple builders
   commaList,
   wrapNonEmpty,
 
-  -- * Basic writers
+  -- ** Basic writers
   putWord,
   putLine,
   putComment,
   endl,
-  fromBuild,
-  listenWord,
 
-  -- * Generic writer transformers
+  -- ** Generic writer transformers
   mapped,
   joined,
   delimitedBlock,
 
-  -- * Specific writer transformers
+  -- ** Specific writer transformers
   indented,
   concatenated,
   unworded,
@@ -68,6 +70,10 @@ listenWord m = censor (const mempty) $ do
   return $ concat ws
 
 instance ToCodeString Void where build = absurd
+
+-- ============================================================
+-- Helpers
+-- ============================================================
 
 commaList :: [String] -> String
 commaList = intercalate ", "
