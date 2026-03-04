@@ -12,6 +12,7 @@ import qualified Traq.Analysis as A
 import Traq.Analysis.CostModel.QueryCost (SimpleQueryCost (..))
 import qualified Traq.CQPL as CQPL
 import qualified Traq.Compiler as Compiler
+import Traq.Compiler.Qualtran (toPy)
 import Traq.Prelude
 import Traq.Primitives.Class
 import Traq.Primitives.Simons.Quantum
@@ -92,3 +93,9 @@ spec = describe "FindXorPeriod" $ do
         let cost = fst (CQPL.programCost ex_cqpl) :: SimpleQueryCost Double
         let cost_from_analysis = getCost $ A.costQProg ex'
         getCost cost `shouldBeLE` cost_from_analysis
+
+      xit "target-py-qualtran" $ \program -> do
+        ex' <- expectRight $ A.annotateProgWith (P._exts (A.annSinglePrim eps)) program
+        ex_cqpl <- expectRight $ Compiler.lowerProgram ex'
+        _ <- toPy ex_cqpl
+        return ()

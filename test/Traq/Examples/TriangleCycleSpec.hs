@@ -12,6 +12,7 @@ import qualified Traq.Analysis as A
 import Traq.Analysis.CostModel.QueryCost (SimpleQueryCost (getCost))
 import qualified Traq.CQPL as CQPL
 import qualified Traq.Compiler as Compiler
+import Traq.Compiler.Qualtran (toPy)
 import Traq.Prelude
 import Traq.Primitives (DefaultPrims)
 import qualified Traq.ProtoLang as P
@@ -64,3 +65,10 @@ spec = describe "Triangle Cycle Finding" $ do
       let cost = fst (CQPL.programCost ex_cqpl) :: SimpleQueryCost Double
       let cost_from_analysis = getCost $ A.costQProg ex'
       getCost cost `shouldBeLE` cost_from_analysis
+
+    xit "target-py-qualtran" $ do
+      ex <- loadExample
+      ex' <- expectRight $ A.annotateProgWithErrorBudget eps ex
+      ex_cqpl <- expectRight $ Compiler.lowerProgram ex'
+      _ <- toPy ex_cqpl
+      return ()
