@@ -1,4 +1,6 @@
+{-# LANGUAGE BangPatterns #-}
 {-# LANGUAGE DuplicateRecordFields #-}
+{-# LANGUAGE TypeApplications #-}
 
 {- HLINT ignore "Use camelCase" -}
 
@@ -48,14 +50,14 @@ toPy prog = do
 -- Helpers for building python syntax
 -- ============================================================
 
-localWith :: r -> ReaderT r m a -> ReaderT r' m a
-localWith r = magnify (to (const r))
+localWith :: (Monad m) => r -> ReaderT r m a -> ReaderT r' m a
+localWith r = magnify (lens (const r) const)
 
 py_comment :: String -> Py ann
 py_comment c = PP.vsep $ lines c <&> \l -> PP.pretty $ "# " <> l
 
 py_raise_s :: String -> Py ann
-py_raise_s e = PP.pretty $ printf "raise Exception('%s')" e
+py_raise_s e = PP.pretty @String $ printf "raise Exception('%s')" e
 
 py_def :: Ident -> [Ident] -> Py ann
 py_def = undefined
@@ -146,7 +148,7 @@ instance ToQualtranPy (CQPL.CProcBody size) where
 
   mkPy CQPL.CProcBody{cproc_param_names, cproc_local_vars, cproc_body_stmt} = error "TODO CProcBody"
   mkPy CQPL.CProcDecl = do
-    py_raise_s "TODO CProcDecl"
+    pure $ py_raise_s "TODO CProcDecl"
 
 instance ToQualtranPy (CQPL.Stmt size) where
   type Ctx (CQPL.Stmt size) = ()
