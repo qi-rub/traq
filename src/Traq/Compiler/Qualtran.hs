@@ -1,14 +1,19 @@
 {-# LANGUAGE DuplicateRecordFields #-}
 
+{- HLINT ignore "Use camelCase" -}
+
 module Traq.Compiler.Qualtran (
   toPy,
 ) where
 
 import Control.Arrow ((>>>))
-import Control.Monad (unless, when)
-import Control.Monad.Reader (ReaderT, ask, runReaderT)
+import Control.Monad (forM, forM_, unless, when)
+import Control.Monad.Reader (Reader, ReaderT (..), runReader)
 import Control.Monad.Trans (lift)
 import Control.Monad.Writer (MonadWriter, execWriterT)
+import Data.Traversable (for)
+import qualified Prettyprinter as PP
+import Text.Printf (printf)
 import Text.Read (readMaybe)
 
 import Control.Lens (magnify, to)
@@ -18,34 +23,40 @@ import Traq.Control.Monad
 import qualified Traq.CQPL as CQPL
 import Traq.Prelude
 import qualified Traq.ProtoLang as P
-import qualified Traq.Utils.Printing as PP
 
 -- ============================================================
 -- Compile QPL -> py (+Qualtran)
 -- ============================================================
 
-type PyBuilder m = (MonadWriter [String] m, MonadFail m)
+type Py ann = PP.Doc ann
 
 -- | Build python code string.
 class ToQualtranPy a where
   type Ctx a
 
-  mkPy :: (PyBuilder m) => a -> ReaderT (Ctx a) m ()
+  mkPy :: a -> Reader (Ctx a) (Py ann)
 
 -- | Convert a CQPL program to a python code string.
 toPy :: (MonadFail m) => CQPL.Program SizeT -> m String
-toPy =
-  mkPy
-    >>> (runReaderT ?? ())
-    >>> execWriterT
-    >>> fmap unlines
+toPy prog = do
+  let doc = mkPy prog
+  error "TODO: render `doc` as python code (as string) and return it"
 
 -- ============================================================
 -- Helpers for building python syntax
 -- ============================================================
 
-pyClass :: (PyBuilder m) => Ident -> m () -> m ()
-pyClass = undefined
+py_comment :: String -> Py ann
+py_comment c = PP.vsep $ for (lines c) $ \l -> PP.pretty $ "# " <> l
+
+py_raise_s :: String -> Py ann
+py_raise_s e = PP.pretty $ printf "raise Exception('%s')" e
+
+py_def :: Ident -> [Ident] -> Py ann
+py_def = undefined
+
+py_class :: Ident -> Py ann -> Py ann
+py_class = undefined
 
 -- ============================================================
 -- Basic Instances
@@ -60,7 +71,7 @@ instance ToQualtranPy (CQPL.ProcDef size) where
   type Ctx (CQPL.ProcDef size) = ()
 
   mkPy CQPL.ProcDef{info_comment, proc_name, proc_meta_params, proc_param_types, proc_body} = do
-    PP.putComment info_comment
+    py_comment info_comment
     magnify (to (const (proc_name, proc_meta_params, proc_param_types))) (mkPy proc_body)
 
 instance ToQualtranPy (CQPL.ProcBody size) where
@@ -77,7 +88,8 @@ instance ToQualtranPy (CQPL.UProcBody size) where
   type Ctx (CQPL.UProcBody size) = (Ident, [Ident], [P.VarType size])
 
   mkPy CQPL.UProcBody{uproc_param_names, uproc_param_tags, uproc_body_stmt} = error "TODO UProcBody"
-  mkPy CQPL.UProcDecl = error "TODO UProcDecl"
+  mkPy CQPL.UProcDecl = do
+    py_raise_s "TODO UProcDecl"
 
 instance ToQualtranPy (CQPL.UStmt size) where
   type Ctx (CQPL.UStmt size) = ()
@@ -122,7 +134,8 @@ instance ToQualtranPy (CQPL.CProcBody size) where
   type Ctx (CQPL.CProcBody size) = (Ident, [Ident], [P.VarType size])
 
   mkPy CQPL.CProcBody{cproc_param_names, cproc_local_vars, cproc_body_stmt} = error "TODO CProcBody"
-  mkPy CQPL.CProcDecl = error "TODO CProcDecl"
+  mkPy CQPL.CProcDecl = do
+    py_raise_s "TODO CProcDecl"
 
 instance ToQualtranPy (CQPL.Stmt size) where
   type Ctx (CQPL.Stmt size) = ()

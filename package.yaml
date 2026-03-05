@@ -39,6 +39,7 @@ dependencies:
   - lens ^>= 5.3
   - parsec ^>= 3.1.17
   - algebra ^>= 4.3
+  - prettyprinter ^>= 1.7
 
 default-extensions:
   - LambdaCase
