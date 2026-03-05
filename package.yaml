@@ -36,7 +36,7 @@ dependencies:
   - mtl >= 2.2.2
   - microlens-ghc ^>= 0.4 
   - microlens-mtl ^>= 0.2
-  - lens ^>= 5.3
+  # - lens ^>= 5.3
   - parsec ^>= 3.1.17
   - algebra ^>= 4.3
   - prettyprinter ^>= 1.7

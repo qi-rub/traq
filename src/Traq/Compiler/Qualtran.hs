@@ -11,12 +11,14 @@ import Control.Monad (forM, forM_, unless, when)
 import Control.Monad.Reader (Reader, ReaderT (..), runReader)
 import Control.Monad.Trans (lift)
 import Control.Monad.Writer (MonadWriter, execWriterT)
+import Data.List (intersperse)
 import Data.Traversable (for)
 import qualified Prettyprinter as PP
 import Text.Printf (printf)
 import Text.Read (readMaybe)
 
-import Control.Lens (magnify, to)
+import Lens.Micro.GHC
+import Lens.Micro.Mtl
 
 import Traq.Control.Monad
 
@@ -39,15 +41,18 @@ class ToQualtranPy a where
 -- | Convert a CQPL program to a python code string.
 toPy :: (MonadFail m) => CQPL.Program SizeT -> m String
 toPy prog = do
-  let doc = mkPy prog
-  error "TODO: render `doc` as python code (as string) and return it"
+  let pyDoc = runReader (mkPy prog) ()
+  return $ show pyDoc
 
 -- ============================================================
 -- Helpers for building python syntax
 -- ============================================================
 
+localWith :: r -> ReaderT r m a -> ReaderT r' m a
+localWith r = magnify (to (const r))
+
 py_comment :: String -> Py ann
-py_comment c = PP.vsep $ for (lines c) $ \l -> PP.pretty $ "# " <> l
+py_comment c = PP.vsep $ lines c <&> \l -> PP.pretty $ "# " <> l
 
 py_raise_s :: String -> Py ann
 py_raise_s e = PP.pretty $ printf "raise Exception('%s')" e
@@ -65,14 +70,20 @@ py_class = undefined
 instance ToQualtranPy (CQPL.Program size) where
   type Ctx (CQPL.Program size) = ()
 
-  mkPy (CQPL.Program ps) = mapM_ (\p -> mkPy p >> lift PP.endl) ps
+  mkPy (CQPL.Program ps) =
+    PP.vsep . intersperse PP.line <$> mapM mkPy ps
 
 instance ToQualtranPy (CQPL.ProcDef size) where
   type Ctx (CQPL.ProcDef size) = ()
 
-  mkPy CQPL.ProcDef{info_comment, proc_name, proc_meta_params, proc_param_types, proc_body} = do
-    py_comment info_comment
-    magnify (to (const (proc_name, proc_meta_params, proc_param_types))) (mkPy proc_body)
+  mkPy CQPL.ProcDef{info_comment, proc_name, proc_meta_params, proc_param_types, proc_body} =
+    PP.vsep
+      <$> sequence
+        [ pure $ py_comment info_comment
+        , localWith
+            (proc_name, proc_meta_params, proc_param_types)
+            (mkPy proc_body)
+        ]
 
 instance ToQualtranPy (CQPL.ProcBody size) where
   type Ctx (CQPL.ProcBody size) = (Ident, [Ident], [P.VarType size])
@@ -88,8 +99,8 @@ instance ToQualtranPy (CQPL.UProcBody size) where
   type Ctx (CQPL.UProcBody size) = (Ident, [Ident], [P.VarType size])
 
   mkPy CQPL.UProcBody{uproc_param_names, uproc_param_tags, uproc_body_stmt} = error "TODO UProcBody"
-  mkPy CQPL.UProcDecl = do
-    py_raise_s "TODO UProcDecl"
+  mkPy CQPL.UProcDecl =
+    pure $ py_raise_s "TODO UProcDecl"
 
 instance ToQualtranPy (CQPL.UStmt size) where
   type Ctx (CQPL.UStmt size) = ()

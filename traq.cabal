@@ -115,7 +115,6 @@ library
     , base >=4.10 && <5
     , containers >=0.6 && <1
     , extra >=1.8 && <2
-    , lens ==5.3.*
     , microlens-ghc ==0.4.*
     , microlens-mtl ==0.2.*
     , mtl >=2.2.2
@@ -148,7 +147,6 @@ executable compile
     , containers >=0.6 && <1
     , extra >=1.8 && <2
     , filepath
-    , lens ==5.3.*
     , microlens-ghc ==0.4.*
     , microlens-mtl ==0.2.*
     , mtl >=2.2.2
@@ -185,7 +183,6 @@ executable compile_loc
     , base >=4.10 && <5
     , containers >=0.6 && <1
     , extra >=1.8 && <2
-    , lens ==5.3.*
     , microlens-ghc ==0.4.*
     , microlens-mtl ==0.2.*
     , mtl >=2.2.2
@@ -222,7 +219,6 @@ executable knapsackdemo
     , base >=4.10 && <5
     , containers >=0.6 && <1
     , extra >=1.8 && <2
-    , lens ==5.3.*
     , microlens-ghc ==0.4.*
     , microlens-mtl ==0.2.*
     , mtl >=2.2.2
@@ -259,7 +255,6 @@ executable matrixsearch
     , base >=4.10 && <5
     , containers >=0.6 && <1
     , extra >=1.8 && <2
-    , lens ==5.3.*
     , microlens-ghc ==0.4.*
     , microlens-mtl ==0.2.*
     , mtl >=2.2.2
@@ -296,7 +291,6 @@ executable matrixsearchdemo
     , base >=4.10 && <5
     , containers >=0.6 && <1
     , extra >=1.8 && <2
-    , lens ==5.3.*
     , microlens-ghc ==0.4.*
     , microlens-mtl ==0.2.*
     , mtl >=2.2.2
@@ -333,7 +327,6 @@ executable matrixsearchqcost
     , base >=4.10 && <5
     , containers >=0.6 && <1
     , extra >=1.8 && <2
-    , lens ==5.3.*
     , microlens-ghc ==0.4.*
     , microlens-mtl ==0.2.*
     , mtl >=2.2.2
@@ -371,7 +364,6 @@ executable qpltoqualtranpy
     , containers >=0.6 && <1
     , extra >=1.8 && <2
     , filepath
-    , lens ==5.3.*
     , microlens-ghc ==0.4.*
     , microlens-mtl ==0.2.*
     , mtl >=2.2.2
@@ -408,7 +400,6 @@ executable timing
     , base >=4.10 && <5
     , containers >=0.6 && <1
     , extra >=1.8 && <2
-    , lens ==5.3.*
     , microlens-ghc ==0.4.*
     , microlens-mtl ==0.2.*
     , mtl >=2.2.2
@@ -487,7 +478,6 @@ test-suite spec
     , containers >=0.6 && <1
     , extra >=1.8 && <2
     , hspec >=2.11.0
-    , lens ==5.3.*
     , microlens-ghc ==0.4.*
     , microlens-mtl ==0.2.*
     , mtl >=2.2.2
