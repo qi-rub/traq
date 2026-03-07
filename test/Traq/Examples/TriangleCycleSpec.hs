@@ -2,6 +2,8 @@
 
 module Traq.Examples.TriangleCycleSpec where
 
+import Control.DeepSeq (force)
+import Control.Exception (evaluate)
 import Text.Parsec.String
 
 import Lens.Micro.GHC
@@ -70,5 +72,5 @@ spec = describe "Triangle Cycle Finding" $ do
       ex <- loadExample
       ex' <- expectRight $ A.annotateProgWithErrorBudget eps ex
       ex_cqpl <- expectRight $ Compiler.lowerProgram ex'
-      _ <- toPy ex_cqpl
+      _ <- evaluate $ force $ toPy ex_cqpl
       return ()

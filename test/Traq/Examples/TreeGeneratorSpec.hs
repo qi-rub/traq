@@ -2,6 +2,8 @@
 
 module Traq.Examples.TreeGeneratorSpec where
 
+import Control.DeepSeq (force)
+import Control.Exception (evaluate)
 import qualified Data.Map as Map
 import Text.Parsec.String
 
@@ -150,7 +152,7 @@ spec = do
         ex <- P.renameVars' <$> loadKnapsack 2 20 30 2
         ex' <- expectRight $ A.annotateProgWith (_exts (A.annSinglePrim eps)) ex
         ex_cqpl <- expectRight $ Compiler.lowerProgram ex'
-        _ <- toPy ex_cqpl
+        _ <- evaluate $ force $ toPy ex_cqpl
         return ()
 
   describe "Loop example" $ do
@@ -190,5 +192,5 @@ spec = do
         let ex = P.renameVars' $ loopExample @Core' 10 20
         ex' <- expectRight $ A.annotateProgWith (_exts A.annNoPrims) ex
         ex_cqpl <- expectRight $ Compiler.lowerProgram ex'
-        _ <- toPy ex_cqpl
+        _ <- evaluate $ force $ toPy ex_cqpl
         return ()

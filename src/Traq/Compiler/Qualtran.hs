@@ -41,10 +41,10 @@ class ToQualtranPy a where
   mkPy :: a -> Reader (Ctx a) (Py ann)
 
 -- | Convert a CQPL program to a python code string.
-toPy :: (MonadFail m) => CQPL.Program SizeT -> m String
-toPy prog = do
+toPy :: CQPL.Program SizeT -> String
+toPy prog =
   let pyDoc = runReader (mkPy prog) ()
-  return $ show pyDoc
+   in show pyDoc
 
 -- ============================================================
 -- Helpers for building python syntax

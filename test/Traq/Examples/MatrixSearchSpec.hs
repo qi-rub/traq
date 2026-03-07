@@ -2,6 +2,8 @@
 
 module Traq.Examples.MatrixSearchSpec (spec) where
 
+import Control.DeepSeq (force)
+import Control.Exception (evaluate)
 import qualified Data.Map as Map
 
 import qualified Traq.Data.Symbolic as Sym
@@ -115,7 +117,7 @@ spec = describe "MatrixSearch" $ do
       fit "target-py-qualtran" $ do
         ex' <- expectRight $ A.annotateProgWithErrorBudget eps ex
         ex_cqpl <- expectRight $ Compiler.lowerProgram ex'
-        _ <- toPy ex_cqpl
+        _ <- evaluate $ force $ toPy ex_cqpl
         return ()
 
   describe "symbolic" $ do

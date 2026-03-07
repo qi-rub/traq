@@ -114,6 +114,7 @@ library
       algebra ==4.3.*
     , base >=4.10 && <5
     , containers >=0.6 && <1
+    , deepseq
     , extra >=1.8 && <2
     , microlens-ghc ==0.4.*
     , microlens-mtl ==0.2.*
@@ -145,6 +146,7 @@ executable compile
       algebra ==4.3.*
     , base >=4.10 && <5
     , containers >=0.6 && <1
+    , deepseq
     , extra >=1.8 && <2
     , filepath
     , microlens-ghc ==0.4.*
@@ -182,6 +184,7 @@ executable compile_loc
       algebra ==4.3.*
     , base >=4.10 && <5
     , containers >=0.6 && <1
+    , deepseq
     , extra >=1.8 && <2
     , microlens-ghc ==0.4.*
     , microlens-mtl ==0.2.*
@@ -218,6 +221,7 @@ executable knapsackdemo
       algebra ==4.3.*
     , base >=4.10 && <5
     , containers >=0.6 && <1
+    , deepseq
     , extra >=1.8 && <2
     , microlens-ghc ==0.4.*
     , microlens-mtl ==0.2.*
@@ -254,6 +258,7 @@ executable matrixsearch
       algebra ==4.3.*
     , base >=4.10 && <5
     , containers >=0.6 && <1
+    , deepseq
     , extra >=1.8 && <2
     , microlens-ghc ==0.4.*
     , microlens-mtl ==0.2.*
@@ -290,6 +295,7 @@ executable matrixsearchdemo
       algebra ==4.3.*
     , base >=4.10 && <5
     , containers >=0.6 && <1
+    , deepseq
     , extra >=1.8 && <2
     , microlens-ghc ==0.4.*
     , microlens-mtl ==0.2.*
@@ -326,6 +332,7 @@ executable matrixsearchqcost
       algebra ==4.3.*
     , base >=4.10 && <5
     , containers >=0.6 && <1
+    , deepseq
     , extra >=1.8 && <2
     , microlens-ghc ==0.4.*
     , microlens-mtl ==0.2.*
@@ -362,6 +369,7 @@ executable qpltoqualtranpy
       algebra ==4.3.*
     , base >=4.10 && <5
     , containers >=0.6 && <1
+    , deepseq
     , extra >=1.8 && <2
     , filepath
     , microlens-ghc ==0.4.*
@@ -399,6 +407,7 @@ executable timing
       algebra ==4.3.*
     , base >=4.10 && <5
     , containers >=0.6 && <1
+    , deepseq
     , extra >=1.8 && <2
     , microlens-ghc ==0.4.*
     , microlens-mtl ==0.2.*
@@ -476,6 +485,7 @@ test-suite spec
     , algebra ==4.3.*
     , base >=4.10 && <5
     , containers >=0.6 && <1
+    , deepseq
     , extra >=1.8 && <2
     , hspec >=2.11.0
     , microlens-ghc ==0.4.*

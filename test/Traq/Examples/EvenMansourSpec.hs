@@ -2,6 +2,8 @@
 
 module Traq.Examples.EvenMansourSpec where
 
+import Control.DeepSeq (force)
+import Control.Exception (evaluate)
 import Text.Parsec.String
 
 import Lens.Micro.GHC
@@ -97,5 +99,5 @@ spec = describe "FindXorPeriod" $ do
       xit "target-py-qualtran" $ \program -> do
         ex' <- expectRight $ A.annotateProgWith (P._exts (A.annSinglePrim eps)) program
         ex_cqpl <- expectRight $ Compiler.lowerProgram ex'
-        _ <- toPy ex_cqpl
+        _ <- evaluate $ force $ toPy ex_cqpl
         return ()

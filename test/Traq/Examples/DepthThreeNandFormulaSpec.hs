@@ -4,6 +4,8 @@
 
 module Traq.Examples.DepthThreeNandFormulaSpec where
 
+import Control.DeepSeq (force)
+import Control.Exception (evaluate)
 import Text.Parsec.String
 
 import Lens.Micro.GHC
@@ -59,5 +61,5 @@ spec = describe "Depth 3 NAND Formula" $ do
 
       xit "target-py-qualtran" $ \ex -> do
         ex_cqpl <- expectRight $ Compiler.lowerProgram ex
-        _ <- toPy ex_cqpl
+        _ <- evaluate $ force $ toPy ex_cqpl
         return ()

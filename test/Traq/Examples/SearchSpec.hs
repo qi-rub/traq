@@ -3,6 +3,8 @@
 
 module Traq.Examples.SearchSpec (spec) where
 
+import Control.DeepSeq (force)
+import Control.Exception (evaluate)
 import qualified Data.Map as Map
 
 import qualified Traq.Analysis as A
@@ -102,7 +104,7 @@ spec = describe "SearchSpec" $ do
       xit "target-py-qualtran" $ do
         ex' <- expectRight $ A.annotateProgWith (P._exts (A.annSinglePrim eps)) ex
         ex_cqpl <- expectRight $ Compiler.lowerProgram ex'
-        _ <- toPy ex_cqpl
+        _ <- evaluate $ force $ toPy ex_cqpl
         return ()
 
   describe "arraySearch (returning solution)" $ do

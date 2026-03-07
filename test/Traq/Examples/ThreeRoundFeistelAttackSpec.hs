@@ -2,6 +2,8 @@
 
 module Traq.Examples.ThreeRoundFeistelAttackSpec where
 
+import Control.DeepSeq (force)
+import Control.Exception (evaluate)
 import Text.Parsec.String
 
 import Lens.Micro.GHC
@@ -72,5 +74,5 @@ spec = describe "3 round feistel attack" $ do
       ex <- P.renameVars' <$> loadExample
       ex' <- expectRight $ A.annotateProgWith (P._exts (A.annSinglePrim eps)) ex
       ex_cqpl <- expectRight $ Compiler.lowerProgram ex'
-      _ <- toPy ex_cqpl
+      _ <- evaluate $ force $ toPy ex_cqpl
       return ()

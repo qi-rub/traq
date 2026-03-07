@@ -115,7 +115,7 @@ main = do
       ext -> fail $ "Unsupported file extension: " ++ ext
 
   py_preamble <- readFile "tools/qualtran_prelude.py"
-  py_prog_str <- toPy qpl_prog
+  let py_prog_str = toPy qpl_prog
   let py_postamble = ""
 
   let py_str = unlines [py_preamble, py_prog_str, py_postamble]
