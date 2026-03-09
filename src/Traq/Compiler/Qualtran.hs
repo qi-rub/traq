@@ -53,8 +53,23 @@ toPy prog =
 withEnv :: (Monad m) => r -> ReaderT r m a -> ReaderT r' m a
 withEnv r = magnify (lens (const r) const)
 
+tabwidth :: Int
+tabwidth = 2
+
 py_comment :: String -> Py ann
 py_comment c = PP.vsep $ lines c <&> \l -> PP.pretty $ "# " <> l
+
+py_pass :: Py ann
+py_pass = PP.pretty "pass"
+
+py_ifte :: String -> Py ann -> Py ann -> Py ann
+py_ifte b s_t s_f =
+  PP.vsep
+    [ PP.pretty $ "if (" <> b <> "):"
+    , PP.indent tabwidth s_t
+    , PP.pretty "else:"
+    , PP.indent tabwidth s_f
+    ]
 
 py_raise_s :: String -> Py ann
 py_raise_s e = PP.pretty @String $ printf "raise Exception('%s')" e
@@ -153,14 +168,14 @@ instance ToQualtranPy (CQPL.CProcBody size) where
 instance ToQualtranPy (CQPL.Stmt size) where
   type Ctx (CQPL.Stmt size) = ()
 
-  mkPy CQPL.SkipS = error "TODO SkipS"
-  mkPy (CQPL.CommentS s) = error "TODO CommentS"
+  mkPy CQPL.SkipS = pure py_pass
+  mkPy (CQPL.CommentS s) = pure $ py_comment s
   mkPy CQPL.AssignS{rets, expr} = error "TODO AssignS"
   mkPy CQPL.RandomS{rets, distr_expr} = error "TODO RandomS"
   mkPy CQPL.RandomDynS{ret, max_var} = error "TODO RandomDynS"
   mkPy CQPL.CallS{fun, meta_params, args} = error "TODO CallS"
-  mkPy (CQPL.SeqS ss) = error "TODO SeqS"
-  mkPy CQPL.IfThenElseS{cond, s_true, s_false} = error "TODO IfThenElseS"
+  mkPy (CQPL.SeqS ss) = PP.vsep <$> mapM mkPy ss
+  mkPy CQPL.IfThenElseS{cond, s_true, s_false} = py_ifte cond <$> mkPy s_true <*> mkPy s_false
   mkPy CQPL.RepeatS{n_iter, loop_body} = error "TODO RepeatS"
   mkPy CQPL.WhileK{n_iter, cond, loop_body} = error "TODO WhileK"
   mkPy CQPL.WhileKWithCondExpr{n_iter, cond, cond_expr, loop_body} = error "TODO WhileKWithCondExpr"
