@@ -1,5 +1,5 @@
-{-# LANGUAGE BangPatterns #-}
 {-# LANGUAGE DuplicateRecordFields #-}
+{-# LANGUAGE RecordWildCards #-}
 {-# LANGUAGE TypeApplications #-}
 
 {- HLINT ignore "Use camelCase" -}
@@ -8,21 +8,14 @@ module Traq.Compiler.Qualtran (
   toPy,
 ) where
 
-import Control.Arrow ((>>>))
-import Control.Monad (forM, forM_, unless, when)
 import Control.Monad.Reader (Reader, ReaderT (..), runReader)
-import Control.Monad.Trans (lift)
-import Control.Monad.Writer (MonadWriter, execWriterT)
 import Data.List (intersperse)
-import Data.Traversable (for)
+import Prettyprinter ((<+>))
 import qualified Prettyprinter as PP
 import Text.Printf (printf)
-import Text.Read (readMaybe)
 
 import Lens.Micro.GHC
 import Lens.Micro.Mtl
-
-import Traq.Control.Monad
 
 import qualified Traq.CQPL as CQPL
 import Traq.Prelude
@@ -53,8 +46,21 @@ toPy prog =
 withEnv :: (Monad m) => r -> ReaderT r m a -> ReaderT r' m a
 withEnv r = magnify (lens (const r) const)
 
-tabwidth :: Int
-tabwidth = 2
+py_indent :: Py ann -> Py ann
+py_indent = PP.indent tabwidth
+ where
+  tabwidth :: Int
+  tabwidth = 4
+
+-- ------------------------------------------------------------
+-- variables and types
+-- ------------------------------------------------------------
+py_typed_arg :: String -> Py ann -> Py ann
+py_typed_arg x t = PP.pretty x <+> PP.colon <+> t
+
+-- ------------------------------------------------------------
+-- statements
+-- ------------------------------------------------------------
 
 py_comment :: String -> Py ann
 py_comment c = PP.vsep $ lines c <&> \l -> PP.pretty $ "# " <> l
@@ -66,16 +72,20 @@ py_ifte :: String -> Py ann -> Py ann -> Py ann
 py_ifte b s_t s_f =
   PP.vsep
     [ PP.pretty $ "if (" <> b <> "):"
-    , PP.indent tabwidth s_t
+    , py_indent s_t
     , PP.pretty "else:"
-    , PP.indent tabwidth s_f
+    , py_indent s_f
     ]
 
 py_raise_s :: String -> Py ann
 py_raise_s e = PP.pretty @String $ printf "raise Exception('%s')" e
 
-py_def :: Ident -> [Ident] -> Py ann
-py_def = undefined
+py_def :: Ident -> [Py ann] -> Py ann -> Py ann
+py_def name params body =
+  PP.vsep
+    [ PP.pretty "def" <+> PP.pretty name <> PP.tupled params <> PP.pretty ":"
+    , py_indent body
+    ]
 
 py_class :: Ident -> Py ann -> Py ann
 py_class = undefined
@@ -98,12 +108,19 @@ instance ToQualtranPy (CQPL.ProcDef size) where
       <$> sequence
         [ pure $ py_comment info_comment
         , withEnv
-            (proc_name, proc_meta_params, proc_param_types)
+            (ProcBuildCtx{..})
             (mkPy proc_body)
         ]
 
+data ProcBuildCtx size = ProcBuildCtx
+  { proc_name :: Ident
+  , proc_meta_params :: [Ident]
+  , proc_param_types :: [P.VarType size]
+  }
+  deriving (Read, Show, Eq)
+
 instance ToQualtranPy (CQPL.ProcBody size) where
-  type Ctx (CQPL.ProcBody size) = (Ident, [Ident], [P.VarType size])
+  type Ctx (CQPL.ProcBody size) = ProcBuildCtx size
 
   mkPy (CQPL.ProcBodyU ubody) = mkPy ubody
   mkPy (CQPL.ProcBodyC cbody) = mkPy cbody
@@ -113,9 +130,10 @@ instance ToQualtranPy (CQPL.ProcBody size) where
 -- ============================================================
 
 instance ToQualtranPy (CQPL.UProcBody size) where
-  type Ctx (CQPL.UProcBody size) = (Ident, [Ident], [P.VarType size])
+  type Ctx (CQPL.UProcBody size) = ProcBuildCtx size
 
-  mkPy CQPL.UProcBody{uproc_param_names, uproc_param_tags, uproc_body_stmt} = error "TODO UProcBody"
+  mkPy CQPL.UProcBody{uproc_param_names, uproc_param_tags, uproc_body_stmt} = do
+    pure $ py_raise_s "TODO UProcBody"
   mkPy CQPL.UProcDecl =
     pure $ py_raise_s "TODO UProcDecl"
 
@@ -158,12 +176,36 @@ instance ToQualtranPy CQPL.BasicGate where
 -- Classical: Emit native python
 -- ============================================================
 
-instance ToQualtranPy (CQPL.CProcBody size) where
-  type Ctx (CQPL.CProcBody size) = (Ident, [Ident], [P.VarType size])
+toPyType :: P.VarType size -> Py ann
+toPyType (P.Fin _) = PP.pretty "int"
+toPyType (P.Bitvec _) = PP.pretty "int"
+toPyType (P.Tup ts) = PP.pretty "tuple" <+> PP.brackets (PP.tupled (map toPyType ts))
+toPyType (P.Arr _ t) = PP.pretty "list" <+> PP.brackets (toPyType t)
 
-  mkPy CQPL.CProcBody{cproc_param_names, cproc_local_vars, cproc_body_stmt} = error "TODO CProcBody"
+instance ToQualtranPy (CQPL.CProcBody size) where
+  type Ctx (CQPL.CProcBody size) = ProcBuildCtx size
+
+  -- external
   mkPy CQPL.CProcDecl = do
-    pure $ py_raise_s "TODO CProcDecl"
+    ProcBuildCtx{..} <- view id
+    let n_args = length proc_param_types
+    let cproc_param_names = ["arg_" <> show i | i <- [1 .. n_args]]
+    let tys = map toPyType proc_param_types
+
+    let typed_args = map PP.pretty proc_meta_params ++ zipWith py_typed_arg cproc_param_names tys
+    pure $
+      py_def proc_name typed_args $
+        py_raise_s "external function - implement here"
+
+  -- defined
+  mkPy CQPL.CProcBody{cproc_param_names, cproc_local_vars, cproc_body_stmt} = do
+    ProcBuildCtx{..} <- view id
+    let tys = map toPyType proc_param_types
+
+    let typed_args = map PP.pretty proc_meta_params ++ zipWith py_typed_arg cproc_param_names tys
+
+    py_def proc_name typed_args <$> do
+      withEnv () $ mkPy cproc_body_stmt
 
 instance ToQualtranPy (CQPL.Stmt size) where
   type Ctx (CQPL.Stmt size) = ()
