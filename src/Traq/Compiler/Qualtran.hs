@@ -50,8 +50,8 @@ toPy prog =
 -- Helpers for building python syntax
 -- ============================================================
 
-localWith :: (Monad m) => r -> ReaderT r m a -> ReaderT r' m a
-localWith r = magnify (lens (const r) const)
+withEnv :: (Monad m) => r -> ReaderT r m a -> ReaderT r' m a
+withEnv r = magnify (lens (const r) const)
 
 py_comment :: String -> Py ann
 py_comment c = PP.vsep $ lines c <&> \l -> PP.pretty $ "# " <> l
@@ -82,7 +82,7 @@ instance ToQualtranPy (CQPL.ProcDef size) where
     PP.vsep
       <$> sequence
         [ pure $ py_comment info_comment
-        , localWith
+        , withEnv
             (proc_name, proc_meta_params, proc_param_types)
             (mkPy proc_body)
         ]
