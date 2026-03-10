@@ -92,6 +92,9 @@ py_return args = PP.pretty "return" <+> PP.hsep (PP.punctuate PP.comma args)
 py_raise_s :: String -> Py ann
 py_raise_s e = PP.pretty @String $ printf "raise Exception('%s')" e
 
+py_notImplemented :: String -> Py ann
+py_notImplemented msg = PP.pretty "NotImplementedError" <> PP.parens (PP.dquotes $ PP.pretty msg)
+
 py_def :: Ident -> [Py ann] -> Py ann -> Py ann
 py_def name params body =
   PP.vsep
@@ -337,7 +340,7 @@ instance (Show size, Integral size) => ToQualtranPy (CQPL.UStmt size) where
         [ PP.pretty "for" <+> py_sanitizeIdent iter_meta_var <+> PP.pretty "in" <+> range_expr <> PP.colon
         , py_indent body
         ]
-  mkPy CQPL.UForInDomainS{iter_meta_var, iter_ty, dagger, uloop_body} = pure $ py_raise_s "TODO UForInDomainS"
+  mkPy CQPL.UForInDomainS{iter_meta_var, iter_ty, dagger, uloop_body} = pure $ py_notImplemented "TODO UForInDomainS"
   mkPy CQPL.UWithComputedS{with_ustmt, body_ustmt} = do
     mkPy with_ustmt
     mkPy body_ustmt
@@ -366,6 +369,14 @@ instance (Show size, Integral size) => ToQualtranPy (CQPL.Unitary size) where
     let ctx = Ctx.fromList $ zip xs tys
     withEnv ctx $ exprToBloq e
 
+namedBloq :: (Show size, Integral size) => Ident -> [P.VarType size] -> Py ann
+namedBloq b ts =
+  PP.pretty "NamedBloq"
+    <> PP.tupled
+      [ PP.dquotes $ PP.pretty b
+      , PP.list [py_register ("x_" <> show i) t | (t, i) <- zip ts [0 ..]]
+      ]
+
 exprToBloq :: (Show size, Integral size) => P.BasicExpr size -> Reader (P.TypingCtx size) (Py ann)
 exprToBloq P.VarE{var} = do
   ty <- Ctx.unsafeLookupE var
@@ -381,13 +392,24 @@ exprToBloq P.BinOpE{bin_op = P.LEqOp, lhs = P.VarE{var}, rhs = P.ParamE{param}} 
         [ PP.pretty $ show $ P.bestBitsize ty
         , PP.parens (v <> PP.pretty " - 1")
         ]
+exprToBloq P.UnOpE{un_op = P.AnyOp, operand = P.VarE{var}} = do
+  ty <- Ctx.unsafeLookupE var
+  pure $ namedBloq "AnyOp" [ty, P.tbool]
+exprToBloq P.BinOpE{bin_op = P.VecSelectOp, lhs = P.VarE{var = x}, rhs = P.VarE{var = y}} = do
+  tx <- Ctx.unsafeLookupE x
+  let etx = case tx of
+        P.Arr _ t -> t
+        P.Bitvec _ -> P.tbool
+        _ -> error "invalid type"
+  ty <- Ctx.unsafeLookupE y
+  pure $ namedBloq "VecSelectOp" [tx, ty, etx]
 exprToBloq e = error $ "TODO Unitary embedding: " <> show e
 
 instance (Show size, Integral size) => ToQualtranPy (CQPL.BasicGate size) where
   type Ctx (CQPL.BasicGate size) = [P.VarType size]
 
   -- simple gates
-  mkPy CQPL.Toffoli = pure $ PP.pretty "qlt_gates.Toffoli()"
+  mkPy CQPL.Toffoli = pure $ PP.pretty "Toffoli()"
   mkPy CQPL.CNOT = pure $ PP.pretty "qlt_gates.CNOT()"
   mkPy CQPL.XGate = pure $ PP.pretty "qlt_gates.XGate()"
   mkPy CQPL.HGate = pure $ PP.pretty "qlt_gates.Hadamard()"
@@ -435,7 +457,7 @@ instance (Show size) => ToQualtranPy (CQPL.CProcBody size) where
     let typed_args = map py_sanitizeIdent proc_meta_params ++ zipWith py_typedArg cproc_param_names tys
     pure $
       py_def proc_name typed_args $
-        py_raise_s "external function - implement here"
+        py_notImplemented "external function - implement here"
 
   -- defined
   mkPy CQPL.CProcBody{cproc_param_names, cproc_local_vars, cproc_body_stmt} = do
