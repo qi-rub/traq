@@ -16,7 +16,7 @@ import qualified Traq.Data.Probability as Prob
 import Traq.Data.Subtyping
 
 import qualified Traq.Analysis as A
-import qualified Traq.CPL as P
+import qualified Traq.CPL as CPL
 import Traq.Prelude
 import Traq.Primitives.Class
 import Traq.Primitives.Search.Prelude
@@ -34,9 +34,9 @@ type instance PrecType (DetSearch size prec) = prec
 
 type instance PrimFnShape (DetSearch size prec) = BooleanPredicate
 
-instance P.MapSize (DetSearch size prec) where
+instance CPL.MapSize (DetSearch size prec) where
   type MappedSize (DetSearch size prec) size' = DetSearch size' prec
-  mapSize f (DetSearch p) = DetSearch (P.mapSize f p)
+  mapSize f (DetSearch p) = DetSearch (CPL.mapSize f p)
 
 instance PrimSearch size prec :<: DetSearch size prec
 
@@ -45,7 +45,7 @@ instance (Show size) => SerializePrim (DetSearch size prec) where
   parsePrimParams tp s = DetSearch <$> parsePrimParams tp s
   printPrimParams (DetSearch prim) = printPrimParams prim
 
-instance (P.TypingReqs size) => TypeCheckPrim (DetSearch size prec) size where
+instance (CPL.TypingReqs size) => TypeCheckPrim (DetSearch size prec) size where
   inferRetTypesPrim (DetSearch prim) = inferRetTypesPrim prim
 
 instance EvalPrim (DetSearch size prec) size prec where
@@ -55,18 +55,18 @@ instance EvalPrim (DetSearch size prec) size prec where
 -- Abstract Costs
 -- ================================================================================
 
-instance (P.TypingReqs size, Integral size, Num prec) => UnitaryCostPrim (DetSearch size prec) size prec where
+instance (CPL.TypingReqs size, Integral size, Num prec) => UnitaryCostPrim (DetSearch size prec) size prec where
   unitaryQueryCosts (DetSearch PrimSearch{search_ty}) _ = BooleanPredicate (weakQueries $ fromIntegral _N)
    where
-    _N = P.domainSize search_ty
+    _N = CPL.domainSize search_ty
 
   unitaryExprCosts _ _ = Alg.zero
 
-instance (P.TypingReqs size, Integral size, Num prec, A.SizeToPrec size prec) => QuantumHavocCostPrim (DetSearch size prec) size prec where
+instance (CPL.TypingReqs size, Integral size, Num prec, A.SizeToPrec size prec) => QuantumHavocCostPrim (DetSearch size prec) size prec where
   -- only classical queries
   quantumQueryCostsQuantum (DetSearch PrimSearch{search_ty}) _ = BooleanPredicate (fromIntegral _N)
    where
-    _N = P.domainSize search_ty
+    _N = CPL.domainSize search_ty
 
   -- no unitary
   quantumQueryCostsUnitary _ _ = BooleanPredicate $ weakQueries 0
@@ -81,9 +81,9 @@ instance
     BooleanPredicate [([v], 1) | v <- queried_vals]
    where
     results =
-      P.domain search_ty <&> \v ->
+      CPL.domain search_ty <&> \v ->
         case Prob.toDeterministicValue $ eval_pred [v] of
-          Just [b] -> (P.valueToBool b, v)
+          Just [b] -> (CPL.valueToBool b, v)
           _ -> error "predicate is not determinisic"
 
     -- query all values till the first solution.

@@ -11,7 +11,7 @@ import Lens.Micro.GHC
 
 import qualified Traq.Analysis as A
 import Traq.Prelude
-import qualified Traq.CPL as P
+import qualified Traq.CPL as CPL
 
 import Traq.Analysis.CostModel.QueryCost (SimpleQueryCost (..))
 import Traq.Primitives (Primitive)
@@ -21,20 +21,20 @@ import Traq.Primitives.Search.RandomSearch (RandomSearch (..))
 
 type Matrix = SizeT -> SizeT -> Bool
 
-matrixToFun :: Matrix -> [P.Value SizeT] -> [P.Value SizeT]
-matrixToFun matrix [P.FinV i, P.FinV j] = [P.toValue $ matrix i j]
+matrixToFun :: Matrix -> [CPL.Value SizeT] -> [CPL.Value SizeT]
+matrixToFun matrix [CPL.FinV i, CPL.FinV j] = [CPL.toValue $ matrix i j]
 matrixToFun _ _ = error "invalid indices"
 
 expectedCost ::
   forall primT primT'.
-  ( P.Parseable primT'
+  ( CPL.Parseable primT'
   , A.AnnotateWithErrorBudgetU primT
   , A.AnnotateWithErrorBudgetQ primT
   , A.ExpCostQ (A.AnnFailProb primT) SizeT Double
   , SizeType primT' ~ Sym.Sym Int
-  , P.MapSize primT'
-  , primT ~ P.MappedSize primT' Int
-  , primT' ~ P.MappedSize primT (Sym.Sym Int)
+  , CPL.MapSize primT'
+  , primT ~ CPL.MappedSize primT' Int
+  , primT' ~ CPL.MappedSize primT (Sym.Sym Int)
   ) =>
   Int ->
   Int ->
@@ -43,8 +43,8 @@ expectedCost ::
   IO Double
 expectedCost n m matrix eps = do
   -- load the program
-  Right loaded_program <- parseFromFile (P.programParser @primT') "examples/matrix_search/matrix_search.traq"
-  let program = P.mapSize (Sym.unSym . Sym.subst "M" (Sym.con m) . Sym.subst "N" (Sym.con n)) loaded_program
+  Right loaded_program <- parseFromFile (CPL.programParser @primT') "examples/matrix_search/matrix_search.traq"
+  let program = CPL.mapSize (Sym.unSym . Sym.subst "M" (Sym.con m) . Sym.subst "N" (Sym.con n)) loaded_program
   program_annotated <- either fail pure $ A.annotateProgWithErrorBudget (A.failProb eps) program
 
   -- the functionality of Matrix, provided as input data

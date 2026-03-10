@@ -18,7 +18,7 @@ import GHC.Generics
 import Lens.Micro.Mtl
 
 import qualified Traq.Analysis as A
-import qualified Traq.CPL as P
+import qualified Traq.CPL as CPL
 import qualified Traq.CQPL as CQPL
 import Traq.Compiler
 import Traq.Prelude
@@ -39,9 +39,9 @@ data PrimCompileEnv shape size = PrimCompileEnv
   -- ^ helper to generate a call to a classical function argument.
   , mk_meas :: shape (CallBuilder size)
   -- ^ helper to generate a call-and-meas to a unitary proc arg.
-  , uproc_aux_types :: shape [P.VarType size]
+  , uproc_aux_types :: shape [CPL.VarType size]
   -- ^ auxiliary variables for each unitary function argument.
-  , prim_ret_types :: [P.VarType size]
+  , prim_ret_types :: [CPL.VarType size]
   -- ^ return variables types.
   }
 

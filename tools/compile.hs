@@ -9,7 +9,7 @@ import Text.Read (readMaybe)
 import qualified Traq.Data.Symbolic as Sym
 
 import qualified Traq.Analysis as A
-import qualified Traq.CPL as P
+import qualified Traq.CPL as CPL
 import qualified Traq.CQPL as CQPL
 import qualified Traq.Compiler.Quantum as CompileQ
 import Traq.Prelude
@@ -61,9 +61,9 @@ subsNM params s = Sym.unSym $ foldr subsOnce s params
   subsOnce :: (Ident, SizeT) -> SymbSize -> SymbSize
   subsOnce (k, v) = Sym.subst k (Sym.con v)
 
-compile :: (RealFloat prec, Show prec) => P.Program (WorstCasePrims SizeT prec) -> prec -> IO String
+compile :: (RealFloat prec, Show prec) => CPL.Program (WorstCasePrims SizeT prec) -> prec -> IO String
 compile prog eps = do
-  let prog_rn = if P.checkVarsUnique prog then prog else P.renameVars' prog
+  let prog_rn = if CPL.checkVarsUnique prog then prog else CPL.renameVars' prog
   prog' <- either fail pure $ A.annotateProgWithErrorBudget (A.failProb eps) prog_rn
   cqpl_prog <- either fail pure $ CompileQ.lowerProgram prog'
   let nqubits = CQPL.numQubits cqpl_prog
@@ -76,7 +76,7 @@ main = do
 
   -- parse
   code <- readFile in_file
-  prog <- either (fail . show) (pure . P.mapSize (subsNM params)) $ P.parseProgram @(WorstCasePrims _ Double) code
+  prog <- either (fail . show) (pure . CPL.mapSize (subsNM params)) $ CPL.parseProgram @(WorstCasePrims _ Double) code
 
   -- compile
   out_prog <- case eps of

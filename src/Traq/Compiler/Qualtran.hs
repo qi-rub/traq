@@ -20,7 +20,7 @@ import Lens.Micro.Mtl
 
 import qualified Traq.Data.Context as Ctx
 
-import qualified Traq.CPL as P
+import qualified Traq.CPL as CPL
 import qualified Traq.CQPL as CQPL
 import Traq.Prelude
 
@@ -125,20 +125,20 @@ bitsize n
   | otherwise = ceiling $ logBase (2 :: Double) (fromIntegral n)
 
 -- | Map a VarType to a Qualtran QDType expression
-toQltDType :: (Show size, Integral size) => P.VarType size -> Py ann
-toQltDType (P.Fin n) =
+toQltDType :: (Show size, Integral size) => CPL.VarType size -> Py ann
+toQltDType (CPL.Fin n) =
   PP.pretty "qlt.BQUInt" <> PP.tupled [PP.pretty (show $ bitsize n), PP.pretty (show n)]
-toQltDType (P.Bitvec n) = PP.pretty "qlt.QAny" <> PP.parens (PP.pretty (show n))
-toQltDType (P.Tup _) = error "TODO toQltDType Tup"
-toQltDType (P.Arr _ t) = toQltDType t -- base dtype; shape handled in py_register
+toQltDType (CPL.Bitvec n) = PP.pretty "qlt.QAny" <> PP.parens (PP.pretty (show n))
+toQltDType (CPL.Tup _) = error "TODO toQltDType Tup"
+toQltDType (CPL.Arr _ t) = toQltDType t -- base dtype; shape handled in py_register
 
 -- | Build shape tuple for a VarType (only Arr adds dimensions)
-toQltShape :: (Show size) => P.VarType size -> [Py ann]
-toQltShape (P.Arr n t) = PP.pretty (show n) : toQltShape t
+toQltShape :: (Show size) => CPL.VarType size -> [Py ann]
+toQltShape (CPL.Arr n t) = PP.pretty (show n) : toQltShape t
 toQltShape _ = []
 
 -- | Build a qlt.Register(...) expression
-py_register :: (Show size, Integral size) => Ident -> P.VarType size -> Py ann
+py_register :: (Show size, Integral size) => Ident -> CPL.VarType size -> Py ann
 py_register name ty =
   let dtype = toQltDType ty
       shape = toQltShape ty
@@ -147,9 +147,9 @@ py_register name ty =
         _ -> [PP.pretty "shape=" <> PP.tupled shape]
    in PP.pretty "qlt.Register" <> PP.tupled ([PP.dquotes (py_sanitizeIdent name), dtype] ++ shapeArg)
 
-py_metaParam :: (Show size) => Either (P.MetaParam size) Ident -> Py ann
-py_metaParam (Left (P.MetaName n)) = py_sanitizeIdent n
-py_metaParam (Left (P.MetaSize s)) = PP.pretty (show s)
+py_metaParam :: (Show size) => Either (CPL.MetaParam size) Ident -> Py ann
+py_metaParam (Left (CPL.MetaName n)) = py_sanitizeIdent n
+py_metaParam (Left (CPL.MetaSize s)) = PP.pretty (show s)
 py_metaParam (Right name) = py_sanitizeIdent name
 
 py_arg :: (Show size) => CQPL.Arg size -> Py ann
@@ -157,50 +157,50 @@ py_arg (CQPL.Arg x) = py_sanitizeIdent x
 py_arg (CQPL.ArrElemArg a i) = py_arg a <> PP.brackets (py_metaParam (Left i))
 
 -- | Emit a python expression
-py_expr :: (Show size) => P.BasicExpr size -> Py ann
-py_expr P.VarE{var} = py_sanitizeIdent var
-py_expr P.ParamE{param} = py_sanitizeIdent param
-py_expr P.DefaultE{ty} = py_defaultVal ty
-py_expr P.ConstE{val} = py_val val
-py_expr P.UnOpE{un_op, operand} = py_unOp un_op <> PP.parens (py_expr operand)
-py_expr P.BinOpE{bin_op, lhs, rhs} = PP.parens $ py_expr lhs <+> py_binOp bin_op <+> py_expr rhs
-py_expr P.TernaryE{branch, lhs, rhs} = PP.parens $ py_expr lhs <+> PP.pretty "if" <+> py_expr branch <+> PP.pretty "else" <+> py_expr rhs
-py_expr P.NAryE{op, operands} = py_naryOp op <> PP.tupled (map py_expr operands)
-py_expr P.IndexE{arr_expr, ix_val} = py_expr arr_expr <> PP.brackets (PP.pretty (show ix_val))
-py_expr P.DynIndexE{arr_expr, ix_expr} = py_expr arr_expr <> PP.brackets (py_expr ix_expr)
-py_expr P.UpdateArrE{arr_expr, ix_expr, rhs} = error "TODO UpdateArrE"
-py_expr P.ProjectE{tup_expr, tup_ix_val} = py_expr tup_expr <> PP.brackets (PP.pretty (show tup_ix_val))
+py_expr :: (Show size) => CPL.BasicExpr size -> Py ann
+py_expr CPL.VarE{var} = py_sanitizeIdent var
+py_expr CPL.ParamE{param} = py_sanitizeIdent param
+py_expr CPL.DefaultE{ty} = py_defaultVal ty
+py_expr CPL.ConstE{val} = py_val val
+py_expr CPL.UnOpE{un_op, operand} = py_unOp un_op <> PP.parens (py_expr operand)
+py_expr CPL.BinOpE{bin_op, lhs, rhs} = PP.parens $ py_expr lhs <+> py_binOp bin_op <+> py_expr rhs
+py_expr CPL.TernaryE{branch, lhs, rhs} = PP.parens $ py_expr lhs <+> PP.pretty "if" <+> py_expr branch <+> PP.pretty "else" <+> py_expr rhs
+py_expr CPL.NAryE{op, operands} = py_naryOp op <> PP.tupled (map py_expr operands)
+py_expr CPL.IndexE{arr_expr, ix_val} = py_expr arr_expr <> PP.brackets (PP.pretty (show ix_val))
+py_expr CPL.DynIndexE{arr_expr, ix_expr} = py_expr arr_expr <> PP.brackets (py_expr ix_expr)
+py_expr CPL.UpdateArrE{arr_expr, ix_expr, rhs} = error "TODO UpdateArrE"
+py_expr CPL.ProjectE{tup_expr, tup_ix_val} = py_expr tup_expr <> PP.brackets (PP.pretty (show tup_ix_val))
 
-py_val :: (Show size) => P.Value size -> Py ann
-py_val (P.FinV n) = PP.pretty (show n)
-py_val (P.ArrV vs) = PP.list (map py_val vs)
-py_val (P.TupV vs) = PP.tupled (map py_val vs)
+py_val :: (Show size) => CPL.Value size -> Py ann
+py_val (CPL.FinV n) = PP.pretty (show n)
+py_val (CPL.ArrV vs) = PP.list (map py_val vs)
+py_val (CPL.TupV vs) = PP.tupled (map py_val vs)
 
-py_defaultVal :: (Show size) => P.VarType size -> Py ann
-py_defaultVal (P.Fin _) = PP.pretty "0"
-py_defaultVal (P.Bitvec _) = PP.pretty "0"
-py_defaultVal (P.Arr n t) = PP.brackets (py_defaultVal t) <+> PP.pretty "*" <+> PP.pretty (show n)
-py_defaultVal (P.Tup ts) = PP.tupled (map py_defaultVal ts)
+py_defaultVal :: (Show size) => CPL.VarType size -> Py ann
+py_defaultVal (CPL.Fin _) = PP.pretty "0"
+py_defaultVal (CPL.Bitvec _) = PP.pretty "0"
+py_defaultVal (CPL.Arr n t) = PP.brackets (py_defaultVal t) <+> PP.pretty "*" <+> PP.pretty (show n)
+py_defaultVal (CPL.Tup ts) = PP.tupled (map py_defaultVal ts)
 
-py_unOp :: P.UnOp -> Py ann
-py_unOp P.NotOp = PP.pretty "not "
-py_unOp P.AnyOp = PP.pretty "any"
-py_unOp P.AllOp = PP.pretty "all"
-py_unOp P.MajOp = error "TODO MajOp"
+py_unOp :: CPL.UnOp -> Py ann
+py_unOp CPL.NotOp = PP.pretty "not "
+py_unOp CPL.AnyOp = PP.pretty "any"
+py_unOp CPL.AllOp = PP.pretty "all"
+py_unOp CPL.MajOp = error "TODO MajOp"
 
-py_binOp :: P.BinOp -> Py ann
-py_binOp P.AddOp = PP.pretty "+"
-py_binOp P.MulOp = PP.pretty "*"
-py_binOp P.SubOp = PP.pretty "-"
-py_binOp P.XorOp = PP.pretty "^"
-py_binOp P.LEqOp = PP.pretty "<="
-py_binOp P.LtOp = PP.pretty "<"
-py_binOp P.AndOp = PP.pretty "and"
-py_binOp P.EqOp = PP.pretty "=="
-py_binOp P.VecSelectOp = error "TODO VecSelectOp"
+py_binOp :: CPL.BinOp -> Py ann
+py_binOp CPL.AddOp = PP.pretty "+"
+py_binOp CPL.MulOp = PP.pretty "*"
+py_binOp CPL.SubOp = PP.pretty "-"
+py_binOp CPL.XorOp = PP.pretty "^"
+py_binOp CPL.LEqOp = PP.pretty "<="
+py_binOp CPL.LtOp = PP.pretty "<"
+py_binOp CPL.AndOp = PP.pretty "and"
+py_binOp CPL.EqOp = PP.pretty "=="
+py_binOp CPL.VecSelectOp = error "TODO VecSelectOp"
 
-py_naryOp :: P.NAryOp -> Py ann
-py_naryOp P.MultiOrOp = PP.pretty "any"
+py_naryOp :: CPL.NAryOp -> Py ann
+py_naryOp CPL.MultiOrOp = PP.pretty "any"
 
 -- ============================================================
 -- Basic Instances
@@ -227,7 +227,7 @@ instance (Show size, Integral size) => ToQualtranPy (CQPL.ProcDef size) where
 data ProcBuildCtx size = ProcBuildCtx
   { proc_name :: Ident
   , proc_meta_params :: [Ident]
-  , proc_param_types :: [P.VarType size]
+  , proc_param_types :: [CPL.VarType size]
   }
   deriving (Read, Show, Eq)
 
@@ -301,7 +301,7 @@ instance (Show size, Integral size) => ToQualtranPy (CQPL.UProcBody size) where
         ]
 
 instance (Show size, Integral size) => ToQualtranPy (CQPL.UStmt size) where
-  type Ctx (CQPL.UStmt size) = P.TypingCtx size
+  type Ctx (CQPL.UStmt size) = CPL.TypingCtx size
 
   mkPy CQPL.USkipS = pure mempty
   mkPy (CQPL.UCommentS s) = pure $ py_comment s
@@ -347,13 +347,13 @@ instance (Show size, Integral size) => ToQualtranPy (CQPL.UStmt size) where
     mkPy (CQPL.adjoint with_ustmt)
 
 instance (Show size, Integral size) => ToQualtranPy (CQPL.Unitary size) where
-  type Ctx (CQPL.Unitary size) = [P.VarType size]
+  type Ctx (CQPL.Unitary size) = [CPL.VarType size]
 
   mkPy (CQPL.BasicGateU g) = mkPy g
-  mkPy (CQPL.DistrU (P.UniformE ty)) = do
-    let bs = P.bestBitsize ty
+  mkPy (CQPL.DistrU (CPL.UniformE ty)) = do
+    let bs = CPL.bestBitsize ty
     pure $ PP.pretty "QFTTextBook" <> PP.tupled [PP.pretty (show bs)]
-  mkPy (CQPL.DistrU (P.BernoulliE p)) = do
+  mkPy (CQPL.DistrU (CPL.BernoulliE p)) = do
     let theta = PP.pretty @String $ printf "%f" (2 * asin (sqrt p))
     pure $ PP.pretty "qlt_gates.Ry" <> PP.tupled [PP.pretty "angle=" <> theta]
   mkPy (CQPL.Controlled u) = do
@@ -369,7 +369,7 @@ instance (Show size, Integral size) => ToQualtranPy (CQPL.Unitary size) where
     let ctx = Ctx.fromList $ zip xs tys
     withEnv ctx $ exprToBloq e
 
-namedBloq :: (Show size, Integral size) => Ident -> [P.VarType size] -> Py ann
+namedBloq :: (Show size, Integral size) => Ident -> [CPL.VarType size] -> Py ann
 namedBloq b ts =
   PP.pretty "NamedBloq"
     <> PP.tupled
@@ -377,36 +377,36 @@ namedBloq b ts =
       , PP.list [py_register ("x_" <> show i) t | (t, i) <- zip ts [0 ..]]
       ]
 
-exprToBloq :: (Show size, Integral size) => P.BasicExpr size -> Reader (P.TypingCtx size) (Py ann)
-exprToBloq P.VarE{var} = do
+exprToBloq :: (Show size, Integral size) => CPL.BasicExpr size -> Reader (CPL.TypingCtx size) (Py ann)
+exprToBloq CPL.VarE{var} = do
   ty <- Ctx.unsafeLookupE var
   pure $ PP.pretty "qlt_arith.Xor" <> PP.tupled [toQltDType ty]
-exprToBloq P.UnOpE{un_op = P.NotOp, operand = P.VarE{}} = do
+exprToBloq CPL.UnOpE{un_op = CPL.NotOp, operand = CPL.VarE{}} = do
   pure $ PP.pretty "qlt_gates.XGate().controlled(qlt.CtrlSpec(cvs=0))"
-exprToBloq P.BinOpE{bin_op = P.LEqOp, lhs = P.VarE{var}, rhs = P.ParamE{param}} = do
+exprToBloq CPL.BinOpE{bin_op = CPL.LEqOp, lhs = CPL.VarE{var}, rhs = CPL.ParamE{param}} = do
   ty <- Ctx.unsafeLookupE var
   let v = py_sanitizeIdent param
   pure $
     PP.pretty "qlt_arith.LessThanConstant"
       <> PP.tupled
-        [ PP.pretty $ show $ P.bestBitsize ty
+        [ PP.pretty $ show $ CPL.bestBitsize ty
         , PP.parens (v <> PP.pretty " - 1")
         ]
-exprToBloq P.UnOpE{un_op = P.AnyOp, operand = P.VarE{var}} = do
+exprToBloq CPL.UnOpE{un_op = CPL.AnyOp, operand = CPL.VarE{var}} = do
   ty <- Ctx.unsafeLookupE var
-  pure $ namedBloq "AnyOp" [ty, P.tbool]
-exprToBloq P.BinOpE{bin_op = P.VecSelectOp, lhs = P.VarE{var = x}, rhs = P.VarE{var = y}} = do
+  pure $ namedBloq "AnyOp" [ty, CPL.tbool]
+exprToBloq CPL.BinOpE{bin_op = CPL.VecSelectOp, lhs = CPL.VarE{var = x}, rhs = CPL.VarE{var = y}} = do
   tx <- Ctx.unsafeLookupE x
   let etx = case tx of
-        P.Arr _ t -> t
-        P.Bitvec _ -> P.tbool
+        CPL.Arr _ t -> t
+        CPL.Bitvec _ -> CPL.tbool
         _ -> error "invalid type"
   ty <- Ctx.unsafeLookupE y
   pure $ namedBloq "VecSelectOp" [tx, ty, etx]
 exprToBloq e = error $ "TODO Unitary embedding: " <> show e
 
 instance (Show size, Integral size) => ToQualtranPy (CQPL.BasicGate size) where
-  type Ctx (CQPL.BasicGate size) = [P.VarType size]
+  type Ctx (CQPL.BasicGate size) = [CPL.VarType size]
 
   -- simple gates
   mkPy CQPL.Toffoli = pure $ PP.pretty "Toffoli()"
@@ -438,11 +438,11 @@ instance (Show size, Integral size) => ToQualtranPy (CQPL.BasicGate size) where
 -- Classical: Emit native python
 -- ============================================================
 
-toPyType :: P.VarType size -> Py ann
-toPyType (P.Fin _) = PP.pretty "int"
-toPyType (P.Bitvec _) = PP.pretty "int"
-toPyType (P.Tup ts) = PP.pretty "tuple" <+> PP.brackets (PP.tupled (map toPyType ts))
-toPyType (P.Arr _ t) = PP.pretty "list" <+> PP.brackets (toPyType t)
+toPyType :: CPL.VarType size -> Py ann
+toPyType (CPL.Fin _) = PP.pretty "int"
+toPyType (CPL.Bitvec _) = PP.pretty "int"
+toPyType (CPL.Tup ts) = PP.pretty "tuple" <+> PP.brackets (PP.tupled (map toPyType ts))
+toPyType (CPL.Arr _ t) = PP.pretty "list" <+> PP.brackets (toPyType t)
 
 instance (Show size) => ToQualtranPy (CQPL.CProcBody size) where
   type Ctx (CQPL.CProcBody size) = ProcBuildCtx size

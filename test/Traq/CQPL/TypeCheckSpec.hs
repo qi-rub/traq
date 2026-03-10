@@ -13,7 +13,7 @@ import qualified Traq.Data.Context as Ctx
 import Traq.Data.Default
 
 import Traq.CPL ((.&&.))
-import qualified Traq.CPL as P
+import qualified Traq.CPL as CPL
 import qualified Traq.CQPL as CQPL
 
 import Test.Hspec
@@ -22,11 +22,11 @@ import TestHelpers
 spec :: Spec
 spec = do
   describe "typeCheckUStmt" $ do
-    let tb = P.Fin (2 :: Int)
+    let tb = CPL.Fin (2 :: Int)
     let checker gamma s =
           runReaderT
             (CQPL.typeCheckUStmt @Int s)
-            (default_ & P._typingCtx .~ gamma)
+            (default_ & CPL._typingCtx .~ gamma)
     describe "unitary embed" $ do
       it "AndOp" $
         assertRight $
@@ -44,5 +44,5 @@ spec = do
               (Ctx.fromList $ map (,tb) ("out" : xs))
               CQPL.UnitaryS
                 { CQPL.qargs = map CQPL.Arg xs ++ [CQPL.Arg "out"]
-                , CQPL.unitary = CQPL.RevEmbedU xs (P.NAryE P.MultiOrOp $ map P.VarE xs)
+                , CQPL.unitary = CQPL.RevEmbedU xs (CPL.NAryE CPL.MultiOrOp $ map CPL.VarE xs)
                 }

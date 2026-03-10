@@ -10,7 +10,7 @@ import Traq.Data.Default
 
 import qualified Traq.Analysis as A
 import Traq.Analysis.CostModel.QueryCost (SimpleQueryCost (..))
-import qualified Traq.CPL as P
+import qualified Traq.CPL as CPL
 import qualified Traq.CQPL as CQPL
 import Traq.Prelude
 import Traq.Primitives.Search.QSearchCFNW
@@ -48,8 +48,8 @@ spec = do
       let lctx = default_
       circ <-
         expectRight $
-          algoQSearchZalka @P.Core' eps "output_bit" "elem"
-            & execRWT UQSearchEnv{search_arg_type = P.Fin n, pred_call_builder = pred_caller}
+          algoQSearchZalka @CPL.Core' eps "output_bit" "elem"
+            & execRWT UQSearchEnv{search_arg_type = CPL.Fin n, pred_call_builder = pred_caller}
             & (\m -> runRWST m lenv lctx)
             <&> (CQPL.USeqS . fst3)
       PP.toCodeString circ `shouldSatisfy` (not . null)
@@ -57,7 +57,7 @@ spec = do
   describe "QSearch_Zalka circuit" $ do
     let qsearch_env n =
           UQSearchEnv
-            { search_arg_type = P.Fin n
+            { search_arg_type = CPL.Fin n
             , pred_call_builder = \c x b ->
                 CQPL.UCallS{CQPL.uproc_id = "Oracle", CQPL.dagger = False, CQPL.qargs = [c, x, b]}
             }

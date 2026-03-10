@@ -9,7 +9,7 @@ import qualified Data.Map as Map
 
 import qualified Traq.Analysis as A
 import Traq.Analysis.CostModel.QueryCost (SimpleQueryCost (..))
-import qualified Traq.CPL as P
+import qualified Traq.CPL as CPL
 import qualified Traq.CQPL as CQPL
 import qualified Traq.Compiler as Compiler
 import Traq.Compiler.Qualtran (toPy)
@@ -30,14 +30,14 @@ spec = describe "SearchSpec" $ do
     let ex = arraySearch n
 
     it "type checks" $ do
-      assertRight $ P.typeCheckProg ex
+      assertRight $ CPL.typeCheckProg ex
 
-    let oracleF = const [P.FinV 0]
+    let oracleF = const [CPL.FinV 0]
     let interpCtx = Map.singleton "Oracle" oracleF
 
     it "evaluates" $ do
-      let res = P.runProgram @_ @Double ex interpCtx []
-      res `shouldBeDistribution` pure ([P.FinV 0], 1.0)
+      let res = CPL.runProgram @_ @Double ex interpCtx []
+      res `shouldBeDistribution` pure ([CPL.FinV 0], 1.0)
 
     let ecF = _EQSearch
     let ucF = _QSearchZalka
@@ -45,7 +45,7 @@ spec = describe "SearchSpec" $ do
     it "unitary cost for eps=0.0001" $ do
       let eps = A.failProb (0.0001 :: Double)
 
-      ex' <- expectRight $ A.annotateProgWith (P._exts (A.annSinglePrim eps)) ex
+      ex' <- expectRight $ A.annotateProgWith (CPL._exts (A.annSinglePrim eps)) ex
       let computed_cost = getCost $ A.costUProg ex'
 
       let true_cost = 2 * ucF n eps
@@ -54,7 +54,7 @@ spec = describe "SearchSpec" $ do
     it "quantum cost for eps=0.0001" $ do
       let eps = A.failProb (0.0001 :: Double)
 
-      ex' <- expectRight $ A.annotateProgWith (P._exts (A.annSinglePrim eps)) ex
+      ex' <- expectRight $ A.annotateProgWith (CPL._exts (A.annSinglePrim eps)) ex
       let computed_cost = getCost $ A.expCostQProg ex' [] interpCtx
 
       let true_cost = 2 * ecF n 0 eps
@@ -67,16 +67,16 @@ spec = describe "SearchSpec" $ do
       let eps = A.failProb (0.0001 :: Double)
 
       it "lowers" $ do
-        ex' <- expectRight $ A.annotateProgWith (P._exts (A.annSinglePrim eps)) ex
+        ex' <- expectRight $ A.annotateProgWith (CPL._exts (A.annSinglePrim eps)) ex
         assertRight $ Compiler.lowerProgramU ex'
 
       it "typechecks" $ do
-        ex' <- expectRight $ A.annotateProgWith (P._exts (A.annSinglePrim eps)) ex
+        ex' <- expectRight $ A.annotateProgWith (CPL._exts (A.annSinglePrim eps)) ex
         ex_uqpl <- expectRight $ Compiler.lowerProgramU ex'
         assertRight $ CQPL.typeCheckProgram ex_uqpl
 
       it "preserves cost" $ do
-        ex' <- expectRight $ A.annotateProgWith (P._exts (A.annSinglePrim eps)) ex
+        ex' <- expectRight $ A.annotateProgWith (CPL._exts (A.annSinglePrim eps)) ex
         ex_uqpl <- expectRight $ Compiler.lowerProgramU ex'
         let (uqpl_cost, _) = CQPL.programCost ex_uqpl
         let proto_cost = A.costUProg ex' :: SimpleQueryCost Double
@@ -86,23 +86,23 @@ spec = describe "SearchSpec" $ do
       let eps = A.failProb (0.0001 :: Double)
 
       it "lowers" $ do
-        ex' <- expectRight $ A.annotateProgWith (P._exts (A.annSinglePrim eps)) ex
+        ex' <- expectRight $ A.annotateProgWith (CPL._exts (A.annSinglePrim eps)) ex
         assertRight $ Compiler.lowerProgram ex'
 
       it "typechecks" $ do
-        ex' <- expectRight $ A.annotateProgWith (P._exts (A.annSinglePrim eps)) ex
+        ex' <- expectRight $ A.annotateProgWith (CPL._exts (A.annSinglePrim eps)) ex
         ex_uqpl <- expectRight $ Compiler.lowerProgram ex'
         assertRight $ CQPL.typeCheckProgram ex_uqpl
 
       it "cost" $ do
-        ex' <- expectRight $ A.annotateProgWith (P._exts (A.annSinglePrim eps)) ex
+        ex' <- expectRight $ A.annotateProgWith (CPL._exts (A.annSinglePrim eps)) ex
         ex_cqpl <- expectRight $ Compiler.lowerProgram ex'
         let cost = fst (CQPL.programCost ex_cqpl) :: SimpleQueryCost Double
         let cost_from_analysis = getCost $ A.costQProg ex'
         getCost cost `shouldBeLE` cost_from_analysis
 
       xit "target-py-qualtran" $ do
-        ex' <- expectRight $ A.annotateProgWith (P._exts (A.annSinglePrim eps)) ex
+        ex' <- expectRight $ A.annotateProgWith (CPL._exts (A.annSinglePrim eps)) ex
         ex_cqpl <- expectRight $ Compiler.lowerProgram ex'
         _ <- evaluate $ force $ toPy ex_cqpl
         return ()
@@ -112,14 +112,14 @@ spec = describe "SearchSpec" $ do
     let ex = arraySearchIx n
 
     it "type checks" $ do
-      assertRight $ P.typeCheckProg ex
+      assertRight $ CPL.typeCheckProg ex
 
     let planted_sols = [2, 4, 5] :: [SizeT]
-    let oracleF [P.FinV i] = [P.toValue $ i `elem` planted_sols]
+    let oracleF [CPL.FinV i] = [CPL.toValue $ i `elem` planted_sols]
         oracleF _ = error "invalid inputs"
     let interpCtx = Map.singleton "Oracle" oracleF
 
     it "evaluates" $ do
-      let res = P.runProgram @_ @Double ex interpCtx []
+      let res = CPL.runProgram @_ @Double ex interpCtx []
 
-      res `shouldBeDistribution` [([P.FinV 1, P.FinV i], 1 / 3) | i <- planted_sols]
+      res `shouldBeDistribution` [([CPL.FinV 1, CPL.FinV i], 1 / 3) | i <- planted_sols]

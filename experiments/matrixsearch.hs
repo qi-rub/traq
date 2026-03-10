@@ -9,7 +9,7 @@ import qualified Traq.Data.Symbolic as Sym
 
 import qualified Traq.Analysis as A
 import Traq.Analysis.CostModel.QueryCost (QueryCost (..))
-import qualified Traq.CPL as P
+import qualified Traq.CPL as CPL
 import qualified Traq.CQPL as CQPL
 import qualified Traq.Compiler as Compiler
 import Traq.Examples.MatrixSearch
@@ -30,19 +30,19 @@ symbolicEx = do
 
   let n = Sym.var "N" :: Sym.Sym SizeT
   let m = Sym.var "M" :: Sym.Sym SizeT
-  let P.Program ex_fs = mkMatrixExample (\t f -> P.PrimCallE $ Primitive [f] $ QSearchSym $ PrimSearch AnyK t) n m
+  let CPL.Program ex_fs = mkMatrixExample (\t f -> CPL.PrimCallE $ Primitive [f] $ QSearchSym $ PrimSearch AnyK t) n m
 
   forM_ (tail $ inits ex_fs) $ \fs -> do
     let eps = A.failProb (Sym.var "ε" :: Sym.Sym Double)
 
-    putStrLn $ printf "Worst case cost of %s" (P.fun_name $ last fs)
+    putStrLn $ printf "Worst case cost of %s" (CPL.fun_name $ last fs)
 
     putStr "  - Unitary: "
-    prog_u <- either fail pure $ A.annotateProgWithErrorBudgetU eps (P.Program fs)
+    prog_u <- either fail pure $ A.annotateProgWithErrorBudgetU eps (CPL.Program fs)
     print (A.costUProg prog_u :: QueryCost (Sym.Sym Double))
 
     putStr "  - Quantum: "
-    prog_q <- either fail pure $ A.annotateProgWithErrorBudget eps (P.Program fs)
+    prog_q <- either fail pure $ A.annotateProgWithErrorBudget eps (CPL.Program fs)
     print (A.costQProg prog_q :: QueryCost (Sym.Sym Double))
 
 concreteEx :: IO ()

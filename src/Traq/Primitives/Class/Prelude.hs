@@ -20,7 +20,7 @@ import Data.Maybe (fromMaybe)
 import Text.Parsec.Token
 import Text.Printf (printf)
 
-import qualified Traq.CPL as P
+import qualified Traq.CPL as CPL
 import Traq.Prelude
 import qualified Traq.Utils.Printing as PP
 
@@ -38,14 +38,14 @@ instance PP.ToCodeString PartialFun where
     let args = PP.commaList $ map (fromMaybe "_") pfun_args
     PP.putWord $ printf "%s(%s)" pfun_name args
 
-instance P.Parseable PartialFun where
+instance CPL.Parseable PartialFun where
   parseE TokenParser{..} = do
     pfun_name <- identifier
     pfun_args <- parens $ commaSep (Nothing <$ symbol "_" <|> Just <$> identifier)
     return PartialFun{..}
 
-instance P.RenameVars PartialFun where
-  renameVars pref f@PartialFun{pfun_args} = f{pfun_args = map (fmap (P.addOnePrefix pref)) pfun_args}
+instance CPL.RenameVars PartialFun where
+  renameVars pref f@PartialFun{pfun_args} = f{pfun_args = map (fmap (CPL.addOnePrefix pref)) pfun_args}
 
 {- | Place a list of concrete values inside a list of incomplete values.
 For example, @placeArgs [Just 0, Nothing, Just 2, Nothing] [1, 3] = [0,1,2,3]@

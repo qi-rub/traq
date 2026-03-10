@@ -9,7 +9,7 @@ module Traq.Primitives.Class.Eval (
 
 import GHC.Generics
 
-import qualified Traq.CPL as P
+import qualified Traq.CPL as CPL
 import Traq.Prelude
 import Traq.Primitives.Class.Prelude
 
@@ -30,41 +30,41 @@ class
   where
   evalPrim ::
     forall ext' shape m.
-    ( P.Evaluatable ext' size prec
-    , m ~ P.Evaluator ext'
+    ( CPL.Evaluatable ext' size prec
+    , m ~ CPL.Evaluator ext'
     , SizeType ext' ~ size
     , PrecType ext' ~ prec
     , shape ~ PrimFnShape prim
     ) =>
     prim ->
-    shape ([P.Value size] -> m [P.Value size]) ->
-    m [P.Value size]
+    shape ([CPL.Value size] -> m [CPL.Value size]) ->
+    m [CPL.Value size]
   default evalPrim ::
     forall ext' shape m.
     ( Generic prim
     , GEvalPrim (Rep prim) size prec
-    , P.Evaluatable ext' size prec
-    , m ~ P.Evaluator ext'
+    , CPL.Evaluatable ext' size prec
+    , m ~ CPL.Evaluator ext'
     , SizeType ext' ~ size
     , PrecType ext' ~ prec
     , shape ~ PrimFnShape prim
     ) =>
     prim ->
-    shape ([P.Value size] -> m [P.Value size]) ->
-    m [P.Value size]
+    shape ([CPL.Value size] -> m [CPL.Value size]) ->
+    m [CPL.Value size]
   evalPrim prim = gevalPrim (from prim) . shapeToList
 
 class GEvalPrim f size prec | f -> size prec where
   gevalPrim ::
     forall ext' m p.
-    ( P.Evaluatable ext' size prec
-    , m ~ P.Evaluator ext'
+    ( CPL.Evaluatable ext' size prec
+    , m ~ CPL.Evaluator ext'
     , SizeType ext' ~ size
     , PrecType ext' ~ prec
     ) =>
     f p ->
-    [[P.Value size] -> m [P.Value size]] ->
-    m [P.Value size]
+    [[CPL.Value size] -> m [CPL.Value size]] ->
+    m [CPL.Value size]
 
 instance (GEvalPrim a size prec, GEvalPrim b size prec) => GEvalPrim (a :+: b) size prec where
   gevalPrim (L1 x) fs = gevalPrim x fs

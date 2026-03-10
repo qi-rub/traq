@@ -12,7 +12,7 @@ import qualified Traq.Data.Symbolic as Sym
 
 import qualified Traq.Analysis as A
 import Traq.Analysis.CostModel.QueryCost (SimpleQueryCost (getCost))
-import qualified Traq.CPL as P
+import qualified Traq.CPL as CPL
 import qualified Traq.CQPL as CQPL
 import qualified Traq.Compiler as Compiler
 import Traq.Compiler.Qualtran (toPy)
@@ -27,24 +27,24 @@ type P = DefaultPrims (Sym.Sym SizeT) Double
 examplePath :: String
 examplePath = "examples/triangle_finding.traq"
 
-loadExample :: IO (P.Program (DefaultPrims SizeT Double))
+loadExample :: IO (CPL.Program (DefaultPrims SizeT Double))
 loadExample = do
-  Right prog <- parseFromFile (P.programParser @P) examplePath
+  Right prog <- parseFromFile (CPL.programParser @P) examplePath
   return $
     prog
-      & P.mapSize (Sym.subst "N" (Sym.con 8))
-      & P.mapSize Sym.unSym
-      & P.renameVars'
+      & CPL.mapSize (Sym.subst "N" (Sym.con 8))
+      & CPL.mapSize Sym.unSym
+      & CPL.renameVars'
 
 spec :: Spec
 spec = describe "Triangle Cycle Finding" $ do
   it "parses" $ do
-    expectRight =<< parseFromFile (P.programParser @P) examplePath
+    expectRight =<< parseFromFile (CPL.programParser @P) examplePath
     return ()
 
   it "typechecks" $ do
     ex <- loadExample
-    assertRight $ P.typeCheckProg ex
+    assertRight $ CPL.typeCheckProg ex
 
   describe "Compile" $ do
     let eps = A.failProb (0.0001 :: Double)

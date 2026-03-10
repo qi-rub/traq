@@ -14,7 +14,7 @@ import qualified Traq.Data.Symbolic as Sym
 import qualified Traq.Analysis as A
 import Traq.Analysis.CostModel.QueryCost (SimpleQueryCost (getCost))
 import Traq.CPL
-import qualified Traq.CPL as P
+import qualified Traq.CPL as CPL
 import qualified Traq.CQPL as CQPL
 import qualified Traq.Compiler as Compiler
 import Traq.Compiler.Qualtran (toPy)
@@ -130,18 +130,18 @@ spec = do
       let eps = A.failProb (0.0001 :: Double)
 
       it "lowers" $ do
-        ex <- P.renameVars' <$> loadKnapsack 2 20 30 2
+        ex <- CPL.renameVars' <$> loadKnapsack 2 20 30 2
         ex' <- expectRight $ A.annotateProgWith (_exts (A.annSinglePrim eps)) ex
         assertRight $ Compiler.lowerProgram ex'
 
       it "typechecks" $ do
-        ex <- P.renameVars' <$> loadKnapsack 2 20 30 2
+        ex <- CPL.renameVars' <$> loadKnapsack 2 20 30 2
         ex' <- expectRight $ A.annotateProgWith (_exts (A.annSinglePrim eps)) ex
         ex_uqpl <- expectRight $ Compiler.lowerProgram ex'
         assertRight $ CQPL.typeCheckProgram ex_uqpl
 
       it "cost" $ do
-        ex <- P.renameVars' <$> loadKnapsack 2 20 30 2
+        ex <- CPL.renameVars' <$> loadKnapsack 2 20 30 2
         ex' <- expectRight $ A.annotateProgWith (_exts (A.annSinglePrim eps)) ex
         ex_cqpl <- expectRight $ Compiler.lowerProgram ex'
         let cost = fst (CQPL.programCost ex_cqpl) :: SimpleQueryCost Double
@@ -149,7 +149,7 @@ spec = do
         getCost cost `shouldBeLE` cost_from_analysis
 
       xit "target-py-qualtran" $ do
-        ex <- P.renameVars' <$> loadKnapsack 2 20 30 2
+        ex <- CPL.renameVars' <$> loadKnapsack 2 20 30 2
         ex' <- expectRight $ A.annotateProgWith (_exts (A.annSinglePrim eps)) ex
         ex_cqpl <- expectRight $ Compiler.lowerProgram ex'
         _ <- evaluate $ force $ toPy ex_cqpl
@@ -170,18 +170,18 @@ spec = do
 
     describe "Compile" $ do
       it "lowers" $ do
-        let ex = P.renameVars' $ loopExample @Core' 10 20
+        let ex = CPL.renameVars' $ loopExample @Core' 10 20
         ex' <- expectRight $ A.annotateProgWith (_exts A.annNoPrims) ex
         assertRight $ Compiler.lowerProgram ex'
 
       it "typechecks" $ do
-        let ex = P.renameVars' $ loopExample @Core' 10 20
+        let ex = CPL.renameVars' $ loopExample @Core' 10 20
         ex' <- expectRight $ A.annotateProgWith (_exts A.annNoPrims) ex
         ex_uqpl <- expectRight $ Compiler.lowerProgram ex'
         assertRight $ CQPL.typeCheckProgram ex_uqpl
 
       it "cost" $ do
-        let ex = P.renameVars' $ loopExample @Core' 10 20
+        let ex = CPL.renameVars' $ loopExample @Core' 10 20
         ex' <- expectRight $ A.annotateProgWith (_exts A.annNoPrims) ex
         ex_cqpl <- expectRight $ Compiler.lowerProgram ex'
         let cost = fst (CQPL.programCost ex_cqpl) :: SimpleQueryCost Double
@@ -189,7 +189,7 @@ spec = do
         getCost cost `shouldBeLE` cost_from_analysis
 
       xit "target-py-qualtran" $ do
-        let ex = P.renameVars' $ loopExample @Core' 10 20
+        let ex = CPL.renameVars' $ loopExample @Core' 10 20
         ex' <- expectRight $ A.annotateProgWith (_exts A.annNoPrims) ex
         ex_cqpl <- expectRight $ Compiler.lowerProgram ex'
         _ <- evaluate $ force $ toPy ex_cqpl

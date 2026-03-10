@@ -14,7 +14,7 @@ import qualified Traq.Data.Symbolic as Sym
 
 import qualified Traq.Analysis as A
 import Traq.Analysis.CostModel.QueryCost (SimpleQueryCost (getCost))
-import qualified Traq.CPL as P
+import qualified Traq.CPL as CPL
 import qualified Traq.CQPL as CQPL
 import qualified Traq.Compiler as Compiler
 import Traq.Compiler.Qualtran (toPy)
@@ -27,20 +27,20 @@ import TestHelpers
 examplePath :: String
 examplePath = "examples/matrix_search/depth3_NAND_formula.traq"
 
-loadExample :: IO (P.Program (DefaultPrims SizeT Double))
+loadExample :: IO (CPL.Program (DefaultPrims SizeT Double))
 loadExample = do
-  Right prog <- parseFromFile (P.programParser @(DefaultPrims (Sym.Sym SizeT) Double)) examplePath
+  Right prog <- parseFromFile (CPL.programParser @(DefaultPrims (Sym.Sym SizeT) Double)) examplePath
   return $
     prog
-      & P.mapSize (Sym.subst "N" (Sym.con 8))
-      & P.mapSize (Sym.subst "M" (Sym.con 4))
-      & P.mapSize (Sym.subst "K" (Sym.con 2))
-      & P.mapSize Sym.unSym
+      & CPL.mapSize (Sym.subst "N" (Sym.con 8))
+      & CPL.mapSize (Sym.subst "M" (Sym.con 4))
+      & CPL.mapSize (Sym.subst "K" (Sym.con 2))
+      & CPL.mapSize Sym.unSym
 
 spec :: Spec
 spec = describe "Depth 3 NAND Formula" $ do
   it "parses" $ do
-    expectRight =<< parseFromFile (P.programParser @(DefaultPrims (Sym.Sym SizeT) Double)) examplePath
+    expectRight =<< parseFromFile (CPL.programParser @(DefaultPrims (Sym.Sym SizeT) Double)) examplePath
     return ()
 
   describe "Compile" $ do

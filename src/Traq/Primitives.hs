@@ -24,7 +24,7 @@ module Traq.Primitives (
 import GHC.Generics
 
 import qualified Traq.Analysis as A
-import qualified Traq.CPL as P
+import qualified Traq.CPL as CPL
 import Traq.Prelude
 import Traq.Primitives.Amplify.CAmplify
 import Traq.Primitives.Amplify.QAmplify
@@ -54,15 +54,15 @@ type instance PrecType (DefaultPrimCollection size prec) = prec
 
 type instance PrimFnShape (DefaultPrimCollection size prec) = []
 
-instance P.MapSize (DefaultPrimCollection size prec) where
+instance CPL.MapSize (DefaultPrimCollection size prec) where
   type MappedSize (DefaultPrimCollection size prec) size' = DefaultPrimCollection size' prec
 
-  mapSize f (QAny p) = QAny (P.mapSize f p)
-  mapSize f (RAny p) = RAny (P.mapSize f p)
-  mapSize f (DAny p) = DAny (P.mapSize f p)
-  mapSize f (CAmp p) = CAmp (P.mapSize f p)
-  mapSize f (QAmp p) = QAmp (P.mapSize f p)
-  mapSize f (QMax' p) = QMax' (P.mapSize f p)
+  mapSize f (QAny p) = QAny (CPL.mapSize f p)
+  mapSize f (RAny p) = RAny (CPL.mapSize f p)
+  mapSize f (DAny p) = DAny (CPL.mapSize f p)
+  mapSize f (CAmp p) = CAmp (CPL.mapSize f p)
+  mapSize f (QAmp p) = QAmp (CPL.mapSize f p)
+  mapSize f (QMax' p) = QMax' (CPL.mapSize f p)
 
 instance (Show size, Show prec, Fractional prec) => SerializePrim (DefaultPrimCollection size prec) where
   primNames =
@@ -103,22 +103,22 @@ instance (Show size, Show prec, Fractional prec) => SerializePrim (DefaultPrimCo
   printPrimParams (QMax' p) = printPrimParams p
 
 -- Generic instances
-instance (P.TypingReqs size) => TypeCheckPrim (DefaultPrimCollection size prec) size
+instance (CPL.TypingReqs size) => TypeCheckPrim (DefaultPrimCollection size prec) size
 instance (Ord prec) => EvalPrim (DefaultPrimCollection size prec) size prec
 instance
-  (P.TypingReqs size, Integral size, Floating prec, A.SizeToPrec size prec) =>
+  (CPL.TypingReqs size, Integral size, Floating prec, A.SizeToPrec size prec) =>
   UnitaryCostPrim (DefaultPrimCollection size prec) size prec
 instance
-  (P.TypingReqs size, Integral size, Floating prec, A.SizeToPrec size prec) =>
+  (CPL.TypingReqs size, Integral size, Floating prec, A.SizeToPrec size prec) =>
   QuantumHavocCostPrim (DefaultPrimCollection size prec) size prec
 instance
-  (P.EvalReqs size prec, Floating prec, Ord prec) =>
+  (CPL.EvalReqs size prec, Floating prec, Ord prec) =>
   QuantumExpCostPrim (DefaultPrimCollection size prec) size prec
 instance
-  (P.TypingReqs size, Integral size, RealFloat prec, Show prec) =>
+  (CPL.TypingReqs size, Integral size, RealFloat prec, Show prec) =>
   UnitaryCompilePrim (DefaultPrimCollection size prec) size prec
 instance
-  (size ~ SizeT, P.TypingReqs size, Integral size, RealFloat prec, Show prec) =>
+  (size ~ SizeT, CPL.TypingReqs size, Integral size, RealFloat prec, Show prec) =>
   QuantumCompilePrim (DefaultPrimCollection size prec) size prec
 
 type DefaultPrims size prec = Primitive (DefaultPrimCollection size prec)
@@ -139,11 +139,11 @@ type instance PrecType (WorstCasePrimCollection size prec) = prec
 
 type instance PrimFnShape (WorstCasePrimCollection size prec) = []
 
-instance P.MapSize (WorstCasePrimCollection size prec) where
+instance CPL.MapSize (WorstCasePrimCollection size prec) where
   type MappedSize (WorstCasePrimCollection size prec) size' = WorstCasePrimCollection size' prec
 
-  mapSize f (FromDefault p) = FromDefault (P.mapSize f p)
-  mapSize f (Simon p) = Simon (P.mapSize f p)
+  mapSize f (FromDefault p) = FromDefault (CPL.mapSize f p)
+  mapSize f (Simon p) = Simon (CPL.mapSize f p)
 
 instance (Show size, prec ~ Double) => SerializePrim (WorstCasePrimCollection size prec) where
   primNames = primNames @(DefaultPrimCollection size prec) ++ ["findXorPeriod"]
@@ -160,13 +160,13 @@ instance (Show size, prec ~ Double) => SerializePrim (WorstCasePrimCollection si
 
 -- Generic instances
 instance
-  (P.TypingReqs size, Num prec, Ord prec, Show prec) =>
+  (CPL.TypingReqs size, Num prec, Ord prec, Show prec) =>
   TypeCheckPrim (WorstCasePrimCollection size prec) size
 instance
-  (P.TypingReqs size, Integral size, Floating prec, Ord prec, Show prec, A.SizeToPrec size prec) =>
+  (CPL.TypingReqs size, Integral size, Floating prec, Ord prec, Show prec, A.SizeToPrec size prec) =>
   UnitaryCostPrim (WorstCasePrimCollection size prec) size prec
 instance
-  (P.TypingReqs size, Integral size, Floating prec, Ord prec, Show prec, A.SizeToPrec size prec) =>
+  (CPL.TypingReqs size, Integral size, Floating prec, Ord prec, Show prec, A.SizeToPrec size prec) =>
   QuantumHavocCostPrim (WorstCasePrimCollection size prec) size prec
 instance
   (size ~ SizeT, RealFloat prec, Show prec) =>

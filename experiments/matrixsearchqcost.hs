@@ -15,7 +15,7 @@ import Lens.Micro.GHC
 
 import qualified Traq.Analysis as A
 import Traq.Analysis.CostModel.QueryCost (SimpleQueryCost (..))
-import qualified Traq.CPL as P
+import qualified Traq.CPL as CPL
 import Traq.Examples.MatrixSearch
 import Traq.Prelude
 import Traq.Primitives
@@ -39,10 +39,10 @@ class
   ) =>
   MyPrim p
   where
-  mkAny :: P.VarType SizeT -> PartialFun -> p
+  mkAny :: CPL.VarType SizeT -> PartialFun -> p
 
-  matrixExample :: SizeT -> SizeT -> P.Program p
-  matrixExample = mkMatrixExample (\t f -> P.PrimCallE $ mkAny t f)
+  matrixExample :: SizeT -> SizeT -> CPL.Program p
+  matrixExample = mkMatrixExample (\t f -> CPL.PrimCallE $ mkAny t f)
 
 instance MyPrim (DefaultPrims SizeT Double) where
   mkAny ty fn = Primitive [fn] $ QAny $ QSearchCFNW $ PrimSearch AnyK ty
@@ -68,7 +68,7 @@ qSearchP = Phantom
 detSearchP :: Phantom (Primitive (DetSearch SizeT Double))
 detSearchP = Phantom
 
-type Value = P.Value SizeT
+type Value = CPL.Value SizeT
 
 class MatrixType t where
   nRows, nCols :: t -> Int
@@ -80,14 +80,14 @@ instance MatrixType (SizeT, SizeT, Value -> Value -> Bool) where
 
   nCols (_, m, _) = fromIntegral m
 
-  toValueFun (_, _, mat) [i, j] = [P.toValue $ mat i j]
+  toValueFun (_, _, mat) [i, j] = [CPL.toValue $ mat i j]
   toValueFun _ _ = error "unsupported"
 
 instance MatrixType [[Value]] where
   nRows = length
   nCols = length . head
 
-  toValueFun mat [P.FinV i, P.FinV j] = [mat !! fromIntegral i !! fromIntegral j]
+  toValueFun mat [CPL.FinV i, CPL.FinV j] = [mat !! fromIntegral i !! fromIntegral j]
   toValueFun _ _ = error "unsupported"
 
 -- | Get the input-dependent quantum query cost.
@@ -114,7 +114,7 @@ qcost _ eps mat = getCost cost
 
 randomMatrix :: SizeT -> SizeT -> IO [[Value]]
 randomMatrix n m = do
-  replicateM n $ replicateM m $ P.FinV <$> randomRIO (0, 1)
+  replicateM n $ replicateM m $ CPL.FinV <$> randomRIO (0, 1)
 
 randomMatrixWith ::
   -- (n, m)
@@ -130,9 +130,9 @@ randomMatrixWith (n, m) g z = do
   guard $ 1 <= z && z <= m
 
   bad_rows <- replicateM (n - g) $ do
-    shuffleM $ replicate z (P.FinV 0) ++ replicate (m - z) (P.FinV 1)
+    shuffleM $ replicate z (CPL.FinV 0) ++ replicate (m - z) (CPL.FinV 1)
 
-  let rows = bad_rows ++ replicate g (replicate m (P.FinV 1))
+  let rows = bad_rows ++ replicate g (replicate m (CPL.FinV 1))
   shuffleM rows
 
 randomStat :: (MyPrim primsT) => Phantom primsT -> SizeT -> A.FailProb Double -> Int -> IO [Double]
@@ -177,7 +177,7 @@ computeStatsForWorstCaseMatrices phantom =
       hPutStrLn h $ printf "%d,%.2f" n c
  where
   matfun :: Value -> Value -> Bool
-  matfun i _ = i == P.FinV 0
+  matfun i _ = i == CPL.FinV 0
 
 main :: IO ()
 main = do

@@ -16,7 +16,7 @@ import Text.Printf (printf)
 
 import qualified Traq.Data.Symbolic as Sym
 
-import qualified Traq.CPL as P
+import qualified Traq.CPL as CPL
 import Traq.Prelude
 import Traq.Primitives.Class
 
@@ -51,7 +51,7 @@ instance ValidPrimShape FindXorPeriodArg where
 
   shapeToList FindXorPeriodArg{fun} = [fun]
 
-instance P.MapSize (FindXorPeriod size prec) where
+instance CPL.MapSize (FindXorPeriod size prec) where
   type MappedSize (FindXorPeriod size prec) size' = (FindXorPeriod size' prec)
   mapSize f FindXorPeriod{n, ..} = FindXorPeriod{n = f n, ..}
 
@@ -66,15 +66,15 @@ instance (Show size) => SerializePrim (FindXorPeriod size Double) where
   printPrimParams FindXorPeriod{n, p_0} = [show n, printf "%.2f" p_0]
 
 -- | Bitsize
-bitsize :: (P.TypingReqs size) => P.VarType size -> Maybe size
-bitsize (P.Fin 2) = Just 1
-bitsize (P.Fin _) = Nothing
-bitsize (P.Bitvec n) = Just n
-bitsize (P.Arr n t) = (n *) <$> bitsize t
-bitsize (P.Tup ts) = sum <$> mapM bitsize ts
+bitsize :: (CPL.TypingReqs size) => CPL.VarType size -> Maybe size
+bitsize (CPL.Fin 2) = Just 1
+bitsize (CPL.Fin _) = Nothing
+bitsize (CPL.Bitvec n) = Just n
+bitsize (CPL.Arr n t) = (n *) <$> bitsize t
+bitsize (CPL.Tup ts) = sum <$> mapM bitsize ts
 
 instance
-  (P.TypingReqs size, Num prec, Ord prec, Show prec) =>
+  (CPL.TypingReqs size, Num prec, Ord prec, Show prec) =>
   TypeCheckPrim (FindXorPeriod size prec) size
   where
   inferRetTypesPrim FindXorPeriod{n, p_0} FindXorPeriodArg{fun} = do
@@ -82,13 +82,13 @@ instance
       throwError $
         printf "p_0 must be in [0, 1], got %f" (show p_0)
 
-    let P.FnType param_types ret_types = fun
+    let CPL.FnType param_types ret_types = fun
 
     when (ret_types /= param_types) $
       throwError $
         printf "FindPeriod: fn must be of type `t -> t`, got output %s -> %s" (show param_types) (show ret_types)
 
-    when (bitsize (P.Tup param_types) /= Just n) $ do
+    when (bitsize (CPL.Tup param_types) /= Just n) $ do
       throwError $
         printf "FindPeriod: mistmatched bitsize: expected %s, got %s" (show n) (show param_types)
 

@@ -10,7 +10,7 @@ import qualified Traq.Data.Symbolic as Sym
 
 import qualified Traq.Analysis as A
 import Traq.Analysis.CostModel.QueryCost (SimpleQueryCost (getCost))
-import qualified Traq.CPL as P
+import qualified Traq.CPL as CPL
 import qualified Traq.CQPL as CQPL
 import qualified Traq.Compiler as Compiler
 import Traq.Compiler.Qualtran (toPy)
@@ -31,19 +31,19 @@ spec = describe "MatrixSearch" $ do
     let ex = matrixExampleS n m
 
     it "type checks" $ do
-      assertRight $ P.typeCheckProg ex
+      assertRight $ CPL.typeCheckProg ex
 
     it "has unique vars" $ do
-      P.checkVarsUnique ex `shouldBe` True
+      CPL.checkVarsUnique ex `shouldBe` True
 
     let oracleF = \case
-          [P.FinV i, P.FinV j] -> [P.toValue $ i == j]
+          [CPL.FinV i, CPL.FinV j] -> [CPL.toValue $ i == j]
           _ -> undefined
     let interpCtx = Map.singleton "Matrix" oracleF
 
     it "evaluates" $ do
-      let res = P.runProgram @_ @Double ex interpCtx []
-      res `shouldBeDistribution` pure ([P.FinV 0], 1.0)
+      let res = CPL.runProgram @_ @Double ex interpCtx []
+      res `shouldBeDistribution` pure ([CPL.FinV 0], 1.0)
 
     -- worst, unitary
     let wcF = _EQSearchWorst
@@ -124,7 +124,7 @@ spec = describe "MatrixSearch" $ do
     let n = Sym.var "n" :: Sym.Sym Int
     let m = Sym.var "m" :: Sym.Sym Int
 
-    let ex_no_ann = mkMatrixExample (\ty f -> P.PrimCallE $ Primitive [f] $ QSearchSym @Int @Double $ PrimSearch AnyK ty) n m
+    let ex_no_ann = mkMatrixExample (\ty f -> CPL.PrimCallE $ Primitive [f] $ QSearchSym @Int @Double $ PrimSearch AnyK ty) n m
     let get_ann_ex = either fail pure $ A.annSymEpsProg ex_no_ann
 
     let eps_inner = A.failProb (Sym.var "eps_0" :: Sym.Sym Double)

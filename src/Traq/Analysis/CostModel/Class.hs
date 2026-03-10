@@ -5,7 +5,7 @@ module Traq.Analysis.CostModel.Class (
 
 import qualified Numeric.Algebra as Alg
 
-import qualified Traq.CPL.Syntax as P
+import qualified Traq.CPL.Syntax as CPL
 import Traq.Prelude
 
 -- | Type of a query/execution: either run on a classical computer, or a quantum computer (as a unitary).
@@ -18,7 +18,7 @@ class (Alg.Monoidal c, Alg.Module (PrecType c) c) => CostModel c where
   query :: QueryType -> Ident -> c
 
   -- | Execute an expression.
-  callExpr :: QueryType -> P.BasicExpr size -> c
+  callExpr :: QueryType -> CPL.BasicExpr size -> c
 
   -- | Execute a distribution (randomized) expression
-  callDistrExpr :: QueryType -> P.DistrExpr size -> c
+  callDistrExpr :: QueryType -> CPL.DistrExpr size -> c

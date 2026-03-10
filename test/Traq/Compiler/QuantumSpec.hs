@@ -7,7 +7,7 @@ import Lens.Micro.GHC
 import qualified Traq.Data.Context as Ctx
 import qualified Traq.Data.Symbolic as Sym
 
-import qualified Traq.CPL as P
+import qualified Traq.CPL as CPL
 import Traq.CQPL.Syntax
 import Traq.Compiler.Quantum
 import Traq.Prelude
@@ -19,14 +19,14 @@ _ProcBodyC :: Traversal' (ProcBody size) (CProcBody size)
 _ProcBodyC _focus (ProcBodyC cb) = ProcBodyC <$> _focus cb
 _ProcBodyC _ b = pure b
 
-type SymCore = P.Core (Sym.Sym SizeT) Double
+type SymCore = CPL.Core (Sym.Sym SizeT) Double
 
 spec :: Spec
 spec = do
   describe "lower simple programs" $ do
     it "assign" $ do
-      ex_ <- expectRight $ P.parseProgram @SymCore "def main() -> () do x <- const 0 : Fin<10>; return end"
-      let ex = P.mapSize Sym.unSym ex_
+      ex_ <- expectRight $ CPL.parseProgram @SymCore "def main() -> () do x <- const 0 : Fin<10>; return end"
+      let ex = CPL.mapSize Sym.unSym ex_
       (cq :: Program SizeT) <- expectRight $ lowerProgram ex
       let Program cq_procs = cq
       CProcBody{cproc_body_stmt} <-
@@ -37,4 +37,4 @@ spec = do
             . singular _Just
             . to proc_body
             . singular _ProcBodyC
-      cproc_body_stmt `shouldBe` SeqS [AssignS ["x"] (P.ConstE (P.FinV 0) (P.Fin 10))]
+      cproc_body_stmt `shouldBe` SeqS [AssignS ["x"] (CPL.ConstE (CPL.FinV 0) (CPL.Fin 10))]

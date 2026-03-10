@@ -58,7 +58,7 @@ import Lens.Micro.Mtl
 import Traq.Control.Monad
 import Traq.Data.Default
 
-import qualified Traq.CPL as P
+import qualified Traq.CPL as CPL
 import qualified Traq.CQPL as CQPL
 import Traq.Prelude
 
@@ -107,7 +107,7 @@ mkUProcName s = s ++ "_U"
 -- ================================================================================
 
 -- | Signature of a compiled uproc/proc: inputs, outputs, ancilla (for unitary)
-data ProcSignature size = ProcSignature {in_tys, out_tys, aux_tys :: [P.VarType size]}
+data ProcSignature size = ProcSignature {in_tys, out_tys, aux_tys :: [CPL.VarType size]}
 
 -- | A global lowering context.
 data LoweringCtx size
@@ -115,7 +115,7 @@ data LoweringCtx size
       -- | The set of already used identifiers (to generate unique ones)
       (Set.Set Ident)
       -- | The typing context: mapping all variables in context to their types.
-      (P.TypingCtx size)
+      (CPL.TypingCtx size)
       -- | Signature of each uproc
       (Map.Map Ident (ProcSignature size))
   deriving (Generic, HasDefault)
@@ -125,7 +125,7 @@ type instance SizeType (LoweringCtx size) = size
 instance HasUniqNamesCtx (LoweringCtx size) where
   _uniqNamesCtx focus (LoweringCtx a b c) = focus a <&> \a' -> LoweringCtx a' b c
 
-instance P.HasTypingCtx (LoweringCtx size) where
+instance CPL.HasTypingCtx (LoweringCtx size) where
   _typingCtx focus (LoweringCtx a b c) = focus b <&> \b' -> LoweringCtx a b' c
 
 _procSignatures :: Lens' (LoweringCtx size) (Map.Map Ident (ProcSignature size))
@@ -152,7 +152,7 @@ addProc = writeElemAt _loweredProcs
 -- ================================================================================
 
 -- | Read-only compiler env
-type LoweringEnv ext = P.FunCtx ext
+type LoweringEnv ext = CPL.FunCtx ext
 
 -- ================================================================================
 -- Compiler Monad
@@ -174,23 +174,23 @@ compileWith ::
   forall ext size m.
   ( m ~ CompilerT ext
   , size ~ SizeType ext
-  , P.HasFreeVars ext
-  , P.TypeInferrable ext size
+  , CPL.HasFreeVars ext
+  , CPL.TypeInferrable ext size
   ) =>
-  (P.Program ext -> m ()) ->
-  P.Program ext ->
+  (CPL.Program ext -> m ()) ->
+  CPL.Program ext ->
   Either String (CQPL.Program size)
 compileWith compiler prog = do
-  unless (P.checkVarsUnique prog) $
+  unless (CPL.checkVarsUnique prog) $
     throwError "program does not have unique variables!"
-  P.typeCheckProg prog
+  CPL.typeCheckProg prog
 
   let config =
         default_
-          & (P._funCtx .~ P.programToFunCtx prog)
+          & (CPL._funCtx .~ CPL.programToFunCtx prog)
   let lowering_ctx =
         default_
-          & (_uniqNamesCtx .~ P.allNamesP prog)
+          & (_uniqNamesCtx .~ CPL.allNamesP prog)
 
   (_, _, output) <- runRWST (compiler prog) config lowering_ctx
 
@@ -201,7 +201,7 @@ compileWith compiler prog = do
 -- ================================================================================
 
 -- | Transformer to build CQPL procs in the compiler.
-type VarList size = [(Ident, P.VarType size)]
+type VarList size = [(Ident, CPL.VarType size)]
 
 type ProcBuilderT size =
   WriterT
@@ -217,7 +217,7 @@ type IsProcBuilder m' size m =
 allocLocalWithPrefix ::
   (IsProcBuilder m' size m) =>
   Ident ->
-  P.VarType size ->
+  CPL.VarType size ->
   m' Ident
 allocLocalWithPrefix pref ty = do
   x <- newIdent pref
@@ -226,7 +226,7 @@ allocLocalWithPrefix pref ty = do
 
 allocLocal ::
   (IsProcBuilder m' size m) =>
-  P.VarType size ->
+  CPL.VarType size ->
   m' Ident
 allocLocal = allocLocalWithPrefix "aux"
 
@@ -251,13 +251,13 @@ buildProcHelper ::
   Bool ->
   Ident ->
   [Ident] ->
-  [(Ident, P.VarType size)] ->
+  [(Ident, CPL.VarType size)] ->
   m' () ->
   m (CQPL.ProcDef size)
 buildProcHelper is_uproc proc_name_basic proc_meta_params params m = do
   proc_name <- newIdent proc_name_basic
-  (local_vars, ubody, cbody) <- execWriterT $ withSandboxOf P._typingCtx $ do
-    P._typingCtx .= mempty
+  (local_vars, ubody, cbody) <- execWriterT $ withSandboxOf CPL._typingCtx $ do
+    CPL._typingCtx .= mempty
     m
 
   case (ubody, cbody, is_uproc) of
@@ -298,7 +298,7 @@ buildUProc
     (IsProcBuilder m' size m) =>
     Ident ->
     [Ident] ->
-    [(Ident, P.VarType size)] ->
+    [(Ident, CPL.VarType size)] ->
     m' () ->
     m (CQPL.ProcDef size)
 buildUProc = buildProcHelper True

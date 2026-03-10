@@ -53,7 +53,7 @@ import Traq.Data.Subtyping
 
 import qualified Traq.Analysis as A
 import Traq.CPL (notE, (.&&.), (.+.), (.<=.))
-import qualified Traq.CPL as P
+import qualified Traq.CPL as CPL
 import qualified Traq.CQPL as CQPL
 import qualified Traq.Compiler as Compiler
 import Traq.Prelude
@@ -136,10 +136,10 @@ type instance PrecType (QSearchCFNW size prec) = prec
 
 type instance PrimFnShape (QSearchCFNW size prec) = BooleanPredicate
 
-instance P.MapSize (QSearchCFNW size prec) where
+instance CPL.MapSize (QSearchCFNW size prec) where
   type MappedSize (QSearchCFNW size prec) size' = QSearchCFNW size' prec
 
-  mapSize f (QSearchCFNW p) = QSearchCFNW (P.mapSize f p)
+  mapSize f (QSearchCFNW p) = QSearchCFNW (CPL.mapSize f p)
 
 instance PrimSearch size prec :<: QSearchCFNW size prec where
   inject = QSearchCFNW
@@ -152,7 +152,7 @@ instance (Show size) => SerializePrim (QSearchCFNW size prec) where
   printPrimParams (QSearchCFNW prim) = printPrimParams prim
 
 -- Type check
-instance (P.TypingReqs size) => TypeCheckPrim (QSearchCFNW size prec) size where
+instance (CPL.TypingReqs size) => TypeCheckPrim (QSearchCFNW size prec) size where
   inferRetTypesPrim (QSearchCFNW prim) = inferRetTypesPrim prim
 
 -- Eval
@@ -163,27 +163,27 @@ instance EvalPrim (QSearchCFNW size prec) size prec where
 -- Abstract Costs
 -- ================================================================================
 
-getSearchType :: QSearchCFNW size prec -> P.VarType size
+getSearchType :: QSearchCFNW size prec -> CPL.VarType size
 getSearchType (QSearchCFNW (PrimSearch{search_ty})) = search_ty
 
 -- | Compute the unitary cost using the QSearch_Zalka cost formula.
 instance
-  (P.TypingReqs size, Integral size, Floating prec) =>
+  (CPL.TypingReqs size, Integral size, Floating prec) =>
   UnitaryCostPrim (QSearchCFNW size prec) size prec
   where
   unitaryQueryCosts prim eps = BooleanPredicate $ strongQueries $ _QSearchZalka _N eps
    where
-    _N = P.domainSize $ getSearchType prim
+    _N = CPL.domainSize $ getSearchType prim
 
   unitaryExprCosts _ _ = Alg.zero
 
 instance
-  (P.TypingReqs size, Integral size, A.SizeToPrec size prec, Floating prec) =>
+  (CPL.TypingReqs size, Integral size, A.SizeToPrec size prec, Floating prec) =>
   QuantumHavocCostPrim (QSearchCFNW size prec) size prec
   where
   quantumQueryCostsUnitary prim eps = BooleanPredicate $ strongQueries $ _EQSearchWorst _N eps
    where
-    _N = P.domainSize $ getSearchType prim
+    _N = CPL.domainSize $ getSearchType prim
 
   quantumQueryCostsQuantum _ _ = BooleanPredicate 0
 
@@ -194,12 +194,12 @@ instance (size ~ SizeT, Floating prec, Prob.RVType prec prec) => QuantumExpCostP
     BooleanPredicate $ strongQueries $ _EQSearch _N _K eps
    where
     search_ty = getSearchType prim
-    _N = P.domainSize search_ty
+    _N = CPL.domainSize search_ty
 
     flags =
-      P.domain search_ty <&> \v -> do
+      CPL.domain search_ty <&> \v -> do
         [b] <- Prob.toDeterministicValue $ eval_pred [v]
-        pure $ P.valueToBool b
+        pure $ CPL.valueToBool b
 
     _K = length $ filter fromJust flags
 
@@ -213,7 +213,7 @@ instance (size ~ SizeT, Floating prec, Prob.RVType prec prec) => QuantumExpCostP
 
 -- | Information for building QSearch_Zalka
 data UQSearchEnv size = UQSearchEnv
-  { search_arg_type :: P.VarType size
+  { search_arg_type :: CPL.VarType size
   , pred_call_builder :: CQPL.Arg size -> CQPL.Arg size -> CQPL.Arg size -> CQPL.UStmt size
   }
 
@@ -241,7 +241,7 @@ addGroverIteration ::
   forall ext size prec.
   ( Integral size
   , RealFloat prec
-  , P.TypingReqs size
+  , CPL.TypingReqs size
   , size ~ SizeType ext
   , prec ~ PrecType ext
   ) =>
@@ -254,7 +254,7 @@ addGroverIteration ::
   UQSearchBuilder ext ()
 addGroverIteration c x b = do
   x_ty <- view $ to search_arg_type
-  let unifX = CQPL.DistrU (P.UniformE x_ty)
+  let unifX = CQPL.DistrU (CPL.UniformE x_ty)
   addPredCall c x b
   writeElem $ CQPL.UnitaryS [x] (CQPL.Adjoint unifX)
   writeElem $ CQPL.UnitaryS [x] (CQPL.BasicGateU (CQPL.PhaseOnZero pi)) -- reflect on |0>
@@ -264,7 +264,7 @@ algoQSearchZalkaRandomIterStep ::
   forall ext size prec.
   ( Integral size
   , RealFloat prec
-  , P.TypingReqs size
+  , CPL.TypingReqs size
   , size ~ SizeType ext
   , prec ~ PrecType ext
   ) =>
@@ -276,11 +276,11 @@ algoQSearchZalkaRandomIterStep ::
   CQPL.Arg size ->
   UQSearchBuilder ext ()
 algoQSearchZalkaRandomIterStep r r_reg ctrl_bit x_reg b_reg = do
-  let r_ty = P.Fin r
+  let r_ty = CPL.Fin r
   x_ty <- view $ to search_arg_type
 
   -- uniform r
-  let prep_r = CQPL.UnitaryS [r_reg] (CQPL.DistrU (P.UniformE r_ty))
+  let prep_r = CQPL.UnitaryS [r_reg] (CQPL.DistrU (CPL.UniformE r_ty))
 
   withComputed prep_r $ do
     -- b in minus state for grover
@@ -291,18 +291,18 @@ algoQSearchZalkaRandomIterStep r r_reg ctrl_bit x_reg b_reg = do
             ]
     withComputed prep_b $ do
       -- uniform x
-      writeElem $ CQPL.UnitaryS [x_reg] (CQPL.DistrU (P.UniformE x_ty))
+      writeElem $ CQPL.UnitaryS [x_reg] (CQPL.DistrU (CPL.UniformE x_ty))
 
       -- controlled iterate
       let meta_ix_name = "LIM"
       let calc_ctrl =
-            CQPL.UnitaryS [r_reg, ctrl_bit] $ CQPL.RevEmbedU ["a"] $ "a" .<=. P.ParamE meta_ix_name
+            CQPL.UnitaryS [r_reg, ctrl_bit] $ CQPL.RevEmbedU ["a"] $ "a" .<=. CPL.ParamE meta_ix_name
       ((), grover_body) <-
         censor (const mempty) $
           listen $
             withComputed calc_ctrl $ do
               addGroverIteration ctrl_bit x_reg b_reg
-      writeElem $ CQPL.mkForInRangeS meta_ix_name (P.MetaSize r) (CQPL.USeqS grover_body)
+      writeElem $ CQPL.mkForInRangeS meta_ix_name (CPL.MetaSize r) (CQPL.USeqS grover_body)
 
   withComputed (CQPL.UnitaryS [ctrl_bit] (CQPL.BasicGateU CQPL.XGate)) $
     addPredCall ctrl_bit x_reg b_reg
@@ -311,7 +311,7 @@ algoQSearchZalka ::
   forall ext size prec.
   ( Integral size
   , RealFloat prec
-  , P.TypingReqs size
+  , CPL.TypingReqs size
   , size ~ SizeType ext
   , prec ~ PrecType ext
   ) =>
@@ -324,25 +324,25 @@ algoQSearchZalka ::
   UQSearchBuilder ext ()
 algoQSearchZalka eps out_bit out_val = do
   s_ty <- view $ to search_arg_type
-  let n = P.domainSize s_ty
+  let n = CPL.domainSize s_ty
 
   let n_iter = floor (_QSearchZalka_n_reps eps) :: size
 
-  ctrl_bits <- lift $ Compiler.allocAncillaWithPref "ctrl" (P.Arr n_iter P.tbool)
-  b_regs <- lift $ Compiler.allocAncillaWithPref "pred_out" (P.Arr n_iter P.tbool)
+  ctrl_bits <- lift $ Compiler.allocAncillaWithPref "ctrl" (CPL.Arr n_iter CPL.tbool)
+  b_regs <- lift $ Compiler.allocAncillaWithPref "pred_out" (CPL.Arr n_iter CPL.tbool)
 
   let r = _QSearchZalka_max_iter n
-  let r_ty = P.Fin r
-  r_regs <- lift $ Compiler.allocAncillaWithPref "n_iter" (P.Arr n_iter r_ty)
+  let r_ty = CPL.Fin r
+  r_regs <- lift $ Compiler.allocAncillaWithPref "n_iter" (CPL.Arr n_iter r_ty)
 
-  x_regs <- lift $ Compiler.allocAncillaWithPref "s_arg" (P.Arr n_iter s_ty)
+  x_regs <- lift $ Compiler.allocAncillaWithPref "s_arg" (CPL.Arr n_iter s_ty)
 
   let iter_meta_var = "run_ix"
   censor
     ( \ss ->
         [ CQPL.UForInRangeS
             { iter_meta_var
-            , iter_lim = P.MetaSize n_iter
+            , iter_lim = CPL.MetaSize n_iter
             , uloop_body = CQPL.USeqS ss
             , dagger = False
             }
@@ -351,25 +351,25 @@ algoQSearchZalka eps out_bit out_val = do
     $ do
       algoQSearchZalkaRandomIterStep
         r
-        (CQPL.ArrElemArg (CQPL.Arg r_regs) (P.MetaName iter_meta_var))
-        (CQPL.ArrElemArg (CQPL.Arg ctrl_bits) (P.MetaName iter_meta_var))
-        (CQPL.ArrElemArg (CQPL.Arg x_regs) (P.MetaName iter_meta_var))
-        (CQPL.ArrElemArg (CQPL.Arg b_regs) (P.MetaName iter_meta_var))
+        (CQPL.ArrElemArg (CQPL.Arg r_regs) (CPL.MetaName iter_meta_var))
+        (CQPL.ArrElemArg (CQPL.Arg ctrl_bits) (CPL.MetaName iter_meta_var))
+        (CQPL.ArrElemArg (CQPL.Arg x_regs) (CPL.MetaName iter_meta_var))
+        (CQPL.ArrElemArg (CQPL.Arg b_regs) (CPL.MetaName iter_meta_var))
 
   writeElem $
     CQPL.UnitaryS
       { CQPL.qargs = [CQPL.Arg b_regs, CQPL.Arg out_bit]
-      , CQPL.unitary = CQPL.RevEmbedU ["a"] $ P.UnOpE P.AnyOp "a"
+      , CQPL.unitary = CQPL.RevEmbedU ["a"] $ CPL.UnOpE CPL.AnyOp "a"
       }
 
   writeElem $
     CQPL.UnitaryS
       { CQPL.qargs = [CQPL.Arg x_regs, CQPL.Arg b_regs, CQPL.Arg out_val]
-      , CQPL.unitary = CQPL.RevEmbedU ["a", "f"] $ P.BinOpE P.VecSelectOp "a" "f"
+      , CQPL.unitary = CQPL.RevEmbedU ["a", "f"] $ CPL.BinOpE CPL.VecSelectOp "a" "f"
       }
 
 instance
-  (P.TypingReqs size, Integral size, RealFloat prec, Show prec) =>
+  (CPL.TypingReqs size, Integral size, RealFloat prec, Show prec) =>
   UnitaryCompilePrim (QSearchCFNW size prec) size prec
   where
   compileUPrim (QSearchCFNW PrimSearch{search_kind, search_ty}) eps = do
@@ -392,7 +392,7 @@ instance
 
     -- function to call the predicate, re-using the same aux space each time.
     pred_ancilla <- lift $ mapM Compiler.allocAncilla pred_aux_tys
-    b' <- lift $ Compiler.allocAncilla P.tbool
+    b' <- lift $ Compiler.allocAncilla CPL.tbool
     let pred_caller ctrl x b =
           let pred_call_s = call_pred (x : CQPL.Arg b' : map CQPL.Arg pred_ancilla)
               pred_call_s_full = case search_kind of
@@ -410,16 +410,16 @@ instance
     -- Emit the qsearch procedure
     -- body:
     (qsearch_body, qsearch_ancilla) <- lift $ do
-      ini_binds <- use P._typingCtx
+      ini_binds <- use CPL._typingCtx
       ((), ss) <- (\m -> evalRWST m UQSearchEnv{search_arg_type = search_ty, pred_call_builder = pred_caller} ()) $ algoQSearchZalka eps ret x_out
-      fin_binds <- use P._typingCtx
+      fin_binds <- use CPL._typingCtx
       let ancillas = Ctx.toList $ fin_binds Ctx.\\ ini_binds
 
       let body = case search_kind of
             AllK -> CQPL.USeqS $ ss ++ [CQPL.UnitaryS [CQPL.Arg ret] (CQPL.BasicGateU CQPL.XGate)]
             _ -> CQPL.USeqS ss
 
-      return (body, (b', P.tbool) : ancillas)
+      return (body, (b', CPL.tbool) : ancillas)
 
     -- name:
     let prim_name = (case search_kind of AnyK -> "UAny"; AllK -> "UAll"; SearchK -> "USearch")
@@ -431,7 +431,7 @@ instance
             (show search_ty)
             (show $ A.getFailProb eps)
     let all_params =
-          Compiler.withTag CQPL.ParamOut [(ret, P.tbool), (x_out, search_ty)]
+          Compiler.withTag CQPL.ParamOut [(ret, CPL.tbool), (x_out, search_ty)]
             ++ Compiler.withTag CQPL.ParamAux (zip pred_ancilla pred_aux_tys)
             ++ Compiler.withTag CQPL.ParamAux qsearch_ancilla
 
@@ -458,9 +458,9 @@ instance
 groverK ::
   forall size.
   -- | number of rounds
-  P.MetaParam size ->
+  CPL.MetaParam size ->
   -- | the element and type to search for. @x : T@
-  (Ident, P.VarType size) ->
+  (Ident, CPL.VarType size) ->
   -- | the output bit
   Ident ->
   -- | run the predicate
@@ -474,7 +474,7 @@ groverK k (x, x_ty) b mk_pred =
     , CQPL.adjoint prepb
     ]
  where
-  unifX = CQPL.DistrU (P.UniformE x_ty)
+  unifX = CQPL.DistrU (CPL.UniformE x_ty)
 
   -- map b to |-> and x to uniform
   prepb, prepx :: CQPL.UStmt size
@@ -502,12 +502,12 @@ algoQSearch ::
   , size ~ SizeT
   , Show size
   , Show prec
-  , P.TypingReqs size
+  , CPL.TypingReqs size
   , MonadError String m
   , MonadState (Compiler.LoweringCtx size) m
   ) =>
   -- | search elem type
-  P.VarType size ->
+  CPL.VarType size ->
   -- | number of classical samples
   size ->
   -- | max fail prob
@@ -522,7 +522,7 @@ algoQSearch ::
   Ident ->
   Compiler.ProcBuilderT size m ()
 algoQSearch ty n_samples eps grover_k_caller pred_caller ok x = do
-  not_done <- Compiler.allocLocalWithPrefix "not_done" P.tbool
+  not_done <- Compiler.allocLocalWithPrefix "not_done" CPL.tbool
   q_sum <- Compiler.allocLocalWithPrefix "Q_sum" j_type
   j <- Compiler.allocLocalWithPrefix "j" j_type
   j_lim <- Compiler.allocLocalWithPrefix "j_lim" j_type
@@ -532,7 +532,7 @@ algoQSearch ty n_samples eps grover_k_caller pred_caller ok x = do
     let classicalSampling =
           CQPL.WhileKWithCondExpr (CQPL.MetaSize n_samples) not_done (notE (fromString ok)) $
             CQPL.SeqS
-              [ CQPL.RandomS [x] (P.UniformE ty)
+              [ CQPL.RandomS [x] (CPL.UniformE ty)
               , pred_caller x ok
               ]
     Compiler.addStmt classicalSampling
@@ -559,11 +559,11 @@ algoQSearch ty n_samples eps grover_k_caller pred_caller ok x = do
 
   let quantumSamplingOneRound =
         CQPL.SeqS
-          [ CQPL.AssignS [q_sum] (P.ConstE{P.val = P.FinV 0, P.ty = j_type})
+          [ CQPL.AssignS [q_sum] (CPL.ConstE{CPL.val = CPL.FinV 0, CPL.ty = j_type})
           , CQPL.ForInArray
               { CQPL.loop_index = j_lim
               , CQPL.loop_index_ty = j_type
-              , CQPL.loop_values = [P.ConstE (P.FinV $ fromIntegral v_j) j_type | v_j <- sampling_ranges]
+              , CQPL.loop_values = [CPL.ConstE (CPL.FinV $ fromIntegral v_j) j_type | v_j <- sampling_ranges]
               , CQPL.loop_body = quantumGroverOnce
               }
           ]
@@ -572,7 +572,7 @@ algoQSearch ty n_samples eps grover_k_caller pred_caller ok x = do
 
   Compiler.addStmt quantumSampling
  where
-  n = P.domainSize ty
+  n = CPL.domainSize ty
 
   alpha = _QSearch_alpha
   lambda = 6 / 5
@@ -585,7 +585,7 @@ algoQSearch ty n_samples eps grover_k_caller pred_caller ok x = do
   q_max = ceiling $ alpha * sqrt_n
 
   -- type for j and Q_sum
-  j_type = P.Fin q_max
+  j_type = CPL.Fin q_max
 
   -- compute the limits for sampling `j` in each iteration.
   sampling_ranges :: [SizeT]
@@ -631,7 +631,7 @@ instance
     uproc_grover_k_name <- Compiler.newIdent "Grover"
     upred_aux_vars <- replicateM (length pred_aux_tys) $ Compiler.newIdent "aux"
     grover_arg_name <- Compiler.newIdent "x"
-    let meta_k = P.MetaName "k"
+    let meta_k = CPL.MetaName "k"
     let uproc_grover_k_body =
           groverK
             meta_k
@@ -640,7 +640,7 @@ instance
             (\x b -> call_upred (map CQPL.Arg ([x, b] ++ upred_aux_vars)))
     let uproc_grover_k_params =
           Compiler.withTag CQPL.ParamInp [(grover_arg_name, search_ty)]
-            ++ Compiler.withTag CQPL.ParamOut [(ret, P.tbool)]
+            ++ Compiler.withTag CQPL.ParamOut [(ret, CPL.tbool)]
             ++ Compiler.withTag CQPL.ParamAux (zip upred_aux_vars pred_aux_tys)
     let uproc_grover_k =
           CQPL.ProcDef
@@ -670,8 +670,8 @@ instance
 
     -- emit the QSearch algorithm
     let qsearch_params = case search_kind of
-          SearchK -> [(ret, P.tbool), (fromJust x_out_param, search_ty)]
-          _ -> [(ret, P.tbool)]
+          SearchK -> [(ret, CPL.tbool), (fromJust x_out_param, search_ty)]
+          _ -> [(ret, CPL.tbool)]
 
     let prim_name = case search_kind of AnyK -> "QAny"; AllK -> "QAll"; SearchK -> "QSearch"
     Compiler.buildProc prim_name [] qsearch_params $ do

@@ -12,7 +12,7 @@ import qualified Traq.Data.Symbolic as Sym
 
 import qualified Traq.Analysis as A
 import Traq.Analysis.CostModel.QueryCost (SimpleQueryCost (getCost))
-import qualified Traq.CPL as P
+import qualified Traq.CPL as CPL
 import qualified Traq.CQPL as CQPL
 import qualified Traq.Compiler as Compiler
 import Traq.Compiler.Qualtran (toPy)
@@ -25,44 +25,44 @@ import TestHelpers
 examplePath :: String
 examplePath = "examples/clustering_algorithm.traq"
 
-loadExample :: IO (P.Program (DefaultPrims SizeT Double))
+loadExample :: IO (CPL.Program (DefaultPrims SizeT Double))
 loadExample = do
-  Right prog <- parseFromFile (P.programParser @(DefaultPrims (Sym.Sym SizeT) Double)) examplePath
+  Right prog <- parseFromFile (CPL.programParser @(DefaultPrims (Sym.Sym SizeT) Double)) examplePath
   let prog' =
         prog
-          & P.mapSize (Sym.subst "N" (Sym.con 8))
-          & P.mapSize (Sym.subst "M" (Sym.con 4))
-          & P.mapSize Sym.unSym
-          & P.renameVars'
+          & CPL.mapSize (Sym.subst "N" (Sym.con 8))
+          & CPL.mapSize (Sym.subst "M" (Sym.con 4))
+          & CPL.mapSize Sym.unSym
+          & CPL.renameVars'
   return prog'
 
 spec :: Spec
 spec = describe "Clustering Algorithm" $ do
   it "parses" $ do
-    expectRight =<< parseFromFile (P.programParser @(DefaultPrims (Sym.Sym SizeT) Double)) examplePath
+    expectRight =<< parseFromFile (CPL.programParser @(DefaultPrims (Sym.Sym SizeT) Double)) examplePath
     return ()
 
   it "typechecks" $ do
     ex <- loadExample
-    assertRight $ P.typeCheckProg ex
+    assertRight $ CPL.typeCheckProg ex
 
   describe "Compile" $ do
     let eps = A.failProb (0.0001 :: Double)
 
     it "lowers" $ do
       ex <- loadExample
-      ex' <- expectRight $ A.annotateProgWith (P._exts (A.annSinglePrim eps)) ex
+      ex' <- expectRight $ A.annotateProgWith (CPL._exts (A.annSinglePrim eps)) ex
       assertRight $ Compiler.lowerProgram ex'
 
     it "typechecks" $ do
       ex <- loadExample
-      ex' <- expectRight $ A.annotateProgWith (P._exts (A.annSinglePrim eps)) ex
+      ex' <- expectRight $ A.annotateProgWith (CPL._exts (A.annSinglePrim eps)) ex
       ex_uqpl <- expectRight $ Compiler.lowerProgram ex'
       assertRight $ CQPL.typeCheckProgram ex_uqpl
 
     it "cost" $ do
       ex <- loadExample
-      ex' <- expectRight $ A.annotateProgWith (P._exts (A.annSinglePrim eps)) ex
+      ex' <- expectRight $ A.annotateProgWith (CPL._exts (A.annSinglePrim eps)) ex
       ex_cqpl <- expectRight $ Compiler.lowerProgram ex'
       let cost = fst (CQPL.programCost ex_cqpl) :: SimpleQueryCost Double
       let cost_from_analysis = getCost $ A.costQProg ex'
@@ -70,7 +70,7 @@ spec = describe "Clustering Algorithm" $ do
 
     xit "target-py-qualtran" $ do
       ex <- loadExample
-      ex' <- expectRight $ A.annotateProgWith (P._exts (A.annSinglePrim eps)) ex
+      ex' <- expectRight $ A.annotateProgWith (CPL._exts (A.annSinglePrim eps)) ex
       ex_cqpl <- expectRight $ Compiler.lowerProgram ex'
       _ <- evaluate $ force $ toPy ex_cqpl
       return ()

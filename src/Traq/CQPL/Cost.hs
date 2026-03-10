@@ -24,7 +24,7 @@ import Traq.Control.Monad
 import qualified Traq.Data.Context as Ctx
 
 import qualified Traq.Analysis.CostModel.Class as C
-import qualified Traq.CPL as P
+import qualified Traq.CPL as CPL
 import Traq.CQPL.Syntax
 import Traq.Prelude
 
@@ -63,11 +63,11 @@ instance HasCost (UStmt size) where
   cost UnitaryS{} = return Alg.zero
   cost UCallS{uproc_id} = cachedProcCost uproc_id
   cost (USeqS ss) = Alg.sum <$> mapM cost ss
-  cost URepeatS{n_iter = P.MetaSize k, uloop_body} = Alg.sinnum (fromIntegral k) <$> cost uloop_body
-  cost URepeatS{n_iter = P.MetaName _} = return Alg.zero
-  cost UForInRangeS{iter_lim = P.MetaSize k, uloop_body} = Alg.sinnum (fromIntegral k) <$> cost uloop_body
-  cost UForInRangeS{iter_lim = P.MetaName _} = return Alg.zero
-  cost UForInDomainS{iter_ty, uloop_body} = Alg.sinnum (fromIntegral (P.domainSize iter_ty)) <$> cost uloop_body
+  cost URepeatS{n_iter = CPL.MetaSize k, uloop_body} = Alg.sinnum (fromIntegral k) <$> cost uloop_body
+  cost URepeatS{n_iter = CPL.MetaName _} = return Alg.zero
+  cost UForInRangeS{iter_lim = CPL.MetaSize k, uloop_body} = Alg.sinnum (fromIntegral k) <$> cost uloop_body
+  cost UForInRangeS{iter_lim = CPL.MetaName _} = return Alg.zero
+  cost UForInDomainS{iter_ty, uloop_body} = Alg.sinnum (fromIntegral (CPL.domainSize iter_ty)) <$> cost uloop_body
   cost UWithComputedS{with_ustmt, body_ustmt} = do
     wc <- cost with_ustmt
     bc <- cost body_ustmt
@@ -86,14 +86,14 @@ instance HasCost (Stmt size) where
   -- compound statements
   cost (SeqS ss) = Alg.sum <$> mapM cost ss
   cost IfThenElseS{s_true, s_false} = max <$> cost s_true <*> cost s_false
-  cost RepeatS{n_iter = P.MetaSize k, loop_body} = Alg.sinnum (fromIntegral k) <$> cost loop_body
+  cost RepeatS{n_iter = CPL.MetaSize k, loop_body} = Alg.sinnum (fromIntegral k) <$> cost loop_body
   cost RepeatS{} = throwError "unsupported cost"
-  cost WhileK{n_iter = P.MetaSize k, loop_body} = Alg.sinnum (fromIntegral k) <$> cost loop_body
+  cost WhileK{n_iter = CPL.MetaSize k, loop_body} = Alg.sinnum (fromIntegral k) <$> cost loop_body
   cost WhileK{} = throwError "unsupported cost"
-  cost WhileKWithCondExpr{n_iter = P.MetaSize k, loop_body} = Alg.sinnum (fromIntegral k) <$> cost loop_body
+  cost WhileKWithCondExpr{n_iter = CPL.MetaSize k, loop_body} = Alg.sinnum (fromIntegral k) <$> cost loop_body
   cost WhileKWithCondExpr{} = throwError "unsupported cost"
   cost ForInArray{loop_values, loop_body} = Alg.sinnum (fromIntegral (length loop_values)) <$> cost loop_body
-  cost ForInRangeS{iter_lim = P.MetaSize k, loop_body} = Alg.sinnum (fromIntegral k) <$> cost loop_body
+  cost ForInRangeS{iter_lim = CPL.MetaSize k, loop_body} = Alg.sinnum (fromIntegral k) <$> cost loop_body
   cost ForInRangeS{} = throwError "unsupported cost"
 
 instance HasCost (ProcDef size) where

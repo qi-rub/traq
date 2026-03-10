@@ -23,7 +23,7 @@ import qualified Numeric.Algebra as Alg
 import Traq.Data.Subtyping
 
 import qualified Traq.Analysis as A
-import qualified Traq.CPL as P
+import qualified Traq.CPL as CPL
 import qualified Traq.CQPL as CQPL
 import qualified Traq.Compiler as Compiler
 import Traq.Prelude
@@ -50,9 +50,9 @@ type instance PrecType (SimonsFindXorPeriod size prec) = prec
 
 type instance PrimFnShape (SimonsFindXorPeriod size prec) = FindXorPeriodArg
 
-instance P.MapSize (SimonsFindXorPeriod size prec) where
+instance CPL.MapSize (SimonsFindXorPeriod size prec) where
   type MappedSize (SimonsFindXorPeriod size prec) size' = (SimonsFindXorPeriod size' prec)
-  mapSize f (SimonsFindXorPeriod p) = SimonsFindXorPeriod (P.mapSize f p)
+  mapSize f (SimonsFindXorPeriod p) = SimonsFindXorPeriod (CPL.mapSize f p)
 
 -- ================================================================================
 -- Basic Instances
@@ -68,7 +68,7 @@ instance (Show size) => SerializePrim (SimonsFindXorPeriod size Double) where
   printPrimParams (SimonsFindXorPeriod prim) = printPrimParams prim
 
 instance
-  (P.TypingReqs size, Num prec, Ord prec, Show prec) =>
+  (CPL.TypingReqs size, Num prec, Ord prec, Show prec) =>
   TypeCheckPrim (SimonsFindXorPeriod size prec) size
   where
   inferRetTypesPrim (SimonsFindXorPeriod p) = inferRetTypesPrim p
@@ -102,7 +102,7 @@ _SimonsQueries n p0 eps = q + 1
   q = q_num / q_den
 
 instance
-  (P.TypingReqs size, Floating prec, Ord prec, Show prec, A.SizeToPrec size prec) =>
+  (CPL.TypingReqs size, Floating prec, Ord prec, Show prec, A.SizeToPrec size prec) =>
   UnitaryCostPrim (SimonsFindXorPeriod size prec) size prec
   where
   unitaryQueryCosts prim eps =
@@ -113,7 +113,7 @@ instance
 
 -- | Same as unitary compilation.
 instance
-  (P.TypingReqs size, Floating prec, Ord prec, Show prec, A.SizeToPrec size prec) =>
+  (CPL.TypingReqs size, Floating prec, Ord prec, Show prec, A.SizeToPrec size prec) =>
   QuantumHavocCostPrim (SimonsFindXorPeriod size prec) size prec
   where
   quantumQueryCostsQuantum _ _ = FindXorPeriodArg{fun = 0}
@@ -131,7 +131,7 @@ instance
 simonsOneRound ::
   forall ext size prec m.
   (size ~ SizeType ext, m ~ PrimCompileMonad ext (SimonsFindXorPeriod size prec)) =>
-  [P.VarType size] ->
+  [CPL.VarType size] ->
   m (CQPL.ProcDef size)
 simonsOneRound arg_tys = do
   (FindXorPeriodArg call_upred) <- view $ to mk_ucall
@@ -144,7 +144,7 @@ simonsOneRound arg_tys = do
   ys' <- lift $ mapM (Compiler.allocAncillaWithPref "yy") arg_tys
   aux <- lift $ mapM Compiler.allocAncilla pred_aux_tys
 
-  let had_xs = CQPL.USeqS [CQPL.UnitaryS [CQPL.Arg x] (CQPL.DistrU $ P.UniformE t) | (x, t) <- zip xs arg_tys]
+  let had_xs = CQPL.USeqS [CQPL.UnitaryS [CQPL.Arg x] (CQPL.DistrU $ CPL.UniformE t) | (x, t) <- zip xs arg_tys]
   let call_g = call_upred (map CQPL.Arg (xs ++ ys ++ aux))
   let copy_out = CQPL.USeqS [CQPL.UnitaryS [CQPL.Arg y, CQPL.Arg y'] (CQPL.BasicGateU CQPL.COPY) | (y, y') <- zip ys ys']
 
@@ -191,7 +191,7 @@ instance
 
     let nq = floor $ _SimonsQueries n p_0 eps
     xts <- forM (simons_uproc & CQPL.proc_param_types) $ \t -> do
-      let t' = P.Arr nq t
+      let t' = CPL.Arr nq t
       x <- lift $ Compiler.allocAncillaWithPref (proc_name ++ "_aux") t'
       pure (x, t')
 
@@ -199,12 +199,12 @@ instance
           CQPL.USeqS
             [ CQPL.UForInRangeS
                 { CQPL.iter_meta_var = i
-                , CQPL.iter_lim = P.MetaSize nq
+                , CQPL.iter_lim = CPL.MetaSize nq
                 , CQPL.uloop_body =
                     CQPL.UCallS
                       { uproc_id = CQPL.proc_name simons_uproc
                       , dagger = False
-                      , qargs = map (\(x, _) -> CQPL.ArrElemArg (CQPL.Arg x) (P.MetaName i)) xts
+                      , qargs = map (\(x, _) -> CQPL.ArrElemArg (CQPL.Arg x) (CPL.MetaName i)) xts
                       }
                 , dagger = False
                 }
@@ -246,7 +246,7 @@ instance
 
     let nq = floor $ _SimonsQueries n p_0 eps
     xts <- forM arg_tys $ \t -> do
-      let t' = P.Arr nq t
+      let t' = CPL.Arr nq t
       x <- lift $ Compiler.allocAncillaWithPref (proc_name ++ "__u") t'
       pure (x, t')
 
@@ -254,12 +254,12 @@ instance
           CQPL.SeqS
             [ CQPL.ForInRangeS
                 { CQPL.iter_meta_var = i
-                , CQPL.iter_lim = P.MetaSize nq
+                , CQPL.iter_lim = CPL.MetaSize nq
                 , CQPL.loop_body =
                     CQPL.CallS
                       { fun = CQPL.UProcAndMeas (CQPL.proc_name simons_uproc)
                       , meta_params = []
-                      , args = map (\(x, _) -> CQPL.ArrElemArg (CQPL.Arg x) (P.MetaName i)) xts
+                      , args = map (\(x, _) -> CQPL.ArrElemArg (CQPL.Arg x) (CPL.MetaName i)) xts
                       }
                 }
             , CQPL.CommentS $

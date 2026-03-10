@@ -15,7 +15,7 @@ import qualified Numeric.Algebra as Alg
 import qualified Traq.Data.Probability as Prob
 
 import qualified Traq.Analysis as A
-import qualified Traq.CPL as P
+import qualified Traq.CPL as CPL
 import Traq.Prelude
 import Traq.Primitives.Class
 import Traq.Primitives.Search.Prelude
@@ -52,16 +52,16 @@ type instance PrecType (RandomSearch size prec) = prec
 
 type instance PrimFnShape (RandomSearch size prec) = BooleanPredicate
 
-instance P.MapSize (RandomSearch size prec) where
+instance CPL.MapSize (RandomSearch size prec) where
   type MappedSize (RandomSearch size prec) size' = RandomSearch size' prec
-  mapSize f (RandomSearch p) = RandomSearch (P.mapSize f p)
+  mapSize f (RandomSearch p) = RandomSearch (CPL.mapSize f p)
 
 instance (Show size) => SerializePrim (RandomSearch size prec) where
   primNames = ["any"]
   parsePrimParams tp s = RandomSearch <$> parsePrimParams tp s
   printPrimParams (RandomSearch prim) = printPrimParams prim
 
-instance (P.TypingReqs size) => TypeCheckPrim (RandomSearch size prec) size where
+instance (CPL.TypingReqs size) => TypeCheckPrim (RandomSearch size prec) size where
   inferRetTypesPrim (RandomSearch prim) = inferRetTypesPrim prim
 
 instance EvalPrim (RandomSearch size prec) size prec where
@@ -71,19 +71,19 @@ instance EvalPrim (RandomSearch size prec) size prec where
 -- Abstract Costs
 -- ================================================================================
 
-instance (P.TypingReqs size, Integral size, Floating prec) => UnitaryCostPrim (RandomSearch size prec) size prec where
+instance (CPL.TypingReqs size, Integral size, Floating prec) => UnitaryCostPrim (RandomSearch size prec) size prec where
   unitaryQueryCosts (RandomSearch PrimSearch{search_ty}) _ = BooleanPredicate $ weakQueries $ _URandomSearch _N
    where
-    _N = P.domainSize search_ty
+    _N = CPL.domainSize search_ty
 
   unitaryExprCosts _ _ = Alg.zero
 
-instance (P.TypingReqs size, Integral size, Floating prec, A.SizeToPrec size prec) => QuantumHavocCostPrim (RandomSearch size prec) size prec where
+instance (CPL.TypingReqs size, Integral size, Floating prec, A.SizeToPrec size prec) => QuantumHavocCostPrim (RandomSearch size prec) size prec where
   -- only classical queries
   quantumQueryCostsQuantum (RandomSearch PrimSearch{search_ty}) eps =
     BooleanPredicate $ _ERandomSearchWorst _N eps
    where
-    _N = P.domainSize search_ty
+    _N = CPL.domainSize search_ty
 
   -- no unitary
   quantumQueryCostsUnitary _ _ = BooleanPredicate zeroQ
@@ -97,12 +97,12 @@ instance
   quantumExpQueryCostsQuantum (RandomSearch PrimSearch{search_ty}) eps (BooleanPredicate eval_pred) =
     BooleanPredicate [([v], if b then qry_wt_per_sol else qry_wt_per_non_sol) | (b, v) <- results]
    where
-    _N = P.domainSize search_ty
+    _N = CPL.domainSize search_ty
 
     results =
-      P.domain search_ty <&> \v ->
+      CPL.domain search_ty <&> \v ->
         case Prob.toDeterministicValue $ eval_pred [v] of
-          Just [b] -> (P.valueToBool b, v)
+          Just [b] -> (CPL.valueToBool b, v)
           _ -> error "predicate is not determinisic"
 
     _K = length $ filter fst results
