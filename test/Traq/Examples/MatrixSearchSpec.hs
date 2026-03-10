@@ -114,7 +114,7 @@ spec = describe "MatrixSearch" $ do
         let cost_from_analysis = getCost $ A.costQProg ex'
         getCost cost `shouldBeLE` cost_from_analysis
 
-      fit "target-py-qualtran" $ do
+      it "target-py-qualtran" $ do
         ex' <- expectRight $ A.annotateProgWithErrorBudget eps ex
         ex_cqpl <- expectRight $ Compiler.lowerProgram ex'
         _ <- evaluate $ force $ toPy ex_cqpl
