@@ -93,8 +93,8 @@ spec = describe "MatrixSearch" $ do
         ex' <- expectRight $ A.annotateProgWithErrorBudgetU eps ex
         ex_uqpl <- expectRight $ Compiler.lowerProgramU ex'
         let uqpl_cost = getCost . fst $ QPL.programCost ex_uqpl
-        let proto_cost = getCost $ A.costUProg ex'
-        uqpl_cost `shouldBeLE` proto_cost
+        let traq_cost = getCost $ A.costUProg ex'
+        uqpl_cost `shouldBeLE` traq_cost
 
     describe "lower to QPL" $ do
       let eps = A.failProb (0.001 :: Double)

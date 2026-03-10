@@ -79,8 +79,8 @@ spec = describe "SearchSpec" $ do
         ex' <- expectRight $ A.annotateProgWith (CPL._exts (A.annSinglePrim eps)) ex
         ex_uqpl <- expectRight $ Compiler.lowerProgramU ex'
         let (uqpl_cost, _) = QPL.programCost ex_uqpl
-        let proto_cost = A.costUProg ex' :: SimpleQueryCost Double
-        uqpl_cost `shouldBeLE` proto_cost
+        let traq_cost = A.costUProg ex' :: SimpleQueryCost Double
+        uqpl_cost `shouldBeLE` traq_cost
 
     describe "Compile" $ do
       let eps = A.failProb (0.0001 :: Double)

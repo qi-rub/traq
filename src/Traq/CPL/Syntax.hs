@@ -268,7 +268,7 @@ instance (Show size) => PP.ToCodeString (DistrExpr size) where
   build UniformE{sample_ty} = PP.putWord . printf "uniform : %s" =<< PP.fromBuild sample_ty
   build BernoulliE{prob_one} = PP.putWord $ printf "bernoulli[%s]" (show prob_one)
 
-{- | An expression in the prototype language.
+{- | An expression in CPL.
  It appears as the RHS of an assignment statement.
 -}
 data Expr ext
@@ -294,7 +294,7 @@ instance (Show (SizeType ext), PP.ToCodeString ext) => PP.ToCodeString (Expr ext
     let args = PP.commaList initial_args
     PP.putWord $ printf "loop (%s) %s" args loop_body_fun
 
--- | A statement in the prototype language.
+-- | A statement in CPL.
 data Stmt ext
   = ExprS {rets :: [Ident], expr :: Expr ext}
   | IfThenElseS {cond :: Ident, s_true, s_false :: Stmt ext}
@@ -334,7 +334,7 @@ deriving instance (Read ext, Read (SizeType ext)) => Read (FunBody ext)
 type instance SizeType (FunBody ext) = SizeType ext
 type instance PrecType (FunBody ext) = PrecType ext
 
--- | A function definition or declaration in the prototype language.
+-- | A function in CPL.
 data FunDef ext = FunDef
   { param_types, ret_types :: [VarType (SizeType ext)]
   , mbody :: Maybe (FunBody ext)

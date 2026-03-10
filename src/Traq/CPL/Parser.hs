@@ -39,8 +39,8 @@ import Traq.Prelude
 -- | Basic symbolic type
 type SymbSize = Sym.Sym SizeT
 
-protoLangDef :: LanguageDef st
-protoLangDef =
+cplDef :: LanguageDef st
+cplDef =
   emptyDef
     { commentLine = "//"
     , reservedNames =
@@ -68,8 +68,8 @@ protoLangDef =
     , reservedOpNames = [":", "<-", "->", "?"]
     }
 
-protoLangTokenParser :: TokenParser st
-protoLangTokenParser = makeTokenParser protoLangDef
+cplTokenParser :: TokenParser st
+cplTokenParser = makeTokenParser cplDef
 
 class Parseable ext where
   parseE :: TokenParser () -> Parser ext
@@ -309,14 +309,14 @@ program tp = do
   return $ Program fs
 
 programParser :: (Parseable ext, SizeType ext ~ SymbSize) => Parser (Program ext)
-programParser = whiteSpace p *> program protoLangTokenParser <* eof
+programParser = whiteSpace p *> program cplTokenParser <* eof
  where
-  p = protoLangTokenParser
+  p = cplTokenParser
 
 parseCode :: (TokenParser () -> Parser a) -> String -> Either ParseError a
 parseCode parser = parse (whiteSpace p *> parser p <* eof) ""
  where
-  p = protoLangTokenParser
+  p = cplTokenParser
 
 parseProgram :: (Parseable ext, SizeType ext ~ SymbSize) => String -> Either ParseError (Program ext)
 parseProgram = parseCode program
@@ -328,4 +328,4 @@ parseStmt :: (Parseable ext, SizeType ext ~ SymbSize) => String -> Either ParseE
 parseStmt = parseCode stmtP
 
 isValidIdentifier :: String -> Bool
-isValidIdentifier = isRight . parse (identifier protoLangTokenParser) ""
+isValidIdentifier = isRight . parse (identifier cplTokenParser) ""
