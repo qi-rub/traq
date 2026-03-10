@@ -3,7 +3,8 @@ import attrs
 import numpy as np
 
 import qualtran as qlt
-import qualtran.bloqs.basic_gates as qlt
+import qualtran.bloqs.basic_gates as qlt_gates
+from qualtran.bloqs.qft.qft_text_book import QFTTextBook
 
 
 

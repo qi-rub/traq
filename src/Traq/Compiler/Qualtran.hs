@@ -344,10 +344,10 @@ instance (Show size, Integral size) => ToQualtranPy (CQPL.Unitary size) where
   mkPy (CQPL.RevEmbedU xs e) = pure $ PP.pretty "TODO_RevEmbedU"
   mkPy (CQPL.DistrU (P.UniformE ty)) = do
     let bs = P.bestBitsize ty
-    pure $ PP.pretty "qlt.QFTTextBook" <> PP.tupled [PP.pretty (show bs)]
+    pure $ PP.pretty "QFTTextBook" <> PP.tupled [PP.pretty (show bs)]
   mkPy (CQPL.DistrU (P.BernoulliE p)) = do
     let theta = PP.pretty @String $ printf "%f" (2 * asin (sqrt p))
-    pure $ PP.pretty "qlt.Ry" <> PP.tupled [PP.pretty "angle=" <> theta]
+    pure $ PP.pretty "qlt_gates.Ry" <> PP.tupled [PP.pretty "angle=" <> theta]
   mkPy (CQPL.Controlled u) = do
     bloq <- mkPy u
     pure $ bloq <> PP.pretty ".controlled()"
@@ -358,11 +358,11 @@ instance (Show size, Integral size) => ToQualtranPy (CQPL.Unitary size) where
 instance ToQualtranPy CQPL.BasicGate where
   type Ctx CQPL.BasicGate = ()
 
-  mkPy CQPL.Toffoli = pure $ PP.pretty "qlt.Toffoli()"
-  mkPy CQPL.CNOT = pure $ PP.pretty "qlt.CNOT()"
-  mkPy CQPL.XGate = pure $ PP.pretty "qlt.XGate()"
-  mkPy CQPL.HGate = pure $ PP.pretty "qlt.Hadamard()"
-  mkPy CQPL.ZGate = pure $ PP.pretty "qlt.ZGate()"
+  mkPy CQPL.Toffoli = pure $ PP.pretty "qlt_gates.Toffoli()"
+  mkPy CQPL.CNOT = pure $ PP.pretty "qlt_gates.CNOT()"
+  mkPy CQPL.XGate = pure $ PP.pretty "qlt_gates.XGate()"
+  mkPy CQPL.HGate = pure $ PP.pretty "qlt_gates.Hadamard()"
+  mkPy CQPL.ZGate = pure $ PP.pretty "qlt_gates.ZGate()"
   mkPy CQPL.COPY = pure $ PP.dquotes $ PP.pretty "copy"
   mkPy CQPL.SWAP = pure $ PP.dquotes $ PP.pretty "swap"
   mkPy (CQPL.Rz theta) = pure $ PP.pretty "TODO_Rz"

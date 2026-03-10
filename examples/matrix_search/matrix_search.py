@@ -3,7 +3,8 @@ import attrs
 import numpy as np
 
 import qualtran as qlt
-import qualtran.bloqs.basic_gates as qlt
+import qualtran.bloqs.basic_gates as qlt_gates
+from qualtran.bloqs.qft.qft_text_book import QFTTextBook
 
 
 def add_bloq(bb: qlt.BloqBuilder, bloq: qlt.Bloq, regs: list[qlt.SoquetT]):
@@ -105,10 +106,10 @@ class UAny(qlt.Bloq):
         s_arg,
     ):
         for run_ix in range(59):
-            n_iter[run_ix] = add_bloq(bb, qlt.QFTTextBook(2), [n_iter[run_ix]])
-            pred_out[run_ix] = add_bloq(bb, qlt.XGate(), [pred_out[run_ix]])
-            pred_out[run_ix] = add_bloq(bb, qlt.Hadamard(), [pred_out[run_ix]])
-            s_arg[run_ix] = add_bloq(bb, qlt.QFTTextBook(4), [s_arg[run_ix]])
+            n_iter[run_ix] = add_bloq(bb, QFTTextBook(2), [n_iter[run_ix]])
+            pred_out[run_ix] = add_bloq(bb, qlt_gates.XGate(), [pred_out[run_ix]])
+            pred_out[run_ix] = add_bloq(bb, qlt_gates.Hadamard(), [pred_out[run_ix]])
+            s_arg[run_ix] = add_bloq(bb, QFTTextBook(4), [s_arg[run_ix]])
             for LIM in range(3):
                 n_iter[run_ix], ctrl[run_ix] = add_bloq(
                     bb, TODO_RevEmbedU, [n_iter[run_ix], ctrl[run_ix]]
@@ -117,39 +118,35 @@ class UAny(qlt.Bloq):
                     bb, IsEntryZero_U(), [i, s_arg[run_ix], aux_3, aux, aux_1, aux_2]
                 )
                 ctrl[run_ix], aux_3, pred_out[run_ix] = add_bloq(
-                    bb, qlt.Toffoli(), [ctrl[run_ix], aux_3, pred_out[run_ix]]
+                    bb, qlt_gates.Toffoli(), [ctrl[run_ix], aux_3, pred_out[run_ix]]
                 )
                 i, s_arg[run_ix], aux_3, aux, aux_1, aux_2 = add_bloq(
                     bb,
                     IsEntryZero_U().adjoint(),
                     [i, s_arg[run_ix], aux_3, aux, aux_1, aux_2],
                 )
-                s_arg[run_ix] = add_bloq(
-                    bb, qlt.QFTTextBook(4).adjoint(), [s_arg[run_ix]]
-                )
+                s_arg[run_ix] = add_bloq(bb, QFTTextBook(4).adjoint(), [s_arg[run_ix]])
                 s_arg[run_ix] = add_bloq(bb, TODO_PhaseOnZero, [s_arg[run_ix]])
-                s_arg[run_ix] = add_bloq(bb, qlt.QFTTextBook(4), [s_arg[run_ix]])
+                s_arg[run_ix] = add_bloq(bb, QFTTextBook(4), [s_arg[run_ix]])
                 n_iter[run_ix], ctrl[run_ix] = add_bloq(
                     bb, TODO_RevEmbedU, [n_iter[run_ix], ctrl[run_ix]]
                 )
-            pred_out[run_ix] = add_bloq(bb, qlt.Hadamard(), [pred_out[run_ix]])
-            pred_out[run_ix] = add_bloq(bb, qlt.XGate(), [pred_out[run_ix]])
-            n_iter[run_ix] = add_bloq(
-                bb, qlt.QFTTextBook(2).adjoint(), [n_iter[run_ix]]
-            )
-            ctrl[run_ix] = add_bloq(bb, qlt.XGate(), [ctrl[run_ix]])
+            pred_out[run_ix] = add_bloq(bb, qlt_gates.Hadamard(), [pred_out[run_ix]])
+            pred_out[run_ix] = add_bloq(bb, qlt_gates.XGate(), [pred_out[run_ix]])
+            n_iter[run_ix] = add_bloq(bb, QFTTextBook(2).adjoint(), [n_iter[run_ix]])
+            ctrl[run_ix] = add_bloq(bb, qlt_gates.XGate(), [ctrl[run_ix]])
             i, s_arg[run_ix], aux_3, aux, aux_1, aux_2 = add_bloq(
                 bb, IsEntryZero_U(), [i, s_arg[run_ix], aux_3, aux, aux_1, aux_2]
             )
             ctrl[run_ix], aux_3, pred_out[run_ix] = add_bloq(
-                bb, qlt.Toffoli(), [ctrl[run_ix], aux_3, pred_out[run_ix]]
+                bb, qlt_gates.Toffoli(), [ctrl[run_ix], aux_3, pred_out[run_ix]]
             )
             i, s_arg[run_ix], aux_3, aux, aux_1, aux_2 = add_bloq(
                 bb,
                 IsEntryZero_U().adjoint(),
                 [i, s_arg[run_ix], aux_3, aux, aux_1, aux_2],
             )
-            ctrl[run_ix] = add_bloq(bb, qlt.XGate(), [ctrl[run_ix]])
+            ctrl[run_ix] = add_bloq(bb, qlt_gates.XGate(), [ctrl[run_ix]])
         pred_out, ret = add_bloq(bb, TODO_RevEmbedU, [pred_out, ret])
         s_arg, pred_out, s_result = add_bloq(
             bb, TODO_RevEmbedU, [s_arg, pred_out, s_result]
@@ -309,18 +306,18 @@ class Grover(qlt.Bloq):
     def build_composite_bloq(
         self, bb: qlt.BloqBuilder, i, x, ret_1, aux_4, aux_5, aux_6
     ):
-        ret_1 = add_bloq(bb, qlt.XGate(), [ret_1])
-        ret_1 = add_bloq(bb, qlt.Hadamard(), [ret_1])
-        x = add_bloq(bb, qlt.QFTTextBook(4), [x])
+        ret_1 = add_bloq(bb, qlt_gates.XGate(), [ret_1])
+        ret_1 = add_bloq(bb, qlt_gates.Hadamard(), [ret_1])
+        x = add_bloq(bb, QFTTextBook(4), [x])
         for _ in range(k):
             i, x, ret_1, aux_4, aux_5, aux_6 = add_bloq(
                 bb, IsEntryZero_U(), [i, x, ret_1, aux_4, aux_5, aux_6]
             )
-            x = add_bloq(bb, qlt.QFTTextBook(4).adjoint(), [x])
+            x = add_bloq(bb, QFTTextBook(4).adjoint(), [x])
             x = add_bloq(bb, TODO_PhaseOnZero, [x])
-            x = add_bloq(bb, qlt.QFTTextBook(4), [x])
-        ret_1 = add_bloq(bb, qlt.Hadamard(), [ret_1])
-        ret_1 = add_bloq(bb, qlt.XGate(), [ret_1])
+            x = add_bloq(bb, QFTTextBook(4), [x])
+        ret_1 = add_bloq(bb, qlt_gates.Hadamard(), [ret_1])
+        ret_1 = add_bloq(bb, qlt_gates.XGate(), [ret_1])
         return {
             "i": i,
             "x": x,
@@ -429,10 +426,12 @@ class UAny_1(qlt.Bloq):
         s_arg_1,
     ):
         for run_ix in range(16):
-            n_iter_1[run_ix] = add_bloq(bb, qlt.QFTTextBook(2), [n_iter_1[run_ix]])
-            pred_out_1[run_ix] = add_bloq(bb, qlt.XGate(), [pred_out_1[run_ix]])
-            pred_out_1[run_ix] = add_bloq(bb, qlt.Hadamard(), [pred_out_1[run_ix]])
-            s_arg_1[run_ix] = add_bloq(bb, qlt.QFTTextBook(5), [s_arg_1[run_ix]])
+            n_iter_1[run_ix] = add_bloq(bb, QFTTextBook(2), [n_iter_1[run_ix]])
+            pred_out_1[run_ix] = add_bloq(bb, qlt_gates.XGate(), [pred_out_1[run_ix]])
+            pred_out_1[run_ix] = add_bloq(
+                bb, qlt_gates.Hadamard(), [pred_out_1[run_ix]]
+            )
+            s_arg_1[run_ix] = add_bloq(bb, QFTTextBook(5), [s_arg_1[run_ix]])
             for LIM in range(4):
                 n_iter_1[run_ix], ctrl_1[run_ix] = add_bloq(
                     bb, TODO_RevEmbedU, [n_iter_1[run_ix], ctrl_1[run_ix]]
@@ -491,7 +490,9 @@ class UAny_1(qlt.Bloq):
                     ],
                 )
                 ctrl_1[run_ix], aux_28, pred_out_1[run_ix] = add_bloq(
-                    bb, qlt.Toffoli(), [ctrl_1[run_ix], aux_28, pred_out_1[run_ix]]
+                    bb,
+                    qlt_gates.Toffoli(),
+                    [ctrl_1[run_ix], aux_28, pred_out_1[run_ix]],
                 )
                 (
                     s_arg_1[run_ix],
@@ -547,19 +548,21 @@ class UAny_1(qlt.Bloq):
                     ],
                 )
                 s_arg_1[run_ix] = add_bloq(
-                    bb, qlt.QFTTextBook(5).adjoint(), [s_arg_1[run_ix]]
+                    bb, QFTTextBook(5).adjoint(), [s_arg_1[run_ix]]
                 )
                 s_arg_1[run_ix] = add_bloq(bb, TODO_PhaseOnZero, [s_arg_1[run_ix]])
-                s_arg_1[run_ix] = add_bloq(bb, qlt.QFTTextBook(5), [s_arg_1[run_ix]])
+                s_arg_1[run_ix] = add_bloq(bb, QFTTextBook(5), [s_arg_1[run_ix]])
                 n_iter_1[run_ix], ctrl_1[run_ix] = add_bloq(
                     bb, TODO_RevEmbedU, [n_iter_1[run_ix], ctrl_1[run_ix]]
                 )
-            pred_out_1[run_ix] = add_bloq(bb, qlt.Hadamard(), [pred_out_1[run_ix]])
-            pred_out_1[run_ix] = add_bloq(bb, qlt.XGate(), [pred_out_1[run_ix]])
-            n_iter_1[run_ix] = add_bloq(
-                bb, qlt.QFTTextBook(2).adjoint(), [n_iter_1[run_ix]]
+            pred_out_1[run_ix] = add_bloq(
+                bb, qlt_gates.Hadamard(), [pred_out_1[run_ix]]
             )
-            ctrl_1[run_ix] = add_bloq(bb, qlt.XGate(), [ctrl_1[run_ix]])
+            pred_out_1[run_ix] = add_bloq(bb, qlt_gates.XGate(), [pred_out_1[run_ix]])
+            n_iter_1[run_ix] = add_bloq(
+                bb, QFTTextBook(2).adjoint(), [n_iter_1[run_ix]]
+            )
+            ctrl_1[run_ix] = add_bloq(bb, qlt_gates.XGate(), [ctrl_1[run_ix]])
             (
                 s_arg_1[run_ix],
                 aux_28,
@@ -614,7 +617,7 @@ class UAny_1(qlt.Bloq):
                 ],
             )
             ctrl_1[run_ix], aux_28, pred_out_1[run_ix] = add_bloq(
-                bb, qlt.Toffoli(), [ctrl_1[run_ix], aux_28, pred_out_1[run_ix]]
+                bb, qlt_gates.Toffoli(), [ctrl_1[run_ix], aux_28, pred_out_1[run_ix]]
             )
             (
                 s_arg_1[run_ix],
@@ -669,7 +672,7 @@ class UAny_1(qlt.Bloq):
                     aux_27,
                 ],
             )
-            ctrl_1[run_ix] = add_bloq(bb, qlt.XGate(), [ctrl_1[run_ix]])
+            ctrl_1[run_ix] = add_bloq(bb, qlt_gates.XGate(), [ctrl_1[run_ix]])
         pred_out_1, ret_2 = add_bloq(bb, TODO_RevEmbedU, [pred_out_1, ret_2])
         s_arg_1, pred_out_1, s_result_2 = add_bloq(
             bb, TODO_RevEmbedU, [s_arg_1, pred_out_1, s_result_2]
@@ -1018,9 +1021,9 @@ class Grover_1(qlt.Bloq):
         aux_48,
         aux_49,
     ):
-        ret_3 = add_bloq(bb, qlt.XGate(), [ret_3])
-        ret_3 = add_bloq(bb, qlt.Hadamard(), [ret_3])
-        x_1 = add_bloq(bb, qlt.QFTTextBook(5), [x_1])
+        ret_3 = add_bloq(bb, qlt_gates.XGate(), [ret_3])
+        ret_3 = add_bloq(bb, qlt_gates.Hadamard(), [ret_3])
+        x_1 = add_bloq(bb, QFTTextBook(5), [x_1])
         for _ in range(k):
             (
                 x_1,
@@ -1075,11 +1078,11 @@ class Grover_1(qlt.Bloq):
                     aux_49,
                 ],
             )
-            x_1 = add_bloq(bb, qlt.QFTTextBook(5).adjoint(), [x_1])
+            x_1 = add_bloq(bb, QFTTextBook(5).adjoint(), [x_1])
             x_1 = add_bloq(bb, TODO_PhaseOnZero, [x_1])
-            x_1 = add_bloq(bb, qlt.QFTTextBook(5), [x_1])
-        ret_3 = add_bloq(bb, qlt.Hadamard(), [ret_3])
-        ret_3 = add_bloq(bb, qlt.XGate(), [ret_3])
+            x_1 = add_bloq(bb, QFTTextBook(5), [x_1])
+        ret_3 = add_bloq(bb, qlt_gates.Hadamard(), [ret_3])
+        ret_3 = add_bloq(bb, qlt_gates.XGate(), [ret_3])
         return {
             "x_1": x_1,
             "ret_3": ret_3,
