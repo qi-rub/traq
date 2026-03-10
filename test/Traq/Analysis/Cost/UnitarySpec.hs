@@ -12,10 +12,10 @@ import qualified Traq.Data.Symbolic as Sym
 
 import Traq.Analysis
 import Traq.Analysis.CostModel.QueryCost
+import Traq.CPL
 import Traq.Prelude
 import Traq.Primitives
 import Traq.Primitives.Search.QSearchCFNW (_QSearchZalka)
-import Traq.ProtoLang
 
 import Test.Hspec
 import TestHelpers

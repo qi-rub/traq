@@ -52,13 +52,13 @@ import qualified Traq.Data.Probability as Prob
 import Traq.Data.Subtyping
 
 import qualified Traq.Analysis as A
+import Traq.CPL (notE, (.&&.), (.+.), (.<=.))
+import qualified Traq.CPL as P
 import qualified Traq.CQPL as CQPL
 import qualified Traq.Compiler as Compiler
 import Traq.Prelude
 import Traq.Primitives.Class
 import Traq.Primitives.Search.Prelude
-import Traq.ProtoLang (notE, (.&&.), (.+.), (.<=.))
-import qualified Traq.ProtoLang as P
 
 -- ================================================================================
 -- Cost Formulas

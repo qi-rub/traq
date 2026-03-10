@@ -33,9 +33,9 @@ import qualified Traq.Data.Context as Ctx
 import Traq.Data.Default
 import qualified Traq.Data.Errors as Err
 
+import qualified Traq.CPL as P
 import Traq.CQPL.Syntax
 import Traq.Prelude
-import qualified Traq.ProtoLang as P
 
 -- ================================================================================
 -- Helpers

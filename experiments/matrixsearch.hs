@@ -9,6 +9,7 @@ import qualified Traq.Data.Symbolic as Sym
 
 import qualified Traq.Analysis as A
 import Traq.Analysis.CostModel.QueryCost (QueryCost (..))
+import qualified Traq.CPL as P
 import qualified Traq.CQPL as CQPL
 import qualified Traq.Compiler as Compiler
 import Traq.Examples.MatrixSearch
@@ -16,7 +17,6 @@ import Traq.Prelude
 import Traq.Primitives.Class (Primitive (..))
 import Traq.Primitives.Search.Prelude
 import Traq.Primitives.Search.Symbolic
-import qualified Traq.ProtoLang as P
 import qualified Traq.Utils.Printing as PP
 
 type P = Primitive (QSearchSym SizeT Double)

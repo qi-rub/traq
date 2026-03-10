@@ -30,9 +30,9 @@ import Traq.Analysis.Cost.Prelude
 import Traq.Analysis.Cost.Unitary
 import Traq.Analysis.CostModel.Class
 import Traq.Analysis.Prelude
+import Traq.CPL.Eval
+import Traq.CPL.Syntax
 import Traq.Prelude
-import Traq.ProtoLang.Eval
-import Traq.ProtoLang.Syntax
 
 -- | Havoc Cost w.r.t. quantum compiler
 class (CostU ext size prec) => CostQ ext size prec | ext -> size prec where

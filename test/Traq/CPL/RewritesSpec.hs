@@ -1,8 +1,8 @@
-module Traq.ProtoLang.RewritesSpec (spec) where
+module Traq.CPL.RewritesSpec (spec) where
 
-import Traq.ProtoLang.Lenses ()
-import Traq.ProtoLang.Rewrites
-import Traq.ProtoLang.Syntax
+import Traq.CPL.Lenses ()
+import Traq.CPL.Rewrites
+import Traq.CPL.Syntax
 import Traq.Utils.ASTRewriting
 
 import Test.Hspec

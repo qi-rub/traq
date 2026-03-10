@@ -7,9 +7,9 @@ import Text.Parsec.String
 
 import qualified Traq.Data.Symbolic as Sym
 
+import qualified Traq.CPL as P
 import Traq.Primitives.Amplify.Prelude (Amplify (..))
 import Traq.Primitives.Class
-import qualified Traq.ProtoLang as P
 import qualified Traq.Utils.Printing as PP
 
 import Test.Hspec

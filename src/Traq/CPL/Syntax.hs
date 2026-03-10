@@ -5,7 +5,7 @@
 {-# LANGUAGE StandaloneDeriving #-}
 {-# LANGUAGE UndecidableInstances #-}
 
-module Traq.ProtoLang.Syntax (
+module Traq.CPL.Syntax (
   -- * Syntax
   MetaParam (..),
 

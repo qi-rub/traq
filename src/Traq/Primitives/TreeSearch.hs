@@ -18,8 +18,8 @@ import Lens.Micro.Mtl
 import Traq.Control.Monad
 import qualified Traq.Data.Context as Ctx
 
+import qualified Traq.CPL as P
 import Traq.Prelude
-import qualified Traq.ProtoLang as P
 import qualified Traq.Utils.Printing as PP
 
 {- | Search a binary tree rooted at node @1@.

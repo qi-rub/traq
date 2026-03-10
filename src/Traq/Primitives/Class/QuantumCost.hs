@@ -13,11 +13,11 @@ import GHC.Generics
 
 import qualified Traq.Analysis as A
 import qualified Traq.Analysis.CostModel.Class as C
+import qualified Traq.CPL as P
 import Traq.Prelude
 import Traq.Primitives.Class.Prelude
 import Traq.Primitives.Class.TypeCheck
 import Traq.Primitives.Class.UnitaryCost
-import qualified Traq.ProtoLang as P
 
 -- --------------------------------------------------------------------------------
 -- Quantum Worst Case Costs

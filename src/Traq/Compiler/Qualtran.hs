@@ -20,9 +20,9 @@ import Lens.Micro.Mtl
 
 import qualified Traq.Data.Context as Ctx
 
+import qualified Traq.CPL as P
 import qualified Traq.CQPL as CQPL
 import Traq.Prelude
-import qualified Traq.ProtoLang as P
 
 -- ============================================================
 -- Compile QPL -> py (+Qualtran)

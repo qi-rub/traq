@@ -35,6 +35,7 @@ import qualified Traq.Data.Context as Ctx
 import qualified Traq.Data.Symbolic as Sym
 
 import qualified Traq.Analysis as A
+import qualified Traq.CPL as P
 import qualified Traq.CQPL as CQPL
 import qualified Traq.Compiler as Compiler
 import Traq.Prelude
@@ -45,7 +46,6 @@ import Traq.Primitives.Class.QuantumCost
 import Traq.Primitives.Class.Serialize
 import Traq.Primitives.Class.TypeCheck
 import Traq.Primitives.Class.UnitaryCost
-import qualified Traq.ProtoLang as P
 import qualified Traq.Utils.Printing as PP
 
 {- | A generic second-order primitive.

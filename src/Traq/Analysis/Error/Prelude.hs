@@ -21,7 +21,7 @@ module Traq.Analysis.Error.Prelude (
 import Control.Monad.Reader (Reader)
 
 import Traq.Analysis.Prelude (SizeToPrec)
-import Traq.ProtoLang.Syntax (FunCtx)
+import Traq.CPL.Syntax (FunCtx)
 
 -- ================================================================================
 -- Failure Probabilities

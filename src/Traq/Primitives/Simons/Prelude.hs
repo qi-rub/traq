@@ -16,9 +16,9 @@ import Text.Printf (printf)
 
 import qualified Traq.Data.Symbolic as Sym
 
+import qualified Traq.CPL as P
 import Traq.Prelude
 import Traq.Primitives.Class
-import qualified Traq.ProtoLang as P
 
 {- | Primitive to solve Simon's problem.
 Simon's Problem: Given a function @f : {0, 1}^n -> {0, 1}^n@, find an @s : {0, 1}^n@ such that @f(x) = f(x ^ s)@ for every @x@.

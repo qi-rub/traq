@@ -14,9 +14,9 @@ import Control.Monad.Except (throwError)
 
 import qualified Traq.Data.Probability as Prob
 
+import qualified Traq.CPL as P
 import Traq.Prelude
 import Traq.Primitives.Class
-import qualified Traq.ProtoLang as P
 import qualified Traq.Utils.Printing as PP
 
 newtype BooleanPredicate a = BooleanPredicate a

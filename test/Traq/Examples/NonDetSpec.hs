@@ -14,13 +14,13 @@ import qualified Traq.Data.Symbolic as Sym
 
 import qualified Traq.Analysis as A
 import Traq.Analysis.CostModel.QueryCost (SimpleQueryCost (getCost))
+import qualified Traq.CPL as P
+import qualified Traq.CPL.Parser as PP
 import qualified Traq.CQPL as CQPL
 import qualified Traq.Compiler as Compiler
 import Traq.Compiler.Qualtran (toPy)
 import Traq.Prelude
 import Traq.Primitives (DefaultPrims)
-import qualified Traq.ProtoLang as P
-import qualified Traq.ProtoLang.Parser as PP
 
 import Test.Hspec
 import TestHelpers

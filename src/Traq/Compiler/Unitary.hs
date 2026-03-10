@@ -28,11 +28,11 @@ import Traq.Control.Monad
 import qualified Traq.Data.Context as Ctx
 
 import qualified Traq.Analysis.Annotate.Prelude as A
+import qualified Traq.CPL as P
 import qualified Traq.CQPL as CQPL
 import Traq.CQPL.Syntax
 import Traq.Compiler.Prelude
 import Traq.Prelude
-import qualified Traq.ProtoLang as P
 
 -- ================================================================================
 -- Helpers

@@ -18,11 +18,11 @@ import GHC.Generics
 import Lens.Micro.Mtl
 
 import qualified Traq.Analysis as A
+import qualified Traq.CPL as P
 import qualified Traq.CQPL as CQPL
 import Traq.Compiler
 import Traq.Prelude
 import Traq.Primitives.Class.Prelude
-import qualified Traq.ProtoLang as P
 
 -- --------------------------------------------------------------------------------
 -- Environment and enclosing monad for compiling primitives.

@@ -16,12 +16,12 @@ import qualified Traq.Data.Symbolic as Sym
 
 import qualified Traq.Analysis as Traq
 import qualified Traq.Analysis.CostModel.QueryCost as Traq
+import qualified Traq.CPL as P
 import qualified Traq.CQPL as CQPL
 import qualified Traq.Compiler
 import Traq.Examples.MatrixSearch (matrixExampleS)
 import Traq.Prelude
 import qualified Traq.Primitives as Traq
-import qualified Traq.ProtoLang as P
 import qualified Traq.Utils.Printing as PP
 
 loadProgramFromFile :: String -> IO (P.Program (Traq.DefaultPrims (Sym.Sym SizeT) Double))

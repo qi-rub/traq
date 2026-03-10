@@ -1,6 +1,6 @@
 {-# LANGUAGE DefaultSignatures #-}
 
-module Traq.ProtoLang.Vars (
+module Traq.CPL.Vars (
   -- * Program Variables
   VarSet,
   HasFreeVars (..),
@@ -24,8 +24,8 @@ import GHC.Generics
 
 import Lens.Micro.GHC
 
+import Traq.CPL.Syntax
 import Traq.Prelude
-import Traq.ProtoLang.Syntax
 
 type VarSet = Set.Set Ident
 

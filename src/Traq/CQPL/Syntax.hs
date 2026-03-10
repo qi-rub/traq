@@ -47,9 +47,9 @@ import Lens.Micro.GHC
 
 import qualified Traq.Data.Context as Ctx
 
+import Traq.CPL (MetaParam (..), VarType)
+import qualified Traq.CPL as P
 import Traq.Prelude
-import Traq.ProtoLang (MetaParam (..), VarType)
-import qualified Traq.ProtoLang as P
 import Traq.Utils.ASTRewriting
 import qualified Traq.Utils.Printing as PP
 

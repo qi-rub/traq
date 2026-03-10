@@ -10,10 +10,10 @@ import Traq.Data.Default
 
 import qualified Traq.Analysis as A
 import Traq.Analysis.CostModel.QueryCost (SimpleQueryCost (..))
+import qualified Traq.CPL as P
 import qualified Traq.CQPL as CQPL
 import Traq.Prelude
 import Traq.Primitives.Search.QSearchCFNW
-import qualified Traq.ProtoLang as P
 import qualified Traq.Utils.Printing as PP
 
 import Test.Hspec

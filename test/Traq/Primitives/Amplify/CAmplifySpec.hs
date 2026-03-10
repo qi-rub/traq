@@ -4,10 +4,10 @@ import qualified Data.Map as Map
 
 import qualified Traq.Analysis as A
 import Traq.Analysis.CostModel.QueryCost (SimpleQueryCost (..))
+import qualified Traq.CPL as P
 import Traq.Primitives.Amplify.CAmplify
 import Traq.Primitives.Amplify.Prelude
 import Traq.Primitives.Class
-import qualified Traq.ProtoLang as P
 
 import Test.Hspec
 import TestHelpers

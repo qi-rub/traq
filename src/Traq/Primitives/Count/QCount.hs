@@ -12,9 +12,9 @@ module Traq.Primitives.Count.QCount () where
 import Control.Monad (forM, when)
 import Control.Monad.Except (throwError)
 
+import qualified Traq.CPL as P
 import Traq.Prelude
 import Traq.Primitives.Class
-import qualified Traq.ProtoLang as P
 
 data QCount size prec = QCount {arg_ty :: P.VarType size}
   deriving (Eq, Show, Read)

@@ -24,6 +24,7 @@ module Traq.Primitives (
 import GHC.Generics
 
 import qualified Traq.Analysis as A
+import qualified Traq.CPL as P
 import Traq.Prelude
 import Traq.Primitives.Amplify.CAmplify
 import Traq.Primitives.Amplify.QAmplify
@@ -34,7 +35,6 @@ import Traq.Primitives.Search.Prelude
 import Traq.Primitives.Search.QSearchCFNW
 import Traq.Primitives.Search.RandomSearch
 import Traq.Primitives.Simons.Quantum
-import qualified Traq.ProtoLang as P
 
 -- ================================================================================
 -- Default primitives: Supports exp cost and compile

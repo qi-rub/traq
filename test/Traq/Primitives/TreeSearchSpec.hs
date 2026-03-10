@@ -6,10 +6,10 @@ import Text.Parsec.String
 
 import qualified Traq.Data.Symbolic as Sym
 
+import qualified Traq.CPL as P
+import Traq.CPL.Parser (programParser)
 import Traq.Prelude
 import Traq.Primitives.TreeSearch
-import qualified Traq.ProtoLang as P
-import Traq.ProtoLang.Parser (programParser)
 
 import Test.Hspec
 import TestHelpers

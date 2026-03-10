@@ -2,9 +2,9 @@
 
 module Traq.Compiler.UnitarySpec (spec) where
 
+import qualified Traq.CPL as P
 import qualified Traq.CQPL as CQPL
 import Traq.Compiler.Unitary
-import qualified Traq.ProtoLang as P
 import qualified Traq.Utils.Printing as PP
 
 import Test.Hspec

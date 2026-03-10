@@ -4,12 +4,12 @@ import qualified Data.Map as Map
 
 import qualified Traq.Analysis as A
 import Traq.Analysis.CostModel.QueryCost (SimpleQueryCost (..))
+import qualified Traq.CPL as P
 import Traq.Examples.MatrixSearch (mkMatrixExample)
 import Traq.Prelude
 import Traq.Primitives (Primitive (Primitive))
 import Traq.Primitives.Search.Prelude
 import Traq.Primitives.Search.RandomSearch
-import qualified Traq.ProtoLang as P
 
 import Test.Hspec
 

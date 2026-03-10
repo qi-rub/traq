@@ -20,8 +20,8 @@ import Data.Maybe (fromMaybe)
 import Text.Parsec.Token
 import Text.Printf (printf)
 
+import qualified Traq.CPL as P
 import Traq.Prelude
-import qualified Traq.ProtoLang as P
 import qualified Traq.Utils.Printing as PP
 
 {- | A partially applied function

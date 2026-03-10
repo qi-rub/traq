@@ -7,10 +7,10 @@ import Lens.Micro.GHC
 import qualified Traq.Data.Context as Ctx
 import qualified Traq.Data.Symbolic as Sym
 
+import qualified Traq.CPL as P
 import Traq.CQPL.Syntax
 import Traq.Compiler.Quantum
 import Traq.Prelude
-import qualified Traq.ProtoLang as P
 
 import Test.Hspec
 import TestHelpers

@@ -9,11 +9,11 @@ import Text.Read (readMaybe)
 import qualified Traq.Data.Symbolic as Sym
 
 import qualified Traq.Analysis as A
+import qualified Traq.CPL as P
 import qualified Traq.CQPL as CQPL
 import qualified Traq.Compiler.Quantum as CompileQ
 import Traq.Prelude
 import Traq.Primitives
-import qualified Traq.ProtoLang as P
 import qualified Traq.Utils.Printing as PP
 
 type SymbSize = Sym.Sym Int
@@ -31,7 +31,7 @@ opts =
   info
     (options <**> helper)
     ( fullDesc
-        <> header "Compile Proto programs to CQPL and analyze their costs."
+        <> header "Compile CPL programs to CQPL and analyze their costs."
     )
  where
   options =

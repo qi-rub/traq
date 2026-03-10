@@ -15,6 +15,7 @@ import Lens.Micro.GHC
 
 import qualified Traq.Analysis as A
 import Traq.Analysis.CostModel.QueryCost (SimpleQueryCost (..))
+import qualified Traq.CPL as P
 import Traq.Examples.MatrixSearch
 import Traq.Prelude
 import Traq.Primitives
@@ -22,7 +23,6 @@ import Traq.Primitives.Search.DetSearch (DetSearch (..))
 import Traq.Primitives.Search.Prelude
 import Traq.Primitives.Search.QSearchCFNW
 import Traq.Primitives.Search.RandomSearch (RandomSearch (..))
-import qualified Traq.ProtoLang as P
 
 printDivider :: IO ()
 printDivider = putStrLn $ replicate 80 '='

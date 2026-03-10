@@ -1,7 +1,7 @@
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE RecordWildCards #-}
 
-module Traq.ProtoLang.Parser (
+module Traq.CPL.Parser (
   -- * Parsers
   Parseable (..),
   programParser,
@@ -33,8 +33,8 @@ import Lens.Micro.GHC
 
 import qualified Traq.Data.Symbolic as Sym
 
+import Traq.CPL.Syntax
 import Traq.Prelude
-import Traq.ProtoLang.Syntax
 
 -- | Basic symbolic type
 type SymbSize = Sym.Sym SizeT

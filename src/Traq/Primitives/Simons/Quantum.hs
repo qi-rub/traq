@@ -23,12 +23,12 @@ import qualified Numeric.Algebra as Alg
 import Traq.Data.Subtyping
 
 import qualified Traq.Analysis as A
+import qualified Traq.CPL as P
 import qualified Traq.CQPL as CQPL
 import qualified Traq.Compiler as Compiler
 import Traq.Prelude
 import Traq.Primitives.Class
 import Traq.Primitives.Simons.Prelude
-import qualified Traq.ProtoLang as P
 import qualified Traq.Utils.Printing as PP
 
 -- ================================================================================

@@ -26,8 +26,8 @@ import Traq.Analysis.Annotate.Basic
 import Traq.Analysis.Annotate.Prelude
 import Traq.Analysis.Error.Prelude
 import Traq.Analysis.Prelude
+import Traq.CPL
 import Traq.Prelude
-import Traq.ProtoLang
 
 -- ============================================================================
 -- Helpers

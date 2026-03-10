@@ -18,8 +18,8 @@ import qualified Traq.Data.Context as Ctx
 
 import Traq.Analysis.Error.Prelude
 import Traq.Analysis.Error.Unitary (TraceNormErrorU)
+import Traq.CPL
 import Traq.Prelude
-import Traq.ProtoLang
 
 -- | Total variation distance w.r.t. quantum compiler CompileQ.
 class

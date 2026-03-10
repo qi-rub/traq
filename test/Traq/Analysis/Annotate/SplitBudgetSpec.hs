@@ -6,9 +6,9 @@ import Lens.Micro.GHC
 
 import qualified Traq.Analysis as A
 import Traq.Analysis.CostModel.QueryCost (SimpleQueryCost (getCost))
+import qualified Traq.CPL as P
 import Traq.Examples.MatrixSearch (matrixExampleS)
 import Traq.Primitives.Search.QSearchCFNW
-import qualified Traq.ProtoLang as P
 
 import Test.Hspec
 import TestHelpers

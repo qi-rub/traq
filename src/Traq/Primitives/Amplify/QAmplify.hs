@@ -26,12 +26,12 @@ import qualified Traq.Data.Probability as Prob
 import Traq.Data.Subtyping
 
 import qualified Traq.Analysis as A
+import qualified Traq.CPL as P
 import qualified Traq.CQPL as CQPL
 import qualified Traq.Compiler as Compiler
 import Traq.Prelude
 import Traq.Primitives.Amplify.Prelude
 import Traq.Primitives.Class
-import qualified Traq.ProtoLang as P
 
 -- | Quantum Amplitude Amplification.
 newtype QAmplify size prec = QAmplify (Amplify size prec)

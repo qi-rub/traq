@@ -9,9 +9,9 @@ module Traq.Primitives.Class.TypeCheck (
 import Control.Monad.Except (liftEither)
 import GHC.Generics
 
+import qualified Traq.CPL as P
 import Traq.Prelude
 import Traq.Primitives.Class.Prelude
-import qualified Traq.ProtoLang as P
 
 -- --------------------------------------------------------------------------------
 -- Typing

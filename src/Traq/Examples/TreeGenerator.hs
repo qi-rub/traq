@@ -1,7 +1,7 @@
 module Traq.Examples.TreeGenerator where
 
+import Traq.CPL.Syntax
 import Traq.Prelude
-import Traq.ProtoLang.Syntax
 
 treeGeneratorExample :: (Num size, SizeType ext ~ size) => size -> size -> size -> Program ext
 treeGeneratorExample n w p =

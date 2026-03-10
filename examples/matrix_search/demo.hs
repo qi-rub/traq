@@ -11,7 +11,7 @@ import Lens.Micro.GHC
 
 import qualified Traq.Analysis as A
 import Traq.Prelude
-import qualified Traq.ProtoLang as P
+import qualified Traq.CPL as P
 
 import Traq.Analysis.CostModel.QueryCost (SimpleQueryCost (..))
 import Traq.Primitives (Primitive)

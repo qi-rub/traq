@@ -24,9 +24,9 @@ import Traq.Control.Monad
 import qualified Traq.Data.Context as Ctx
 
 import qualified Traq.Analysis.CostModel.Class as C
+import qualified Traq.CPL as P
 import Traq.CQPL.Syntax
 import Traq.Prelude
-import qualified Traq.ProtoLang as P
 
 -- | Cache the costs of each procedure
 type CostMap c = Map.Map Ident c

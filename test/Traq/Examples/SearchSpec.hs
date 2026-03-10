@@ -9,13 +9,13 @@ import qualified Data.Map as Map
 
 import qualified Traq.Analysis as A
 import Traq.Analysis.CostModel.QueryCost (SimpleQueryCost (..))
+import qualified Traq.CPL as P
 import qualified Traq.CQPL as CQPL
 import qualified Traq.Compiler as Compiler
 import Traq.Compiler.Qualtran (toPy)
 import Traq.Examples.Search
 import Traq.Prelude
 import Traq.Primitives.Search.QSearchCFNW (_EQSearch, _QSearchZalka)
-import qualified Traq.ProtoLang as P
 import qualified Traq.Utils.Printing as PP
 
 import Test.Hspec

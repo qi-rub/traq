@@ -5,8 +5,8 @@ module Traq.Analysis.CostModel.Class (
 
 import qualified Numeric.Algebra as Alg
 
+import qualified Traq.CPL.Syntax as P
 import Traq.Prelude
-import qualified Traq.ProtoLang.Syntax as P
 
 -- | Type of a query/execution: either run on a classical computer, or a quantum computer (as a unitary).
 data QueryType = Classical | Unitary

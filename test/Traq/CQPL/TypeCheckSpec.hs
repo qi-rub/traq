@@ -12,9 +12,9 @@ import Lens.Micro.GHC
 import qualified Traq.Data.Context as Ctx
 import Traq.Data.Default
 
+import Traq.CPL ((.&&.))
+import qualified Traq.CPL as P
 import qualified Traq.CQPL as CQPL
-import Traq.ProtoLang ((.&&.))
-import qualified Traq.ProtoLang as P
 
 import Test.Hspec
 import TestHelpers

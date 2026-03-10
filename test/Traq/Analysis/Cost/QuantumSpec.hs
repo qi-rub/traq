@@ -12,13 +12,13 @@ import Traq.Analysis
 import qualified Traq.Analysis as A
 import Traq.Analysis.Cost.UnitarySpec (unsafeParseProgram)
 import Traq.Analysis.CostModel.QueryCost
+import Traq.CPL
+import qualified Traq.CPL as P
 import Traq.Prelude
 import qualified Traq.Primitives as P
 import qualified Traq.Primitives.Search.Prelude as P
 import Traq.Primitives.Search.QSearchCFNW (_EQSearch)
 import qualified Traq.Primitives.Search.QSearchCFNW as P
-import Traq.ProtoLang
-import qualified Traq.ProtoLang as P
 
 import Test.Hspec
 import TestHelpers

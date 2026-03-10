@@ -9,8 +9,8 @@ import qualified Traq.Data.Symbolic as Sym
 
 import Traq.Analysis.Annotate.Prelude
 import Traq.Analysis.Error.Prelude
+import Traq.CPL
 import Traq.Prelude
-import Traq.ProtoLang
 
 newEps :: (m ~ AnnotateMonad ext ext') => m (Sym.Sym p)
 newEps = do

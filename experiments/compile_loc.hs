@@ -9,10 +9,10 @@ import Text.Printf (printf)
 import qualified Traq.Data.Symbolic as Sym
 
 import qualified Traq.Analysis as Traq
+import qualified Traq.CPL as P
 import qualified Traq.Compiler.Quantum
 import Traq.Prelude
 import qualified Traq.Primitives as Traq
-import qualified Traq.ProtoLang as P
 import qualified Traq.Utils.Printing as PP
 
 loadProgramFromFile :: String -> IO (P.Program (Traq.DefaultPrims (Sym.Sym SizeT) Double))

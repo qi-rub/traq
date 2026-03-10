@@ -22,9 +22,9 @@ import Lens.Micro.Mtl
 import Traq.Control.Monad
 import qualified Traq.Data.Probability as Prob
 
+import qualified Traq.CPL as P
 import Traq.Prelude
 import Traq.Primitives.Class
-import qualified Traq.ProtoLang as P
 
 {- | Primitive @amplify@ that takes a sampler and returns a good sample w.h.p.
 The sampler must return a sample and a boolean flag,

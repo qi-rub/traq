@@ -16,10 +16,10 @@ import qualified Traq.Data.Probability as Prob
 import Traq.Data.Subtyping
 
 import qualified Traq.Analysis as A
+import qualified Traq.CPL as P
 import Traq.Prelude
 import Traq.Primitives.Class
 import Traq.Primitives.Search.Prelude
-import qualified Traq.ProtoLang as P
 
 -- ================================================================================
 -- Primitive Implementation

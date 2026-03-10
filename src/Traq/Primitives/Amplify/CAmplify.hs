@@ -19,10 +19,10 @@ import qualified Traq.Data.Probability as Prob
 import Traq.Data.Subtyping
 
 import qualified Traq.Analysis as A
+import qualified Traq.CPL as P
 import Traq.Prelude
 import Traq.Primitives.Amplify.Prelude
 import Traq.Primitives.Class
-import qualified Traq.ProtoLang as P
 
 -- | Classical (probabilistic) bounded repetition.
 newtype CAmplify size prec = CAmplify (Amplify size prec)

@@ -16,12 +16,12 @@ import Traq.Control.Monad
 import qualified Traq.Data.Symbolic as Sym
 
 import qualified Traq.Analysis as Analysis
+import qualified Traq.CPL as P
 import qualified Traq.CQPL as CQPL
 import qualified Traq.Compiler as Compiler
 import Traq.Compiler.Qualtran
 import Traq.Prelude
 import qualified Traq.Primitives as P
-import qualified Traq.ProtoLang as P
 import qualified Traq.Utils.Printing as PP
 
 -- ============================================================
