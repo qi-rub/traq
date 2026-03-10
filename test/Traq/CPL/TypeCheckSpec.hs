@@ -1,10 +1,10 @@
-module Traq.ProtoLang.TypeCheckSpec (spec) where
+module Traq.CPL.TypeCheckSpec (spec) where
 
 import Data.Either (isLeft)
 
+import Traq.CPL.Syntax
+import Traq.CPL.TypeCheck
 import Traq.Examples.MatrixSearch (matrixExampleS)
-import Traq.ProtoLang.Syntax
-import Traq.ProtoLang.TypeCheck
 
 import Test.Hspec
 import TestHelpers

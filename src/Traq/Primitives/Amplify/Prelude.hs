@@ -22,9 +22,9 @@ import Lens.Micro.Mtl
 import Traq.Control.Monad
 import qualified Traq.Data.Probability as Prob
 
+import qualified Traq.CPL as CPL
 import Traq.Prelude
 import Traq.Primitives.Class
-import qualified Traq.ProtoLang as P
 
 {- | Primitive @amplify@ that takes a sampler and returns a good sample w.h.p.
 The sampler must return a sample and a boolean flag,
@@ -45,7 +45,7 @@ instance ValidPrimShape SamplerFn where
 
 type instance PrimFnShape (Amplify size prec) = SamplerFn
 
-instance P.MapSize (Amplify size prec) where
+instance CPL.MapSize (Amplify size prec) where
   type MappedSize (Amplify size prec) size' = (Amplify size' prec)
   mapSize _ Amplify{..} = Amplify{..}
 
@@ -57,26 +57,26 @@ instance (Show prec, Fractional prec) => SerializePrim (Amplify size prec) where
   printPrimParams Amplify{p_min} = [show p_min]
 
 -- Type check
-instance (P.TypingReqs size) => TypeCheckPrim (Amplify size prec) size where
+instance (CPL.TypingReqs size) => TypeCheckPrim (Amplify size prec) size where
   inferRetTypesPrim _ (SamplerFn sampler_ty) = do
-    let P.FnType param_types ret_types = sampler_ty
+    let CPL.FnType param_types ret_types = sampler_ty
 
     when (param_types /= []) $ do
       throwError $ printf "amplify: all sampler args must be bound, but got unbound %s" (show param_types)
 
     sample_ty <-
       case ret_types of
-        [boolType, t] | boolType == P.tbool -> return t
+        [boolType, t] | boolType == CPL.tbool -> return t
         _ -> throwError $ printf "amplify: sampler must return (Bool, T), got %s" (show ret_types)
 
-    return [P.tbool, sample_ty]
+    return [CPL.tbool, sample_ty]
 
 {- | Evaluate an `amplify` call by evaluating the sampler f to get distribution μ
 and get success probability Psucc := P(b=1) conditioned on μ. Finally, returning the distribution
 based on Psucc.
 -}
 instance
-  (Ord prec, size ~ SizeT, P.EvalReqs size prec) =>
+  (Ord prec, size ~ SizeT, CPL.EvalReqs size prec) =>
   EvalPrim (Amplify size prec) size prec
   where
   evalPrim Amplify{p_min} (SamplerFn sampler) = do
@@ -93,5 +93,5 @@ instance
         | p_succ == 0 -> mu
         | otherwise -> Prob.zero
    where
-    success [b_val, _] = P.valueToBool b_val
+    success [b_val, _] = CPL.valueToBool b_val
     success _ = error "invalid predicate output"

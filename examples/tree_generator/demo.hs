@@ -11,7 +11,7 @@ import qualified Traq.Data.Symbolic as Sym
 import Lens.Micro.GHC
 import qualified Traq.Analysis as A
 import Traq.Prelude
-import qualified Traq.ProtoLang as P
+import qualified Traq.CPL as CPL
 
 import Traq.Analysis.CostModel.QueryCost (SimpleQueryCost (..))
 import Traq.Primitives (Primitive)
@@ -21,12 +21,12 @@ import qualified Traq.Utils.Printing as PP
 
 type Matrix = SizeT -> SizeT -> Bool
 
-listToFun :: [SizeT] -> [P.Value SizeT] -> [P.Value SizeT]
-listToFun xs [P.FinV i] = [P.toValue $ xs !! i]
+listToFun :: [SizeT] -> [CPL.Value SizeT] -> [CPL.Value SizeT]
+listToFun xs [CPL.FinV i] = [CPL.toValue $ xs !! i]
 listToFun _ _ = error "invalid index"
 
-matrixToFun :: Matrix -> [P.Value SizeT] -> [P.Value SizeT]
-matrixToFun matrix [P.FinV i, P.FinV j] = [P.toValue $ matrix i j]
+matrixToFun :: Matrix -> [CPL.Value SizeT] -> [CPL.Value SizeT]
+matrixToFun matrix [CPL.FinV i, CPL.FinV j] = [CPL.toValue $ matrix i j]
 matrixToFun _ _ = error "invalid indices"
 
 data Ctx = Ctx
@@ -47,14 +47,14 @@ substCtx Ctx{..} =
 worstCaseCost
   , expectedCost ::
     forall primT primT'.
-    ( P.Parseable primT'
+    ( CPL.Parseable primT'
     , A.AnnotateWithErrorBudgetU primT
     , A.AnnotateWithErrorBudgetQ primT
     , A.ExpCostQ (A.AnnFailProb primT) SizeT Double
     , SizeType primT' ~ Sym.Sym Int
-    , P.MapSize primT'
-    , primT ~ P.MappedSize primT' Int
-    , primT' ~ P.MappedSize primT (Sym.Sym Int)
+    , CPL.MapSize primT'
+    , primT ~ CPL.MappedSize primT' Int
+    , primT' ~ CPL.MappedSize primT (Sym.Sym Int)
     , PP.ToCodeString primT
     ) =>
     Ctx ->
@@ -63,16 +63,16 @@ worstCaseCost
 -- worst case cost (ignores data)
 worstCaseCost ctx eps = do
   -- load the program
-  loaded_program <- either (fail . show) pure =<< parseFromFile (P.programParser @primT') "examples/tree_generator/tree_generator_01_knapsack.traq"
-  let program = P.mapSize (substCtx ctx) loaded_program
+  loaded_program <- either (fail . show) pure =<< parseFromFile (CPL.programParser @primT') "examples/tree_generator/tree_generator_01_knapsack.traq"
+  let program = CPL.mapSize (substCtx ctx) loaded_program
   program_annotated <- either fail pure $ A.annotateProgWithErrorBudget (A.failProb eps) program
 
   return $ getCost $ A.costQProg program_annotated
 -- expected cost (depends on data)
 expectedCost ctx@Ctx{..} eps = do
   -- load the program
-  loaded_program <- either (fail . show) pure =<< parseFromFile (P.programParser @primT') "examples/tree_generator/tree_generator_01_knapsack.traq"
-  let program = P.mapSize (substCtx ctx) loaded_program
+  loaded_program <- either (fail . show) pure =<< parseFromFile (CPL.programParser @primT') "examples/tree_generator/tree_generator_01_knapsack.traq"
+  let program = CPL.mapSize (substCtx ctx) loaded_program
   -- putStrLn $ replicate 80 '='
   -- putStrLn $ PP.toCodeString program
   -- putStrLn $ replicate 80 '='
@@ -84,7 +84,7 @@ expectedCost ctx@Ctx{..} eps = do
   -- the functionality of Matrix, provided as input data
   let interp =
         mempty
-          & (at "Capacity" ?~ \_ -> [P.toValue capacity])
+          & (at "Capacity" ?~ \_ -> [CPL.toValue capacity])
           & (at "Profit" ?~ listToFun profits)
           & (at "Weight" ?~ listToFun weights)
 

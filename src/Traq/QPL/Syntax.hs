@@ -2,7 +2,7 @@
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE MultiParamTypeClasses #-}
 
-module Traq.CQPL.Syntax (
+module Traq.QPL.Syntax (
   -- * Syntax
   MetaParam (..),
   Arg (..),
@@ -47,9 +47,9 @@ import Lens.Micro.GHC
 
 import qualified Traq.Data.Context as Ctx
 
+import Traq.CPL (MetaParam (..), VarType)
+import qualified Traq.CPL as CPL
 import Traq.Prelude
-import Traq.ProtoLang (MetaParam (..), VarType)
-import qualified Traq.ProtoLang as P
 import Traq.Utils.ASTRewriting
 import qualified Traq.Utils.Printing as PP
 
@@ -105,11 +105,11 @@ instance HasAdjoint (BasicGate size) where
   adjoint (PhaseOnZero theta) = PhaseOnZero (-theta)
   adjoint g = g
 
--- | Unitary operators in CQPL
+-- | Unitary operators in QPL
 data Unitary size
   = BasicGateU (BasicGate size)
-  | RevEmbedU [Ident] (P.BasicExpr size)
-  | DistrU (P.DistrExpr size)
+  | RevEmbedU [Ident] (CPL.BasicExpr size)
+  | DistrU (CPL.DistrExpr size)
   | Controlled (Unitary size)
   | Adjoint (Unitary size)
   deriving (Eq, Show, Read)
@@ -147,16 +147,16 @@ data UStmt size
   | -- placeholders
     UCommentS String
   | -- syntax sugar
-    URepeatS {n_iter :: P.MetaParam size, uloop_body :: UStmt size} -- repeat k do S;
+    URepeatS {n_iter :: CPL.MetaParam size, uloop_body :: UStmt size} -- repeat k do S;
   | UForInRangeS
       { iter_meta_var :: Ident
-      , iter_lim :: P.MetaParam size
+      , iter_lim :: CPL.MetaParam size
       , dagger :: Bool
       , uloop_body :: UStmt size
       }
   | UForInDomainS
       { iter_meta_var :: Ident
-      , iter_ty :: P.VarType size
+      , iter_ty :: CPL.VarType size
       , dagger :: Bool
       , uloop_body :: UStmt size
       }
@@ -165,7 +165,7 @@ data UStmt size
 
 type instance SizeType (UStmt size) = size
 
-mkForInRangeS :: Ident -> P.MetaParam size -> UStmt size -> UStmt size
+mkForInRangeS :: Ident -> CPL.MetaParam size -> UStmt size -> UStmt size
 mkForInRangeS iter_meta_var iter_lim uloop_body = UForInRangeS{iter_meta_var, iter_lim, uloop_body, dagger = False}
 
 instance HasAdjoint (UStmt size) where
@@ -232,8 +232,8 @@ data FunctionCall
 data Stmt size
   = SkipS
   | CommentS String
-  | AssignS {rets :: [Ident], expr :: P.BasicExpr size}
-  | RandomS {rets :: [Ident], distr_expr :: P.DistrExpr size}
+  | AssignS {rets :: [Ident], expr :: CPL.BasicExpr size}
+  | RandomS {rets :: [Ident], distr_expr :: CPL.DistrExpr size}
   | RandomDynS {ret :: Ident, max_var :: Ident}
   | CallS {fun :: FunctionCall, meta_params :: [Either (MetaParam size) Ident], args :: [Arg size]}
   | SeqS [Stmt size]
@@ -241,9 +241,9 @@ data Stmt size
   | RepeatS {n_iter :: MetaParam size, loop_body :: Stmt size}
   | -- syntax sugar
     WhileK {n_iter :: MetaParam size, cond :: Ident, loop_body :: Stmt size}
-  | WhileKWithCondExpr {n_iter :: MetaParam size, cond :: Ident, cond_expr :: P.BasicExpr size, loop_body :: Stmt size}
-  | ForInArray {loop_index :: Ident, loop_index_ty :: VarType size, loop_values :: [P.BasicExpr size], loop_body :: Stmt size}
-  | ForInRangeS {iter_meta_var :: Ident, iter_lim :: P.MetaParam size, loop_body :: Stmt size}
+  | WhileKWithCondExpr {n_iter :: MetaParam size, cond :: Ident, cond_expr :: CPL.BasicExpr size, loop_body :: Stmt size}
+  | ForInArray {loop_index :: Ident, loop_index_ty :: VarType size, loop_values :: [CPL.BasicExpr size], loop_body :: Stmt size}
+  | ForInRangeS {iter_meta_var :: Ident, iter_lim :: CPL.MetaParam size, loop_body :: Stmt size}
   deriving (Eq, Show, Read)
 
 type instance SizeType (Stmt size) = size
@@ -511,7 +511,7 @@ whileKWithCondExpr ::
   -- | loop condition variable
   Ident ->
   -- | loop condition expression
-  P.BasicExpr size ->
+  CPL.BasicExpr size ->
   -- | loop body
   Stmt size ->
   Stmt size
@@ -523,7 +523,7 @@ whileKWithCondExpr k cond_var cond_expr body =
  where
   compute_cond = AssignS [cond_var] cond_expr
 
-forInArray :: Ident -> VarType size -> [P.BasicExpr size] -> Stmt size -> Stmt size
+forInArray :: Ident -> VarType size -> [CPL.BasicExpr size] -> Stmt size -> Stmt size
 forInArray i _ty ix_vals s =
   SeqS
     [ SeqS [AssignS{rets = [i], expr = v}, s]

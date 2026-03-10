@@ -4,23 +4,23 @@ import qualified Data.Map as Map
 
 import qualified Traq.Analysis as A
 import Traq.Analysis.CostModel.QueryCost (SimpleQueryCost (..))
+import qualified Traq.CPL as CPL
 import Traq.Examples.MatrixSearch (mkMatrixExample)
 import Traq.Prelude
 import Traq.Primitives (Primitive (Primitive))
 import Traq.Primitives.Search.Prelude
 import Traq.Primitives.Search.RandomSearch
-import qualified Traq.ProtoLang as P
 
 import Test.Hspec
 
-diagMatrix :: [P.Value SizeT] -> [P.Value SizeT]
-diagMatrix [P.FinV i, P.FinV j] = [P.toValue $ i < j]
+diagMatrix :: [CPL.Value SizeT] -> [CPL.Value SizeT]
+diagMatrix [CPL.FinV i, CPL.FinV j] = [CPL.toValue $ i < j]
 diagMatrix _ = error "invalid input"
 
 spec :: Spec
 spec = do
   describe "RandomSearch" $ do
-    let mat_prog = mkMatrixExample (\ty f -> P.PrimCallE $ Primitive [f] (RandomSearch $ PrimSearch AnyK ty))
+    let mat_prog = mkMatrixExample (\ty f -> CPL.PrimCallE $ Primitive [f] (RandomSearch $ PrimSearch AnyK ty))
     it "expected cost" $ do
       let eps = A.failProb 0.001
       let n = 10

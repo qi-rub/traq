@@ -18,18 +18,18 @@ import GHC.Generics
 import Lens.Micro.Mtl
 
 import qualified Traq.Analysis as A
-import qualified Traq.CQPL as CQPL
+import qualified Traq.CPL as CPL
 import Traq.Compiler
 import Traq.Prelude
 import Traq.Primitives.Class.Prelude
-import qualified Traq.ProtoLang as P
+import qualified Traq.QPL as QPL
 
 -- --------------------------------------------------------------------------------
 -- Environment and enclosing monad for compiling primitives.
 -- --------------------------------------------------------------------------------
 
-type UCallBuilder size = [CQPL.Arg size] -> CQPL.UStmt size
-type CallBuilder size = [CQPL.Arg size] -> CQPL.Stmt size
+type UCallBuilder size = [QPL.Arg size] -> QPL.UStmt size
+type CallBuilder size = [QPL.Arg size] -> QPL.Stmt size
 
 -- | Helpers to compile a primitive.
 data PrimCompileEnv shape size = PrimCompileEnv
@@ -39,9 +39,9 @@ data PrimCompileEnv shape size = PrimCompileEnv
   -- ^ helper to generate a call to a classical function argument.
   , mk_meas :: shape (CallBuilder size)
   -- ^ helper to generate a call-and-meas to a unitary proc arg.
-  , uproc_aux_types :: shape [P.VarType size]
+  , uproc_aux_types :: shape [CPL.VarType size]
   -- ^ auxiliary variables for each unitary function argument.
-  , prim_ret_types :: [P.VarType size]
+  , prim_ret_types :: [CPL.VarType size]
   -- ^ return variables types.
   }
 
@@ -83,7 +83,7 @@ class
     ) =>
     prim ->
     A.FailProb prec ->
-    m (CQPL.ProcDef size)
+    m (QPL.ProcDef size)
   default compileUPrim ::
     forall ext' m shape.
     ( Generic prim
@@ -95,7 +95,7 @@ class
     ) =>
     prim ->
     A.FailProb prec ->
-    m (CQPL.ProcDef size)
+    m (QPL.ProcDef size)
   compileUPrim prim eps = do
     builder <- view id
     lift $ do
@@ -112,7 +112,7 @@ class GUnitaryCompilePrim f size prec | f -> size prec where
     f p ->
     A.FailProb prec ->
     PrimCompileEnv [] size ->
-    m (CQPL.ProcDef size)
+    m (QPL.ProcDef size)
 
 instance (GUnitaryCompilePrim a size prec, GUnitaryCompilePrim b size prec) => GUnitaryCompilePrim (a :+: b) size prec where
   gcompileUPrim (L1 x) = gcompileUPrim x
@@ -148,7 +148,7 @@ class
     ) =>
     prim ->
     A.FailProb prec ->
-    m (CQPL.ProcDef size)
+    m (QPL.ProcDef size)
   default compileQPrim ::
     forall ext' m shape.
     ( Generic prim
@@ -160,7 +160,7 @@ class
     ) =>
     prim ->
     A.FailProb prec ->
-    m (CQPL.ProcDef size)
+    m (QPL.ProcDef size)
   compileQPrim prim eps = do
     builder <- view id
     lift $ do
@@ -177,7 +177,7 @@ class GQuantumCompilePrim f size prec | f -> size prec where
     f p ->
     A.FailProb prec ->
     PrimCompileEnv [] size ->
-    m (CQPL.ProcDef size)
+    m (QPL.ProcDef size)
 
 instance (GQuantumCompilePrim a size prec, GQuantumCompilePrim b size prec) => GQuantumCompilePrim (a :+: b) size prec where
   gcompileQPrim (L1 x) = gcompileQPrim x

@@ -6,52 +6,52 @@ import Text.Parsec.String
 
 import qualified Traq.Data.Symbolic as Sym
 
+import qualified Traq.CPL as CPL
+import Traq.CPL.Parser (programParser)
 import Traq.Prelude
 import Traq.Primitives.TreeSearch
-import qualified Traq.ProtoLang as P
-import Traq.ProtoLang.Parser (programParser)
 
 import Test.Hspec
 import TestHelpers
 
-exampleProgram :: size -> size -> P.Program (TreeSearch size prec)
+exampleProgram :: size -> size -> CPL.Program (TreeSearch size prec)
 exampleProgram n two =
-  P.Program
-    [ P.NamedFunDef "child" child
-    , P.NamedFunDef "check" check
-    , P.NamedFunDef "main" mainf
+  CPL.Program
+    [ CPL.NamedFunDef "child" child
+    , CPL.NamedFunDef "check" check
+    , CPL.NamedFunDef "main" mainf
     ]
  where
-  node_ty = P.Fin n
-  bool_ty = P.Fin two
+  node_ty = CPL.Fin n
+  bool_ty = CPL.Fin two
 
   check =
-    P.FunDef
-      { P.param_types = [node_ty]
-      , P.ret_types = [bool_ty]
-      , P.mbody = Nothing
+    CPL.FunDef
+      { CPL.param_types = [node_ty]
+      , CPL.ret_types = [bool_ty]
+      , CPL.mbody = Nothing
       }
 
   child =
-    P.FunDef
-      { P.param_types = [node_ty]
-      , P.ret_types = [node_ty, node_ty]
-      , P.mbody = Nothing
+    CPL.FunDef
+      { CPL.param_types = [node_ty]
+      , CPL.ret_types = [node_ty, node_ty]
+      , CPL.mbody = Nothing
       }
 
   mainf =
-    P.FunDef
-      { P.param_types = []
-      , P.mbody =
+    CPL.FunDef
+      { CPL.param_types = []
+      , CPL.mbody =
           Just
-            P.FunBody
-              { P.param_names = []
-              , P.body_stmt =
-                  P.SeqS
-                    [ P.ExprS
-                        { P.rets = ["ok"]
-                        , P.expr =
-                            P.PrimCallE $
+            CPL.FunBody
+              { CPL.param_names = []
+              , CPL.body_stmt =
+                  CPL.SeqS
+                    [ CPL.ExprS
+                        { CPL.rets = ["ok"]
+                        , CPL.expr =
+                            CPL.PrimCallE $
                               TreeSearch
                                 { getChildren = "child"
                                 , getChildrenArgs = []
@@ -60,9 +60,9 @@ exampleProgram n two =
                                 }
                         }
                     ]
-              , P.ret_names = ["ok"]
+              , CPL.ret_names = ["ok"]
               }
-      , P.ret_types = [bool_ty]
+      , CPL.ret_types = [bool_ty]
       }
 
 spec :: Spec
@@ -78,4 +78,4 @@ spec = do
 
     it "type checks" $ do
       let n = 20 :: Int
-      assertRight $ P.typeCheckProg (exampleProgram n 2)
+      assertRight $ CPL.typeCheckProg (exampleProgram n 2)

@@ -5,7 +5,7 @@
 {-# LANGUAGE StandaloneDeriving #-}
 {-# LANGUAGE UndecidableInstances #-}
 
-module Traq.ProtoLang.Syntax (
+module Traq.CPL.Syntax (
   -- * Syntax
   MetaParam (..),
 
@@ -268,7 +268,7 @@ instance (Show size) => PP.ToCodeString (DistrExpr size) where
   build UniformE{sample_ty} = PP.putWord . printf "uniform : %s" =<< PP.fromBuild sample_ty
   build BernoulliE{prob_one} = PP.putWord $ printf "bernoulli[%s]" (show prob_one)
 
-{- | An expression in the prototype language.
+{- | An expression in CPL.
  It appears as the RHS of an assignment statement.
 -}
 data Expr ext
@@ -294,7 +294,7 @@ instance (Show (SizeType ext), PP.ToCodeString ext) => PP.ToCodeString (Expr ext
     let args = PP.commaList initial_args
     PP.putWord $ printf "loop (%s) %s" args loop_body_fun
 
--- | A statement in the prototype language.
+-- | A statement in CPL.
 data Stmt ext
   = ExprS {rets :: [Ident], expr :: Expr ext}
   | IfThenElseS {cond :: Ident, s_true, s_false :: Stmt ext}
@@ -334,7 +334,7 @@ deriving instance (Read ext, Read (SizeType ext)) => Read (FunBody ext)
 type instance SizeType (FunBody ext) = SizeType ext
 type instance PrecType (FunBody ext) = PrecType ext
 
--- | A function definition or declaration in the prototype language.
+-- | A function in CPL.
 data FunDef ext = FunDef
   { param_types, ret_types :: [VarType (SizeType ext)]
   , mbody :: Maybe (FunBody ext)
@@ -358,7 +358,7 @@ type instance SizeType (NamedFunDef ext) = SizeType ext
 type instance PrecType (NamedFunDef ext) = PrecType ext
 
 instance (Show (SizeType ext), PP.ToCodeString ext) => PP.ToCodeString (NamedFunDef ext) where
-  -- def
+  -- fn
   build
     NamedFunDef
       { fun_name
@@ -373,7 +373,7 @@ instance (Show (SizeType ext), PP.ToCodeString ext) => PP.ToCodeString (NamedFun
       s_ret_tys <- case ret_types of
         [t] -> PP.fromBuild t
         _ -> PP.commaList <$> mapM PP.fromBuild ret_types
-      PP.putLine $ printf "def %s(%s) -> %s do" fun_name params s_ret_tys
+      PP.putLine $ printf "fn %s(%s) -> %s do" fun_name params s_ret_tys
       PP.indented $ do
         PP.build body_stmt
         PP.putLine $ printf "return %s" (PP.commaList ret_names)
@@ -381,14 +381,14 @@ instance (Show (SizeType ext), PP.ToCodeString ext) => PP.ToCodeString (NamedFun
      where
       -- showTypedVar :: Ident -> VarType size -> String
       showTypedVar x ty = printf "%s: %s" x <$> PP.fromBuild ty
-  -- declare
+  -- ext fn
   build
     NamedFunDef
       { fun_name
       , fun_def = FunDef{param_types, ret_types, mbody = Nothing}
       } =
       PP.putLine
-        =<< printf "declare %s(%s) -> (%s) end" fun_name
+        =<< printf "ext fn %s(%s) -> (%s) end" fun_name
           <$> (PP.commaList <$> mapM PP.fromBuild param_types)
           <*> (PP.commaList <$> mapM PP.fromBuild ret_types)
 

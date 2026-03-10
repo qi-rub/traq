@@ -42,11 +42,14 @@ library
       Traq.Compiler.Quantum
       Traq.Compiler.Unitary
       Traq.Control.Monad
-      Traq.CQPL
-      Traq.CQPL.Cost
-      Traq.CQPL.Memory
-      Traq.CQPL.Syntax
-      Traq.CQPL.TypeCheck
+      Traq.CPL
+      Traq.CPL.Eval
+      Traq.CPL.Lenses
+      Traq.CPL.Parser
+      Traq.CPL.Rewrites
+      Traq.CPL.Syntax
+      Traq.CPL.TypeCheck
+      Traq.CPL.Vars
       Traq.Data.Context
       Traq.Data.Default
       Traq.Data.Errors
@@ -85,14 +88,11 @@ library
       Traq.Primitives.Simons.Prelude
       Traq.Primitives.Simons.Quantum
       Traq.Primitives.TreeSearch
-      Traq.ProtoLang
-      Traq.ProtoLang.Eval
-      Traq.ProtoLang.Lenses
-      Traq.ProtoLang.Parser
-      Traq.ProtoLang.Rewrites
-      Traq.ProtoLang.Syntax
-      Traq.ProtoLang.TypeCheck
-      Traq.ProtoLang.Vars
+      Traq.QPL
+      Traq.QPL.Cost
+      Traq.QPL.Memory
+      Traq.QPL.Syntax
+      Traq.QPL.TypeCheck
       Traq.Utils.ASTRewriting
       Traq.Utils.Printing
   hs-source-dirs:
@@ -434,7 +434,11 @@ test-suite spec
       Traq.Analysis.Error.QuantumSpec
       Traq.Compiler.QuantumSpec
       Traq.Compiler.UnitarySpec
-      Traq.CQPL.TypeCheckSpec
+      Traq.CPL.CostSpec
+      Traq.CPL.ParserSpec
+      Traq.CPL.RewritesSpec
+      Traq.CPL.TypeCheckSpec
+      Traq.CPL.VarsSpec
       Traq.Data.Probability.ContSpec
       Traq.Data.Probability.TreeSpec
       Traq.Data.SymbolicSpec
@@ -455,11 +459,7 @@ test-suite spec
       Traq.Primitives.Search.QSearchCFNWSpec
       Traq.Primitives.Search.RandomSearchSpec
       Traq.Primitives.TreeSearchSpec
-      Traq.ProtoLang.CostSpec
-      Traq.ProtoLang.ParserSpec
-      Traq.ProtoLang.RewritesSpec
-      Traq.ProtoLang.TypeCheckSpec
-      Traq.ProtoLang.VarsSpec
+      Traq.QPL.TypeCheckSpec
   hs-source-dirs:
       test
   default-extensions:

@@ -35,7 +35,7 @@ import qualified Traq.Data.Context as Ctx
 import qualified Traq.Data.Symbolic as Sym
 
 import qualified Traq.Analysis as A
-import qualified Traq.CQPL as CQPL
+import qualified Traq.CPL as CPL
 import qualified Traq.Compiler as Compiler
 import Traq.Prelude
 import Traq.Primitives.Class.Compile
@@ -45,7 +45,7 @@ import Traq.Primitives.Class.QuantumCost
 import Traq.Primitives.Class.Serialize
 import Traq.Primitives.Class.TypeCheck
 import Traq.Primitives.Class.UnitaryCost
-import qualified Traq.ProtoLang as P
+import qualified Traq.QPL as QPL
 import qualified Traq.Utils.Printing as PP
 
 {- | A generic second-order primitive.
@@ -64,14 +64,14 @@ type instance PrecType (Primitive p) = PrecType p
 -- Instances
 -- ================================================================================
 
-instance P.RenameVars (Primitive p) where
-  renameVars pref (Primitive par_funs p) = Primitive (map (P.renameVars pref) par_funs) p
+instance CPL.RenameVars (Primitive p) where
+  renameVars pref (Primitive par_funs p) = Primitive (map (CPL.renameVars pref) par_funs) p
 
-instance (P.MapSize prim) => P.MapSize (Primitive prim) where
-  type MappedSize (Primitive prim) size' = Primitive (P.MappedSize prim size')
-  mapSize f (Primitive par_funs prim) = Primitive par_funs (P.mapSize f prim)
+instance (CPL.MapSize prim) => CPL.MapSize (Primitive prim) where
+  type MappedSize (Primitive prim) size' = Primitive (CPL.MappedSize prim size')
+  mapSize f (Primitive par_funs prim) = Primitive par_funs (CPL.mapSize f prim)
 
-instance P.HasFreeVars (Primitive prim) where
+instance CPL.HasFreeVars (Primitive prim) where
   freeVarsList (Primitive par_funs _) = concatMap (catMaybes . pfun_args) par_funs
 
 -- Pretty Printing
@@ -81,21 +81,21 @@ instance (SerializePrim prim) => PP.ToCodeString (Primitive prim) where
     PP.putWord $ printf "@%s<%s>[%s]" (primNameOf prim) (PP.commaList $ printPrimParams prim) fns
 
 -- Parsing
-instance (SerializePrim prim, SizeType prim ~ Sym.Sym SizeT) => P.Parseable (Primitive prim) where
+instance (SerializePrim prim, SizeType prim ~ Sym.Sym SizeT) => CPL.Parseable (Primitive prim) where
   parseE tp@TokenParser{..} = do
     ('@' : name) <- foldr1 (<|>) $ map (\s -> try $ symbol $ "@" ++ s) $ primNames @prim
     prim <- angles $ parsePrimParams tp name
-    par_funs <- brackets $ many $ P.parseE tp
+    par_funs <- brackets $ many $ CPL.parseE tp
     return $ Primitive par_funs prim
 
 -- --------------------------------------------------------------------------------
 -- Typing
 -- --------------------------------------------------------------------------------
 
-instance (TypeCheckPrim prim size, P.TypingReqs size) => P.TypeInferrable (Primitive prim) size where
+instance (TypeCheckPrim prim size, CPL.TypingReqs size) => CPL.TypeInferrable (Primitive prim) size where
   inferTypes (Primitive par_funs prim) = do
     fn_tys <- forM par_funs $ \PartialFun{pfun_name, pfun_args} -> do
-      P.FunDef{P.param_types, P.ret_types} <-
+      CPL.FunDef{CPL.param_types, CPL.ret_types} <-
         view (Ctx.at pfun_name)
           >>= maybeWithError (printf "cannot find function argument `%s`" pfun_name)
 
@@ -110,7 +110,7 @@ instance (TypeCheckPrim prim size, P.TypingReqs size) => P.TypeInferrable (Primi
             return Nothing
           Nothing -> return $ Just ty
 
-      return $ P.FnType (catMaybes prim_arg_tys) ret_types
+      return $ CPL.FnType (catMaybes prim_arg_tys) ret_types
 
     shaped_fn_tys <- liftEither $ listToShape fn_tys
 
@@ -122,15 +122,15 @@ instance (TypeCheckPrim prim size, P.TypingReqs size) => P.TypeInferrable (Primi
 
 instance
   ( EvalPrim prim size prec
-  , P.EvalReqs size prec
+  , CPL.EvalReqs size prec
   ) =>
-  P.Evaluatable (Primitive prim) size prec
+  CPL.Evaluatable (Primitive prim) size prec
   where
   eval (Primitive par_funs prim) sigma = do
     fns_eval <- forM par_funs $ \PartialFun{pfun_name, pfun_args} -> do
       fn <-
         view $
-          P._funCtx
+          CPL._funCtx
             . Ctx.at pfun_name
             . to (fromMaybe (error "unable to find predicate, please typecheck first!"))
 
@@ -138,7 +138,7 @@ instance
             Just x -> Just $ sigma ^. Ctx.at x . non (error "ill-formed program")
             Nothing -> Nothing
 
-      let eval_fn vs' = P.eval1 P.NamedFunDef{P.fun_name = pfun_name, P.fun_def = fn} (placeArgs vs vs')
+      let eval_fn vs' = CPL.eval1 CPL.NamedFunDef{CPL.fun_name = pfun_name, CPL.fun_def = fn} (placeArgs vs vs')
       return eval_fn
 
     let shaped_fns_eval = either (error "please typecheck first") id $ listToShape fns_eval
@@ -162,7 +162,7 @@ instance
   traceNormErrorU (A.AnnFailProb eps (Primitive par_funs prim)) = do
     let query_costs = map totalWeakUnitaryQueries . shapeToList $ unitaryQueryCosts prim eps
     eps_fn <- forM par_funs $ \PartialFun{pfun_name} -> do
-      fn <- view $ P._funCtx . Ctx.at pfun_name . non' (error "invalid function")
+      fn <- view $ CPL._funCtx . Ctx.at pfun_name . non' (error "invalid function")
       A.traceNormErrorU fn
 
     let tot_eps_fns = sum $ zipWith A.unitarySubroutineTVErrorTotal query_costs eps_fn
@@ -182,8 +182,8 @@ instance
     let query_costs = map totalWeakUnitaryQueries . shapeToList $ unitaryQueryCosts prim eps
 
     fn_costs <- forM par_funs $ \PartialFun{pfun_name} -> do
-      fn <- view $ P._funCtx . Ctx.at pfun_name . non' (error "invalid function")
-      A.costU1 $ P.NamedFunDef pfun_name fn
+      fn <- view $ CPL._funCtx . Ctx.at pfun_name . non' (error "invalid function")
+      A.costU1 $ CPL.NamedFunDef pfun_name fn
 
     -- all other non-query operations
     let extra_costs = unitaryExprCosts prim eps
@@ -201,7 +201,7 @@ instance
   annEpsU eps (A.AnnFailProb eps_old (Primitive par_funs prim)) = do
     -- check if any of the functions can error
     pfuns_may_error <- fmap or $ forM par_funs $ \PartialFun{pfun_name} -> do
-      fn <- use $ P._funCtx . Ctx.at pfun_name . singular _Just
+      fn <- use $ CPL._funCtx . Ctx.at pfun_name . singular _Just
       A.canError fn
 
     -- split the overall precision in half if fns can error, otherwise use full.
@@ -213,8 +213,8 @@ instance
     let eps_fns = A.splitFailProb (eps - eps_alg) (fromIntegral $ length par_funs)
 
     forM_ (zip par_funs n_queries_u) $ \(PartialFun{pfun_name}, n_query_u) -> do
-      fn <- use $ P._funCtx . Ctx.at pfun_name . singular _Just
-      let named_fn = P.NamedFunDef pfun_name fn
+      fn <- use $ CPL._funCtx . Ctx.at pfun_name . singular _Just
+      let named_fn = CPL.NamedFunDef pfun_name fn
 
       -- divide by number of queries to get eps per call
       let eps_fn = A.splitFailProb eps_fns n_query_u
@@ -230,64 +230,64 @@ instance
 
 prependBoundArgs ::
   [Ident] ->
-  [(Ident, P.VarType size)] ->
-  CQPL.ProcDef size ->
-  CQPL.ProcDef size
-prependBoundArgs pfun_names bound_args CQPL.ProcDef{..} =
-  CQPL.ProcDef
-    { CQPL.proc_param_types = map snd bound_args ++ proc_param_types
-    , CQPL.proc_body = go proc_body
+  [(Ident, CPL.VarType size)] ->
+  QPL.ProcDef size ->
+  QPL.ProcDef size
+prependBoundArgs pfun_names bound_args QPL.ProcDef{..} =
+  QPL.ProcDef
+    { QPL.proc_param_types = map snd bound_args ++ proc_param_types
+    , QPL.proc_body = go proc_body
     , ..
     }
  where
   bound_arg_names = map fst bound_args
 
-  go :: CQPL.ProcBody size -> CQPL.ProcBody size
-  go (CQPL.ProcBodyU CQPL.UProcBody{..}) =
-    CQPL.ProcBodyU $
-      CQPL.UProcBody
-        { CQPL.uproc_param_names = bound_arg_names ++ uproc_param_names
-        , CQPL.uproc_param_tags = replicate (length bound_args) CQPL.ParamUnk ++ uproc_param_tags
-        , CQPL.uproc_body_stmt = goUStmt uproc_body_stmt
+  go :: QPL.ProcBody size -> QPL.ProcBody size
+  go (QPL.ProcBodyU QPL.UProcBody{..}) =
+    QPL.ProcBodyU $
+      QPL.UProcBody
+        { QPL.uproc_param_names = bound_arg_names ++ uproc_param_names
+        , QPL.uproc_param_tags = replicate (length bound_args) QPL.ParamUnk ++ uproc_param_tags
+        , QPL.uproc_body_stmt = goUStmt uproc_body_stmt
         }
-  go (CQPL.ProcBodyC CQPL.CProcBody{..}) =
-    CQPL.ProcBodyC $
-      CQPL.CProcBody
-        { CQPL.cproc_param_names = bound_arg_names ++ cproc_param_names
-        , CQPL.cproc_body_stmt = goStmt cproc_body_stmt
+  go (QPL.ProcBodyC QPL.CProcBody{..}) =
+    QPL.ProcBodyC $
+      QPL.CProcBody
+        { QPL.cproc_param_names = bound_arg_names ++ cproc_param_names
+        , QPL.cproc_body_stmt = goStmt cproc_body_stmt
         , ..
         }
   go _ = error "invalid procs"
 
-  goUStmt :: CQPL.UStmt size -> CQPL.UStmt size
-  goUStmt (CQPL.USeqS ss) = CQPL.USeqS (map goUStmt ss)
-  goUStmt s@CQPL.UCallS{CQPL.uproc_id, CQPL.qargs}
-    | uproc_id `notElem` pfun_names = s{CQPL.qargs = map CQPL.Arg bound_arg_names ++ qargs}
-  goUStmt (CQPL.URepeatS n body) = CQPL.URepeatS n (goUStmt body)
-  goUStmt s@CQPL.UForInRangeS{CQPL.uloop_body} = s{CQPL.uloop_body = goUStmt uloop_body}
-  goUStmt s@CQPL.UWithComputedS{CQPL.with_ustmt, CQPL.body_ustmt} =
-    s{CQPL.with_ustmt = goUStmt with_ustmt, CQPL.body_ustmt = goUStmt body_ustmt}
+  goUStmt :: QPL.UStmt size -> QPL.UStmt size
+  goUStmt (QPL.USeqS ss) = QPL.USeqS (map goUStmt ss)
+  goUStmt s@QPL.UCallS{QPL.uproc_id, QPL.qargs}
+    | uproc_id `notElem` pfun_names = s{QPL.qargs = map QPL.Arg bound_arg_names ++ qargs}
+  goUStmt (QPL.URepeatS n body) = QPL.URepeatS n (goUStmt body)
+  goUStmt s@QPL.UForInRangeS{QPL.uloop_body} = s{QPL.uloop_body = goUStmt uloop_body}
+  goUStmt s@QPL.UWithComputedS{QPL.with_ustmt, QPL.body_ustmt} =
+    s{QPL.with_ustmt = goUStmt with_ustmt, QPL.body_ustmt = goUStmt body_ustmt}
   goUStmt s = s
 
-  goStmt :: CQPL.Stmt size -> CQPL.Stmt size
-  goStmt (CQPL.SeqS ss) = CQPL.SeqS (map goStmt ss)
-  goStmt s@CQPL.CallS{CQPL.fun, CQPL.args}
-    | callTarget fun `notElem` pfun_names = s{CQPL.args = map CQPL.Arg bound_arg_names ++ args}
-  goStmt s@CQPL.IfThenElseS{CQPL.s_true, CQPL.s_false} =
-    s{CQPL.s_true = goStmt s_true, CQPL.s_false = goStmt s_false}
-  goStmt s@CQPL.RepeatS{CQPL.loop_body} = s{CQPL.loop_body = goStmt loop_body}
-  goStmt s@CQPL.WhileK{CQPL.loop_body} = s{CQPL.loop_body = goStmt loop_body}
-  goStmt s@CQPL.WhileKWithCondExpr{CQPL.loop_body} = s{CQPL.loop_body = goStmt loop_body}
-  goStmt s@CQPL.ForInArray{CQPL.loop_body} = s{CQPL.loop_body = goStmt loop_body}
+  goStmt :: QPL.Stmt size -> QPL.Stmt size
+  goStmt (QPL.SeqS ss) = QPL.SeqS (map goStmt ss)
+  goStmt s@QPL.CallS{QPL.fun, QPL.args}
+    | callTarget fun `notElem` pfun_names = s{QPL.args = map QPL.Arg bound_arg_names ++ args}
+  goStmt s@QPL.IfThenElseS{QPL.s_true, QPL.s_false} =
+    s{QPL.s_true = goStmt s_true, QPL.s_false = goStmt s_false}
+  goStmt s@QPL.RepeatS{QPL.loop_body} = s{QPL.loop_body = goStmt loop_body}
+  goStmt s@QPL.WhileK{QPL.loop_body} = s{QPL.loop_body = goStmt loop_body}
+  goStmt s@QPL.WhileKWithCondExpr{QPL.loop_body} = s{QPL.loop_body = goStmt loop_body}
+  goStmt s@QPL.ForInArray{QPL.loop_body} = s{QPL.loop_body = goStmt loop_body}
   goStmt s = s
 
-  callTarget :: CQPL.FunctionCall -> Ident
-  callTarget (CQPL.FunctionCall name) = name
-  callTarget (CQPL.UProcAndMeas name) = name
+  callTarget :: QPL.FunctionCall -> Ident
+  callTarget (QPL.FunctionCall name) = name
+  callTarget (QPL.UProcAndMeas name) = name
 
 instance
   ( TypeCheckPrim prim (SizeType prim)
-  , P.TypingReqs (SizeType prim)
+  , CPL.TypingReqs (SizeType prim)
   , UnitaryCompilePrim prim (SizeType prim) (PrecType prim)
   ) =>
   Compiler.CompileU (A.AnnFailProb (Primitive prim))
@@ -295,16 +295,16 @@ instance
   compileU (A.AnnFailProb eps (Primitive par_funs prim)) rets = do
     let pfun_names = map pfun_name par_funs
     let bound_args_names = concatMap (catMaybes . pfun_args) par_funs
-    bound_args_tys <- forM bound_args_names $ \x -> use $ P._typingCtx . Ctx.at x . non' (error $ "invalid arg " ++ x)
+    bound_args_tys <- forM bound_args_names $ \x -> use $ CPL._typingCtx . Ctx.at x . non' (error $ "invalid arg " ++ x)
     let bound_args = zip bound_args_names bound_args_tys
 
     mk_ucall <-
       reshape $
         par_funs <&> \PartialFun{pfun_name, pfun_args} xs ->
-          CQPL.UCallS
+          QPL.UCallS
             { uproc_id = Compiler.mkUProcName pfun_name
             , dagger = False
-            , qargs = placeArgsWithExcess (map (fmap CQPL.Arg) pfun_args) xs
+            , qargs = placeArgsWithExcess (map (fmap QPL.Arg) pfun_args) xs
             }
 
     uproc_aux_types <-
@@ -317,7 +317,7 @@ instance
           return $ Compiler.aux_tys sign
 
     prim_ret_types <- forM rets $ \x ->
-      use (P._typingCtx . Ctx.at x) >>= maybeWithError "missing variable"
+      use (CPL._typingCtx . Ctx.at x) >>= maybeWithError "missing variable"
 
     let builder =
           PrimCompileEnv
@@ -336,14 +336,14 @@ instance
 
     let prim_aux_tys =
           prim_proc
-            & CQPL.proc_param_types
+            & QPL.proc_param_types
             & drop (length bound_args + length rets)
     prim_aux_vars <- mapM (Compiler.allocAncillaWithPref "aux_prim") prim_aux_tys
     return $
-      CQPL.UCallS
-        { CQPL.uproc_id = CQPL.proc_name prim_proc
-        , CQPL.qargs = map (CQPL.Arg . fst) bound_args ++ map CQPL.Arg rets ++ map CQPL.Arg prim_aux_vars
-        , CQPL.dagger = False
+      QPL.UCallS
+        { QPL.uproc_id = QPL.proc_name prim_proc
+        , QPL.qargs = map (QPL.Arg . fst) bound_args ++ map QPL.Arg rets ++ map QPL.Arg prim_aux_vars
+        , QPL.dagger = False
         }
 
 -- ================================================================================
@@ -366,7 +366,7 @@ instance
     let query_costs_u = map totalWeakUnitaryQueries . shapeToList $ quantumQueryCostsUnitary prim eps
 
     eps_fns <- forM par_funs $ \PartialFun{pfun_name} -> do
-      fn <- view $ P._funCtx . Ctx.at pfun_name . non' (error "invalid function")
+      fn <- view $ CPL._funCtx . Ctx.at pfun_name . non' (error "invalid function")
       eps_q <- A.tvErrorQ fn
       eps_u <- A.traceNormErrorU fn
       return (eps_q, eps_u)
@@ -395,9 +395,9 @@ instance
     let query_costs_u = map totalWeakUnitaryQueries . shapeToList $ quantumQueryCostsUnitary prim eps
 
     fn_costs_uq <- forM par_funs $ \PartialFun{pfun_name} -> do
-      fn <- view $ P._funCtx . Ctx.at pfun_name . non' (error "invalid function")
-      cost_u <- A.costU1 $ P.NamedFunDef pfun_name fn
-      cost_q <- A.costQ1 $ P.NamedFunDef pfun_name fn
+      fn <- view $ CPL._funCtx . Ctx.at pfun_name . non' (error "invalid function")
+      cost_u <- A.costU1 $ CPL.NamedFunDef pfun_name fn
+      cost_q <- A.costQ1 $ CPL.NamedFunDef pfun_name fn
       return (cost_u, cost_q)
     let (fn_costs_u, fn_costs_q) = unzip fn_costs_uq
 
@@ -419,18 +419,18 @@ instance
   , QuantumExpCostPrim prim size prec
   , EvalPrim prim size prec
   , A.CostReqs size prec
-  , P.EvalReqs size prec
+  , CPL.EvalReqs size prec
   ) =>
   A.ExpCostQ (A.AnnFailProb (Primitive prim)) size prec
   where
   expCostQ (A.AnnFailProb eps (Primitive par_funs prim)) sigma = do
     -- Extract the semantics of each function argument.
-    eval_env <- view P._evaluationEnv
+    eval_env <- view CPL._evaluationEnv
 
     fns_with_args_and_eval <- forM par_funs $ \PartialFun{pfun_name, pfun_args} -> do
       fn <-
         view $
-          P._funCtx
+          CPL._funCtx
             . Ctx.at pfun_name
             . to (fromMaybe (error "unable to find predicate, please typecheck first!"))
 
@@ -439,10 +439,10 @@ instance
             Nothing -> Nothing
 
       let eval_fn vs' =
-            P.eval1 P.NamedFunDef{P.fun_name = pfun_name, P.fun_def = fn} (placeArgs vs vs')
+            CPL.eval1 CPL.NamedFunDef{CPL.fun_name = pfun_name, CPL.fun_def = fn} (placeArgs vs vs')
               & (runReaderT ?? eval_env)
 
-      return ((P.NamedFunDef pfun_name fn, vs), eval_fn)
+      return ((CPL.NamedFunDef pfun_name fn, vs), eval_fn)
 
     let (fns_with_args, fns_eval) = unzip fns_with_args_and_eval
     let shaped_fns_eval = either (error "please typecheck first") id $ listToShape fns_eval
@@ -482,7 +482,7 @@ instance
   annEpsQ eps (A.AnnFailProb eps_old (Primitive par_funs prim)) = do
     -- check if any of the functions can error
     pfuns_may_error <- fmap or $ forM par_funs $ \PartialFun{pfun_name} -> do
-      fn <- use $ P._funCtx . Ctx.at pfun_name . singular _Just
+      fn <- use $ CPL._funCtx . Ctx.at pfun_name . singular _Just
       A.canError fn
 
     -- split the overall precision in half if fns can error, otherwise use full.
@@ -495,8 +495,8 @@ instance
     let eps_fns = A.splitFailProb (eps - eps_alg) (fromIntegral $ length par_funs)
 
     forM_ (zip3 par_funs n_queries_q n_queries_u) $ \(PartialFun{pfun_name}, n_query_q, n_query_u) -> do
-      fn <- use $ P._funCtx . Ctx.at pfun_name . singular _Just
-      let named_fn = P.NamedFunDef pfun_name fn
+      fn <- use $ CPL._funCtx . Ctx.at pfun_name . singular _Just
+      let named_fn = CPL.NamedFunDef pfun_name fn
 
       -- divide by number of queries to get eps per call
       let eps_fn = A.splitFailProb eps_fns (n_query_q + n_query_u)
@@ -513,7 +513,7 @@ instance
 
 instance
   ( TypeCheckPrim prim (SizeType prim)
-  , P.TypingReqs (SizeType prim)
+  , CPL.TypingReqs (SizeType prim)
   , UnitaryCompilePrim prim (SizeType prim) (PrecType prim)
   , QuantumCompilePrim prim (SizeType prim) (PrecType prim)
   ) =>
@@ -522,16 +522,16 @@ instance
   compileQ (A.AnnFailProb eps (Primitive par_funs prim)) rets = do
     let pfun_names = map pfun_name par_funs
     let bound_args_names = concatMap (catMaybes . pfun_args) par_funs
-    bound_args_tys <- forM bound_args_names $ \x -> use $ P._typingCtx . Ctx.at x . non' (error $ "invalid arg " ++ x)
+    bound_args_tys <- forM bound_args_names $ \x -> use $ CPL._typingCtx . Ctx.at x . non' (error $ "invalid arg " ++ x)
     let bound_args = zip bound_args_names bound_args_tys
 
     mk_ucall <-
       reshape $
         par_funs <&> \PartialFun{pfun_name, pfun_args} xs ->
-          CQPL.UCallS
+          QPL.UCallS
             { uproc_id = Compiler.mkUProcName pfun_name
             , dagger = False
-            , qargs = placeArgsWithExcess (map (fmap CQPL.Arg) pfun_args) xs
+            , qargs = placeArgsWithExcess (map (fmap QPL.Arg) pfun_args) xs
             }
 
     uproc_aux_types <-
@@ -546,23 +546,23 @@ instance
     mk_call <-
       reshape $
         par_funs <&> \PartialFun{pfun_name, pfun_args} xs ->
-          CQPL.CallS
-            { fun = CQPL.FunctionCall $ Compiler.mkQProcName pfun_name
+          QPL.CallS
+            { fun = QPL.FunctionCall $ Compiler.mkQProcName pfun_name
             , meta_params = []
-            , args = placeArgsWithExcess (map (fmap CQPL.Arg) pfun_args) xs
+            , args = placeArgsWithExcess (map (fmap QPL.Arg) pfun_args) xs
             }
 
     mk_meas <-
       reshape $
         par_funs <&> \PartialFun{pfun_name, pfun_args} xs ->
-          CQPL.CallS
-            { fun = CQPL.UProcAndMeas $ Compiler.mkUProcName pfun_name
+          QPL.CallS
+            { fun = QPL.UProcAndMeas $ Compiler.mkUProcName pfun_name
             , meta_params = []
-            , args = placeArgsWithExcess (map (fmap CQPL.Arg) pfun_args) xs
+            , args = placeArgsWithExcess (map (fmap QPL.Arg) pfun_args) xs
             }
 
     prim_ret_types <- forM rets $ \x ->
-      use (P._typingCtx . Ctx.at x) >>= maybeWithError "missing variable"
+      use (CPL._typingCtx . Ctx.at x) >>= maybeWithError "missing variable"
 
     let builder =
           PrimCompileEnv
@@ -583,8 +583,8 @@ instance
     Compiler.addProc prim_proc
 
     return $
-      CQPL.CallS
-        { fun = CQPL.FunctionCall $ CQPL.proc_name prim_proc
+      QPL.CallS
+        { fun = QPL.FunctionCall $ QPL.proc_name prim_proc
         , meta_params = []
-        , args = map (CQPL.Arg . fst) bound_args ++ map CQPL.Arg rets
+        , args = map (QPL.Arg . fst) bound_args ++ map QPL.Arg rets
         }

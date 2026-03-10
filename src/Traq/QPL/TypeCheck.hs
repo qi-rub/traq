@@ -2,7 +2,7 @@
 {-# LANGUAGE DeriveGeneric #-}
 {-# LANGUAGE DuplicateRecordFields #-}
 
-module Traq.CQPL.TypeCheck (
+module Traq.QPL.TypeCheck (
   -- * Monad
   CheckingCtx,
   TypeChecker,
@@ -33,9 +33,9 @@ import qualified Traq.Data.Context as Ctx
 import Traq.Data.Default
 import qualified Traq.Data.Errors as Err
 
-import Traq.CQPL.Syntax
+import qualified Traq.CPL as CPL
 import Traq.Prelude
-import qualified Traq.ProtoLang as P
+import Traq.QPL.Syntax
 
 -- ================================================================================
 -- Helpers
@@ -58,9 +58,9 @@ ensureEqual expected actual err = do
 -- | Verify that the argument types match the deduced types
 verifyArgTys ::
   forall size m.
-  (P.TypingReqs size, MonadError Err.MyError m) =>
-  [P.VarType size] ->
-  [P.VarType size] ->
+  (CPL.TypingReqs size, MonadError Err.MyError m) =>
+  [CPL.VarType size] ->
+  [CPL.VarType size] ->
   m ()
 verifyArgTys arg_tys tys = do
   when (length arg_tys /= length tys) $
@@ -73,36 +73,36 @@ verifyArgTys arg_tys tys = do
 
 getArgTy ::
   forall size env m.
-  ( P.TypingReqs size
+  ( CPL.TypingReqs size
   , MonadError Err.MyError m
   , MonadReader env m
-  , P.HasTypingCtx env
+  , CPL.HasTypingCtx env
   , size ~ SizeType env
   ) =>
   Arg size ->
-  m (P.VarType size)
+  m (CPL.VarType size)
 getArgTy (Arg x) = do
-  mty <- view $ P._typingCtx . Ctx.at x
+  mty <- view $ CPL._typingCtx . Ctx.at x
   maybeWithError (Err.MessageE $ printf "cannot find argument %s" x) mty
 getArgTy (ArrElemArg arg _) = do
   ty <- getArgTy arg
   case ty of
-    P.Arr _ e_ty -> pure e_ty
-    P.Bitvec _ -> pure P.tbool
-    P.Tup _ -> error "TODO tuple index"
+    CPL.Arr _ e_ty -> pure e_ty
+    CPL.Bitvec _ -> pure CPL.tbool
+    CPL.Tup _ -> error "TODO tuple index"
     _ -> throwError (Err.MessageE $ printf "expected an array/tuple type")
 
 -- | Verify that the arguments match the deduced types
 verifyArgs ::
   forall size env m.
-  ( P.TypingReqs size
+  ( CPL.TypingReqs size
   , MonadError Err.MyError m
   , MonadReader env m
-  , P.HasTypingCtx env
+  , CPL.HasTypingCtx env
   , size ~ SizeType env
   ) =>
   [Arg size] ->
-  [P.VarType size] ->
+  [CPL.VarType size] ->
   m ()
 verifyArgs args tys = do
   arg_tys <- forM args getArgTy
@@ -113,7 +113,7 @@ verifyArgs args tys = do
 -- ================================================================================
 
 -- | Env for type checking
-data CheckingCtx size = CheckingCtx (ProcCtx size) (P.TypingCtx size)
+data CheckingCtx size = CheckingCtx (ProcCtx size) (CPL.TypingCtx size)
   deriving (Generic, HasDefault)
 
 type instance SizeType (CheckingCtx size) = size
@@ -121,7 +121,7 @@ type instance SizeType (CheckingCtx size) = size
 instance HasProcCtx (CheckingCtx size) where
   _procCtx focus (CheckingCtx p t) = focus p <&> \p' -> CheckingCtx p' t
 
-instance P.HasTypingCtx (CheckingCtx size) where
+instance CPL.HasTypingCtx (CheckingCtx size) where
   _typingCtx focus (CheckingCtx p t) = focus t <&> \t' -> CheckingCtx p t'
 
 -- | Monad for type checking
@@ -131,41 +131,41 @@ type TypeChecker size = ReaderT (CheckingCtx size) (Either Err.MyError)
 -- Type Checking
 -- ================================================================================
 
-typeCheckBasicGate :: forall size. (P.TypingReqs size) => BasicGate size -> [P.VarType size] -> TypeChecker size ()
-typeCheckBasicGate Toffoli tys = verifyArgTys tys [P.tbool, P.tbool, P.tbool]
-typeCheckBasicGate CNOT tys = verifyArgTys tys [P.tbool, P.tbool]
-typeCheckBasicGate XGate tys = verifyArgTys tys [P.tbool]
-typeCheckBasicGate HGate tys = verifyArgTys tys [P.tbool]
-typeCheckBasicGate ZGate tys = verifyArgTys tys [P.tbool]
-typeCheckBasicGate (Rz _) tys = verifyArgTys tys [P.tbool]
+typeCheckBasicGate :: forall size. (CPL.TypingReqs size) => BasicGate size -> [CPL.VarType size] -> TypeChecker size ()
+typeCheckBasicGate Toffoli tys = verifyArgTys tys [CPL.tbool, CPL.tbool, CPL.tbool]
+typeCheckBasicGate CNOT tys = verifyArgTys tys [CPL.tbool, CPL.tbool]
+typeCheckBasicGate XGate tys = verifyArgTys tys [CPL.tbool]
+typeCheckBasicGate HGate tys = verifyArgTys tys [CPL.tbool]
+typeCheckBasicGate ZGate tys = verifyArgTys tys [CPL.tbool]
+typeCheckBasicGate (Rz _) tys = verifyArgTys tys [CPL.tbool]
 typeCheckBasicGate (PhaseOnZero _) _ = return ()
 typeCheckBasicGate COPY tys = let n = length tys `div` 2 in verifyArgTys (take n tys) (drop n tys)
 typeCheckBasicGate SWAP tys = let n = length tys `div` 2 in verifyArgTys (take n tys) (drop n tys)
 
-typeCheckUnitary :: forall size. (P.TypingReqs size) => Unitary size -> [P.VarType size] -> TypeChecker size ()
+typeCheckUnitary :: forall size. (CPL.TypingReqs size) => Unitary size -> [CPL.VarType size] -> TypeChecker size ()
 typeCheckUnitary (BasicGateU g) tys = typeCheckBasicGate g tys
-typeCheckUnitary (DistrU (P.UniformE ty)) tys = verifyArgTys tys [ty]
-typeCheckUnitary (DistrU (P.BernoulliE _)) tys = verifyArgTys tys [P.tbool]
+typeCheckUnitary (DistrU (CPL.UniformE ty)) tys = verifyArgTys tys [ty]
+typeCheckUnitary (DistrU (CPL.BernoulliE _)) tys = verifyArgTys tys [CPL.tbool]
 typeCheckUnitary (RevEmbedU xs e) tys = do
   let in_tys = take (length xs) tys
   let gamma = Ctx.fromList $ zip xs in_tys
   -- TODO use separate context for metaparams
   gamma' <- execStateT ?? gamma $ do
-    all_gamma <- view $ P._typingCtx . to Ctx.toList
+    all_gamma <- view $ CPL._typingCtx . to Ctx.toList
     forM all_gamma $ \(x, ty) ->
       when (head x == '#') $
         Ctx.ins x .= ty
-  let res = evalStateT (P.typeCheckBasicExpr e) gamma'
+  let res = evalStateT (CPL.typeCheckBasicExpr e) gamma'
   case res of
     Left err -> Err.throwErrorMessage err
     Right ret_ty -> verifyArgTys (drop (length xs) tys) [ret_ty]
 -- composite gates
 typeCheckUnitary (Controlled u) tys = do
-  verifyArgTys [head tys] [P.tbool]
+  verifyArgTys [head tys] [CPL.tbool]
   typeCheckUnitary u (tail tys)
 typeCheckUnitary (Adjoint u) tys = typeCheckUnitary u tys
 
-typeCheckUStmt :: forall size. (P.TypingReqs size) => UStmt size -> TypeChecker size ()
+typeCheckUStmt :: forall size. (CPL.TypingReqs size) => UStmt size -> TypeChecker size ()
 -- single statements
 typeCheckUStmt USkipS = return ()
 typeCheckUStmt (UCommentS _) = return ()
@@ -184,18 +184,18 @@ typeCheckUStmt (USeqS ss) = mapM_ typeCheckUStmt' ss
 typeCheckUStmt (URepeatS _ body) = typeCheckUStmt' body
 typeCheckUStmt UForInRangeS{iter_meta_var, iter_lim, uloop_body} = do
   let iter_lim_ty = case iter_lim of
-        P.MetaSize n -> P.Fin n
+        CPL.MetaSize n -> CPL.Fin n
         _ -> error "unsupported loop limit"
-  local (P._typingCtx . Ctx.ins ('#' : iter_meta_var) .~ iter_lim_ty) $ do
+  local (CPL._typingCtx . Ctx.ins ('#' : iter_meta_var) .~ iter_lim_ty) $ do
     typeCheckUStmt' uloop_body
 typeCheckUStmt UForInDomainS{iter_meta_var, iter_ty, uloop_body} = do
-  local (P._typingCtx . Ctx.ins ('#' : iter_meta_var) .~ iter_ty) $ do
+  local (CPL._typingCtx . Ctx.ins ('#' : iter_meta_var) .~ iter_ty) $ do
     typeCheckUStmt' uloop_body
 typeCheckUStmt UWithComputedS{with_ustmt, body_ustmt} = mapM_ typeCheckUStmt' [with_ustmt, body_ustmt]
 
-typeCheckUStmt' :: (P.TypingReqs size) => UStmt size -> TypeChecker size ()
+typeCheckUStmt' :: (CPL.TypingReqs size) => UStmt size -> TypeChecker size ()
 typeCheckUStmt' s = do
-  gamma <- view P._typingCtx
+  gamma <- view CPL._typingCtx
   typeCheckUStmt s
     `throwFrom` Err.MessageE (printf "with context: %s" (show gamma))
     `throwFrom` Err.MessageE (printf "typecheck failed: %s" (show s))
@@ -203,21 +203,21 @@ typeCheckUStmt' s = do
 -- | Check a statement
 typeCheckStmt ::
   forall size.
-  (P.TypingReqs size) =>
+  (CPL.TypingReqs size) =>
   Stmt size ->
   TypeChecker size ()
 typeCheckStmt SkipS = return ()
 typeCheckStmt (CommentS _) = return ()
 -- Simple statements
 typeCheckStmt AssignS{rets, expr} = do
-  gamma <- view P._typingCtx
+  gamma <- view CPL._typingCtx
   actual_ret_tys <-
-    case evalStateT ?? gamma $ P.typeCheckBasicExpr expr of
+    case evalStateT ?? gamma $ CPL.typeCheckBasicExpr expr of
       Left err -> Err.throwErrorMessage err
       Right ty -> return [ty]
 
   expect_ret_tys <- forM rets $ \var -> do
-    view (P._typingCtx . Ctx.at var)
+    view (CPL._typingCtx . Ctx.at var)
       >>= maybeWithError (Err.MessageE $ printf "cannot find %s" var)
 
   when (expect_ret_tys /= actual_ret_tys) $ do
@@ -228,7 +228,7 @@ typeCheckStmt AssignS{rets, expr} = do
         (show actual_ret_tys)
 typeCheckStmt RandomS{} = return ()
 typeCheckStmt RandomDynS{max_var} = do
-  view (P._typingCtx . Ctx.at max_var) >>= maybeWithError (Err.MessageE $ printf "cannot find variable %s" max_var)
+  view (CPL._typingCtx . Ctx.at max_var) >>= maybeWithError (Err.MessageE $ printf "cannot find variable %s" max_var)
   return ()
 
 -- call proc
@@ -253,8 +253,8 @@ typeCheckStmt CallS{fun = UProcAndMeas uproc_id, args} = do
 -- compound statements
 typeCheckStmt (SeqS ss) = mapM_ typeCheckStmt ss
 typeCheckStmt IfThenElseS{cond, s_true, s_false} = do
-  cond_ty <- view (P._typingCtx . Ctx.at cond) >>= maybeWithError (Err.MessageE $ "cannot find variable " ++ cond)
-  when (cond_ty /= P.tbool) $
+  cond_ty <- view (CPL._typingCtx . Ctx.at cond) >>= maybeWithError (Err.MessageE $ "cannot find variable " ++ cond)
+  when (cond_ty /= CPL.tbool) $
     Err.throwErrorMessage $
       "if cond must be bool, got " <> show cond_ty
   typeCheckStmt s_true
@@ -262,9 +262,9 @@ typeCheckStmt IfThenElseS{cond, s_true, s_false} = do
 typeCheckStmt RepeatS{loop_body} = typeCheckStmt loop_body
 typeCheckStmt ForInRangeS{loop_body, iter_meta_var, iter_lim} = do
   iter_ty <- case iter_lim of
-    P.MetaSize n -> pure $ P.Fin n
-    P.MetaName _ -> Err.throwErrorMessage "cannot find iteration"
-  local (P._typingCtx . Ctx.ins ('#' : iter_meta_var) .~ iter_ty) $
+    CPL.MetaSize n -> pure $ CPL.Fin n
+    CPL.MetaName _ -> Err.throwErrorMessage "cannot find iteration"
+  local (CPL._typingCtx . Ctx.ins ('#' : iter_meta_var) .~ iter_ty) $
     typeCheckStmt loop_body
 -- try by desugaring
 typeCheckStmt s = case desugarS s of
@@ -273,10 +273,10 @@ typeCheckStmt s = case desugarS s of
 
 typeCheckUProcBody ::
   forall size.
-  (P.TypingReqs size) =>
+  (CPL.TypingReqs size) =>
   UProcBody size ->
   -- | parameter types
-  [P.VarType size] ->
+  [CPL.VarType size] ->
   TypeChecker size ()
 -- declaration with a tick
 typeCheckUProcBody UProcDecl{} _ = return ()
@@ -284,7 +284,7 @@ typeCheckUProcBody UProcDecl{} _ = return ()
 typeCheckUProcBody procdef@UProcBody{uproc_param_names, uproc_body_stmt} tys = do
   ensureSameLength uproc_param_names tys "types vs params"
   let gamma = Ctx.fromList $ zip uproc_param_names tys
-  local (P._typingCtx .~ gamma) $ do
+  local (CPL._typingCtx .~ gamma) $ do
     typeCheckUStmt' uproc_body_stmt
       `throwFrom` Err.MessageE (printf "with context: %s" (show gamma))
       `throwFrom` Err.MessageE (printf "typecheck proc failed: %s" (show procdef))
@@ -292,10 +292,10 @@ typeCheckUProcBody procdef@UProcBody{uproc_param_names, uproc_body_stmt} tys = d
 -- | Check a procedure def
 typeCheckCProcBody ::
   forall size.
-  (P.TypingReqs size) =>
+  (CPL.TypingReqs size) =>
   CProcBody size ->
   -- | parameter types
-  [P.VarType size] ->
+  [CPL.VarType size] ->
   TypeChecker size ()
 -- declaration with a tick
 typeCheckCProcBody CProcDecl{} _ = return ()
@@ -309,12 +309,12 @@ typeCheckCProcBody CProcBody{cproc_param_names, cproc_local_vars, cproc_body_stm
       printf "clashing names in proc args and locals: %s" (show common_names)
 
   let gamma = Ctx.fromList $ zip cproc_param_names tys ++ cproc_local_vars
-  local (P._typingCtx .~ gamma) $ do
+  local (CPL._typingCtx .~ gamma) $ do
     typeCheckStmt cproc_body_stmt
 
 typeCheckProc ::
   forall size.
-  (P.TypingReqs size) =>
+  (CPL.TypingReqs size) =>
   ProcDef size ->
   TypeChecker size ()
 typeCheckProc ProcDef{proc_name, proc_param_types, proc_body} =
@@ -326,7 +326,7 @@ typeCheckProc ProcDef{proc_name, proc_param_types, proc_body} =
 -- | Check an entire program given the input bindings.
 typeCheckProgram ::
   forall size.
-  (P.TypingReqs size) =>
+  (CPL.TypingReqs size) =>
   Program size ->
   Either Err.MyError ()
 typeCheckProgram (Program ps) = do

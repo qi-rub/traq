@@ -37,8 +37,8 @@ import Traq.Analysis.Cost.Prelude
 import Traq.Analysis.Cost.Quantum
 import Traq.Analysis.Cost.Unitary
 import Traq.Analysis.Error.Prelude
+import Traq.CPL
 import Traq.Prelude
-import Traq.ProtoLang
 import qualified Traq.Utils.Printing as PP
 
 -- ============================================================================

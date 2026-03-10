@@ -1,11 +1,11 @@
 {-# LANGUAGE OverloadedStrings #-}
 
-module Traq.ProtoLang.VarsSpec (spec) where
+module Traq.CPL.VarsSpec (spec) where
 
 import qualified Data.Set as Set
 
-import Traq.ProtoLang.Syntax
-import Traq.ProtoLang.Vars
+import Traq.CPL.Syntax
+import Traq.CPL.Vars
 
 import Test.Hspec
 

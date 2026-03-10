@@ -1,64 +1,64 @@
 module Traq.Analysis.Error.QuantumSpec (spec) where
 
 import qualified Traq.Analysis as A
+import qualified Traq.CPL as CPL
 import Traq.Prelude
 import qualified Traq.Primitives as P
 import qualified Traq.Primitives.Search.Prelude as P
 import qualified Traq.Primitives.Search.QSearchCFNW as P
-import qualified Traq.ProtoLang as P
 
 import Test.Hspec
 
 type Ext = A.AnnFailProb (P.Primitive (P.QSearchCFNW SizeT Double))
 
-exProg :: P.Program Ext
+exProg :: CPL.Program Ext
 exProg =
-  P.Program
-    [ P.NamedFunDef "f" fn_f
-    , P.NamedFunDef "main" fn_main
+  CPL.Program
+    [ CPL.NamedFunDef "f" fn_f
+    , CPL.NamedFunDef "main" fn_main
     ]
  where
-  ty :: P.VarType SizeT
-  ty = P.Fin 10
+  ty :: CPL.VarType SizeT
+  ty = CPL.Fin 10
 
-  fn_f, fn_main :: P.FunDef Ext
+  fn_f, fn_main :: CPL.FunDef Ext
   fn_f =
-    P.FunDef
-      { P.param_types = [ty]
-      , P.ret_types = [P.tbool]
-      , P.mbody =
+    CPL.FunDef
+      { CPL.param_types = [ty]
+      , CPL.ret_types = [CPL.tbool]
+      , CPL.mbody =
           Just
-            P.FunBody
-              { P.param_names = ["x"]
-              , P.ret_names = ["b"]
-              , P.body_stmt =
-                  P.SeqS
-                    [ P.ExprS
-                        { P.rets = ["y"]
-                        , P.expr = P.BasicExprE $ P.ConstE (P.FinV 5) ty
+            CPL.FunBody
+              { CPL.param_names = ["x"]
+              , CPL.ret_names = ["b"]
+              , CPL.body_stmt =
+                  CPL.SeqS
+                    [ CPL.ExprS
+                        { CPL.rets = ["y"]
+                        , CPL.expr = CPL.BasicExprE $ CPL.ConstE (CPL.FinV 5) ty
                         }
-                    , P.ExprS
-                        { P.rets = ["b"]
-                        , P.expr = P.BasicExprE $ P.BinOpE P.EqOp (P.VarE "x") (P.VarE "y")
+                    , CPL.ExprS
+                        { CPL.rets = ["b"]
+                        , CPL.expr = CPL.BasicExprE $ CPL.BinOpE CPL.EqOp (CPL.VarE "x") (CPL.VarE "y")
                         }
                     ]
               }
       }
   fn_main =
-    P.FunDef
-      { P.param_types = []
-      , P.ret_types = []
-      , P.mbody =
+    CPL.FunDef
+      { CPL.param_types = []
+      , CPL.ret_types = []
+      , CPL.mbody =
           Just
-            P.FunBody
-              { P.param_names = []
-              , P.ret_names = []
-              , P.body_stmt =
-                  P.SeqS
-                    [ P.ExprS
-                        { P.rets = ["b"]
-                        , P.expr =
-                            P.PrimCallE $
+            CPL.FunBody
+              { CPL.param_names = []
+              , CPL.ret_names = []
+              , CPL.body_stmt =
+                  CPL.SeqS
+                    [ CPL.ExprS
+                        { CPL.rets = ["b"]
+                        , CPL.expr =
+                            CPL.PrimCallE $
                               A.AnnFailProb (A.failProb 0.1) $
                                 P.Primitive [P.PartialFun "f" []] $
                                   P.QSearchCFNW $

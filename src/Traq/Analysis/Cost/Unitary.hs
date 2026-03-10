@@ -22,8 +22,8 @@ import Traq.Data.Default (HasDefault (default_))
 import Traq.Analysis.Cost.Prelude
 import Traq.Analysis.CostModel.Class
 import Traq.Analysis.Prelude
+import Traq.CPL.Syntax
 import Traq.Prelude
-import Traq.ProtoLang.Syntax
 
 -- | Cost w.r.t. unitary compiler
 class

@@ -26,12 +26,12 @@ import qualified Traq.Data.Probability as Prob
 import Traq.Data.Subtyping
 
 import qualified Traq.Analysis as A
-import qualified Traq.CQPL as CQPL
+import qualified Traq.CPL as CPL
 import qualified Traq.Compiler as Compiler
 import Traq.Prelude
 import Traq.Primitives.Amplify.Prelude
 import Traq.Primitives.Class
-import qualified Traq.ProtoLang as P
+import qualified Traq.QPL as QPL
 
 -- | Quantum Amplitude Amplification.
 newtype QAmplify size prec = QAmplify (Amplify size prec)
@@ -44,9 +44,9 @@ type instance PrimFnShape (QAmplify size prec) = SamplerFn
 
 instance Amplify size prec :<: QAmplify size prec
 
-instance P.MapSize (QAmplify size prec) where
+instance CPL.MapSize (QAmplify size prec) where
   type MappedSize (QAmplify size prec) size' = QAmplify size' prec
-  mapSize f (QAmplify p) = QAmplify (P.mapSize f p)
+  mapSize f (QAmplify p) = QAmplify (CPL.mapSize f p)
 
 -- Inherited instances
 instance (Show prec, Fractional prec) => SerializePrim (QAmplify size prec) where
@@ -55,10 +55,10 @@ instance (Show prec, Fractional prec) => SerializePrim (QAmplify size prec) wher
   parsePrimParams tp name = QAmplify <$> parsePrimParams tp name
   printPrimParams (QAmplify prim) = printPrimParams prim
 
-instance (P.TypingReqs size) => TypeCheckPrim (QAmplify size prec) size where
+instance (CPL.TypingReqs size) => TypeCheckPrim (QAmplify size prec) size where
   inferRetTypesPrim (QAmplify p) = inferRetTypesPrim p
 
-instance (P.EvalReqs size prec, Ord prec) => EvalPrim (QAmplify size prec) size prec where
+instance (CPL.EvalReqs size prec, Ord prec) => EvalPrim (QAmplify size prec) size prec where
   evalPrim (QAmplify p) = evalPrim p
 
 -- ================================================================================
@@ -69,7 +69,7 @@ instance (P.EvalReqs size prec, Ord prec) => EvalPrim (QAmplify size prec) size 
 _FPAA_L :: forall prec. (Floating prec) => A.FailProb prec -> prec -> prec
 _FPAA_L eps p_min = acosh (1 / sqrt (A.getFailProb eps)) / acosh (1 / sqrt (1 - p_min))
 
-instance (P.TypingReqs size, Floating prec) => UnitaryCostPrim (QAmplify size prec) size prec where
+instance (CPL.TypingReqs size, Floating prec) => UnitaryCostPrim (QAmplify size prec) size prec where
   unitaryQueryCosts (QAmplify Amplify{p_min}) eps = SamplerFn $ weakQueries $ _FPAA_L eps p_min
   unitaryExprCosts _ _ = Alg.zero
 
@@ -104,20 +104,20 @@ _EQSearch eps p_min p_good
  where
   term = _F p_good * sqrt p_min / _WQSearch_alpha
 
-instance (P.TypingReqs size, A.SizeToPrec size prec, Floating prec) => QuantumHavocCostPrim (QAmplify size prec) size prec where
+instance (CPL.TypingReqs size, A.SizeToPrec size prec, Floating prec) => QuantumHavocCostPrim (QAmplify size prec) size prec where
   quantumQueryCostsUnitary (QAmplify Amplify{p_min}) eps = SamplerFn $ strongQueries $ _WQSearch eps p_min
   quantumQueryCostsQuantum _ _ = SamplerFn 0
 
   quantumExprCosts = Alg.zero
 
-instance (P.EvalReqs size prec, Floating prec, Ord prec) => QuantumExpCostPrim (QAmplify size prec) size prec where
+instance (CPL.EvalReqs size prec, Floating prec, Ord prec) => QuantumExpCostPrim (QAmplify size prec) size prec where
   quantumExpQueryCostsUnitary (QAmplify Amplify{p_min}) eps (SamplerFn eval_sample) = SamplerFn $ strongQueries $ _EQSearch eps p_min p_good
    where
     mu = eval_sample []
     p_good = Prob.probabilityOf success mu
 
     -- check if sampling produced a good sample.
-    success [b_val, _] = P.valueToBool b_val
+    success [b_val, _] = CPL.valueToBool b_val
     success _ = error "invalid predicate output"
 
   quantumExpQueryCostsQuantum _ _ _ = SamplerFn []
@@ -157,35 +157,35 @@ instance (Floating prec, RealFrac prec) => UnitaryCompilePrim (QAmplify size pre
     pred_aux <- lift $ mapM Compiler.allocAncilla pred_aux_tys
 
     let all_params =
-          zip3 [] (repeat CQPL.ParamInp) []
-            ++ zip3 rets (repeat CQPL.ParamOut) ret_tys
-            ++ zip3 pred_aux (repeat CQPL.ParamAux) pred_aux_tys
+          zip3 [] (repeat QPL.ParamInp) []
+            ++ zip3 rets (repeat QPL.ParamOut) ret_tys
+            ++ zip3 pred_aux (repeat QPL.ParamAux) pred_aux_tys
 
-    let sampler_call = call_upred (map CQPL.Arg (rets ++ pred_aux))
+    let sampler_call = call_upred (map QPL.Arg (rets ++ pred_aux))
     let uproc_body_stmt =
-          CQPL.USeqS $
+          QPL.USeqS $
             sampler_call
               : concat
-                [ [ CQPL.UnitaryS [CQPL.Arg b] $ CQPL.BasicGateU $ CQPL.Rz beta
-                  , CQPL.adjoint sampler_call
-                  , CQPL.UnitaryS (map CQPL.Arg (rets ++ pred_aux)) $ CQPL.BasicGateU $ CQPL.PhaseOnZero (-alpha)
+                [ [ QPL.UnitaryS [QPL.Arg b] $ QPL.BasicGateU $ QPL.Rz beta
+                  , QPL.adjoint sampler_call
+                  , QPL.UnitaryS (map QPL.Arg (rets ++ pred_aux)) $ QPL.BasicGateU $ QPL.PhaseOnZero (-alpha)
                   , sampler_call
                   ]
                 | (alpha, beta) <- zip alphas betas
                 ]
 
     return
-      CQPL.ProcDef
-        { CQPL.info_comment = ""
-        , CQPL.proc_name = qamplify_proc_name
-        , CQPL.proc_meta_params = []
-        , CQPL.proc_param_types = map (view _3) all_params
-        , CQPL.proc_body =
-            CQPL.ProcBodyU $
-              CQPL.UProcBody
-                { CQPL.uproc_param_names = map (view _1) all_params
-                , CQPL.uproc_param_tags = map (view _2) all_params
-                , CQPL.uproc_body_stmt
+      QPL.ProcDef
+        { QPL.info_comment = ""
+        , QPL.proc_name = qamplify_proc_name
+        , QPL.proc_meta_params = []
+        , QPL.proc_param_types = map (view _3) all_params
+        , QPL.proc_body =
+            QPL.ProcBodyU $
+              QPL.UProcBody
+                { QPL.uproc_param_names = map (view _1) all_params
+                , QPL.uproc_param_tags = map (view _2) all_params
+                , QPL.uproc_body_stmt
                 }
         }
 
@@ -199,7 +199,7 @@ mkGroverK ::
   ( m ~ PrimCompileMonad ext (QAmplify size prec)
   , size ~ SizeType ext
   ) =>
-  m (CQPL.ProcDef size)
+  m (QPL.ProcDef size)
 mkGroverK = do
   meta_k <- Compiler.newIdent "k"
 
@@ -212,16 +212,16 @@ mkGroverK = do
     (SamplerFn aux_tys) <- view $ to uproc_aux_types
     aux_vars <- mapM Compiler.allocLocal aux_tys
 
-    let sampler_call = mk_sampler_call (map CQPL.Arg (rets ++ aux_vars))
+    let sampler_call = mk_sampler_call (map QPL.Arg (rets ++ aux_vars))
 
     Compiler.addUStmt sampler_call
-    Compiler.withUStmt (CQPL.URepeatS (P.MetaName meta_k)) $
+    Compiler.withUStmt (QPL.URepeatS (CPL.MetaName meta_k)) $
       -- grover_iteration
       mapM_
         Compiler.addUStmt
-        [ CQPL.UnitaryS [CQPL.Arg b] $ CQPL.BasicGateU CQPL.ZGate
-        , CQPL.adjoint sampler_call
-        , CQPL.UnitaryS (map CQPL.Arg (rets ++ aux_vars)) $ CQPL.BasicGateU (CQPL.PhaseOnZero pi)
+        [ QPL.UnitaryS [QPL.Arg b] $ QPL.BasicGateU QPL.ZGate
+        , QPL.adjoint sampler_call
+        , QPL.UnitaryS (map QPL.Arg (rets ++ aux_vars)) $ QPL.BasicGateU (QPL.PhaseOnZero pi)
         , sampler_call
         ]
 
@@ -261,7 +261,7 @@ buildQAmplify ::
   -- | ret vars
   [Ident] ->
   -- | ret types
-  [P.VarType SizeT] ->
+  [CPL.VarType SizeT] ->
   -- | eps: max fail prob
   A.FailProb prec ->
   -- | p_min: min success probability of sampler
@@ -271,57 +271,57 @@ buildQAmplify n_samples rets _ret_tys eps p_min = do
   let b = head rets
 
   -- flag
-  not_done <- Compiler.allocLocalWithPrefix "not_done" P.tbool
-  Compiler.addStmt $ CQPL.AssignS [not_done] (P.ConstE (P.FinV 0) P.tbool)
+  not_done <- Compiler.allocLocalWithPrefix "not_done" CPL.tbool
+  Compiler.addStmt $ QPL.AssignS [not_done] (CPL.ConstE (CPL.FinV 0) CPL.tbool)
 
   -- classical sampling
   SamplerFn mkSamplerCCall <- view $ to mk_call
-  let sampler_call_c = mkSamplerCCall (map CQPL.Arg rets)
+  let sampler_call_c = mkSamplerCCall (map QPL.Arg rets)
 
   when (n_samples /= 0) $
     Compiler.addStmt $
-      CQPL.WhileKWithCondExpr
-        (CQPL.MetaSize n_samples)
+      QPL.WhileKWithCondExpr
+        (QPL.MetaSize n_samples)
         not_done
-        (P.notE (P.VarE b))
+        (CPL.notE (CPL.VarE b))
         sampler_call_c
 
   -- quantum iterations
   uproc_grover_k <- lift $ withSandbox mkGroverK
   lift $ Compiler.addProc uproc_grover_k
 
-  let j_type = P.Fin (ceiling $ _WQSearch_Q_Max p_min) -- type for j and Q_sum
+  let j_type = CPL.Fin (ceiling $ _WQSearch_Q_Max p_min) -- type for j and Q_sum
   q_sum <- Compiler.allocLocalWithPrefix "Q_sum" j_type
   j <- Compiler.allocLocalWithPrefix "j" j_type
   j_lim <- Compiler.allocLocalWithPrefix "j_lim" j_type
 
   let n_runs = ceiling $ _WQSearch_N_Runs eps
 
-  Compiler.withStmt (CQPL.RepeatS (CQPL.MetaSize n_runs)) $ do
-    Compiler.addStmt $ CQPL.AssignS [q_sum] (P.ConstE{P.val = P.FinV 0, P.ty = j_type})
+  Compiler.withStmt (QPL.RepeatS (QPL.MetaSize n_runs)) $ do
+    Compiler.addStmt $ QPL.AssignS [q_sum] (CPL.ConstE{CPL.val = CPL.FinV 0, CPL.ty = j_type})
 
     let sampling_ranges = qamplifySamplingRanges p_min
     Compiler.withStmt
       ( \s ->
-          CQPL.ForInArray
-            { CQPL.loop_index = j_lim
-            , CQPL.loop_index_ty = j_type
-            , CQPL.loop_values = [P.ConstE (P.FinV v_j) j_type | v_j <- sampling_ranges]
-            , CQPL.loop_body = s
+          QPL.ForInArray
+            { QPL.loop_index = j_lim
+            , QPL.loop_index_ty = j_type
+            , QPL.loop_values = [CPL.ConstE (CPL.FinV v_j) j_type | v_j <- sampling_ranges]
+            , QPL.loop_body = s
             }
       )
       $ do
-        Compiler.addStmt $ CQPL.RandomDynS j j_lim
-        Compiler.addStmt $ CQPL.AssignS [q_sum] (P.BinOpE P.AddOp (P.VarE q_sum) (P.VarE j))
-        Compiler.addStmt $ CQPL.AssignS [not_done] (P.VarE not_done P..&&. (P.VarE q_sum P..<=. P.VarE j_lim))
-        Compiler.withStmt (CQPL.ifThenS not_done) $ do
+        Compiler.addStmt $ QPL.RandomDynS j j_lim
+        Compiler.addStmt $ QPL.AssignS [q_sum] (CPL.BinOpE CPL.AddOp (CPL.VarE q_sum) (CPL.VarE j))
+        Compiler.addStmt $ QPL.AssignS [not_done] (CPL.VarE not_done CPL..&&. (CPL.VarE q_sum CPL..<=. CPL.VarE j_lim))
+        Compiler.withStmt (QPL.ifThenS not_done) $ do
           Compiler.addStmt $
-            CQPL.CallS
-              { CQPL.fun = CQPL.UProcAndMeas (CQPL.proc_name uproc_grover_k)
-              , CQPL.meta_params = [Right j]
-              , CQPL.args = map CQPL.Arg rets
+            QPL.CallS
+              { QPL.fun = QPL.UProcAndMeas (QPL.proc_name uproc_grover_k)
+              , QPL.meta_params = [Right j]
+              , QPL.args = map QPL.Arg rets
               }
-          Compiler.addStmt $ CQPL.AssignS [not_done] (P.VarE not_done P..&&. P.notE (P.VarE b))
+          Compiler.addStmt $ QPL.AssignS [not_done] (CPL.VarE not_done CPL..&&. CPL.notE (CPL.VarE b))
 
 instance (RealFloat prec) => QuantumCompilePrim (QAmplify SizeT prec) SizeT prec where
   compileQPrim (QAmplify Amplify{p_min}) eps = do

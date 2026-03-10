@@ -5,7 +5,7 @@
 {-# LANGUAGE FunctionalDependencies #-}
 {-# LANGUAGE UndecidableInstances #-}
 
-module Traq.ProtoLang.Eval (
+module Traq.CPL.Eval (
   -- * Evaluating Basic Expressions
   ProgramState,
   HasProgramState (..),
@@ -59,8 +59,8 @@ import qualified Traq.Data.Context as Ctx
 import Traq.Data.Default
 import qualified Traq.Data.Probability as Prob
 
+import Traq.CPL.Syntax
 import Traq.Prelude
-import Traq.ProtoLang.Syntax
 
 -- ================================================================================
 -- Values

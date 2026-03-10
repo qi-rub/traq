@@ -10,7 +10,7 @@ import qualified Traq.Data.Symbolic as Sym
 
 import qualified Traq.Analysis as A
 import Traq.Analysis.CostModel.QueryCost (SimpleQueryCost (getCost))
-import qualified Traq.CQPL as CQPL
+import qualified Traq.CPL as CPL
 import qualified Traq.Compiler as Compiler
 import Traq.Compiler.Qualtran (toPy)
 import Traq.Examples.MatrixSearch
@@ -18,7 +18,7 @@ import Traq.Primitives (Primitive (..))
 import Traq.Primitives.Search.Prelude
 import Traq.Primitives.Search.QSearchCFNW (_EQSearchWorst, _QSearchZalka)
 import Traq.Primitives.Search.Symbolic
-import qualified Traq.ProtoLang as P
+import qualified Traq.QPL as QPL
 import qualified Traq.Utils.Printing as PP
 
 import Test.Hspec
@@ -31,19 +31,19 @@ spec = describe "MatrixSearch" $ do
     let ex = matrixExampleS n m
 
     it "type checks" $ do
-      assertRight $ P.typeCheckProg ex
+      assertRight $ CPL.typeCheckProg ex
 
     it "has unique vars" $ do
-      P.checkVarsUnique ex `shouldBe` True
+      CPL.checkVarsUnique ex `shouldBe` True
 
     let oracleF = \case
-          [P.FinV i, P.FinV j] -> [P.toValue $ i == j]
+          [CPL.FinV i, CPL.FinV j] -> [CPL.toValue $ i == j]
           _ -> undefined
     let interpCtx = Map.singleton "Matrix" oracleF
 
     it "evaluates" $ do
-      let res = P.runProgram @_ @Double ex interpCtx []
-      res `shouldBeDistribution` pure ([P.FinV 0], 1.0)
+      let res = CPL.runProgram @_ @Double ex interpCtx []
+      res `shouldBeDistribution` pure ([CPL.FinV 0], 1.0)
 
     -- worst, unitary
     let wcF = _EQSearchWorst
@@ -85,18 +85,18 @@ spec = describe "MatrixSearch" $ do
       it "type checks" $ do
         ex' <- expectRight $ A.annotateProgWithErrorBudgetU eps ex
         ex_uqpl <- expectRight $ Compiler.lowerProgramU ex'
-        let tc_res = CQPL.typeCheckProgram ex_uqpl
+        let tc_res = QPL.typeCheckProgram ex_uqpl
         either print (const $ pure ()) tc_res
         assertRight tc_res
 
       it "preserves cost" $ do
         ex' <- expectRight $ A.annotateProgWithErrorBudgetU eps ex
         ex_uqpl <- expectRight $ Compiler.lowerProgramU ex'
-        let uqpl_cost = getCost . fst $ CQPL.programCost ex_uqpl
-        let proto_cost = getCost $ A.costUProg ex'
-        uqpl_cost `shouldBeLE` proto_cost
+        let uqpl_cost = getCost . fst $ QPL.programCost ex_uqpl
+        let traq_cost = getCost $ A.costUProg ex'
+        uqpl_cost `shouldBeLE` traq_cost
 
-    describe "lower to CQPL" $ do
+    describe "lower to QPL" $ do
       let eps = A.failProb (0.001 :: Double)
       it "lowers" $ do
         ex' <- expectRight $ A.annotateProgWithErrorBudget eps ex
@@ -105,12 +105,12 @@ spec = describe "MatrixSearch" $ do
       it "type checks" $ do
         ex' <- expectRight $ A.annotateProgWithErrorBudget eps ex
         ex_cqpl <- expectRight $ Compiler.lowerProgram ex'
-        assertRight $ CQPL.typeCheckProgram ex_cqpl
+        assertRight $ QPL.typeCheckProgram ex_cqpl
 
       it "cost" $ do
         ex' <- expectRight $ A.annotateProgWithErrorBudget eps ex
         ex_cqpl <- expectRight $ Compiler.lowerProgram ex'
-        let cost = fst (CQPL.programCost ex_cqpl) :: SimpleQueryCost Double
+        let cost = fst (QPL.programCost ex_cqpl) :: SimpleQueryCost Double
         let cost_from_analysis = getCost $ A.costQProg ex'
         getCost cost `shouldBeLE` cost_from_analysis
 
@@ -124,7 +124,7 @@ spec = describe "MatrixSearch" $ do
     let n = Sym.var "n" :: Sym.Sym Int
     let m = Sym.var "m" :: Sym.Sym Int
 
-    let ex_no_ann = mkMatrixExample (\ty f -> P.PrimCallE $ Primitive [f] $ QSearchSym @Int @Double $ PrimSearch AnyK ty) n m
+    let ex_no_ann = mkMatrixExample (\ty f -> CPL.PrimCallE $ Primitive [f] $ QSearchSym @Int @Double $ PrimSearch AnyK ty) n m
     let get_ann_ex = either fail pure $ A.annSymEpsProg ex_no_ann
 
     let eps_inner = A.failProb (Sym.var "eps_0" :: Sym.Sym Double)

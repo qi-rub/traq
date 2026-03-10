@@ -1,7 +1,7 @@
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE TypeApplications #-}
 
-module Traq.ProtoLang.ParserSpec (spec) where
+module Traq.CPL.ParserSpec (spec) where
 
 import Text.Parsec.String
 
@@ -9,15 +9,15 @@ import Lens.Micro.GHC
 
 import qualified Traq.Data.Symbolic as Sym
 
+import Traq.CPL.Lenses
+import Traq.CPL.Parser
+import Traq.CPL.Rewrites
+import Traq.CPL.Syntax
 import Traq.Examples.MatrixSearch (matrixExampleS, mkMatrixExample)
 import Traq.Prelude
 import Traq.Primitives
 import Traq.Primitives.Search.Prelude
 import Traq.Primitives.Search.QSearchCFNW
-import Traq.ProtoLang.Lenses
-import Traq.ProtoLang.Parser
-import Traq.ProtoLang.Rewrites
-import Traq.ProtoLang.Syntax
 import Traq.Utils.ASTRewriting
 import qualified Traq.Utils.Printing as PP
 
@@ -61,7 +61,7 @@ spec = do
     it "parses function" $ do
       parseFunDef @SymCore
         ( unlines
-            [ "def check_entry(i: Fin<N>, j: Fin<M>) -> Bool do"
+            [ "fn check_entry(i: Fin<N>, j: Fin<M>) -> Bool do"
             , "  e <- Oracle(i, j);"
             , "  e' <- !e;"
             , "  return e'"

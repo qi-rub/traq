@@ -18,11 +18,11 @@ import Traq.Control.Monad
 import qualified Traq.Data.Context as Ctx
 
 import qualified Traq.Analysis.Annotate.Prelude as A
-import Traq.CQPL.Syntax
+import qualified Traq.CPL as CPL
 import Traq.Compiler.Prelude
 import Traq.Compiler.Unitary
 import Traq.Prelude
-import qualified Traq.ProtoLang as P
+import Traq.QPL.Syntax
 
 -- ================================================================================
 -- Compiler
@@ -40,10 +40,10 @@ class (CompileU ext) => CompileQ ext where
     [Ident] ->
     m (Stmt (SizeType ext))
 
-instance (P.TypingReqs size) => CompileQ (P.Core size prec) where
+instance (CPL.TypingReqs size) => CompileQ (CPL.Core size prec) where
   compileQ = \case {}
 
-instance (P.TypingReqs size) => CompileQ (A.AnnFailProb (P.Core size prec)) where
+instance (CPL.TypingReqs size) => CompileQ (A.AnnFailProb (CPL.Core size prec)) where
   compileQ (A.AnnFailProb _ ext) = case ext of {}
 
 class CompileQ1 f where
@@ -56,50 +56,50 @@ class CompileQ1 f where
   compileQ1 ::
     forall ext m.
     ( CompileQ ext
-    , P.TypeInferrable ext (SizeType ext)
+    , CPL.TypeInferrable ext (SizeType ext)
     , m ~ CompilerT ext
     ) =>
     CompileQArgs f ext ->
     f ext ->
     m (CompileQResult f ext)
 
-instance CompileQ1 P.Expr where
-  type CompileQArgs P.Expr ext = [Ident]
-  type CompileQResult P.Expr ext = Stmt (SizeType ext)
+instance CompileQ1 CPL.Expr where
+  type CompileQArgs CPL.Expr ext = [Ident]
+  type CompileQResult CPL.Expr ext = Stmt (SizeType ext)
 
   -- basic expressions
-  compileQ1 rets P.BasicExprE{P.basic_expr} = return $ AssignS rets basic_expr
+  compileQ1 rets CPL.BasicExprE{CPL.basic_expr} = return $ AssignS rets basic_expr
   -- random sampling expressions
-  compileQ1 rets P.RandomSampleE{P.distr_expr} = return $ RandomS rets distr_expr
+  compileQ1 rets CPL.RandomSampleE{CPL.distr_expr} = return $ RandomS rets distr_expr
   -- function call
-  compileQ1 rets P.FunCallE{P.fname, P.args} = do
+  compileQ1 rets CPL.FunCallE{CPL.fname, CPL.args} = do
     let proc_id = mkQProcName fname
     return $ CallS{fun = FunctionCall proc_id, args = map Arg (args ++ rets), meta_params = []}
   -- primitive call
-  compileQ1 rets P.PrimCallE{P.prim} = compileQ prim rets
+  compileQ1 rets CPL.PrimCallE{CPL.prim} = compileQ prim rets
   -- loops
-  compileQ1 rets P.LoopE{loop_body_fun, initial_args} = do
-    P.FunDef{param_types} <- view (P._funCtx . Ctx.at loop_body_fun) >>= maybeWithError "cannot find loop body fun"
+  compileQ1 rets CPL.LoopE{loop_body_fun, initial_args} = do
+    CPL.FunDef{param_types} <- view (CPL._funCtx . Ctx.at loop_body_fun) >>= maybeWithError "cannot find loop body fun"
     n <- case last param_types of
-      P.Fin n -> pure n
+      CPL.Fin n -> pure n
       _ -> throwError "loop index must be of type `Fin`"
 
     iter_meta_var <- newIdent "ITER"
 
     iter_var <- newIdent "iter"
-    P._typingCtx . Ctx.ins iter_var .= P.Fin n
+    CPL._typingCtx . Ctx.ins iter_var .= CPL.Fin n
 
     let proc_id = mkQProcName loop_body_fun
 
     return $
       SeqS $
-        [AssignS [y] (P.VarE x) | (x, y) <- zip initial_args rets]
+        [AssignS [y] (CPL.VarE x) | (x, y) <- zip initial_args rets]
           ++ [ ForInRangeS
                  { iter_meta_var
-                 , iter_lim = P.MetaSize n
+                 , iter_lim = CPL.MetaSize n
                  , loop_body =
                      SeqS
-                       [ AssignS [iter_var] (P.ParamE iter_meta_var)
+                       [ AssignS [iter_var] (CPL.ParamE iter_meta_var)
                        , CallS
                            { fun = FunctionCall proc_id
                            , meta_params = []
@@ -109,28 +109,28 @@ instance CompileQ1 P.Expr where
                  }
              ]
 
-instance CompileQ1 P.Stmt where
-  type CompileQArgs P.Stmt ext = ()
-  type CompileQResult P.Stmt ext = Stmt (SizeType ext)
+instance CompileQ1 CPL.Stmt where
+  type CompileQArgs CPL.Stmt ext = ()
+  type CompileQResult CPL.Stmt ext = Stmt (SizeType ext)
 
-  compileQ1 () P.ExprS{P.rets, P.expr} = compileQ1 rets expr
-  compileQ1 () (P.SeqS ss) = SeqS <$> mapM (compileQ1 ()) ss
-  compileQ1 () P.IfThenElseS{P.cond, P.s_true, P.s_false} = do
+  compileQ1 () CPL.ExprS{CPL.rets, CPL.expr} = compileQ1 rets expr
+  compileQ1 () (CPL.SeqS ss) = SeqS <$> mapM (compileQ1 ()) ss
+  compileQ1 () CPL.IfThenElseS{CPL.cond, CPL.s_true, CPL.s_false} = do
     s_true <- compileQ1 () s_true
     s_false <- compileQ1 () s_false
     pure IfThenElseS{..}
 
-instance CompileQ1 P.FunBody where
-  type CompileQArgs P.FunBody ext = ([P.VarType (SizeType ext)], [P.VarType (SizeType ext)])
-  type CompileQResult P.FunBody ext = CProcBody (SizeType ext)
+instance CompileQ1 CPL.FunBody where
+  type CompileQArgs CPL.FunBody ext = ([CPL.VarType (SizeType ext)], [CPL.VarType (SizeType ext)])
+  type CompileQResult CPL.FunBody ext = CProcBody (SizeType ext)
 
-  compileQ1 (param_types, _ret_types) P.FunBody{P.param_names, P.ret_names, P.body_stmt} = do
-    P._typingCtx .= Ctx.fromList (zip param_names param_types)
-    magnify P._funCtx . zoom P._typingCtx . ignoreWriter $ P.inferTypes body_stmt
+  compileQ1 (param_types, _ret_types) CPL.FunBody{CPL.param_names, CPL.ret_names, CPL.body_stmt} = do
+    CPL._typingCtx .= Ctx.fromList (zip param_names param_types)
+    magnify CPL._funCtx . zoom CPL._typingCtx . ignoreWriter $ CPL.inferTypes body_stmt
 
     cproc_body_stmt <- compileQ1 () body_stmt
-    proc_typing_ctx <- use P._typingCtx
-    P._typingCtx .= mempty
+    proc_typing_ctx <- use CPL._typingCtx
+    CPL._typingCtx .= mempty
 
     let cproc_param_names = param_names ++ ret_names
     let cproc_local_vars =
@@ -141,12 +141,12 @@ instance CompileQ1 P.FunBody where
     let cproc_body = CProcBody{cproc_param_names, cproc_local_vars, cproc_body_stmt}
     return cproc_body
 
-instance CompileQ1 P.FunDef where
-  type CompileQArgs P.FunDef ext = Ident
-  type CompileQResult P.FunDef ext = ProcDef (SizeType ext)
+instance CompileQ1 CPL.FunDef where
+  type CompileQArgs CPL.FunDef ext = Ident
+  type CompileQResult CPL.FunDef ext = ProcDef (SizeType ext)
 
   -- lower declarations as-is, ignoring fail prob
-  compileQ1 proc_name P.FunDef{P.param_types, P.ret_types, P.mbody = Nothing} = do
+  compileQ1 proc_name CPL.FunDef{CPL.param_types, CPL.ret_types, CPL.mbody = Nothing} = do
     return
       ProcDef
         { info_comment = ""
@@ -155,7 +155,7 @@ instance CompileQ1 P.FunDef where
         , proc_param_types = param_types ++ ret_types
         , proc_body = ProcBodyC CProcDecl
         }
-  compileQ1 proc_name P.FunDef{P.param_types, P.ret_types, P.mbody = Just body} = do
+  compileQ1 proc_name CPL.FunDef{CPL.param_types, CPL.ret_types, CPL.mbody = Just body} = do
     cproc_body <- compileQ1 (param_types, ret_types) body
 
     return
@@ -167,36 +167,36 @@ instance CompileQ1 P.FunDef where
         , proc_body = ProcBodyC cproc_body
         }
 
-instance CompileQ1 P.NamedFunDef where
-  type CompileQArgs P.NamedFunDef ext = ()
-  type CompileQResult P.NamedFunDef ext = ()
+instance CompileQ1 CPL.NamedFunDef where
+  type CompileQArgs CPL.NamedFunDef ext = ()
+  type CompileQResult CPL.NamedFunDef ext = ()
 
-  compileQ1 () P.NamedFunDef{P.fun_name, P.fun_def} = do
+  compileQ1 () CPL.NamedFunDef{CPL.fun_name, CPL.fun_def} = do
     let proc_name = mkQProcName fun_name
     proc_def <- compileQ1 proc_name fun_def
     addProc proc_def
 
-instance CompileQ1 P.Program where
-  type CompileQArgs P.Program ext = ()
-  type CompileQResult P.Program ext = ()
+instance CompileQ1 CPL.Program where
+  type CompileQArgs CPL.Program ext = ()
+  type CompileQResult CPL.Program ext = ()
 
-  compileQ1 () (P.Program fs) = forM_ fs $ \f -> compileU1 () f >> compileQ1 () f
+  compileQ1 () (CPL.Program fs) = forM_ fs $ \f -> compileU1 () f >> compileQ1 () f
 
 -- ================================================================================
 -- Entry Point
 -- ================================================================================
 
--- | Lower a full program into a CQPL program.
+-- | Lower a full program into a QPL program.
 lowerProgram ::
   forall ext size prec.
-  ( P.TypingReqs size
+  ( CPL.TypingReqs size
   , Floating prec
-  , P.HasFreeVars ext
+  , CPL.HasFreeVars ext
   , CompileQ ext
-  , P.TypeInferrable ext size
+  , CPL.TypeInferrable ext size
   , PrecType ext ~ prec
   , SizeType ext ~ size
   ) =>
-  P.Program ext ->
+  CPL.Program ext ->
   Either String (Program size)
 lowerProgram = compileWith (compileQ1 ())

@@ -7,226 +7,226 @@ import Text.Parsec.String
 
 import qualified Traq.Data.Symbolic as Sym
 
+import qualified Traq.CPL as CPL
 import Traq.Primitives.Amplify.Prelude (Amplify (..))
 import Traq.Primitives.Class
-import qualified Traq.ProtoLang as P
 import qualified Traq.Utils.Printing as PP
 
 import Test.Hspec
 import TestHelpers
 
-exampleProgram1 :: (Num size, Fractional prec) => size -> P.Program (Primitive (Amplify size prec))
-exampleProgram1 n = P.Program [P.NamedFunDef "sampler" sampler, P.NamedFunDef "main" main_fun]
+exampleProgram1 :: (Num size, Fractional prec) => size -> CPL.Program (Primitive (Amplify size prec))
+exampleProgram1 n = CPL.Program [CPL.NamedFunDef "sampler" sampler, CPL.NamedFunDef "main" main_fun]
  where
-  node_ty = P.Fin n
+  node_ty = CPL.Fin n
 
   sampler =
-    P.FunDef
-      { P.param_types = [node_ty]
-      , P.ret_types = [P.tbool, node_ty]
-      , P.mbody = Nothing
+    CPL.FunDef
+      { CPL.param_types = [node_ty]
+      , CPL.ret_types = [CPL.tbool, node_ty]
+      , CPL.mbody = Nothing
       }
 
   main_fun =
-    P.FunDef
-      { P.param_types = []
-      , P.ret_types = [P.tbool, node_ty]
-      , P.mbody =
+    CPL.FunDef
+      { CPL.param_types = []
+      , CPL.ret_types = [CPL.tbool, node_ty]
+      , CPL.mbody =
           Just $
-            P.FunBody
-              { P.param_names = []
-              , P.ret_names = ["ok", "result"]
-              , P.body_stmt = P.SeqS [stmt_x, amplify_call]
+            CPL.FunBody
+              { CPL.param_names = []
+              , CPL.ret_names = ["ok", "result"]
+              , CPL.body_stmt = CPL.SeqS [stmt_x, amplify_call]
               }
       }
 
   stmt_x =
-    P.ExprS
-      { P.rets = ["x"]
-      , P.expr =
-          P.BasicExprE
-            P.ConstE
-              { P.val = P.FinV 1
-              , P.ty = node_ty
+    CPL.ExprS
+      { CPL.rets = ["x"]
+      , CPL.expr =
+          CPL.BasicExprE
+            CPL.ConstE
+              { CPL.val = CPL.FinV 1
+              , CPL.ty = node_ty
               }
       }
 
   amplify_call =
-    P.ExprS
-      { P.rets = ["ok", "result"]
-      , P.expr =
-          P.PrimCallE $
+    CPL.ExprS
+      { CPL.rets = ["ok", "result"]
+      , CPL.expr =
+          CPL.PrimCallE $
             Primitive [PartialFun{pfun_name = "sampler", pfun_args = [Just "x"]}] $
               Amplify{p_min = 0.02}
       }
 
-exampleProgram2 :: (Num size, Fractional prec) => size -> P.Program (Primitive (Amplify size prec))
-exampleProgram2 n = P.Program [P.NamedFunDef "f" fDef, P.NamedFunDef "main" mainDef]
+exampleProgram2 :: (Num size, Fractional prec) => size -> CPL.Program (Primitive (Amplify size prec))
+exampleProgram2 n = CPL.Program [CPL.NamedFunDef "f" fDef, CPL.NamedFunDef "main" mainDef]
  where
-  node_ty = P.Fin n
+  node_ty = CPL.Fin n
 
   funBody =
-    P.FunBody
-      { P.param_names = ["y"]
-      , P.ret_names = ["ok", "x"]
-      , P.body_stmt =
-          P.SeqS
-            [ P.ExprS
-                { P.rets = ["x"]
-                , P.expr =
-                    P.RandomSampleE
-                      { P.distr_expr = P.UniformE{P.sample_ty = node_ty}
+    CPL.FunBody
+      { CPL.param_names = ["y"]
+      , CPL.ret_names = ["ok", "x"]
+      , CPL.body_stmt =
+          CPL.SeqS
+            [ CPL.ExprS
+                { CPL.rets = ["x"]
+                , CPL.expr =
+                    CPL.RandomSampleE
+                      { CPL.distr_expr = CPL.UniformE{CPL.sample_ty = node_ty}
                       }
                 }
-            , P.ExprS
-                { P.rets = ["ok"]
-                , P.expr =
-                    P.BasicExprE $
-                      P.BinOpE
-                        { P.bin_op = P.LEqOp
-                        , P.lhs = P.VarE "y"
-                        , P.rhs = P.VarE "x"
+            , CPL.ExprS
+                { CPL.rets = ["ok"]
+                , CPL.expr =
+                    CPL.BasicExprE $
+                      CPL.BinOpE
+                        { CPL.bin_op = CPL.LEqOp
+                        , CPL.lhs = CPL.VarE "y"
+                        , CPL.rhs = CPL.VarE "x"
                         }
                 }
             ]
       }
 
   fDef =
-    P.FunDef
-      { P.param_types = [node_ty]
-      , P.ret_types = [P.tbool, node_ty]
-      , P.mbody = Just funBody
+    CPL.FunDef
+      { CPL.param_types = [node_ty]
+      , CPL.ret_types = [CPL.tbool, node_ty]
+      , CPL.mbody = Just funBody
       }
 
   stmt_y =
-    P.ExprS
-      { P.rets = ["y"]
-      , P.expr =
-          P.BasicExprE $
-            P.ConstE
-              { P.val = P.FinV 1
-              , P.ty = node_ty
+    CPL.ExprS
+      { CPL.rets = ["y"]
+      , CPL.expr =
+          CPL.BasicExprE $
+            CPL.ConstE
+              { CPL.val = CPL.FinV 1
+              , CPL.ty = node_ty
               }
       }
 
   amplify_call =
-    P.ExprS
-      { P.rets = ["ok", "result"]
-      , P.expr =
-          P.PrimCallE $
+    CPL.ExprS
+      { CPL.rets = ["ok", "result"]
+      , CPL.expr =
+          CPL.PrimCallE $
             Primitive [PartialFun{pfun_name = "f", pfun_args = [Just "y"]}] $
               Amplify{p_min = 0.6}
       }
 
   mainDef =
-    P.FunDef
-      { P.param_types = []
-      , P.ret_types = [P.tbool, node_ty]
-      , P.mbody =
+    CPL.FunDef
+      { CPL.param_types = []
+      , CPL.ret_types = [CPL.tbool, node_ty]
+      , CPL.mbody =
           Just $
-            P.FunBody
-              { P.param_names = []
-              , P.ret_names = ["ok", "result"]
-              , P.body_stmt = P.SeqS [stmt_y, amplify_call]
+            CPL.FunBody
+              { CPL.param_names = []
+              , CPL.ret_names = ["ok", "result"]
+              , CPL.body_stmt = CPL.SeqS [stmt_y, amplify_call]
               }
       }
 
-exampleProgram3 :: (Num size, Fractional prec) => size -> P.Program (Primitive (Amplify size prec))
-exampleProgram3 n = P.Program [P.NamedFunDef "sampler" sampler, P.NamedFunDef "main" mainDef]
+exampleProgram3 :: (Num size, Fractional prec) => size -> CPL.Program (Primitive (Amplify size prec))
+exampleProgram3 n = CPL.Program [CPL.NamedFunDef "sampler" sampler, CPL.NamedFunDef "main" mainDef]
  where
-  node_ty = P.Fin n
+  node_ty = CPL.Fin n
 
   funBody =
-    P.FunBody
-      { P.param_names = ["l", "r"]
-      , P.ret_names = ["ok", "x"]
-      , P.body_stmt =
-          P.SeqS
-            [ P.ExprS
-                { P.rets = ["x"]
-                , P.expr = P.RandomSampleE $ P.UniformE{P.sample_ty = node_ty}
+    CPL.FunBody
+      { CPL.param_names = ["l", "r"]
+      , CPL.ret_names = ["ok", "x"]
+      , CPL.body_stmt =
+          CPL.SeqS
+            [ CPL.ExprS
+                { CPL.rets = ["x"]
+                , CPL.expr = CPL.RandomSampleE $ CPL.UniformE{CPL.sample_ty = node_ty}
                 }
-            , P.ExprS
-                { P.rets = ["ok_l"]
-                , P.expr =
-                    P.BasicExprE $
-                      P.BinOpE
-                        { P.bin_op = P.LEqOp
-                        , P.lhs = P.VarE "l"
-                        , P.rhs = P.VarE "x"
+            , CPL.ExprS
+                { CPL.rets = ["ok_l"]
+                , CPL.expr =
+                    CPL.BasicExprE $
+                      CPL.BinOpE
+                        { CPL.bin_op = CPL.LEqOp
+                        , CPL.lhs = CPL.VarE "l"
+                        , CPL.rhs = CPL.VarE "x"
                         }
                 }
-            , P.ExprS
-                { P.rets = ["ok_r"]
-                , P.expr =
-                    P.BasicExprE $
-                      P.BinOpE
-                        { P.bin_op = P.LEqOp
-                        , P.lhs = P.VarE "x"
-                        , P.rhs = P.VarE "r"
+            , CPL.ExprS
+                { CPL.rets = ["ok_r"]
+                , CPL.expr =
+                    CPL.BasicExprE $
+                      CPL.BinOpE
+                        { CPL.bin_op = CPL.LEqOp
+                        , CPL.lhs = CPL.VarE "x"
+                        , CPL.rhs = CPL.VarE "r"
                         }
                 }
-            , P.ExprS
-                { P.rets = ["ok"]
-                , P.expr =
-                    P.BasicExprE $
-                      P.BinOpE
-                        { P.bin_op = P.AndOp
-                        , P.lhs = P.VarE "ok_l"
-                        , P.rhs = P.VarE "ok_r"
+            , CPL.ExprS
+                { CPL.rets = ["ok"]
+                , CPL.expr =
+                    CPL.BasicExprE $
+                      CPL.BinOpE
+                        { CPL.bin_op = CPL.AndOp
+                        , CPL.lhs = CPL.VarE "ok_l"
+                        , CPL.rhs = CPL.VarE "ok_r"
                         }
                 }
             ]
       }
 
   sampler =
-    P.FunDef
-      { P.param_types = [node_ty, node_ty]
-      , P.ret_types = [P.tbool, node_ty]
-      , P.mbody = Just funBody
+    CPL.FunDef
+      { CPL.param_types = [node_ty, node_ty]
+      , CPL.ret_types = [CPL.tbool, node_ty]
+      , CPL.mbody = Just funBody
       }
 
   stmt_l =
-    P.ExprS
-      { P.rets = ["l"]
-      , P.expr =
-          P.BasicExprE $
-            P.ConstE
-              { P.val = P.FinV 1
-              , P.ty = node_ty
+    CPL.ExprS
+      { CPL.rets = ["l"]
+      , CPL.expr =
+          CPL.BasicExprE $
+            CPL.ConstE
+              { CPL.val = CPL.FinV 1
+              , CPL.ty = node_ty
               }
       }
 
   stmt_r =
-    P.ExprS
-      { P.rets = ["r"]
-      , P.expr =
-          P.BasicExprE $
-            P.ConstE
-              { P.val = P.FinV 4
-              , P.ty = node_ty
+    CPL.ExprS
+      { CPL.rets = ["r"]
+      , CPL.expr =
+          CPL.BasicExprE $
+            CPL.ConstE
+              { CPL.val = CPL.FinV 4
+              , CPL.ty = node_ty
               }
       }
 
   amplify_call =
-    P.ExprS
-      { P.rets = ["ok", "x"]
-      , P.expr =
-          P.PrimCallE $
+    CPL.ExprS
+      { CPL.rets = ["ok", "x"]
+      , CPL.expr =
+          CPL.PrimCallE $
             Primitive [PartialFun{pfun_name = "sampler", pfun_args = [Just "l", Just "r"]}] $
               Amplify{p_min = 0.2}
       }
 
   mainDef =
-    P.FunDef
-      { P.param_types = []
-      , P.ret_types = [P.tbool, node_ty]
-      , P.mbody =
+    CPL.FunDef
+      { CPL.param_types = []
+      , CPL.ret_types = [CPL.tbool, node_ty]
+      , CPL.mbody =
           Just $
-            P.FunBody
-              { P.param_names = []
-              , P.ret_names = ["ok", "x"]
-              , P.body_stmt = P.SeqS [stmt_l, stmt_r, amplify_call]
+            CPL.FunBody
+              { CPL.param_names = []
+              , CPL.ret_names = ["ok", "x"]
+              , CPL.body_stmt = CPL.SeqS [stmt_l, stmt_r, amplify_call]
               }
       }
 
@@ -236,33 +236,33 @@ spec = describe "amplify" $ do
     it "parses" $ do
       p <-
         parseFromFile
-          P.programParser
+          CPL.programParser
           "examples/primitives/amplify/amplify1.traq"
           >>= expectRight
       p `shouldBe` exampleProgram1 @(Sym.Sym Int) @Double (Sym.var "N")
 
     it "round-trips through print/parse" $ do
       let stmt = "ok, result <- @amplify<2.0e-2>[f(x1, x2)];\n"
-      let parsed = P.parseStmt @(Primitive (Amplify (Sym.Sym Int) Double)) stmt
+      let parsed = CPL.parseStmt @(Primitive (Amplify (Sym.Sym Int) Double)) stmt
       let printed = PP.toCodeString <$> parsed
       printed `shouldBe` Right stmt
 
     let program1 = exampleProgram1 20
 
     it "type checks" $ do
-      assertRight $ P.typeCheckProg program1
+      assertRight $ CPL.typeCheckProg program1
 
     it "evaluates" $ do
-      let funInterpCtx = Map.singleton "sampler" (\inp -> P.toValue True : inp)
-      let result = P.runProgram program1 funInterpCtx []
+      let funInterpCtx = Map.singleton "sampler" (\inp -> CPL.toValue True : inp)
+      let result = CPL.runProgram program1 funInterpCtx []
 
-      result `shouldBeDistribution` [([P.FinV 1, P.FinV 1], 1 :: Double)]
+      result `shouldBeDistribution` [([CPL.FinV 1, CPL.FinV 1], 1 :: Double)]
 
   describe "amplify example2" $ do
     it "parses" $ do
       p <-
         parseFromFile
-          P.programParser
+          CPL.programParser
           "examples/primitives/amplify/amplify2.traq"
           >>= expectRight
       p `shouldBe` exampleProgram2 @(Sym.Sym Int) @Double (Sym.var "N")
@@ -270,22 +270,22 @@ spec = describe "amplify" $ do
     let program2 = exampleProgram2 3
 
     it "type checks" $ do
-      assertRight $ P.typeCheckProg program2
+      assertRight $ CPL.typeCheckProg program2
 
     it "evaluates" $ do
-      let funInterpCtx = Map.singleton "sampler" (\case [P.FinV x1, P.FinV _] -> [P.toValue True, P.FinV x1]; _ -> undefined)
-      let result = P.runProgram program2 funInterpCtx []
+      let funInterpCtx = Map.singleton "sampler" (\case [CPL.FinV x1, CPL.FinV _] -> [CPL.toValue True, CPL.FinV x1]; _ -> undefined)
+      let result = CPL.runProgram program2 funInterpCtx []
 
       result
-        `shouldBeDistribution` [ ([P.FinV 1, P.FinV 1], 0.5 :: Double)
-                               , ([P.FinV 1, P.FinV 2], 0.5)
+        `shouldBeDistribution` [ ([CPL.FinV 1, CPL.FinV 1], 0.5 :: Double)
+                               , ([CPL.FinV 1, CPL.FinV 2], 0.5)
                                ]
 
   describe "amplify example3" $ do
     it "parses" $ do
       p <-
         parseFromFile
-          P.programParser
+          CPL.programParser
           "examples/primitives/amplify/amplify3.traq"
           >>= expectRight
       p `shouldBe` exampleProgram3 @(Sym.Sym Int) @Double (Sym.var "N")
@@ -293,14 +293,14 @@ spec = describe "amplify" $ do
     let program3 = exampleProgram3 3
 
     it "type checks" $ do
-      assertRight $ P.typeCheckProg program3
+      assertRight $ CPL.typeCheckProg program3
 
     it "evaluates" $ do
-      let funInterpCtx = Map.singleton "sampler" (\case [P.FinV x1, P.FinV _] -> [P.toValue True, P.FinV x1]; _ -> undefined)
+      let funInterpCtx = Map.singleton "sampler" (\case [CPL.FinV x1, CPL.FinV _] -> [CPL.toValue True, CPL.FinV x1]; _ -> undefined)
 
-      let result = P.runProgram program3 funInterpCtx []
+      let result = CPL.runProgram program3 funInterpCtx []
 
       result
-        `shouldBeDistribution` [ ([P.FinV 1, P.FinV 1], 0.5 :: Double)
-                               , ([P.FinV 1, P.FinV 2], 0.5)
+        `shouldBeDistribution` [ ([CPL.FinV 1, CPL.FinV 1], 0.5 :: Double)
+                               , ([CPL.FinV 1, CPL.FinV 2], 0.5)
                                ]

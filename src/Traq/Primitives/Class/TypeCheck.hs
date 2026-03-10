@@ -9,9 +9,9 @@ module Traq.Primitives.Class.TypeCheck (
 import Control.Monad.Except (liftEither)
 import GHC.Generics
 
+import qualified Traq.CPL as CPL
 import Traq.Prelude
 import Traq.Primitives.Class.Prelude
-import qualified Traq.ProtoLang as P
 
 -- --------------------------------------------------------------------------------
 -- Typing
@@ -30,36 +30,36 @@ class
   where
   inferRetTypesPrim ::
     forall ext' shape m.
-    ( m ~ P.TypeChecker ext'
+    ( m ~ CPL.TypeChecker ext'
     , size ~ SizeType ext'
     , shape ~ PrimFnShape prim
     ) =>
     prim ->
-    shape (P.FnType size) ->
-    m [P.VarType size]
+    shape (CPL.FnType size) ->
+    m [CPL.VarType size]
   default inferRetTypesPrim ::
     forall ext' shape m.
     ( Generic prim
     , GTypeCheckPrim (Rep prim) size
-    , m ~ P.TypeChecker ext'
+    , m ~ CPL.TypeChecker ext'
     , size ~ SizeType ext'
     , shape ~ PrimFnShape prim
     ) =>
     prim ->
-    shape (P.FnType size) ->
-    m [P.VarType size]
+    shape (CPL.FnType size) ->
+    m [CPL.VarType size]
   inferRetTypesPrim prim = ginferRetTypesPrim (from prim)
 
 class GTypeCheckPrim f size where
   ginferRetTypesPrim ::
     forall ext' shape m p.
-    ( m ~ P.TypeChecker ext'
+    ( m ~ CPL.TypeChecker ext'
     , size ~ SizeType ext'
     , ValidPrimShape shape
     ) =>
     f p ->
-    shape (P.FnType size) ->
-    m [P.VarType size]
+    shape (CPL.FnType size) ->
+    m [CPL.VarType size]
 
 instance (GTypeCheckPrim a size, GTypeCheckPrim b size) => GTypeCheckPrim (a :+: b) size where
   ginferRetTypesPrim (L1 x) = ginferRetTypesPrim x

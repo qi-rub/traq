@@ -4,7 +4,7 @@
 {-# LANGUAGE FunctionalDependencies #-}
 {-# LANGUAGE UndecidableInstances #-}
 
-module Traq.ProtoLang.TypeCheck (
+module Traq.CPL.TypeCheck (
   -- * Typing Context
   TypingCtx,
   HasTypingCtx (..),
@@ -42,8 +42,8 @@ import Lens.Micro.Mtl
 import Traq.Control.Monad
 import qualified Traq.Data.Context as Ctx
 
+import Traq.CPL.Syntax
 import Traq.Prelude
-import Traq.ProtoLang.Syntax
 
 -- ================================================================================
 -- Typing Context
@@ -197,7 +197,7 @@ typeCheckBasicExpr ProjectE{tup_expr, tup_ix_val} = do
   return $ ts !! tup_ix_val
 
 -- ================================================================================
--- Typing inference for ProtoLang statements and programs
+-- Typing inference for CPL statements and programs
 -- ================================================================================
 
 lookupFunE ::

@@ -3,15 +3,15 @@
 {-# LANGUAGE RecordWildCards #-}
 {-# OPTIONS_GHC -Wno-name-shadowing #-}
 
-module Traq.ProtoLang.Lenses (
+module Traq.CPL.Lenses (
   MapSize (..),
   _exts,
 ) where
 
 import Lens.Micro.GHC
 
+import Traq.CPL.Syntax
 import Traq.Prelude
-import Traq.ProtoLang.Syntax
 
 -- ================================================================================
 -- Functor extension

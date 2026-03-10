@@ -13,11 +13,11 @@ import GHC.Generics
 
 import qualified Traq.Analysis as A
 import qualified Traq.Analysis.CostModel.Class as C
+import qualified Traq.CPL as CPL
 import Traq.Prelude
 import Traq.Primitives.Class.Prelude
 import Traq.Primitives.Class.TypeCheck
 import Traq.Primitives.Class.UnitaryCost
-import qualified Traq.ProtoLang as P
 
 -- --------------------------------------------------------------------------------
 -- Quantum Worst Case Costs
@@ -122,39 +122,39 @@ class
   quantumExpQueryCostsQuantum ::
     forall shape m.
     ( shape ~ PrimFnShape prim
-    , m ~ P.EvaluationMonad prec
+    , m ~ CPL.EvaluationMonad prec
     ) =>
     prim ->
     A.FailProb prec ->
-    shape ([P.Value size] -> m [P.Value size]) ->
-    shape [([P.Value size], prec)]
+    shape ([CPL.Value size] -> m [CPL.Value size]) ->
+    shape [([CPL.Value size], prec)]
   default quantumExpQueryCostsQuantum ::
     forall shape m.
     (Generic prim, GQuantumExpCostPrim (Rep prim) size prec) =>
     ( shape ~ PrimFnShape prim
-    , m ~ P.EvaluationMonad prec
+    , m ~ CPL.EvaluationMonad prec
     ) =>
     prim ->
     A.FailProb prec ->
-    shape ([P.Value size] -> m [P.Value size]) ->
-    shape [([P.Value size], prec)]
+    shape ([CPL.Value size] -> m [CPL.Value size]) ->
+    shape [([CPL.Value size], prec)]
   quantumExpQueryCostsQuantum prim eps = reshapeUnsafe . gquantumExpQueryCostsQuantum (from prim) eps . shapeToList
 
   -- | Bound on the expected number of queries made to each function's unitary compilation.
   quantumExpQueryCostsUnitary ::
     forall shape m.
-    (shape ~ PrimFnShape prim, m ~ P.EvaluationMonad prec) =>
+    (shape ~ PrimFnShape prim, m ~ CPL.EvaluationMonad prec) =>
     prim ->
     A.FailProb prec ->
-    shape ([P.Value size] -> m [P.Value size]) ->
+    shape ([CPL.Value size] -> m [CPL.Value size]) ->
     shape (UnitaryQueries prec)
   default quantumExpQueryCostsUnitary ::
     forall shape m.
     (Generic prim, GQuantumExpCostPrim (Rep prim) size prec) =>
-    (shape ~ PrimFnShape prim, m ~ P.EvaluationMonad prec) =>
+    (shape ~ PrimFnShape prim, m ~ CPL.EvaluationMonad prec) =>
     prim ->
     A.FailProb prec ->
-    shape ([P.Value size] -> m [P.Value size]) ->
+    shape ([CPL.Value size] -> m [CPL.Value size]) ->
     shape (UnitaryQueries prec)
   quantumExpQueryCostsUnitary prim eps = reshapeUnsafe . gquantumExpQueryCostsUnitary (from prim) eps . shapeToList
 
@@ -164,11 +164,11 @@ class
     ( C.CostModel cost
     , prec ~ PrecType cost
     , shape ~ PrimFnShape prim
-    , m ~ P.EvaluationMonad prec
+    , m ~ CPL.EvaluationMonad prec
     ) =>
     prim ->
     A.FailProb prec ->
-    shape ([P.Value size] -> m [P.Value size]) ->
+    shape ([CPL.Value size] -> m [CPL.Value size]) ->
     cost
   default quantumExpExprCosts ::
     forall shape cost m.
@@ -176,33 +176,33 @@ class
     ( C.CostModel cost
     , prec ~ PrecType cost
     , shape ~ PrimFnShape prim
-    , m ~ P.EvaluationMonad prec
+    , m ~ CPL.EvaluationMonad prec
     ) =>
     prim ->
     A.FailProb prec ->
-    shape ([P.Value size] -> m [P.Value size]) ->
+    shape ([CPL.Value size] -> m [CPL.Value size]) ->
     cost
   quantumExpExprCosts prim eps = gquantumExpExprCosts (from prim) eps . shapeToList
 
 class GQuantumExpCostPrim f size prec | f -> size prec where
   gquantumExpQueryCostsQuantum ::
-    (m ~ P.EvaluationMonad prec) =>
+    (m ~ CPL.EvaluationMonad prec) =>
     f prim ->
     A.FailProb prec ->
-    [[P.Value size] -> m [P.Value size]] ->
-    [[([P.Value size], prec)]]
+    [[CPL.Value size] -> m [CPL.Value size]] ->
+    [[([CPL.Value size], prec)]]
   gquantumExpQueryCostsUnitary ::
-    (m ~ P.EvaluationMonad prec) =>
+    (m ~ CPL.EvaluationMonad prec) =>
     f prim ->
     A.FailProb prec ->
-    [[P.Value size] -> m [P.Value size]] ->
+    [[CPL.Value size] -> m [CPL.Value size]] ->
     [UnitaryQueries prec]
   gquantumExpExprCosts ::
-    (m ~ P.EvaluationMonad prec) =>
+    (m ~ CPL.EvaluationMonad prec) =>
     (C.CostModel cost, prec ~ PrecType cost) =>
     f prim ->
     A.FailProb prec ->
-    [[P.Value size] -> m [P.Value size]] ->
+    [[CPL.Value size] -> m [CPL.Value size]] ->
     cost
 
 instance (GQuantumExpCostPrim a size prec, GQuantumExpCostPrim b size prec) => GQuantumExpCostPrim (a :+: b) size prec where

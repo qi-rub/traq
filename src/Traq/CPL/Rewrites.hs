@@ -1,6 +1,6 @@
-module Traq.ProtoLang.Rewrites where
+module Traq.CPL.Rewrites where
 
-import Traq.ProtoLang.Syntax
+import Traq.CPL.Syntax
 
 -- | Flatten nested 'SeqS' instructions
 flattenSeq :: Stmt ext -> Maybe (Stmt ext)

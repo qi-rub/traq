@@ -1,10 +1,10 @@
 module Traq.Examples.Search where
 
+import Traq.CPL.Syntax
 import Traq.Prelude
 import Traq.Primitives
 import Traq.Primitives.Search.Prelude
 import Traq.Primitives.Search.QSearchCFNW
-import Traq.ProtoLang.Syntax
 
 arraySearch :: forall prec. SizeT -> Program (DefaultPrims SizeT prec)
 arraySearch n = Program [NamedFunDef "Oracle" oracle_decl, NamedFunDef "main" main_def]

@@ -16,8 +16,8 @@ import Traq.Control.Monad (non', (??))
 import qualified Traq.Data.Context as Ctx
 
 import Traq.Analysis.Error.Prelude
+import Traq.CPL
 import Traq.Prelude
-import Traq.ProtoLang
 
 -- | Trace-norm error w.r.t unitary compiler
 class

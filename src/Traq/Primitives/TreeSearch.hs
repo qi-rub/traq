@@ -18,8 +18,8 @@ import Lens.Micro.Mtl
 import Traq.Control.Monad
 import qualified Traq.Data.Context as Ctx
 
+import qualified Traq.CPL as CPL
 import Traq.Prelude
-import qualified Traq.ProtoLang as P
 import qualified Traq.Utils.Printing as PP
 
 {- | Search a binary tree rooted at node @1@.
@@ -53,7 +53,7 @@ instance PP.ToCodeString (TreeSearch size prec) where
         (PP.commaList checkNodeArgs)
 
 -- Parsing
-instance P.Parseable (TreeSearch size prec) where
+instance CPL.Parseable (TreeSearch size prec) where
   parseE tp = do
     symbol tp "@treesearch"
     (getChildren, checkNode) <- brackets tp $ do
@@ -66,13 +66,13 @@ instance P.Parseable (TreeSearch size prec) where
     return TreeSearch{getChildren, getChildrenArgs, checkNode, checkNodeArgs}
 
 -- Type check
-instance (P.TypingReqs size) => P.TypeInferrable (TreeSearch size prec) size where
+instance (CPL.TypingReqs size) => CPL.TypeInferrable (TreeSearch size prec) size where
   inferTypes TreeSearch{getChildren, getChildrenArgs, checkNode, checkNodeArgs} = do
-    P.FunDef{P.param_types = gc_param_tys, P.ret_types = gc_ret_tys} <-
+    CPL.FunDef{CPL.param_types = gc_param_tys, CPL.ret_types = gc_ret_tys} <-
       view (Ctx.at getChildren)
         >>= maybeWithError (printf "cannot find getChildren function `%s`" getChildren)
 
-    P.FunDef{P.param_types = cn_param_tys, P.ret_types = cn_ret_tys} <-
+    CPL.FunDef{CPL.param_types = cn_param_tys, CPL.ret_types = cn_ret_tys} <-
       view (Ctx.at checkNode)
         >>= maybeWithError (printf "cannot find checkNode function `%s`" checkNode)
 
@@ -84,7 +84,7 @@ instance (P.TypingReqs size) => P.TypeInferrable (TreeSearch size prec) size whe
     when (gc_ret_tys /= [node_ty, node_ty]) $
       throwError "getChildren must return exactly two nodes"
 
-    when (cn_ret_tys /= [P.tbool]) $
+    when (cn_ret_tys /= [CPL.tbool]) $
       throwError "checkNode must return a Bool"
 
     gc_arg_tys <- mapM Ctx.lookup getChildrenArgs
@@ -95,16 +95,16 @@ instance (P.TypingReqs size) => P.TypeInferrable (TreeSearch size prec) size whe
     when (init cn_param_tys /= cn_arg_tys) $
       throwError "Invalid arguments to bind to checkNode"
 
-    return [P.tbool]
+    return [CPL.tbool]
 
 -- | Evaluation
 runTreeSearch ::
   (Monad m, size ~ SizeT) =>
-  (P.Value size -> m (P.Value size, P.Value size)) ->
-  (P.Value size -> m Bool) ->
-  P.Value size ->
+  (CPL.Value size -> m (CPL.Value size, CPL.Value size)) ->
+  (CPL.Value size -> m Bool) ->
+  CPL.Value size ->
   m Bool
-runTreeSearch _ _ (P.FinV 0) = return False
+runTreeSearch _ _ (CPL.FinV 0) = return False
 runTreeSearch child check u = do
   ok <- check u
   if ok
@@ -113,10 +113,10 @@ runTreeSearch child check u = do
       (l, r) <- child u
       (||) <$> check l <*> check r
 
-instance (P.EvalReqs SizeT prec) => P.Evaluatable (TreeSearch SizeT prec) SizeT prec where
+instance (CPL.EvalReqs SizeT prec) => CPL.Evaluatable (TreeSearch SizeT prec) SizeT prec where
   eval TreeSearch{getChildren, getChildrenArgs, checkNode, checkNodeArgs} sigma = do
-    child_fun <- view $ P._funCtx . Ctx.at getChildren . to (fromMaybe (error "unable to find predicate, please typecheck first!"))
-    check_fun <- view $ P._funCtx . Ctx.at checkNode . to (fromMaybe (error "unable to find predicate, please typecheck first!"))
+    child_fun <- view $ CPL._funCtx . Ctx.at getChildren . to (fromMaybe (error "unable to find predicate, please typecheck first!"))
+    check_fun <- view $ CPL._funCtx . Ctx.at checkNode . to (fromMaybe (error "unable to find predicate, please typecheck first!"))
 
     child_args <- runReaderT ?? sigma $ forM getChildrenArgs $ \x -> do
       view $ Ctx.at x . non (error "invalid arg")
@@ -125,17 +125,17 @@ instance (P.EvalReqs SizeT prec) => P.Evaluatable (TreeSearch SizeT prec) SizeT 
 
     let nxt u =
           ( do
-              cs <- P.eval1 (P.NamedFunDef getChildren child_fun) (child_args ++ [u])
+              cs <- CPL.eval1 (CPL.NamedFunDef getChildren child_fun) (child_args ++ [u])
               return (head cs, cs !! 1)
           )
     let chk u =
           ( do
-              vs <- P.eval1 (P.NamedFunDef checkNode check_fun) (check_args ++ [u])
+              vs <- CPL.eval1 (CPL.NamedFunDef checkNode check_fun) (check_args ++ [u])
               let ok = head vs
-              return $ P.valueToBool ok
+              return $ CPL.valueToBool ok
           )
 
-    let root = P.FinV 1
+    let root = CPL.FinV 1
     ok <- runTreeSearch nxt chk root
 
-    return [P.toValue ok]
+    return [CPL.toValue ok]

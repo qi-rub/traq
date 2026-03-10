@@ -9,27 +9,27 @@ import Text.Printf (printf)
 import qualified Traq.Data.Symbolic as Sym
 
 import qualified Traq.Analysis as Traq
+import qualified Traq.CPL as CPL
 import qualified Traq.Compiler.Quantum
 import Traq.Prelude
 import qualified Traq.Primitives as Traq
-import qualified Traq.ProtoLang as P
 import qualified Traq.Utils.Printing as PP
 
-loadProgramFromFile :: String -> IO (P.Program (Traq.DefaultPrims (Sym.Sym SizeT) Double))
+loadProgramFromFile :: String -> IO (CPL.Program (Traq.DefaultPrims (Sym.Sym SizeT) Double))
 loadProgramFromFile fname = do
-  sprog_or_err <- parseFromFile (P.programParser @(Traq.DefaultPrims (Sym.Sym SizeT) Double)) fname
+  sprog_or_err <- parseFromFile (CPL.programParser @(Traq.DefaultPrims (Sym.Sym SizeT) Double)) fname
   sprog <- either (error . show) pure sprog_or_err
-  let sprog' = P.renameVars' sprog
+  let sprog' = CPL.renameVars' sprog
   -- putStrLn $ PP.toCodeString sprog
   -- putStrLn $ PP.toCodeString sprog'
   return sprog'
 
-subst :: [(String, SizeT)] -> P.Program (Traq.DefaultPrims (Sym.Sym SizeT) Double) -> P.Program (Traq.DefaultPrims SizeT Double)
-subst vs p = P.mapSize Sym.unSym $ foldl substOne p vs
+subst :: [(String, SizeT)] -> CPL.Program (Traq.DefaultPrims (Sym.Sym SizeT) Double) -> CPL.Program (Traq.DefaultPrims SizeT Double)
+subst vs p = CPL.mapSize Sym.unSym $ foldl substOne p vs
  where
-  substOne p' (x, v) = P.mapSize (Sym.subst x (Sym.con v)) p'
+  substOne p' (x, v) = CPL.mapSize (Sym.subst x (Sym.con v)) p'
 
-compileIt :: (ext ~ (Traq.DefaultPrims SizeT Double)) => P.Program ext -> Double -> Either String String
+compileIt :: (ext ~ (Traq.DefaultPrims SizeT Double)) => CPL.Program ext -> Double -> Either String String
 compileIt prog eps = do
   prog_ann <- Traq.annotateProgWithErrorBudget (Traq.failProb eps) prog
   compiled_prog <- Traq.Compiler.Quantum.lowerProgram prog_ann

@@ -16,12 +16,12 @@ import Traq.Control.Monad
 import qualified Traq.Data.Symbolic as Sym
 
 import qualified Traq.Analysis as Analysis
-import qualified Traq.CQPL as CQPL
+import qualified Traq.CPL as CPL
 import qualified Traq.Compiler as Compiler
 import Traq.Compiler.Qualtran
 import Traq.Prelude
 import qualified Traq.Primitives as P
-import qualified Traq.ProtoLang as P
+import qualified Traq.QPL as QPL
 import qualified Traq.Utils.Printing as PP
 
 -- ============================================================
@@ -37,14 +37,14 @@ data Options = Options
   deriving (Show)
 
 -- | Load a Traq program source, and substitute parameters.
-loadTraqProgram :: ReaderT Options IO (P.Program (P.WorstCasePrims SizeT Double))
+loadTraqProgram :: ReaderT Options IO (CPL.Program (P.WorstCasePrims SizeT Double))
 loadTraqProgram = do
   code <- lift . readFile =<< view (to in_file)
-  case P.parseProgram @(P.WorstCasePrims _ Double) code of
+  case CPL.parseProgram @(P.WorstCasePrims _ Double) code of
     Left err -> fail $ show err
     Right prog -> do
       ps <- view (to params)
-      pure $ P.mapSize (subs_params ps) prog
+      pure $ CPL.mapSize (subs_params ps) prog
  where
   subs_params :: [(Ident, SizeT)] -> (Sym.Sym Int -> SizeT)
   subs_params params s = Sym.unSym $ foldr subsOnce s params
@@ -53,14 +53,14 @@ loadTraqProgram = do
     subsOnce (k, v) = Sym.subst k (Sym.con v)
 
 -- | Compiler source to target.
-compile :: (RealFloat prec, Show prec) => P.Program (P.WorstCasePrims SizeT prec) -> prec -> IO (CQPL.Program SizeT)
+compile :: (RealFloat prec, Show prec) => CPL.Program (P.WorstCasePrims SizeT prec) -> prec -> IO (QPL.Program SizeT)
 compile prog eps = do
-  let prog_rn = if P.checkVarsUnique prog then prog else P.renameVars' prog
+  let prog_rn = if CPL.checkVarsUnique prog then prog else CPL.renameVars' prog
   prog' <- either fail pure $ Analysis.annotateProgWithErrorBudget (Analysis.failProb eps) prog_rn
   either fail pure $ Compiler.lowerProgram prog'
 
 -- | Load a serialized QPL Program AST.
-loadQPLProgram :: ReaderT Options IO (CQPL.Program SizeT)
+loadQPLProgram :: ReaderT Options IO (QPL.Program SizeT)
 loadQPLProgram = do
   raw <- lift . readFile =<< view (to in_file)
   return $ read raw

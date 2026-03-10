@@ -1,7 +1,7 @@
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE RecordWildCards #-}
 
-module Traq.ProtoLang.Parser (
+module Traq.CPL.Parser (
   -- * Parsers
   Parseable (..),
   programParser,
@@ -33,14 +33,14 @@ import Lens.Micro.GHC
 
 import qualified Traq.Data.Symbolic as Sym
 
+import Traq.CPL.Syntax
 import Traq.Prelude
-import Traq.ProtoLang.Syntax
 
 -- | Basic symbolic type
 type SymbSize = Sym.Sym SizeT
 
-protoLangDef :: LanguageDef st
-protoLangDef =
+cplDef :: LanguageDef st
+cplDef =
   emptyDef
     { commentLine = "//"
     , reservedNames =
@@ -50,9 +50,7 @@ protoLangDef =
         , "set"
         , "loop"
         , -- functions
-          "def"
-        , "declare"
-        , "fn"
+          "fn"
         , "ext"
         , "do"
         , "end"
@@ -70,8 +68,8 @@ protoLangDef =
     , reservedOpNames = [":", "<-", "->", "?"]
     }
 
-protoLangTokenParser :: TokenParser st
-protoLangTokenParser = makeTokenParser protoLangDef
+cplTokenParser :: TokenParser st
+cplTokenParser = makeTokenParser cplDef
 
 class Parseable ext where
   parseE :: TokenParser () -> Parser ext
@@ -279,7 +277,7 @@ stmtP = parseE
 
 namedFunDef :: (Parseable ext, SizeType ext ~ SymbSize) => TokenParser () -> Parser (NamedFunDef ext)
 namedFunDef tp@TokenParser{..} = do
-  reserved "def" <|> reserved "fn"
+  reserved "fn"
   fun_name <- identifier
   (param_names, param_types) <- unzip <$> parens (commaSep (typedTerm tp identifier))
   reserved "->"
@@ -295,7 +293,7 @@ namedFunDef tp@TokenParser{..} = do
 
 funDecl :: (SizeType ext ~ SymbSize) => TokenParser () -> Parser (NamedFunDef ext)
 funDecl tp@TokenParser{..} = do
-  reserved "declare" <|> (reserved "ext" >> reserved "fn")
+  reserved "ext" >> reserved "fn"
   fun_name <- identifier
   param_types <- parens (commaSep (varType tp))
   reservedOp "->"
@@ -311,14 +309,14 @@ program tp = do
   return $ Program fs
 
 programParser :: (Parseable ext, SizeType ext ~ SymbSize) => Parser (Program ext)
-programParser = whiteSpace p *> program protoLangTokenParser <* eof
+programParser = whiteSpace p *> program cplTokenParser <* eof
  where
-  p = protoLangTokenParser
+  p = cplTokenParser
 
 parseCode :: (TokenParser () -> Parser a) -> String -> Either ParseError a
 parseCode parser = parse (whiteSpace p *> parser p <* eof) ""
  where
-  p = protoLangTokenParser
+  p = cplTokenParser
 
 parseProgram :: (Parseable ext, SizeType ext ~ SymbSize) => String -> Either ParseError (Program ext)
 parseProgram = parseCode program
@@ -330,4 +328,4 @@ parseStmt :: (Parseable ext, SizeType ext ~ SymbSize) => String -> Either ParseE
 parseStmt = parseCode stmtP
 
 isValidIdentifier :: String -> Bool
-isValidIdentifier = isRight . parse (identifier protoLangTokenParser) ""
+isValidIdentifier = isRight . parse (identifier cplTokenParser) ""

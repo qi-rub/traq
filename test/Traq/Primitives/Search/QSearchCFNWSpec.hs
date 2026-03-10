@@ -10,10 +10,10 @@ import Traq.Data.Default
 
 import qualified Traq.Analysis as A
 import Traq.Analysis.CostModel.QueryCost (SimpleQueryCost (..))
-import qualified Traq.CQPL as CQPL
+import qualified Traq.CPL as CPL
 import Traq.Prelude
 import Traq.Primitives.Search.QSearchCFNW
-import qualified Traq.ProtoLang as P
+import qualified Traq.QPL as QPL
 import qualified Traq.Utils.Printing as PP
 
 import Test.Hspec
@@ -43,23 +43,23 @@ spec = do
     it "for simple values" $ do
       let n = 10 :: Int
       let eps = A.failProb (0.001 :: Double)
-      let pred_caller c x b = CQPL.UCallS{CQPL.uproc_id = "Oracle", CQPL.dagger = False, CQPL.qargs = [c, x, b]}
+      let pred_caller c x b = QPL.UCallS{QPL.uproc_id = "Oracle", QPL.dagger = False, QPL.qargs = [c, x, b]}
       let lenv = default_
       let lctx = default_
       circ <-
         expectRight $
-          algoQSearchZalka @P.Core' eps "output_bit" "elem"
-            & execRWT UQSearchEnv{search_arg_type = P.Fin n, pred_call_builder = pred_caller}
+          algoQSearchZalka @CPL.Core' eps "output_bit" "elem"
+            & execRWT UQSearchEnv{search_arg_type = CPL.Fin n, pred_call_builder = pred_caller}
             & (\m -> runRWST m lenv lctx)
-            <&> (CQPL.USeqS . fst3)
+            <&> (QPL.USeqS . fst3)
       PP.toCodeString circ `shouldSatisfy` (not . null)
 
   describe "QSearch_Zalka circuit" $ do
     let qsearch_env n =
           UQSearchEnv
-            { search_arg_type = P.Fin n
+            { search_arg_type = CPL.Fin n
             , pred_call_builder = \c x b ->
-                CQPL.UCallS{CQPL.uproc_id = "Oracle", CQPL.dagger = False, CQPL.qargs = [c, x, b]}
+                QPL.UCallS{QPL.uproc_id = "Oracle", QPL.dagger = False, QPL.qargs = [c, x, b]}
             }
 
     prop "matches cost" $ \params -> do
@@ -75,29 +75,29 @@ spec = do
             & expectRight
 
         let uprog =
-              CQPL.Program
-                [ CQPL.ProcDef
-                    { CQPL.info_comment = ""
-                    , CQPL.proc_name = "Oracle"
-                    , CQPL.proc_meta_params = []
-                    , CQPL.proc_param_types = []
-                    , CQPL.proc_body = CQPL.ProcBodyU CQPL.UProcDecl
+              QPL.Program
+                [ QPL.ProcDef
+                    { QPL.info_comment = ""
+                    , QPL.proc_name = "Oracle"
+                    , QPL.proc_meta_params = []
+                    , QPL.proc_param_types = []
+                    , QPL.proc_body = QPL.ProcBodyU QPL.UProcDecl
                     }
-                , CQPL.ProcDef
-                    { CQPL.info_comment = ""
-                    , CQPL.proc_name = "main"
-                    , CQPL.proc_meta_params = []
-                    , CQPL.proc_param_types = undefined
-                    , CQPL.proc_body =
-                        CQPL.ProcBodyU $
-                          CQPL.UProcBody
-                            { CQPL.uproc_body_stmt = CQPL.USeqS ss
-                            , CQPL.uproc_param_names = undefined
-                            , CQPL.uproc_param_tags = undefined
+                , QPL.ProcDef
+                    { QPL.info_comment = ""
+                    , QPL.proc_name = "main"
+                    , QPL.proc_meta_params = []
+                    , QPL.proc_param_types = undefined
+                    , QPL.proc_body =
+                        QPL.ProcBodyU $
+                          QPL.UProcBody
+                            { QPL.uproc_body_stmt = QPL.USeqS ss
+                            , QPL.uproc_param_names = undefined
+                            , QPL.uproc_param_tags = undefined
                             }
                     }
                 ]
 
-        let actual_cost = getCost . fst $ CQPL.programCost @_ @(SimpleQueryCost Double) uprog
+        let actual_cost = getCost . fst $ QPL.programCost @_ @(SimpleQueryCost Double) uprog
         let formula_cost = 2 * _QSearchZalka n eps
         actual_cost `shouldSatisfy` (<= formula_cost)
