@@ -55,8 +55,14 @@ py_indent = PP.indent tabwidth
 -- ------------------------------------------------------------
 -- variables and types
 -- ------------------------------------------------------------
-py_typed_arg :: String -> Py ann -> Py ann
-py_typed_arg x t = PP.pretty x <+> PP.colon <+> t
+py_sanitizeIdent :: Ident -> Py ann
+py_sanitizeIdent s = PP.pretty $ map conv s
+ where
+  conv '\'' = '_'
+  conv c = c
+
+py_typedArg :: String -> Py ann -> Py ann
+py_typedArg x t = py_sanitizeIdent x <+> PP.colon <+> t
 
 -- ------------------------------------------------------------
 -- statements
@@ -77,6 +83,9 @@ py_ifte b s_t s_f =
     , py_indent s_f
     ]
 
+py_return :: [Py ann] -> Py ann
+py_return args = PP.pretty "return" <+> PP.hsep (PP.punctuate PP.comma args)
+
 py_raise_s :: String -> Py ann
 py_raise_s e = PP.pretty @String $ printf "raise Exception('%s')" e
 
@@ -90,17 +99,76 @@ py_def name params body =
 py_class :: Ident -> Py ann -> Py ann
 py_class = undefined
 
+py_funCall :: CQPL.FunctionCall -> Py ann
+py_funCall (CQPL.FunctionCall name) = PP.pretty name
+py_funCall (CQPL.UProcAndMeas name) = PP.pretty name
+
+py_metaParam :: (Show size) => Either (P.MetaParam size) Ident -> Py ann
+py_metaParam (Left (P.MetaName n)) = py_sanitizeIdent n
+py_metaParam (Left (P.MetaSize s)) = PP.pretty (show s)
+py_metaParam (Right name) = py_sanitizeIdent name
+
+py_arg :: (Show size) => CQPL.Arg size -> Py ann
+py_arg (CQPL.Arg x) = PP.pretty x
+py_arg (CQPL.ArrElemArg a i) = py_arg a <> PP.brackets (py_metaParam (Left i))
+
+-- | Emit a python expression
+py_expr :: (Show size) => P.BasicExpr size -> Py ann
+py_expr P.VarE{var} = py_sanitizeIdent var
+py_expr P.ParamE{param} = py_sanitizeIdent param
+py_expr P.DefaultE{ty} = py_defaultVal ty
+py_expr P.ConstE{val} = py_val val
+py_expr P.UnOpE{un_op, operand} = py_unOp un_op <> PP.parens (py_expr operand)
+py_expr P.BinOpE{bin_op, lhs, rhs} = PP.parens $ py_expr lhs <+> py_binOp bin_op <+> py_expr rhs
+py_expr P.TernaryE{branch, lhs, rhs} = PP.parens $ py_expr lhs <+> PP.pretty "if" <+> py_expr branch <+> PP.pretty "else" <+> py_expr rhs
+py_expr P.NAryE{op, operands} = py_naryOp op <> PP.tupled (map py_expr operands)
+py_expr P.IndexE{arr_expr, ix_val} = py_expr arr_expr <> PP.brackets (PP.pretty (show ix_val))
+py_expr P.DynIndexE{arr_expr, ix_expr} = py_expr arr_expr <> PP.brackets (py_expr ix_expr)
+py_expr P.UpdateArrE{arr_expr, ix_expr, rhs} = error "TODO UpdateArrE"
+py_expr P.ProjectE{tup_expr, tup_ix_val} = py_expr tup_expr <> PP.brackets (PP.pretty (show tup_ix_val))
+
+py_val :: (Show size) => P.Value size -> Py ann
+py_val (P.FinV n) = PP.pretty (show n)
+py_val (P.ArrV vs) = PP.list (map py_val vs)
+py_val (P.TupV vs) = PP.tupled (map py_val vs)
+
+py_defaultVal :: (Show size) => P.VarType size -> Py ann
+py_defaultVal (P.Fin _) = PP.pretty "0"
+py_defaultVal (P.Bitvec _) = PP.pretty "0"
+py_defaultVal (P.Arr n t) = PP.brackets (py_defaultVal t) <+> PP.pretty "*" <+> PP.pretty (show n)
+py_defaultVal (P.Tup ts) = PP.tupled (map py_defaultVal ts)
+
+py_unOp :: P.UnOp -> Py ann
+py_unOp P.NotOp = PP.pretty "not "
+py_unOp P.AnyOp = PP.pretty "any"
+py_unOp P.AllOp = PP.pretty "all"
+py_unOp P.MajOp = error "TODO MajOp"
+
+py_binOp :: P.BinOp -> Py ann
+py_binOp P.AddOp = PP.pretty "+"
+py_binOp P.MulOp = PP.pretty "*"
+py_binOp P.SubOp = PP.pretty "-"
+py_binOp P.XorOp = PP.pretty "^"
+py_binOp P.LEqOp = PP.pretty "<="
+py_binOp P.LtOp = PP.pretty "<"
+py_binOp P.AndOp = PP.pretty "and"
+py_binOp P.EqOp = PP.pretty "=="
+py_binOp P.VecSelectOp = error "TODO VecSelectOp"
+
+py_naryOp :: P.NAryOp -> Py ann
+py_naryOp P.MultiOrOp = PP.pretty "any"
+
 -- ============================================================
 -- Basic Instances
 -- ============================================================
 
-instance ToQualtranPy (CQPL.Program size) where
+instance (Show size) => ToQualtranPy (CQPL.Program size) where
   type Ctx (CQPL.Program size) = ()
 
   mkPy (CQPL.Program ps) =
     PP.vsep . intersperse PP.line <$> mapM mkPy ps
 
-instance ToQualtranPy (CQPL.ProcDef size) where
+instance (Show size) => ToQualtranPy (CQPL.ProcDef size) where
   type Ctx (CQPL.ProcDef size) = ()
 
   mkPy CQPL.ProcDef{info_comment, proc_name, proc_meta_params, proc_param_types, proc_body} =
@@ -119,7 +187,7 @@ data ProcBuildCtx size = ProcBuildCtx
   }
   deriving (Read, Show, Eq)
 
-instance ToQualtranPy (CQPL.ProcBody size) where
+instance (Show size) => ToQualtranPy (CQPL.ProcBody size) where
   type Ctx (CQPL.ProcBody size) = ProcBuildCtx size
 
   mkPy (CQPL.ProcBodyU ubody) = mkPy ubody
@@ -182,7 +250,7 @@ toPyType (P.Bitvec _) = PP.pretty "int"
 toPyType (P.Tup ts) = PP.pretty "tuple" <+> PP.brackets (PP.tupled (map toPyType ts))
 toPyType (P.Arr _ t) = PP.pretty "list" <+> PP.brackets (toPyType t)
 
-instance ToQualtranPy (CQPL.CProcBody size) where
+instance (Show size) => ToQualtranPy (CQPL.CProcBody size) where
   type Ctx (CQPL.CProcBody size) = ProcBuildCtx size
 
   -- external
@@ -192,7 +260,7 @@ instance ToQualtranPy (CQPL.CProcBody size) where
     let cproc_param_names = ["arg_" <> show i | i <- [1 .. n_args]]
     let tys = map toPyType proc_param_types
 
-    let typed_args = map PP.pretty proc_meta_params ++ zipWith py_typed_arg cproc_param_names tys
+    let typed_args = map py_sanitizeIdent proc_meta_params ++ zipWith py_typedArg cproc_param_names tys
     pure $
       py_def proc_name typed_args $
         py_raise_s "external function - implement here"
@@ -202,24 +270,55 @@ instance ToQualtranPy (CQPL.CProcBody size) where
     ProcBuildCtx{..} <- view id
     let tys = map toPyType proc_param_types
 
-    let typed_args = map PP.pretty proc_meta_params ++ zipWith py_typed_arg cproc_param_names tys
+    let untyped_args = map py_sanitizeIdent (proc_meta_params ++ cproc_param_names)
+    let typed_args = map py_sanitizeIdent proc_meta_params ++ zipWith py_typedArg cproc_param_names tys
 
-    py_def proc_name typed_args <$> do
-      withEnv () $ mkPy cproc_body_stmt
+    py_def proc_name typed_args . PP.vsep <$> do
+      body <- withEnv () $ mkPy cproc_body_stmt
+      return
+        [ body
+        , py_return untyped_args
+        ]
 
-instance ToQualtranPy (CQPL.Stmt size) where
+instance (Show size) => ToQualtranPy (CQPL.Stmt size) where
   type Ctx (CQPL.Stmt size) = ()
 
   mkPy CQPL.SkipS = pure py_pass
   mkPy (CQPL.CommentS s) = pure $ py_comment s
-  mkPy CQPL.AssignS{rets, expr} = error "TODO AssignS"
+  mkPy CQPL.AssignS{rets, expr} = do
+    let lhs = PP.hsep $ PP.punctuate PP.comma (map py_sanitizeIdent rets)
+    pure $ lhs <+> PP.equals <+> py_expr expr
   mkPy CQPL.RandomS{rets, distr_expr} = error "TODO RandomS"
-  mkPy CQPL.RandomDynS{ret, max_var} = error "TODO RandomDynS"
-  mkPy CQPL.CallS{fun, meta_params, args} = error "TODO CallS"
+  mkPy CQPL.RandomDynS{ret, max_var} =
+    pure $ PP.pretty ret <+> PP.equals <+> PP.pretty "random.randrange" <> PP.parens (PP.pretty max_var)
+  mkPy CQPL.CallS{fun = CQPL.FunctionCall proc_id, meta_params, args} = do
+    let fname = py_sanitizeIdent proc_id
+    let py_mps = map py_metaParam meta_params
+    let py_args = map py_arg args
+    let all_args = py_mps ++ py_args
+    let arg_vars = map py_arg args
+    let lhs = PP.hsep $ PP.punctuate PP.comma arg_vars
+    pure $ lhs <+> PP.equals <+> fname <> PP.tupled all_args
+  mkPy CQPL.CallS{fun = CQPL.UProcAndMeas proc_id, meta_params, args} = do
+    pure $ py_raise_s "TODO uproc-call-and-meas"
   mkPy (CQPL.SeqS ss) = PP.vsep <$> mapM mkPy ss
   mkPy CQPL.IfThenElseS{cond, s_true, s_false} = py_ifte cond <$> mkPy s_true <*> mkPy s_false
-  mkPy CQPL.RepeatS{n_iter, loop_body} = error "TODO RepeatS"
+  mkPy CQPL.RepeatS{n_iter, loop_body} = do
+    body <- mkPy loop_body
+    let n = py_metaParam (Left n_iter)
+    pure $
+      PP.vsep
+        [ PP.pretty "for _ in range" <> PP.parens n <> PP.colon
+        , py_indent body
+        ]
   mkPy CQPL.WhileK{n_iter, cond, loop_body} = error "TODO WhileK"
   mkPy CQPL.WhileKWithCondExpr{n_iter, cond, cond_expr, loop_body} = error "TODO WhileKWithCondExpr"
-  mkPy CQPL.ForInArray{loop_index, loop_index_ty, loop_values, loop_body} = error "TODO ForInArray"
+  mkPy CQPL.ForInArray{loop_index, loop_index_ty, loop_values, loop_body} = do
+    body <- mkPy loop_body
+    let vals = PP.list (map py_expr loop_values)
+    pure $
+      PP.vsep
+        [ PP.pretty "for" <+> PP.pretty loop_index <+> PP.pretty "in" <+> vals <> PP.colon
+        , py_indent body
+        ]
   mkPy CQPL.ForInRangeS{iter_meta_var, iter_lim, loop_body} = error "TODO ForInRangeS"
