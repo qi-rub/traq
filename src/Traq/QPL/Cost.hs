@@ -2,7 +2,7 @@
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE MultiParamTypeClasses #-}
 
-module Traq.CQPL.Cost (
+module Traq.QPL.Cost (
   programCost,
 
   -- * types
@@ -25,8 +25,8 @@ import qualified Traq.Data.Context as Ctx
 
 import qualified Traq.Analysis.CostModel.Class as C
 import qualified Traq.CPL as CPL
-import Traq.CQPL.Syntax
 import Traq.Prelude
+import Traq.QPL.Syntax
 
 -- | Cache the costs of each procedure
 type CostMap c = Map.Map Ident c

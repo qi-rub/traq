@@ -3,8 +3,8 @@
 module Traq.Compiler.UnitarySpec (spec) where
 
 import qualified Traq.CPL as CPL
-import qualified Traq.CQPL as CQPL
 import Traq.Compiler.Unitary
+import qualified Traq.QPL as QPL
 import qualified Traq.Utils.Printing as PP
 
 import Test.Hspec
@@ -32,7 +32,7 @@ spec = do
           expectRight $
             lowerProgramU (CPL.Program [CPL.NamedFunDef "main" main_fun])
 
-        assertRight $ CQPL.typeCheckProgram actual
+        assertRight $ QPL.typeCheckProgram actual
         PP.toCodeString actual
           `shouldBe` unlines
             [ "uproc main_U(x : IN Fin<10>, y : OUT Fin<10>, y_1 : AUX Fin<10>) {"

@@ -10,13 +10,13 @@ import qualified Traq.Data.Symbolic as Sym
 import qualified Traq.Analysis as A
 import Traq.Analysis.CostModel.QueryCost (QueryCost (..))
 import qualified Traq.CPL as CPL
-import qualified Traq.CQPL as CQPL
 import qualified Traq.Compiler as Compiler
 import Traq.Examples.MatrixSearch
 import Traq.Prelude
 import Traq.Primitives.Class (Primitive (..))
 import Traq.Primitives.Search.Prelude
 import Traq.Primitives.Search.Symbolic
+import qualified Traq.QPL as QPL
 import qualified Traq.Utils.Printing as PP
 
 type P = Primitive (QSearchSym SizeT Double)
@@ -64,7 +64,7 @@ concreteEx = do
   Right exU <- return $ Compiler.lowerProgramU ex'
   putStrLn $ PP.toCodeString exU
 
-  let (u_true_cost, _) = CQPL.programCost exU
+  let (u_true_cost, _) = QPL.programCost exU
 
   putStrLn "Unitary Cost:"
   putStrLn $ " - Abstract cost: " <> show u_formula_cost

@@ -59,8 +59,8 @@ import Traq.Control.Monad
 import Traq.Data.Default
 
 import qualified Traq.CPL as CPL
-import qualified Traq.CQPL as CQPL
 import Traq.Prelude
+import qualified Traq.QPL as QPL
 
 {- | A set of already used names.
  This is used to generate new unique identifiers.
@@ -138,13 +138,13 @@ _procSignatures focus (LoweringCtx a b c) = focus c <&> \c' -> LoweringCtx a b c
 -- | The outputs of lowering
 newtype LoweringOutput size
   = LoweringOutput
-      [CQPL.ProcDef size]
+      [QPL.ProcDef size]
   deriving newtype (Semigroup, Monoid)
 
-_loweredProcs :: Lens' (LoweringOutput size) [CQPL.ProcDef size]
+_loweredProcs :: Lens' (LoweringOutput size) [QPL.ProcDef size]
 _loweredProcs focus (LoweringOutput a) = focus a <&> LoweringOutput
 
-addProc :: (MonadWriter (LoweringOutput size) m) => CQPL.ProcDef size -> m ()
+addProc :: (MonadWriter (LoweringOutput size) m) => QPL.ProcDef size -> m ()
 addProc = writeElemAt _loweredProcs
 
 -- ================================================================================
@@ -158,7 +158,7 @@ type LoweringEnv ext = CPL.FunCtx ext
 -- Compiler Monad
 -- ================================================================================
 
-{- | Monad to compile source programs to CQPL programs.
+{- | Monad to compile source programs to QPL programs.
 This should contain the _final_ typing context for the input program,
 that is, contains both the inputs and outputs of each statement.
 -}
@@ -179,7 +179,7 @@ compileWith ::
   ) =>
   (CPL.Program ext -> m ()) ->
   CPL.Program ext ->
-  Either String (CQPL.Program size)
+  Either String (QPL.Program size)
 compileWith compiler prog = do
   unless (CPL.checkVarsUnique prog) $
     throwError "program does not have unique variables!"
@@ -194,18 +194,18 @@ compileWith compiler prog = do
 
   (_, _, output) <- runRWST (compiler prog) config lowering_ctx
 
-  return $ CQPL.Program $ output ^. _loweredProcs
+  return $ QPL.Program $ output ^. _loweredProcs
 
 -- ================================================================================
 -- Helper to build procs
 -- ================================================================================
 
--- | Transformer to build CQPL procs in the compiler.
+-- | Transformer to build QPL procs in the compiler.
 type VarList size = [(Ident, CPL.VarType size)]
 
 type ProcBuilderT size =
   WriterT
-    (VarList size, [CQPL.UStmt size], [CQPL.Stmt size])
+    (VarList size, [QPL.UStmt size], [QPL.Stmt size])
 
 type IsProcBuilder m' size m =
   ( m' ~ ProcBuilderT size m
@@ -230,21 +230,21 @@ allocLocal ::
   m' Ident
 allocLocal = allocLocalWithPrefix "aux"
 
-addUStmt :: (IsProcBuilder m' size m) => CQPL.UStmt size -> m' ()
+addUStmt :: (IsProcBuilder m' size m) => QPL.UStmt size -> m' ()
 addUStmt = writeElemAt _2
 
-withUStmt :: (IsProcBuilder m' size m) => (CQPL.UStmt size -> CQPL.UStmt size) -> m' a -> m' a
+withUStmt :: (IsProcBuilder m' size m) => (QPL.UStmt size -> QPL.UStmt size) -> m' a -> m' a
 withUStmt f = censor (_2 %~ f')
  where
-  f' ss = [f (CQPL.USeqS ss)]
+  f' ss = [f (QPL.USeqS ss)]
 
-addStmt :: (IsProcBuilder m' size m) => CQPL.Stmt size -> m' ()
+addStmt :: (IsProcBuilder m' size m) => QPL.Stmt size -> m' ()
 addStmt = writeElemAt _3
 
-withStmt :: (IsProcBuilder m' size m) => (CQPL.Stmt size -> CQPL.Stmt size) -> m' a -> m' a
+withStmt :: (IsProcBuilder m' size m) => (QPL.Stmt size -> QPL.Stmt size) -> m' a -> m' a
 withStmt f = censor (_3 %~ f')
  where
-  f' ss = [f (CQPL.SeqS ss)]
+  f' ss = [f (QPL.SeqS ss)]
 
 buildProcHelper ::
   (IsProcBuilder m' size m) =>
@@ -253,7 +253,7 @@ buildProcHelper ::
   [Ident] ->
   [(Ident, CPL.VarType size)] ->
   m' () ->
-  m (CQPL.ProcDef size)
+  m (QPL.ProcDef size)
 buildProcHelper is_uproc proc_name_basic proc_meta_params params m = do
   proc_name <- newIdent proc_name_basic
   (local_vars, ubody, cbody) <- execWriterT $ withSandboxOf CPL._typingCtx $ do
@@ -263,32 +263,32 @@ buildProcHelper is_uproc proc_name_basic proc_meta_params params m = do
   case (ubody, cbody, is_uproc) of
     ([], _, False) ->
       pure $
-        CQPL.ProcDef
+        QPL.ProcDef
           { info_comment = ""
           , proc_name
           , proc_meta_params
           , proc_param_types = map snd params
           , proc_body =
-              CQPL.ProcBodyC
-                CQPL.CProcBody
+              QPL.ProcBodyC
+                QPL.CProcBody
                   { cproc_param_names = map fst params
                   , cproc_local_vars = local_vars
-                  , cproc_body_stmt = CQPL.SeqS cbody
+                  , cproc_body_stmt = QPL.SeqS cbody
                   }
           }
     (_, [], True) ->
       pure $
-        CQPL.ProcDef
+        QPL.ProcDef
           { info_comment = ""
           , proc_name
           , proc_meta_params
           , proc_param_types = map snd params ++ map snd local_vars
           , proc_body =
-              CQPL.ProcBodyU
-                CQPL.UProcBody
+              QPL.ProcBodyU
+                QPL.UProcBody
                   { uproc_param_names = map fst params ++ map fst local_vars
-                  , uproc_param_tags = replicate (length params) CQPL.ParamUnk ++ replicate (length local_vars) CQPL.ParamAux
-                  , uproc_body_stmt = CQPL.USeqS ubody
+                  , uproc_param_tags = replicate (length params) QPL.ParamUnk ++ replicate (length local_vars) QPL.ParamAux
+                  , uproc_body_stmt = QPL.USeqS ubody
                   }
           }
     _ -> throwError "buildProc: invalid body statements"
@@ -300,6 +300,6 @@ buildUProc
     [Ident] ->
     [(Ident, CPL.VarType size)] ->
     m' () ->
-    m (CQPL.ProcDef size)
+    m (QPL.ProcDef size)
 buildUProc = buildProcHelper True
 buildProc = buildProcHelper False

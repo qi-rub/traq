@@ -36,7 +36,6 @@ import qualified Traq.Data.Symbolic as Sym
 
 import qualified Traq.Analysis as A
 import qualified Traq.CPL as CPL
-import qualified Traq.CQPL as CQPL
 import qualified Traq.Compiler as Compiler
 import Traq.Prelude
 import Traq.Primitives.Class.Compile
@@ -46,6 +45,7 @@ import Traq.Primitives.Class.QuantumCost
 import Traq.Primitives.Class.Serialize
 import Traq.Primitives.Class.TypeCheck
 import Traq.Primitives.Class.UnitaryCost
+import qualified Traq.QPL as QPL
 import qualified Traq.Utils.Printing as PP
 
 {- | A generic second-order primitive.
@@ -231,59 +231,59 @@ instance
 prependBoundArgs ::
   [Ident] ->
   [(Ident, CPL.VarType size)] ->
-  CQPL.ProcDef size ->
-  CQPL.ProcDef size
-prependBoundArgs pfun_names bound_args CQPL.ProcDef{..} =
-  CQPL.ProcDef
-    { CQPL.proc_param_types = map snd bound_args ++ proc_param_types
-    , CQPL.proc_body = go proc_body
+  QPL.ProcDef size ->
+  QPL.ProcDef size
+prependBoundArgs pfun_names bound_args QPL.ProcDef{..} =
+  QPL.ProcDef
+    { QPL.proc_param_types = map snd bound_args ++ proc_param_types
+    , QPL.proc_body = go proc_body
     , ..
     }
  where
   bound_arg_names = map fst bound_args
 
-  go :: CQPL.ProcBody size -> CQPL.ProcBody size
-  go (CQPL.ProcBodyU CQPL.UProcBody{..}) =
-    CQPL.ProcBodyU $
-      CQPL.UProcBody
-        { CQPL.uproc_param_names = bound_arg_names ++ uproc_param_names
-        , CQPL.uproc_param_tags = replicate (length bound_args) CQPL.ParamUnk ++ uproc_param_tags
-        , CQPL.uproc_body_stmt = goUStmt uproc_body_stmt
+  go :: QPL.ProcBody size -> QPL.ProcBody size
+  go (QPL.ProcBodyU QPL.UProcBody{..}) =
+    QPL.ProcBodyU $
+      QPL.UProcBody
+        { QPL.uproc_param_names = bound_arg_names ++ uproc_param_names
+        , QPL.uproc_param_tags = replicate (length bound_args) QPL.ParamUnk ++ uproc_param_tags
+        , QPL.uproc_body_stmt = goUStmt uproc_body_stmt
         }
-  go (CQPL.ProcBodyC CQPL.CProcBody{..}) =
-    CQPL.ProcBodyC $
-      CQPL.CProcBody
-        { CQPL.cproc_param_names = bound_arg_names ++ cproc_param_names
-        , CQPL.cproc_body_stmt = goStmt cproc_body_stmt
+  go (QPL.ProcBodyC QPL.CProcBody{..}) =
+    QPL.ProcBodyC $
+      QPL.CProcBody
+        { QPL.cproc_param_names = bound_arg_names ++ cproc_param_names
+        , QPL.cproc_body_stmt = goStmt cproc_body_stmt
         , ..
         }
   go _ = error "invalid procs"
 
-  goUStmt :: CQPL.UStmt size -> CQPL.UStmt size
-  goUStmt (CQPL.USeqS ss) = CQPL.USeqS (map goUStmt ss)
-  goUStmt s@CQPL.UCallS{CQPL.uproc_id, CQPL.qargs}
-    | uproc_id `notElem` pfun_names = s{CQPL.qargs = map CQPL.Arg bound_arg_names ++ qargs}
-  goUStmt (CQPL.URepeatS n body) = CQPL.URepeatS n (goUStmt body)
-  goUStmt s@CQPL.UForInRangeS{CQPL.uloop_body} = s{CQPL.uloop_body = goUStmt uloop_body}
-  goUStmt s@CQPL.UWithComputedS{CQPL.with_ustmt, CQPL.body_ustmt} =
-    s{CQPL.with_ustmt = goUStmt with_ustmt, CQPL.body_ustmt = goUStmt body_ustmt}
+  goUStmt :: QPL.UStmt size -> QPL.UStmt size
+  goUStmt (QPL.USeqS ss) = QPL.USeqS (map goUStmt ss)
+  goUStmt s@QPL.UCallS{QPL.uproc_id, QPL.qargs}
+    | uproc_id `notElem` pfun_names = s{QPL.qargs = map QPL.Arg bound_arg_names ++ qargs}
+  goUStmt (QPL.URepeatS n body) = QPL.URepeatS n (goUStmt body)
+  goUStmt s@QPL.UForInRangeS{QPL.uloop_body} = s{QPL.uloop_body = goUStmt uloop_body}
+  goUStmt s@QPL.UWithComputedS{QPL.with_ustmt, QPL.body_ustmt} =
+    s{QPL.with_ustmt = goUStmt with_ustmt, QPL.body_ustmt = goUStmt body_ustmt}
   goUStmt s = s
 
-  goStmt :: CQPL.Stmt size -> CQPL.Stmt size
-  goStmt (CQPL.SeqS ss) = CQPL.SeqS (map goStmt ss)
-  goStmt s@CQPL.CallS{CQPL.fun, CQPL.args}
-    | callTarget fun `notElem` pfun_names = s{CQPL.args = map CQPL.Arg bound_arg_names ++ args}
-  goStmt s@CQPL.IfThenElseS{CQPL.s_true, CQPL.s_false} =
-    s{CQPL.s_true = goStmt s_true, CQPL.s_false = goStmt s_false}
-  goStmt s@CQPL.RepeatS{CQPL.loop_body} = s{CQPL.loop_body = goStmt loop_body}
-  goStmt s@CQPL.WhileK{CQPL.loop_body} = s{CQPL.loop_body = goStmt loop_body}
-  goStmt s@CQPL.WhileKWithCondExpr{CQPL.loop_body} = s{CQPL.loop_body = goStmt loop_body}
-  goStmt s@CQPL.ForInArray{CQPL.loop_body} = s{CQPL.loop_body = goStmt loop_body}
+  goStmt :: QPL.Stmt size -> QPL.Stmt size
+  goStmt (QPL.SeqS ss) = QPL.SeqS (map goStmt ss)
+  goStmt s@QPL.CallS{QPL.fun, QPL.args}
+    | callTarget fun `notElem` pfun_names = s{QPL.args = map QPL.Arg bound_arg_names ++ args}
+  goStmt s@QPL.IfThenElseS{QPL.s_true, QPL.s_false} =
+    s{QPL.s_true = goStmt s_true, QPL.s_false = goStmt s_false}
+  goStmt s@QPL.RepeatS{QPL.loop_body} = s{QPL.loop_body = goStmt loop_body}
+  goStmt s@QPL.WhileK{QPL.loop_body} = s{QPL.loop_body = goStmt loop_body}
+  goStmt s@QPL.WhileKWithCondExpr{QPL.loop_body} = s{QPL.loop_body = goStmt loop_body}
+  goStmt s@QPL.ForInArray{QPL.loop_body} = s{QPL.loop_body = goStmt loop_body}
   goStmt s = s
 
-  callTarget :: CQPL.FunctionCall -> Ident
-  callTarget (CQPL.FunctionCall name) = name
-  callTarget (CQPL.UProcAndMeas name) = name
+  callTarget :: QPL.FunctionCall -> Ident
+  callTarget (QPL.FunctionCall name) = name
+  callTarget (QPL.UProcAndMeas name) = name
 
 instance
   ( TypeCheckPrim prim (SizeType prim)
@@ -301,10 +301,10 @@ instance
     mk_ucall <-
       reshape $
         par_funs <&> \PartialFun{pfun_name, pfun_args} xs ->
-          CQPL.UCallS
+          QPL.UCallS
             { uproc_id = Compiler.mkUProcName pfun_name
             , dagger = False
-            , qargs = placeArgsWithExcess (map (fmap CQPL.Arg) pfun_args) xs
+            , qargs = placeArgsWithExcess (map (fmap QPL.Arg) pfun_args) xs
             }
 
     uproc_aux_types <-
@@ -336,14 +336,14 @@ instance
 
     let prim_aux_tys =
           prim_proc
-            & CQPL.proc_param_types
+            & QPL.proc_param_types
             & drop (length bound_args + length rets)
     prim_aux_vars <- mapM (Compiler.allocAncillaWithPref "aux_prim") prim_aux_tys
     return $
-      CQPL.UCallS
-        { CQPL.uproc_id = CQPL.proc_name prim_proc
-        , CQPL.qargs = map (CQPL.Arg . fst) bound_args ++ map CQPL.Arg rets ++ map CQPL.Arg prim_aux_vars
-        , CQPL.dagger = False
+      QPL.UCallS
+        { QPL.uproc_id = QPL.proc_name prim_proc
+        , QPL.qargs = map (QPL.Arg . fst) bound_args ++ map QPL.Arg rets ++ map QPL.Arg prim_aux_vars
+        , QPL.dagger = False
         }
 
 -- ================================================================================
@@ -528,10 +528,10 @@ instance
     mk_ucall <-
       reshape $
         par_funs <&> \PartialFun{pfun_name, pfun_args} xs ->
-          CQPL.UCallS
+          QPL.UCallS
             { uproc_id = Compiler.mkUProcName pfun_name
             , dagger = False
-            , qargs = placeArgsWithExcess (map (fmap CQPL.Arg) pfun_args) xs
+            , qargs = placeArgsWithExcess (map (fmap QPL.Arg) pfun_args) xs
             }
 
     uproc_aux_types <-
@@ -546,19 +546,19 @@ instance
     mk_call <-
       reshape $
         par_funs <&> \PartialFun{pfun_name, pfun_args} xs ->
-          CQPL.CallS
-            { fun = CQPL.FunctionCall $ Compiler.mkQProcName pfun_name
+          QPL.CallS
+            { fun = QPL.FunctionCall $ Compiler.mkQProcName pfun_name
             , meta_params = []
-            , args = placeArgsWithExcess (map (fmap CQPL.Arg) pfun_args) xs
+            , args = placeArgsWithExcess (map (fmap QPL.Arg) pfun_args) xs
             }
 
     mk_meas <-
       reshape $
         par_funs <&> \PartialFun{pfun_name, pfun_args} xs ->
-          CQPL.CallS
-            { fun = CQPL.UProcAndMeas $ Compiler.mkUProcName pfun_name
+          QPL.CallS
+            { fun = QPL.UProcAndMeas $ Compiler.mkUProcName pfun_name
             , meta_params = []
-            , args = placeArgsWithExcess (map (fmap CQPL.Arg) pfun_args) xs
+            , args = placeArgsWithExcess (map (fmap QPL.Arg) pfun_args) xs
             }
 
     prim_ret_types <- forM rets $ \x ->
@@ -583,8 +583,8 @@ instance
     Compiler.addProc prim_proc
 
     return $
-      CQPL.CallS
-        { fun = CQPL.FunctionCall $ CQPL.proc_name prim_proc
+      QPL.CallS
+        { fun = QPL.FunctionCall $ QPL.proc_name prim_proc
         , meta_params = []
-        , args = map (CQPL.Arg . fst) bound_args ++ map CQPL.Arg rets
+        , args = map (QPL.Arg . fst) bound_args ++ map QPL.Arg rets
         }

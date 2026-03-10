@@ -8,9 +8,9 @@ import qualified Traq.Data.Context as Ctx
 import qualified Traq.Data.Symbolic as Sym
 
 import qualified Traq.CPL as CPL
-import Traq.CQPL.Syntax
 import Traq.Compiler.Quantum
 import Traq.Prelude
+import Traq.QPL.Syntax
 
 import Test.Hspec
 import TestHelpers

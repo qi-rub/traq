@@ -17,11 +17,11 @@ import qualified Traq.Data.Symbolic as Sym
 import qualified Traq.Analysis as Traq
 import qualified Traq.Analysis.CostModel.QueryCost as Traq
 import qualified Traq.CPL as CPL
-import qualified Traq.CQPL as CQPL
 import qualified Traq.Compiler
 import Traq.Examples.MatrixSearch (matrixExampleS)
 import Traq.Prelude
 import qualified Traq.Primitives as Traq
+import qualified Traq.QPL as QPL
 import qualified Traq.Utils.Printing as PP
 
 loadProgramFromFile :: String -> IO (CPL.Program (Traq.DefaultPrims (Sym.Sym SizeT) Double))
@@ -51,7 +51,7 @@ numQubitsRequired :: (ValidExt ext) => CPL.Program ext -> Double -> Either Strin
 numQubitsRequired prog eps = do
   prog' <- Traq.annotateProgWithErrorBudget (Traq.failProb eps) prog
   compiled_prog <- Traq.Compiler.lowerProgram prog'
-  return $ CQPL.numQubits compiled_prog
+  return $ QPL.numQubits compiled_prog
 
 -- | Compute the wall-time by Traq to run a cost analysis
 traqWallTime :: (ValidExt ext) => CPL.Program ext -> Double -> CPL.FunInterpCtx SizeT -> IO Double

@@ -21,8 +21,8 @@ import Lens.Micro.Mtl
 import qualified Traq.Data.Context as Ctx
 
 import qualified Traq.CPL as CPL
-import qualified Traq.CQPL as CQPL
 import Traq.Prelude
+import qualified Traq.QPL as QPL
 
 -- ============================================================
 -- Compile QPL -> py (+Qualtran)
@@ -36,8 +36,8 @@ class ToQualtranPy a where
 
   mkPy :: a -> Reader (Ctx a) (Py ann)
 
--- | Convert a CQPL program to a python code string.
-toPy :: CQPL.Program SizeT -> String
+-- | Convert a QPL program to a python code string.
+toPy :: QPL.Program SizeT -> String
 toPy prog =
   let pyDoc = runReader (mkPy prog) ()
    in show pyDoc
@@ -152,9 +152,9 @@ py_metaParam (Left (CPL.MetaName n)) = py_sanitizeIdent n
 py_metaParam (Left (CPL.MetaSize s)) = PP.pretty (show s)
 py_metaParam (Right name) = py_sanitizeIdent name
 
-py_arg :: (Show size) => CQPL.Arg size -> Py ann
-py_arg (CQPL.Arg x) = py_sanitizeIdent x
-py_arg (CQPL.ArrElemArg a i) = py_arg a <> PP.brackets (py_metaParam (Left i))
+py_arg :: (Show size) => QPL.Arg size -> Py ann
+py_arg (QPL.Arg x) = py_sanitizeIdent x
+py_arg (QPL.ArrElemArg a i) = py_arg a <> PP.brackets (py_metaParam (Left i))
 
 -- | Emit a python expression
 py_expr :: (Show size) => CPL.BasicExpr size -> Py ann
@@ -206,16 +206,16 @@ py_naryOp CPL.MultiOrOp = PP.pretty "any"
 -- Basic Instances
 -- ============================================================
 
-instance (Show size, Integral size) => ToQualtranPy (CQPL.Program size) where
-  type Ctx (CQPL.Program size) = ()
+instance (Show size, Integral size) => ToQualtranPy (QPL.Program size) where
+  type Ctx (QPL.Program size) = ()
 
-  mkPy (CQPL.Program ps) =
+  mkPy (QPL.Program ps) =
     PP.vsep . intersperse PP.line <$> mapM mkPy ps
 
-instance (Show size, Integral size) => ToQualtranPy (CQPL.ProcDef size) where
-  type Ctx (CQPL.ProcDef size) = ()
+instance (Show size, Integral size) => ToQualtranPy (QPL.ProcDef size) where
+  type Ctx (QPL.ProcDef size) = ()
 
-  mkPy CQPL.ProcDef{info_comment, proc_name, proc_meta_params, proc_param_types, proc_body} =
+  mkPy QPL.ProcDef{info_comment, proc_name, proc_meta_params, proc_param_types, proc_body} =
     PP.vsep
       <$> sequence
         [ pure $ py_comment info_comment
@@ -231,20 +231,20 @@ data ProcBuildCtx size = ProcBuildCtx
   }
   deriving (Read, Show, Eq)
 
-instance (Show size, Integral size) => ToQualtranPy (CQPL.ProcBody size) where
-  type Ctx (CQPL.ProcBody size) = ProcBuildCtx size
+instance (Show size, Integral size) => ToQualtranPy (QPL.ProcBody size) where
+  type Ctx (QPL.ProcBody size) = ProcBuildCtx size
 
-  mkPy (CQPL.ProcBodyU ubody) = mkPy ubody
-  mkPy (CQPL.ProcBodyC cbody) = mkPy cbody
+  mkPy (QPL.ProcBodyU ubody) = mkPy ubody
+  mkPy (QPL.ProcBodyC cbody) = mkPy cbody
 
 -- ============================================================
 -- Unitary: Emit Qualtran Bloqs
 -- ============================================================
 
-instance (Show size, Integral size) => ToQualtranPy (CQPL.UProcBody size) where
-  type Ctx (CQPL.UProcBody size) = ProcBuildCtx size
+instance (Show size, Integral size) => ToQualtranPy (QPL.UProcBody size) where
+  type Ctx (QPL.UProcBody size) = ProcBuildCtx size
 
-  mkPy CQPL.UProcDecl = do
+  mkPy QPL.UProcDecl = do
     ProcBuildCtx{..} <- view id
     let meta_attrs = map (\p -> py_sanitizeIdent p <> PP.pretty ": int") proc_meta_params
     let regs = zipWith py_register uproc_param_names proc_param_types
@@ -263,7 +263,7 @@ instance (Show size, Integral size) => ToQualtranPy (CQPL.UProcBody size) where
         [ py_decorator "attrs.frozen"
         , py_class proc_name "qlt.Bloq" class_body
         ]
-  mkPy CQPL.UProcBody{uproc_param_names, uproc_param_tags, uproc_body_stmt} = do
+  mkPy QPL.UProcBody{uproc_param_names, uproc_param_tags, uproc_body_stmt} = do
     ProcBuildCtx{..} <- view id
     let meta_attrs = map (\p -> py_sanitizeIdent p <> PP.pretty ": int") proc_meta_params
     let regs = zipWith py_register uproc_param_names proc_param_types
@@ -300,27 +300,27 @@ instance (Show size, Integral size) => ToQualtranPy (CQPL.UProcBody size) where
         , py_class proc_name "qlt.Bloq" class_body
         ]
 
-instance (Show size, Integral size) => ToQualtranPy (CQPL.UStmt size) where
-  type Ctx (CQPL.UStmt size) = CPL.TypingCtx size
+instance (Show size, Integral size) => ToQualtranPy (QPL.UStmt size) where
+  type Ctx (QPL.UStmt size) = CPL.TypingCtx size
 
-  mkPy CQPL.USkipS = pure mempty
-  mkPy (CQPL.UCommentS s) = pure $ py_comment s
-  mkPy CQPL.UnitaryS{qargs, unitary} = do
+  mkPy QPL.USkipS = pure mempty
+  mkPy (QPL.UCommentS s) = pure $ py_comment s
+  mkPy QPL.UnitaryS{qargs, unitary} = do
     tys <- fmap (either (error . show) id) . runExceptT $ do
-      mapM CQPL.getArgTy qargs
+      mapM QPL.getArgTy qargs
     bloqExpr <- withEnv tys $ mkPy unitary
     let argVals = PP.list [py_arg q | q <- qargs]
     let lhs = PP.hsep $ PP.punctuate PP.comma [py_arg q | q <- qargs]
     pure $ lhs <+> PP.equals <+> PP.pretty "add_bloq" <> PP.tupled [PP.pretty "bb", bloqExpr, argVals]
-  mkPy CQPL.UCallS{uproc_id, dagger, qargs} = do
+  mkPy QPL.UCallS{uproc_id, dagger, qargs} = do
     let bloq = py_sanitizeIdent uproc_id <> PP.pretty "()"
     let bloqExpr = if dagger then bloq <> PP.pretty ".adjoint()" else bloq
     let argVals = PP.list [py_arg q | q <- qargs]
     let lhs = PP.hsep $ PP.punctuate PP.comma [py_arg q | q <- qargs]
     pure $ lhs <+> PP.equals <+> PP.pretty "add_bloq" <> PP.tupled [PP.pretty "bb", bloqExpr, argVals]
   -- compound statements
-  mkPy (CQPL.USeqS ss) = PP.vsep <$> mapM mkPy ss
-  mkPy CQPL.URepeatS{n_iter, uloop_body} = do
+  mkPy (QPL.USeqS ss) = PP.vsep <$> mapM mkPy ss
+  mkPy QPL.URepeatS{n_iter, uloop_body} = do
     body <- mkPy uloop_body
     let n = py_metaParam (Left n_iter)
     pure $
@@ -328,8 +328,8 @@ instance (Show size, Integral size) => ToQualtranPy (CQPL.UStmt size) where
         [ PP.pretty "for _ in range" <> PP.parens n <> PP.colon
         , py_indent body
         ]
-  mkPy CQPL.UForInRangeS{iter_meta_var, iter_lim, dagger, uloop_body} = do
-    body <- mkPy (if dagger then CQPL.adjoint uloop_body else uloop_body)
+  mkPy QPL.UForInRangeS{iter_meta_var, iter_lim, dagger, uloop_body} = do
+    body <- mkPy (if dagger then QPL.adjoint uloop_body else uloop_body)
     let n = py_metaParam (Left iter_lim)
     let range_expr =
           if dagger
@@ -340,31 +340,31 @@ instance (Show size, Integral size) => ToQualtranPy (CQPL.UStmt size) where
         [ PP.pretty "for" <+> py_sanitizeIdent iter_meta_var <+> PP.pretty "in" <+> range_expr <> PP.colon
         , py_indent body
         ]
-  mkPy CQPL.UForInDomainS{iter_meta_var, iter_ty, dagger, uloop_body} = pure $ py_notImplemented "TODO UForInDomainS"
-  mkPy CQPL.UWithComputedS{with_ustmt, body_ustmt} = do
+  mkPy QPL.UForInDomainS{iter_meta_var, iter_ty, dagger, uloop_body} = pure $ py_notImplemented "TODO UForInDomainS"
+  mkPy QPL.UWithComputedS{with_ustmt, body_ustmt} = do
     mkPy with_ustmt
     mkPy body_ustmt
-    mkPy (CQPL.adjoint with_ustmt)
+    mkPy (QPL.adjoint with_ustmt)
 
-instance (Show size, Integral size) => ToQualtranPy (CQPL.Unitary size) where
-  type Ctx (CQPL.Unitary size) = [CPL.VarType size]
+instance (Show size, Integral size) => ToQualtranPy (QPL.Unitary size) where
+  type Ctx (QPL.Unitary size) = [CPL.VarType size]
 
-  mkPy (CQPL.BasicGateU g) = mkPy g
-  mkPy (CQPL.DistrU (CPL.UniformE ty)) = do
+  mkPy (QPL.BasicGateU g) = mkPy g
+  mkPy (QPL.DistrU (CPL.UniformE ty)) = do
     let bs = CPL.bestBitsize ty
     pure $ PP.pretty "QFTTextBook" <> PP.tupled [PP.pretty (show bs)]
-  mkPy (CQPL.DistrU (CPL.BernoulliE p)) = do
+  mkPy (QPL.DistrU (CPL.BernoulliE p)) = do
     let theta = PP.pretty @String $ printf "%f" (2 * asin (sqrt p))
     pure $ PP.pretty "qlt_gates.Ry" <> PP.tupled [PP.pretty "angle=" <> theta]
-  mkPy (CQPL.Controlled u) = do
+  mkPy (QPL.Controlled u) = do
     bloq <- mkPy u
     pure $ bloq <> PP.pretty ".controlled()"
-  mkPy (CQPL.Adjoint u) = do
+  mkPy (QPL.Adjoint u) = do
     bloq <- mkPy u
     pure $ bloq <> PP.pretty ".adjoint()"
 
   -- embed classical gates as unitaries
-  mkPy (CQPL.RevEmbedU xs e) = do
+  mkPy (QPL.RevEmbedU xs e) = do
     tys <- view id
     let ctx = Ctx.fromList $ zip xs tys
     withEnv ctx $ exprToBloq e
@@ -405,30 +405,30 @@ exprToBloq CPL.BinOpE{bin_op = CPL.VecSelectOp, lhs = CPL.VarE{var = x}, rhs = C
   pure $ namedBloq "VecSelectOp" [tx, ty, etx]
 exprToBloq e = error $ "TODO Unitary embedding: " <> show e
 
-instance (Show size, Integral size) => ToQualtranPy (CQPL.BasicGate size) where
-  type Ctx (CQPL.BasicGate size) = [CPL.VarType size]
+instance (Show size, Integral size) => ToQualtranPy (QPL.BasicGate size) where
+  type Ctx (QPL.BasicGate size) = [CPL.VarType size]
 
   -- simple gates
-  mkPy CQPL.Toffoli = pure $ PP.pretty "Toffoli()"
-  mkPy CQPL.CNOT = pure $ PP.pretty "qlt_gates.CNOT()"
-  mkPy CQPL.XGate = pure $ PP.pretty "qlt_gates.XGate()"
-  mkPy CQPL.HGate = pure $ PP.pretty "qlt_gates.Hadamard()"
-  mkPy CQPL.ZGate = pure $ PP.pretty "qlt_gates.ZGate()"
-  mkPy (CQPL.Rz theta) = pure $ PP.pretty @String $ printf "qlt_gates.Rz(%f)" theta
+  mkPy QPL.Toffoli = pure $ PP.pretty "Toffoli()"
+  mkPy QPL.CNOT = pure $ PP.pretty "qlt_gates.CNOT()"
+  mkPy QPL.XGate = pure $ PP.pretty "qlt_gates.XGate()"
+  mkPy QPL.HGate = pure $ PP.pretty "qlt_gates.Hadamard()"
+  mkPy QPL.ZGate = pure $ PP.pretty "qlt_gates.ZGate()"
+  mkPy (QPL.Rz theta) = pure $ PP.pretty @String $ printf "qlt_gates.Rz(%f)" theta
   -- generic gates
-  mkPy CQPL.COPY = do
+  mkPy QPL.COPY = do
     tys <- view id
     let n = length tys
     let half = n `div` 2
     let regs = zipWith py_register ["q_" <> show i | i <- [1 .. n]] tys
     pure $ PP.pretty "MultiCopy" <> PP.parens (PP.list regs)
-  mkPy CQPL.SWAP = do
+  mkPy QPL.SWAP = do
     tys <- view id
     let n = length tys
     let half = n `div` 2
     let regs = zipWith py_register ["q_" <> show i | i <- [1 .. n]] tys
     pure $ PP.pretty "MultiSwap" <> PP.parens (PP.list regs)
-  mkPy (CQPL.PhaseOnZero theta) = do
+  mkPy (QPL.PhaseOnZero theta) = do
     tys <- view id
     let n = length tys
     let regs = zipWith py_register ["q_" <> show i | i <- [1 .. n]] tys
@@ -444,11 +444,11 @@ toPyType (CPL.Bitvec _) = PP.pretty "int"
 toPyType (CPL.Tup ts) = PP.pretty "tuple" <+> PP.brackets (PP.tupled (map toPyType ts))
 toPyType (CPL.Arr _ t) = PP.pretty "list" <+> PP.brackets (toPyType t)
 
-instance (Show size) => ToQualtranPy (CQPL.CProcBody size) where
-  type Ctx (CQPL.CProcBody size) = ProcBuildCtx size
+instance (Show size) => ToQualtranPy (QPL.CProcBody size) where
+  type Ctx (QPL.CProcBody size) = ProcBuildCtx size
 
   -- external
-  mkPy CQPL.CProcDecl = do
+  mkPy QPL.CProcDecl = do
     ProcBuildCtx{..} <- view id
     let n_args = length proc_param_types
     let cproc_param_names = ["arg_" <> show i | i <- [1 .. n_args]]
@@ -460,7 +460,7 @@ instance (Show size) => ToQualtranPy (CQPL.CProcBody size) where
         py_notImplemented "external function - implement here"
 
   -- defined
-  mkPy CQPL.CProcBody{cproc_param_names, cproc_local_vars, cproc_body_stmt} = do
+  mkPy QPL.CProcBody{cproc_param_names, cproc_local_vars, cproc_body_stmt} = do
     ProcBuildCtx{..} <- view id
     let tys = map toPyType proc_param_types
 
@@ -474,18 +474,18 @@ instance (Show size) => ToQualtranPy (CQPL.CProcBody size) where
         , py_return untyped_args
         ]
 
-instance (Show size) => ToQualtranPy (CQPL.Stmt size) where
-  type Ctx (CQPL.Stmt size) = ()
+instance (Show size) => ToQualtranPy (QPL.Stmt size) where
+  type Ctx (QPL.Stmt size) = ()
 
-  mkPy CQPL.SkipS = pure py_pass
-  mkPy (CQPL.CommentS s) = pure $ py_comment s
-  mkPy CQPL.AssignS{rets, expr} = do
+  mkPy QPL.SkipS = pure py_pass
+  mkPy (QPL.CommentS s) = pure $ py_comment s
+  mkPy QPL.AssignS{rets, expr} = do
     let lhs = PP.hsep $ PP.punctuate PP.comma (map py_sanitizeIdent rets)
     pure $ lhs <+> PP.equals <+> py_expr expr
-  mkPy CQPL.RandomS{rets, distr_expr} = error "TODO RandomS"
-  mkPy CQPL.RandomDynS{ret, max_var} =
+  mkPy QPL.RandomS{rets, distr_expr} = error "TODO RandomS"
+  mkPy QPL.RandomDynS{ret, max_var} =
     pure $ PP.pretty ret <+> PP.equals <+> PP.pretty "random.randrange" <> PP.parens (PP.pretty max_var)
-  mkPy CQPL.CallS{fun = CQPL.FunctionCall proc_id, meta_params, args} = do
+  mkPy QPL.CallS{fun = QPL.FunctionCall proc_id, meta_params, args} = do
     let fname = py_sanitizeIdent proc_id
     let py_mps = map py_metaParam meta_params
     let py_args = map py_arg args
@@ -493,15 +493,15 @@ instance (Show size) => ToQualtranPy (CQPL.Stmt size) where
     let arg_vars = map py_arg args
     let lhs = PP.hsep $ PP.punctuate PP.comma arg_vars
     pure $ lhs <+> PP.equals <+> fname <> PP.tupled all_args
-  mkPy CQPL.CallS{fun = CQPL.UProcAndMeas proc_id, meta_params, args} = do
+  mkPy QPL.CallS{fun = QPL.UProcAndMeas proc_id, meta_params, args} = do
     let py_mps = map py_metaParam meta_params
     let bloq = py_sanitizeIdent proc_id <> PP.tupled py_mps
     let py_args = map py_arg args
     let lhs = PP.hsep $ PP.punctuate PP.comma py_args
     pure $ lhs <+> PP.equals <+> PP.pretty "bloq_call_and_meas" <> PP.tupled (bloq : py_args)
-  mkPy (CQPL.SeqS ss) = PP.vsep <$> mapM mkPy ss
-  mkPy CQPL.IfThenElseS{cond, s_true, s_false} = py_ifte cond <$> mkPy s_true <*> mkPy s_false
-  mkPy CQPL.RepeatS{n_iter, loop_body} = do
+  mkPy (QPL.SeqS ss) = PP.vsep <$> mapM mkPy ss
+  mkPy QPL.IfThenElseS{cond, s_true, s_false} = py_ifte cond <$> mkPy s_true <*> mkPy s_false
+  mkPy QPL.RepeatS{n_iter, loop_body} = do
     body <- mkPy loop_body
     let n = py_metaParam (Left n_iter)
     pure $
@@ -509,9 +509,9 @@ instance (Show size) => ToQualtranPy (CQPL.Stmt size) where
         [ PP.pretty "for _ in range" <> PP.parens n <> PP.colon
         , py_indent body
         ]
-  mkPy CQPL.WhileK{n_iter, cond, loop_body} = error "TODO WhileK"
-  mkPy CQPL.WhileKWithCondExpr{n_iter, cond, cond_expr, loop_body} = error "TODO WhileKWithCondExpr"
-  mkPy CQPL.ForInArray{loop_index, loop_index_ty, loop_values, loop_body} = do
+  mkPy QPL.WhileK{n_iter, cond, loop_body} = error "TODO WhileK"
+  mkPy QPL.WhileKWithCondExpr{n_iter, cond, cond_expr, loop_body} = error "TODO WhileKWithCondExpr"
+  mkPy QPL.ForInArray{loop_index, loop_index_ty, loop_values, loop_body} = do
     body <- mkPy loop_body
     let vals = PP.list (map py_expr loop_values)
     pure $
@@ -519,4 +519,4 @@ instance (Show size) => ToQualtranPy (CQPL.Stmt size) where
         [ PP.pretty "for" <+> PP.pretty loop_index <+> PP.pretty "in" <+> vals <> PP.colon
         , py_indent body
         ]
-  mkPy CQPL.ForInRangeS{iter_meta_var, iter_lim, loop_body} = error "TODO ForInRangeS"
+  mkPy QPL.ForInRangeS{iter_meta_var, iter_lim, loop_body} = error "TODO ForInRangeS"

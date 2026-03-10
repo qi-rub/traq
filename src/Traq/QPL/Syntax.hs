@@ -2,7 +2,7 @@
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE MultiParamTypeClasses #-}
 
-module Traq.CQPL.Syntax (
+module Traq.QPL.Syntax (
   -- * Syntax
   MetaParam (..),
   Arg (..),
@@ -105,7 +105,7 @@ instance HasAdjoint (BasicGate size) where
   adjoint (PhaseOnZero theta) = PhaseOnZero (-theta)
   adjoint g = g
 
--- | Unitary operators in CQPL
+-- | Unitary operators in QPL
 data Unitary size
   = BasicGateU (BasicGate size)
   | RevEmbedU [Ident] (CPL.BasicExpr size)

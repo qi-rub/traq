@@ -11,7 +11,6 @@ import qualified Traq.Data.Symbolic as Sym
 import qualified Traq.Analysis as A
 import Traq.Analysis.CostModel.QueryCost (SimpleQueryCost (getCost))
 import qualified Traq.CPL as CPL
-import qualified Traq.CQPL as CQPL
 import qualified Traq.Compiler as Compiler
 import Traq.Compiler.Qualtran (toPy)
 import Traq.Examples.MatrixSearch
@@ -19,6 +18,7 @@ import Traq.Primitives (Primitive (..))
 import Traq.Primitives.Search.Prelude
 import Traq.Primitives.Search.QSearchCFNW (_EQSearchWorst, _QSearchZalka)
 import Traq.Primitives.Search.Symbolic
+import qualified Traq.QPL as QPL
 import qualified Traq.Utils.Printing as PP
 
 import Test.Hspec
@@ -85,18 +85,18 @@ spec = describe "MatrixSearch" $ do
       it "type checks" $ do
         ex' <- expectRight $ A.annotateProgWithErrorBudgetU eps ex
         ex_uqpl <- expectRight $ Compiler.lowerProgramU ex'
-        let tc_res = CQPL.typeCheckProgram ex_uqpl
+        let tc_res = QPL.typeCheckProgram ex_uqpl
         either print (const $ pure ()) tc_res
         assertRight tc_res
 
       it "preserves cost" $ do
         ex' <- expectRight $ A.annotateProgWithErrorBudgetU eps ex
         ex_uqpl <- expectRight $ Compiler.lowerProgramU ex'
-        let uqpl_cost = getCost . fst $ CQPL.programCost ex_uqpl
+        let uqpl_cost = getCost . fst $ QPL.programCost ex_uqpl
         let proto_cost = getCost $ A.costUProg ex'
         uqpl_cost `shouldBeLE` proto_cost
 
-    describe "lower to CQPL" $ do
+    describe "lower to QPL" $ do
       let eps = A.failProb (0.001 :: Double)
       it "lowers" $ do
         ex' <- expectRight $ A.annotateProgWithErrorBudget eps ex
@@ -105,12 +105,12 @@ spec = describe "MatrixSearch" $ do
       it "type checks" $ do
         ex' <- expectRight $ A.annotateProgWithErrorBudget eps ex
         ex_cqpl <- expectRight $ Compiler.lowerProgram ex'
-        assertRight $ CQPL.typeCheckProgram ex_cqpl
+        assertRight $ QPL.typeCheckProgram ex_cqpl
 
       it "cost" $ do
         ex' <- expectRight $ A.annotateProgWithErrorBudget eps ex
         ex_cqpl <- expectRight $ Compiler.lowerProgram ex'
-        let cost = fst (CQPL.programCost ex_cqpl) :: SimpleQueryCost Double
+        let cost = fst (QPL.programCost ex_cqpl) :: SimpleQueryCost Double
         let cost_from_analysis = getCost $ A.costQProg ex'
         getCost cost `shouldBeLE` cost_from_analysis
 

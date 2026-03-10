@@ -24,11 +24,11 @@ import Traq.Data.Subtyping
 
 import qualified Traq.Analysis as A
 import qualified Traq.CPL as CPL
-import qualified Traq.CQPL as CQPL
 import qualified Traq.Compiler as Compiler
 import Traq.Prelude
 import Traq.Primitives.Class
 import Traq.Primitives.Simons.Prelude
+import qualified Traq.QPL as QPL
 import qualified Traq.Utils.Printing as PP
 
 -- ================================================================================
@@ -132,7 +132,7 @@ simonsOneRound ::
   forall ext size prec m.
   (size ~ SizeType ext, m ~ PrimCompileMonad ext (SimonsFindXorPeriod size prec)) =>
   [CPL.VarType size] ->
-  m (CQPL.ProcDef size)
+  m (QPL.ProcDef size)
 simonsOneRound arg_tys = do
   (FindXorPeriodArg call_upred) <- view $ to mk_ucall
   (FindXorPeriodArg pred_aux_tys) <- view $ to uproc_aux_types
@@ -144,34 +144,34 @@ simonsOneRound arg_tys = do
   ys' <- lift $ mapM (Compiler.allocAncillaWithPref "yy") arg_tys
   aux <- lift $ mapM Compiler.allocAncilla pred_aux_tys
 
-  let had_xs = CQPL.USeqS [CQPL.UnitaryS [CQPL.Arg x] (CQPL.DistrU $ CPL.UniformE t) | (x, t) <- zip xs arg_tys]
-  let call_g = call_upred (map CQPL.Arg (xs ++ ys ++ aux))
-  let copy_out = CQPL.USeqS [CQPL.UnitaryS [CQPL.Arg y, CQPL.Arg y'] (CQPL.BasicGateU CQPL.COPY) | (y, y') <- zip ys ys']
+  let had_xs = QPL.USeqS [QPL.UnitaryS [QPL.Arg x] (QPL.DistrU $ CPL.UniformE t) | (x, t) <- zip xs arg_tys]
+  let call_g = call_upred (map QPL.Arg (xs ++ ys ++ aux))
+  let copy_out = QPL.USeqS [QPL.UnitaryS [QPL.Arg y, QPL.Arg y'] (QPL.BasicGateU QPL.COPY) | (y, y') <- zip ys ys']
 
-  let body_compute = CQPL.USeqS [had_xs, call_g]
+  let body_compute = QPL.USeqS [had_xs, call_g]
   let uproc_body_stmt =
-        CQPL.USeqS
+        QPL.USeqS
           [ body_compute
           , copy_out
-          , CQPL.adjoint body_compute
+          , QPL.adjoint body_compute
           ]
 
   return
-    CQPL.ProcDef
-      { CQPL.info_comment = ""
-      , CQPL.proc_name
-      , CQPL.proc_meta_params = []
-      , CQPL.proc_param_types = arg_tys ++ arg_tys ++ arg_tys ++ pred_aux_tys
-      , CQPL.proc_body =
-          CQPL.ProcBodyU $
-            CQPL.UProcBody
-              { CQPL.uproc_param_names = xs ++ ys ++ ys' ++ aux
-              , CQPL.uproc_param_tags =
-                  replicate (length arg_tys) CQPL.ParamOut
-                    ++ replicate (length arg_tys) CQPL.ParamAux
-                    ++ replicate (length arg_tys) CQPL.ParamAux
-                    ++ replicate (length pred_aux_tys) CQPL.ParamAux
-              , CQPL.uproc_body_stmt
+    QPL.ProcDef
+      { QPL.info_comment = ""
+      , QPL.proc_name
+      , QPL.proc_meta_params = []
+      , QPL.proc_param_types = arg_tys ++ arg_tys ++ arg_tys ++ pred_aux_tys
+      , QPL.proc_body =
+          QPL.ProcBodyU $
+            QPL.UProcBody
+              { QPL.uproc_param_names = xs ++ ys ++ ys' ++ aux
+              , QPL.uproc_param_tags =
+                  replicate (length arg_tys) QPL.ParamOut
+                    ++ replicate (length arg_tys) QPL.ParamAux
+                    ++ replicate (length arg_tys) QPL.ParamAux
+                    ++ replicate (length pred_aux_tys) QPL.ParamAux
+              , QPL.uproc_body_stmt
               }
       }
 
@@ -190,25 +190,25 @@ instance
     i <- lift $ Compiler.newIdent "i"
 
     let nq = floor $ _SimonsQueries n p_0 eps
-    xts <- forM (simons_uproc & CQPL.proc_param_types) $ \t -> do
+    xts <- forM (simons_uproc & QPL.proc_param_types) $ \t -> do
       let t' = CPL.Arr nq t
       x <- lift $ Compiler.allocAncillaWithPref (proc_name ++ "_aux") t'
       pure (x, t')
 
     let uproc_body_stmt =
-          CQPL.USeqS
-            [ CQPL.UForInRangeS
-                { CQPL.iter_meta_var = i
-                , CQPL.iter_lim = CPL.MetaSize nq
-                , CQPL.uloop_body =
-                    CQPL.UCallS
-                      { uproc_id = CQPL.proc_name simons_uproc
+          QPL.USeqS
+            [ QPL.UForInRangeS
+                { QPL.iter_meta_var = i
+                , QPL.iter_lim = CPL.MetaSize nq
+                , QPL.uloop_body =
+                    QPL.UCallS
+                      { uproc_id = QPL.proc_name simons_uproc
                       , dagger = False
-                      , qargs = map (\(x, _) -> CQPL.ArrElemArg (CQPL.Arg x) (CPL.MetaName i)) xts
+                      , qargs = map (\(x, _) -> QPL.ArrElemArg (QPL.Arg x) (CPL.MetaName i)) xts
                       }
                 , dagger = False
                 }
-            , CQPL.UCommentS $
+            , QPL.UCommentS $
                 printf
                   "simon's post-processing: unitarily solve linear system: (%s) . (%s) = 0"
                   (PP.commaList rets)
@@ -216,17 +216,17 @@ instance
             ]
 
     return
-      CQPL.ProcDef
-        { CQPL.info_comment = ""
-        , CQPL.proc_name
-        , CQPL.proc_meta_params = []
-        , CQPL.proc_param_types = arg_tys ++ map snd xts
-        , CQPL.proc_body =
-            CQPL.ProcBodyU $
-              CQPL.UProcBody
-                { CQPL.uproc_param_names = rets ++ map fst xts
-                , CQPL.uproc_param_tags = replicate (length rets) CQPL.ParamOut ++ replicate (length xts) CQPL.ParamAux
-                , CQPL.uproc_body_stmt
+      QPL.ProcDef
+        { QPL.info_comment = ""
+        , QPL.proc_name
+        , QPL.proc_meta_params = []
+        , QPL.proc_param_types = arg_tys ++ map snd xts
+        , QPL.proc_body =
+            QPL.ProcBodyU $
+              QPL.UProcBody
+                { QPL.uproc_param_names = rets ++ map fst xts
+                , QPL.uproc_param_tags = replicate (length rets) QPL.ParamOut ++ replicate (length xts) QPL.ParamAux
+                , QPL.uproc_body_stmt
                 }
         }
 
@@ -251,18 +251,18 @@ instance
       pure (x, t')
 
     let cproc_body_stmt =
-          CQPL.SeqS
-            [ CQPL.ForInRangeS
-                { CQPL.iter_meta_var = i
-                , CQPL.iter_lim = CPL.MetaSize nq
-                , CQPL.loop_body =
-                    CQPL.CallS
-                      { fun = CQPL.UProcAndMeas (CQPL.proc_name simons_uproc)
+          QPL.SeqS
+            [ QPL.ForInRangeS
+                { QPL.iter_meta_var = i
+                , QPL.iter_lim = CPL.MetaSize nq
+                , QPL.loop_body =
+                    QPL.CallS
+                      { fun = QPL.UProcAndMeas (QPL.proc_name simons_uproc)
                       , meta_params = []
-                      , args = map (\(x, _) -> CQPL.ArrElemArg (CQPL.Arg x) (CPL.MetaName i)) xts
+                      , args = map (\(x, _) -> QPL.ArrElemArg (QPL.Arg x) (CPL.MetaName i)) xts
                       }
                 }
-            , CQPL.CommentS $
+            , QPL.CommentS $
                 printf
                   "simon's post-processing: solve linear system: (%s) . (%s) = 0"
                   (PP.commaList rets)
@@ -270,16 +270,16 @@ instance
             ]
 
     return
-      CQPL.ProcDef
-        { CQPL.info_comment = ""
-        , CQPL.proc_name
-        , CQPL.proc_meta_params = []
-        , CQPL.proc_param_types = arg_tys
-        , CQPL.proc_body =
-            CQPL.ProcBodyC $
-              CQPL.CProcBody
-                { CQPL.cproc_param_names = rets
-                , CQPL.cproc_local_vars = xts
-                , CQPL.cproc_body_stmt
+      QPL.ProcDef
+        { QPL.info_comment = ""
+        , QPL.proc_name
+        , QPL.proc_meta_params = []
+        , QPL.proc_param_types = arg_tys
+        , QPL.proc_body =
+            QPL.ProcBodyC $
+              QPL.CProcBody
+                { QPL.cproc_param_names = rets
+                , QPL.cproc_local_vars = xts
+                , QPL.cproc_body_stmt
                 }
         }

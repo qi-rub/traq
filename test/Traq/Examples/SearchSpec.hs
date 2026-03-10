@@ -10,12 +10,12 @@ import qualified Data.Map as Map
 import qualified Traq.Analysis as A
 import Traq.Analysis.CostModel.QueryCost (SimpleQueryCost (..))
 import qualified Traq.CPL as CPL
-import qualified Traq.CQPL as CQPL
 import qualified Traq.Compiler as Compiler
 import Traq.Compiler.Qualtran (toPy)
 import Traq.Examples.Search
 import Traq.Prelude
 import Traq.Primitives.Search.QSearchCFNW (_EQSearch, _QSearchZalka)
+import qualified Traq.QPL as QPL
 import qualified Traq.Utils.Printing as PP
 
 import Test.Hspec
@@ -73,12 +73,12 @@ spec = describe "SearchSpec" $ do
       it "typechecks" $ do
         ex' <- expectRight $ A.annotateProgWith (CPL._exts (A.annSinglePrim eps)) ex
         ex_uqpl <- expectRight $ Compiler.lowerProgramU ex'
-        assertRight $ CQPL.typeCheckProgram ex_uqpl
+        assertRight $ QPL.typeCheckProgram ex_uqpl
 
       it "preserves cost" $ do
         ex' <- expectRight $ A.annotateProgWith (CPL._exts (A.annSinglePrim eps)) ex
         ex_uqpl <- expectRight $ Compiler.lowerProgramU ex'
-        let (uqpl_cost, _) = CQPL.programCost ex_uqpl
+        let (uqpl_cost, _) = QPL.programCost ex_uqpl
         let proto_cost = A.costUProg ex' :: SimpleQueryCost Double
         uqpl_cost `shouldBeLE` proto_cost
 
@@ -92,12 +92,12 @@ spec = describe "SearchSpec" $ do
       it "typechecks" $ do
         ex' <- expectRight $ A.annotateProgWith (CPL._exts (A.annSinglePrim eps)) ex
         ex_uqpl <- expectRight $ Compiler.lowerProgram ex'
-        assertRight $ CQPL.typeCheckProgram ex_uqpl
+        assertRight $ QPL.typeCheckProgram ex_uqpl
 
       it "cost" $ do
         ex' <- expectRight $ A.annotateProgWith (CPL._exts (A.annSinglePrim eps)) ex
         ex_cqpl <- expectRight $ Compiler.lowerProgram ex'
-        let cost = fst (CQPL.programCost ex_cqpl) :: SimpleQueryCost Double
+        let cost = fst (QPL.programCost ex_cqpl) :: SimpleQueryCost Double
         let cost_from_analysis = getCost $ A.costQProg ex'
         getCost cost `shouldBeLE` cost_from_analysis
 

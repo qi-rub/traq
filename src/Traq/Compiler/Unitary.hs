@@ -29,10 +29,10 @@ import qualified Traq.Data.Context as Ctx
 
 import qualified Traq.Analysis.Annotate.Prelude as A
 import qualified Traq.CPL as CPL
-import qualified Traq.CQPL as CQPL
-import Traq.CQPL.Syntax
 import Traq.Compiler.Prelude
 import Traq.Prelude
+import qualified Traq.QPL as QPL
+import Traq.QPL.Syntax
 
 -- ================================================================================
 -- Helpers
@@ -71,7 +71,7 @@ class (CPL.TypeInferrable ext (SizeType ext)) => CompileU ext where
     ) =>
     ext ->
     [Ident] ->
-    m (CQPL.UStmt (SizeType ext))
+    m (QPL.UStmt (SizeType ext))
 
 instance (CPL.TypingReqs size) => CompileU (CPL.Core size prec) where
   compileU = \case {}
@@ -98,7 +98,7 @@ class CompileU1 f where
 
 instance CompileU1 CPL.Expr where
   type CompileArgs CPL.Expr ext = [Ident]
-  type CompileResult CPL.Expr ext = (CQPL.UStmt (SizeType ext))
+  type CompileResult CPL.Expr ext = (QPL.UStmt (SizeType ext))
 
   compileU1 rets CPL.BasicExprE{basic_expr} = do
     let args = toList $ CPL.freeVars basic_expr
@@ -171,7 +171,7 @@ instance CompileU1 CPL.Expr where
 
 instance CompileU1 CPL.Stmt where
   type CompileArgs CPL.Stmt ext = ()
-  type CompileResult CPL.Stmt ext = (CQPL.UStmt (SizeType ext))
+  type CompileResult CPL.Stmt ext = (QPL.UStmt (SizeType ext))
 
   compileU1 () CPL.ExprS{rets, expr} = do
     -- compute result into a fresh set of vars, and swap at the end.
@@ -203,7 +203,7 @@ instance CompileU1 CPL.Stmt where
           UnitaryS{qargs = map Arg (cond : out_f ++ tmp_f), unitary = Controlled (BasicGateU SWAP)}
         , UnitaryS{qargs = map Arg (cond : out_t ++ tmp_t), unitary = Controlled (BasicGateU SWAP)}
         ]
-  compileU1 () (CPL.SeqS ss) = CQPL.USeqS <$> mapM (compileU1 ()) ss
+  compileU1 () (CPL.SeqS ss) = QPL.USeqS <$> mapM (compileU1 ()) ss
 
 instance CompileU1 CPL.FunBody where
   type CompileArgs CPL.FunBody ext = ([CPL.VarType (SizeType ext)], [CPL.VarType (SizeType ext)])
@@ -226,9 +226,9 @@ instance CompileU1 CPL.FunBody where
                   ++ ret_names
                   ++ map fst aux_vars
             , uproc_param_tags =
-                (CQPL.ParamInp <$ param_names)
-                  ++ (CQPL.ParamOut <$ ret_names)
-                  ++ (CQPL.ParamAux <$ aux_vars)
+                (QPL.ParamInp <$ param_names)
+                  ++ (QPL.ParamOut <$ ret_names)
+                  ++ (QPL.ParamAux <$ aux_vars)
             , uproc_body_stmt
             }
 
@@ -236,16 +236,16 @@ instance CompileU1 CPL.FunBody where
 
 instance CompileU1 CPL.FunDef where
   type CompileArgs CPL.FunDef ext = Ident
-  type CompileResult CPL.FunDef ext = (CQPL.ProcDef (SizeType ext), ProcSignature (SizeType ext))
+  type CompileResult CPL.FunDef ext = (QPL.ProcDef (SizeType ext), ProcSignature (SizeType ext))
 
   -- ext fn: compile as-is to ext uproc
   compileU1 proc_name CPL.FunDef{param_types, ret_types, mbody = Nothing} = do
     let info_comment = ""
     let proc_meta_params = []
     let proc_param_types = param_types ++ ret_types
-    let proc_body = CQPL.ProcBodyU CQPL.UProcDecl
+    let proc_body = QPL.ProcBodyU QPL.UProcDecl
     let sign = ProcSignature{in_tys = param_types, out_tys = ret_types, aux_tys = []}
-    pure (CQPL.ProcDef{..}, sign)
+    pure (QPL.ProcDef{..}, sign)
 
   -- fn: compile to uproc, and pass aux types.
   compileU1 proc_name CPL.FunDef{param_types, ret_types, mbody = Just body} = do
@@ -253,12 +253,12 @@ instance CompileU1 CPL.FunDef where
     let proc_meta_params = []
 
     (body', aux_tys) <- compileU1 (param_types, ret_types) body
-    let proc_body = CQPL.ProcBodyU body'
+    let proc_body = QPL.ProcBodyU body'
 
     let proc_param_types = param_types ++ ret_types ++ aux_tys
     let sign = ProcSignature{in_tys = param_types, out_tys = ret_types, aux_tys}
 
-    pure (CQPL.ProcDef{..}, sign)
+    pure (QPL.ProcDef{..}, sign)
 
 instance CompileU1 CPL.NamedFunDef where
   type CompileArgs CPL.NamedFunDef ext = ()
@@ -281,7 +281,7 @@ instance CompileU1 CPL.Program where
 -- Entry Point
 -- ================================================================================
 
--- | Lower a full program into a unitary CQPL program.
+-- | Lower a full program into a unitary QPL program.
 lowerProgramU ::
   forall ext size prec.
   ( CompileU ext
@@ -293,5 +293,5 @@ lowerProgramU ::
   , CPL.TypeInferrable ext size
   ) =>
   CPL.Program ext ->
-  Either String (CQPL.Program size)
+  Either String (QPL.Program size)
 lowerProgramU = compileWith (compileU1 ())

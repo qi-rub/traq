@@ -19,10 +19,10 @@ import qualified Traq.Data.Context as Ctx
 
 import qualified Traq.Analysis.Annotate.Prelude as A
 import qualified Traq.CPL as CPL
-import Traq.CQPL.Syntax
 import Traq.Compiler.Prelude
 import Traq.Compiler.Unitary
 import Traq.Prelude
+import Traq.QPL.Syntax
 
 -- ================================================================================
 -- Compiler
@@ -186,7 +186,7 @@ instance CompileQ1 CPL.Program where
 -- Entry Point
 -- ================================================================================
 
--- | Lower a full program into a CQPL program.
+-- | Lower a full program into a QPL program.
 lowerProgram ::
   forall ext size prec.
   ( CPL.TypingReqs size

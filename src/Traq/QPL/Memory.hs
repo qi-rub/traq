@@ -1,8 +1,8 @@
-module Traq.CQPL.Memory (numQubits) where
+module Traq.QPL.Memory (numQubits) where
 
 import Traq.CPL (VarType (..))
-import Traq.CQPL.Syntax
 import Traq.Prelude
+import Traq.QPL.Syntax
 
 log2 :: (Integral a) => a -> a
 log2 n = ceiling $ logBase (2 :: Double) (fromIntegral n)

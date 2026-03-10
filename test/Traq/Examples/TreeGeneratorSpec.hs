@@ -15,11 +15,11 @@ import qualified Traq.Analysis as A
 import Traq.Analysis.CostModel.QueryCost (SimpleQueryCost (getCost))
 import Traq.CPL
 import qualified Traq.CPL as CPL
-import qualified Traq.CQPL as CQPL
 import qualified Traq.Compiler as Compiler
 import Traq.Compiler.Qualtran (toPy)
 import Traq.Prelude
 import Traq.Primitives
+import qualified Traq.QPL as QPL
 
 import Test.Hspec
 import TestHelpers
@@ -138,13 +138,13 @@ spec = do
         ex <- CPL.renameVars' <$> loadKnapsack 2 20 30 2
         ex' <- expectRight $ A.annotateProgWith (_exts (A.annSinglePrim eps)) ex
         ex_uqpl <- expectRight $ Compiler.lowerProgram ex'
-        assertRight $ CQPL.typeCheckProgram ex_uqpl
+        assertRight $ QPL.typeCheckProgram ex_uqpl
 
       it "cost" $ do
         ex <- CPL.renameVars' <$> loadKnapsack 2 20 30 2
         ex' <- expectRight $ A.annotateProgWith (_exts (A.annSinglePrim eps)) ex
         ex_cqpl <- expectRight $ Compiler.lowerProgram ex'
-        let cost = fst (CQPL.programCost ex_cqpl) :: SimpleQueryCost Double
+        let cost = fst (QPL.programCost ex_cqpl) :: SimpleQueryCost Double
         let cost_from_analysis = getCost $ A.costQProg ex'
         getCost cost `shouldBeLE` cost_from_analysis
 
@@ -178,13 +178,13 @@ spec = do
         let ex = CPL.renameVars' $ loopExample @Core' 10 20
         ex' <- expectRight $ A.annotateProgWith (_exts A.annNoPrims) ex
         ex_uqpl <- expectRight $ Compiler.lowerProgram ex'
-        assertRight $ CQPL.typeCheckProgram ex_uqpl
+        assertRight $ QPL.typeCheckProgram ex_uqpl
 
       it "cost" $ do
         let ex = CPL.renameVars' $ loopExample @Core' 10 20
         ex' <- expectRight $ A.annotateProgWith (_exts A.annNoPrims) ex
         ex_cqpl <- expectRight $ Compiler.lowerProgram ex'
-        let cost = fst (CQPL.programCost ex_cqpl) :: SimpleQueryCost Double
+        let cost = fst (QPL.programCost ex_cqpl) :: SimpleQueryCost Double
         let cost_from_analysis = getCost $ A.costQProg ex'
         getCost cost `shouldBeLE` cost_from_analysis
 

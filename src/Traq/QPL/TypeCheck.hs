@@ -2,7 +2,7 @@
 {-# LANGUAGE DeriveGeneric #-}
 {-# LANGUAGE DuplicateRecordFields #-}
 
-module Traq.CQPL.TypeCheck (
+module Traq.QPL.TypeCheck (
   -- * Monad
   CheckingCtx,
   TypeChecker,
@@ -34,8 +34,8 @@ import Traq.Data.Default
 import qualified Traq.Data.Errors as Err
 
 import qualified Traq.CPL as CPL
-import Traq.CQPL.Syntax
 import Traq.Prelude
+import Traq.QPL.Syntax
 
 -- ================================================================================
 -- Helpers

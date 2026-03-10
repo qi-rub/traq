@@ -10,10 +10,10 @@ import qualified Traq.Data.Symbolic as Sym
 
 import qualified Traq.Analysis as A
 import qualified Traq.CPL as CPL
-import qualified Traq.CQPL as CQPL
 import qualified Traq.Compiler.Quantum as CompileQ
 import Traq.Prelude
 import Traq.Primitives
+import qualified Traq.QPL as QPL
 import qualified Traq.Utils.Printing as PP
 
 type SymbSize = Sym.Sym Int
@@ -31,7 +31,7 @@ opts =
   info
     (options <**> helper)
     ( fullDesc
-        <> header "Compile CPL programs to CQPL and analyze their costs."
+        <> header "Compile CPL programs to QPL and analyze their costs."
     )
  where
   options =
@@ -66,7 +66,7 @@ compile prog eps = do
   let prog_rn = if CPL.checkVarsUnique prog then prog else CPL.renameVars' prog
   prog' <- either fail pure $ A.annotateProgWithErrorBudget (A.failProb eps) prog_rn
   cqpl_prog <- either fail pure $ CompileQ.lowerProgram prog'
-  let nqubits = CQPL.numQubits cqpl_prog
+  let nqubits = QPL.numQubits cqpl_prog
 
   return $ PP.toCodeString cqpl_prog ++ printf "\n// qubits: %d\n" nqubits
 

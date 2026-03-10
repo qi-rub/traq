@@ -30,11 +30,11 @@ import qualified Numeric.Algebra as Alg
 
 import qualified Traq.Analysis as A
 import qualified Traq.CPL as CPL
-import qualified Traq.CQPL as CQPL
 import qualified Traq.Compiler as Compiler
 import Traq.Prelude
 import Traq.Primitives.Class
 import Traq.Primitives.Search.QSearchCFNW (groverK)
+import qualified Traq.QPL as QPL
 import qualified Traq.Utils.Printing as PP
 
 -- ================================================================================
@@ -129,14 +129,14 @@ instance (CPL.TypingReqs size, Integral size, RealFloat prec, Show prec) => Unit
       aux <- mapM (Compiler.allocLocal . CPL.Arr _N) fun_aux_tys
 
       i <- Compiler.newIdent "x"
-      Compiler.withUStmt (CQPL.UForInDomainS i arg_ty False) $ do
-        let inp_ix = CQPL.ArrElemArg (CQPL.Arg inp) (CPL.MetaName i)
-        let oup_ix = CQPL.ArrElemArg (CQPL.Arg oup) (CPL.MetaName i)
-        let aux_ix = map ((`CQPL.ArrElemArg` CPL.MetaName i) . CQPL.Arg) aux
+      Compiler.withUStmt (QPL.UForInDomainS i arg_ty False) $ do
+        let inp_ix = QPL.ArrElemArg (QPL.Arg inp) (CPL.MetaName i)
+        let oup_ix = QPL.ArrElemArg (QPL.Arg oup) (CPL.MetaName i)
+        let aux_ix = map ((`QPL.ArrElemArg` CPL.MetaName i) . QPL.Arg) aux
 
         Compiler.addUStmt $ call_ufun (inp_ix : oup_ix : aux_ix)
 
-      Compiler.addUStmt $ CQPL.UCommentS $ printf "unitarily compute: %s := max(%s); %s := argmax(%s);" res_var oup argmax_var oup
+      Compiler.addUStmt $ QPL.UCommentS $ printf "unitarily compute: %s := max(%s); %s := argmax(%s);" res_var oup argmax_var oup
 
 -- ================================================================================
 -- Quantum
@@ -200,11 +200,11 @@ instance (CPL.TypingReqs size, Integral size, RealFloat prec, Show prec, A.SizeT
 
         out <- Compiler.allocLocalWithPrefix "out" res_ty
         aux <- mapM Compiler.allocLocal aux_tys
-        Compiler.addUStmt $ call_ufun $ map CQPL.Arg (x : out : aux)
+        Compiler.addUStmt $ call_ufun $ map QPL.Arg (x : out : aux)
 
         Compiler.addUStmt $
-          CQPL.UnitaryS [CQPL.Arg prev, CQPL.Arg out, CQPL.Arg b] $
-            CQPL.RevEmbedU ["a", "b"] $
+          QPL.UnitaryS [QPL.Arg prev, QPL.Arg out, QPL.Arg b] $
+            QPL.RevEmbedU ["a", "b"] $
               CPL.BinOpE CPL.LtOp (CPL.VarE "a") (CPL.VarE "b")
 
       Compiler.addProc cmp
@@ -217,14 +217,14 @@ instance (CPL.TypingReqs size, Integral size, RealFloat prec, Show prec, A.SizeT
       b <- Compiler.newIdent "b"
 
       uproc <- Compiler.buildUProc "Grover" [meta_k] [(prev, res_ty), (x, arg_ty), (b, CPL.tbool)] $ do
-        let aux_tys = CQPL.proc_param_types cmp & drop 3
+        let aux_tys = QPL.proc_param_types cmp & drop 3
         aux_vars <- mapM Compiler.allocLocal aux_tys
         Compiler.addUStmt $
           groverK
             (CPL.MetaName meta_k)
             (x, arg_ty)
             b
-            (\_ _ -> CQPL.UCallS (CQPL.proc_name cmp) False (map CQPL.Arg ([prev, x, b] ++ aux_vars)))
+            (\_ _ -> QPL.UCallS (QPL.proc_name cmp) False (map QPL.Arg ([prev, x, b] ++ aux_vars)))
 
       Compiler.addProc uproc
       return uproc
@@ -258,20 +258,20 @@ instance (CPL.TypingReqs size, Integral size, RealFloat prec, Show prec, A.SizeT
         j <- Compiler.allocLocalWithPrefix "j" fuel_ty
         not_done <- Compiler.allocLocalWithPrefix "not_done" CPL.tbool
         b <- Compiler.allocLocalWithPrefix "b" CPL.tbool
-        Compiler.addStmt $ CQPL.AssignS [not_done] (CPL.ConstE (CPL.FinV 1) CPL.tbool)
+        Compiler.addStmt $ QPL.AssignS [not_done] (CPL.ConstE (CPL.FinV 1) CPL.tbool)
 
-        Compiler.withStmt (CQPL.ForInArray j_lim fuel_ty [CPL.ConstE (CPL.FinV v_j) fuel_ty | v_j <- sampling_ranges]) $ do
-          Compiler.addStmt $ CQPL.RandomDynS j j_lim
-          Compiler.addStmt $ CQPL.AssignS [not_done] (CPL.VarE not_done CPL..&&. (CPL.VarE j CPL..<=. CPL.VarE fuel))
-          Compiler.withStmt (CQPL.ifThenS not_done) $ do
-            Compiler.addStmt $ CQPL.AssignS [fuel] (CPL.BinOpE CPL.SubOp (CPL.VarE fuel) (CPL.VarE j))
+        Compiler.withStmt (QPL.ForInArray j_lim fuel_ty [CPL.ConstE (CPL.FinV v_j) fuel_ty | v_j <- sampling_ranges]) $ do
+          Compiler.addStmt $ QPL.RandomDynS j j_lim
+          Compiler.addStmt $ QPL.AssignS [not_done] (CPL.VarE not_done CPL..&&. (CPL.VarE j CPL..<=. CPL.VarE fuel))
+          Compiler.withStmt (QPL.ifThenS not_done) $ do
+            Compiler.addStmt $ QPL.AssignS [fuel] (CPL.BinOpE CPL.SubOp (CPL.VarE fuel) (CPL.VarE j))
             Compiler.addStmt $
-              CQPL.CallS
-                { CQPL.fun = CQPL.UProcAndMeas (CQPL.proc_name grover_k)
-                , CQPL.meta_params = [Right j]
-                , CQPL.args = map CQPL.Arg [y, x, b]
+              QPL.CallS
+                { QPL.fun = QPL.UProcAndMeas (QPL.proc_name grover_k)
+                , QPL.meta_params = [Right j]
+                , QPL.args = map QPL.Arg [y, x, b]
                 }
-            Compiler.addStmt $ CQPL.AssignS [not_done] (CPL.VarE not_done CPL..&&. CPL.notE (CPL.VarE b))
+            Compiler.addStmt $ QPL.AssignS [not_done] (CPL.VarE not_done CPL..&&. CPL.notE (CPL.VarE b))
 
       Compiler.addProc p
       return p
@@ -279,16 +279,16 @@ instance (CPL.TypingReqs size, Integral size, RealFloat prec, Show prec, A.SizeT
     -- Build the main algorithm
     Compiler.buildProc "QMax" [] [(res_var, res_ty), (argmax_var, arg_ty)] $ do
       fuel <- Compiler.allocLocalWithPrefix "fuel" fuel_ty
-      Compiler.addStmt $ CQPL.AssignS [fuel] (CPL.ConstE (CPL.FinV $ max_queries - 1) fuel_ty)
+      Compiler.addStmt $ QPL.AssignS [fuel] (CPL.ConstE (CPL.FinV $ max_queries - 1) fuel_ty)
 
       -- choose x \in arg_ty uniformly at random
       let x = argmax_var
-      Compiler.addStmt $ CQPL.RandomS [x] (CPL.UniformE arg_ty)
+      Compiler.addStmt $ QPL.RandomS [x] (CPL.UniformE arg_ty)
 
       -- set y <- f(x);
       let y = res_var
       QMaxFunArg call_fun <- lift $ view $ to mk_call
-      Compiler.addStmt $ call_fun [CQPL.Arg x, CQPL.Arg y]
+      Compiler.addStmt $ call_fun [QPL.Arg x, QPL.Arg y]
 
-      Compiler.withStmt (CQPL.RepeatS (CPL.MetaSize max_queries)) $ do
-        Compiler.addStmt $ CQPL.CallS (CQPL.FunctionCall (CQPL.proc_name qsearch)) [] [CQPL.Arg fuel, CQPL.Arg y, CQPL.Arg x]
+      Compiler.withStmt (QPL.RepeatS (CPL.MetaSize max_queries)) $ do
+        Compiler.addStmt $ QPL.CallS (QPL.FunctionCall (QPL.proc_name qsearch)) [] [QPL.Arg fuel, QPL.Arg y, QPL.Arg x]

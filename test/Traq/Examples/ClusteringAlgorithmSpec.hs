@@ -13,11 +13,11 @@ import qualified Traq.Data.Symbolic as Sym
 import qualified Traq.Analysis as A
 import Traq.Analysis.CostModel.QueryCost (SimpleQueryCost (getCost))
 import qualified Traq.CPL as CPL
-import qualified Traq.CQPL as CQPL
 import qualified Traq.Compiler as Compiler
 import Traq.Compiler.Qualtran (toPy)
 import Traq.Prelude
 import Traq.Primitives (DefaultPrims)
+import qualified Traq.QPL as QPL
 
 import Test.Hspec
 import TestHelpers
@@ -58,13 +58,13 @@ spec = describe "Clustering Algorithm" $ do
       ex <- loadExample
       ex' <- expectRight $ A.annotateProgWith (CPL._exts (A.annSinglePrim eps)) ex
       ex_uqpl <- expectRight $ Compiler.lowerProgram ex'
-      assertRight $ CQPL.typeCheckProgram ex_uqpl
+      assertRight $ QPL.typeCheckProgram ex_uqpl
 
     it "cost" $ do
       ex <- loadExample
       ex' <- expectRight $ A.annotateProgWith (CPL._exts (A.annSinglePrim eps)) ex
       ex_cqpl <- expectRight $ Compiler.lowerProgram ex'
-      let cost = fst (CQPL.programCost ex_cqpl) :: SimpleQueryCost Double
+      let cost = fst (QPL.programCost ex_cqpl) :: SimpleQueryCost Double
       let cost_from_analysis = getCost $ A.costQProg ex'
       getCost cost `shouldBeLE` cost_from_analysis
 
