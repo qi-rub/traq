@@ -2,6 +2,8 @@
 
 module Traq.Examples.MatrixSearchSpec (spec) where
 
+import Control.DeepSeq (force)
+import Control.Exception (evaluate)
 import qualified Data.Map as Map
 
 import qualified Traq.Data.Symbolic as Sym
@@ -10,6 +12,7 @@ import qualified Traq.Analysis as A
 import Traq.Analysis.CostModel.QueryCost (SimpleQueryCost (getCost))
 import qualified Traq.CQPL as CQPL
 import qualified Traq.Compiler as Compiler
+import Traq.Compiler.Qualtran (toPy)
 import Traq.Examples.MatrixSearch
 import Traq.Primitives (Primitive (..))
 import Traq.Primitives.Search.Prelude
@@ -110,6 +113,12 @@ spec = describe "MatrixSearch" $ do
         let cost = fst (CQPL.programCost ex_cqpl) :: SimpleQueryCost Double
         let cost_from_analysis = getCost $ A.costQProg ex'
         getCost cost `shouldBeLE` cost_from_analysis
+
+      it "target-py-qualtran" $ do
+        ex' <- expectRight $ A.annotateProgWithErrorBudget eps ex
+        ex_cqpl <- expectRight $ Compiler.lowerProgram ex'
+        _ <- evaluate $ force $ toPy ex_cqpl
+        return ()
 
   describe "symbolic" $ do
     let n = Sym.var "n" :: Sym.Sym Int

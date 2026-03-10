@@ -12,12 +12,15 @@ module Traq.CQPL.TypeCheck (
   typeCheckStmt,
   typeCheckProc,
   typeCheckProgram,
+
+  -- * Helpers
+  getArgTy,
 ) where
 
 import Control.Monad (forM, unless, when)
 import Control.Monad.Except (MonadError (throwError))
 import Control.Monad.Reader (MonadReader, ReaderT, local, runReaderT)
-import Control.Monad.State (execStateT)
+import Control.Monad.State (evalStateT, execStateT)
 import Data.List (intersect)
 import GHC.Generics (Generic)
 import Text.Printf (printf)
@@ -128,7 +131,7 @@ type TypeChecker size = ReaderT (CheckingCtx size) (Either Err.MyError)
 -- Type Checking
 -- ================================================================================
 
-typeCheckBasicGate :: forall size. (P.TypingReqs size) => BasicGate -> [P.VarType size] -> TypeChecker size ()
+typeCheckBasicGate :: forall size. (P.TypingReqs size) => BasicGate size -> [P.VarType size] -> TypeChecker size ()
 typeCheckBasicGate Toffoli tys = verifyArgTys tys [P.tbool, P.tbool, P.tbool]
 typeCheckBasicGate CNOT tys = verifyArgTys tys [P.tbool, P.tbool]
 typeCheckBasicGate XGate tys = verifyArgTys tys [P.tbool]
@@ -152,7 +155,7 @@ typeCheckUnitary (RevEmbedU xs e) tys = do
     forM all_gamma $ \(x, ty) ->
       when (head x == '#') $
         Ctx.ins x .= ty
-  let res = runReaderT (P.typeCheckBasicExpr e) gamma'
+  let res = evalStateT (P.typeCheckBasicExpr e) gamma'
   case res of
     Left err -> Err.throwErrorMessage err
     Right ret_ty -> verifyArgTys (drop (length xs) tys) [ret_ty]
@@ -209,7 +212,7 @@ typeCheckStmt (CommentS _) = return ()
 typeCheckStmt AssignS{rets, expr} = do
   gamma <- view P._typingCtx
   actual_ret_tys <-
-    case runReaderT ?? gamma $ P.typeCheckBasicExpr expr of
+    case evalStateT ?? gamma $ P.typeCheckBasicExpr expr of
       Left err -> Err.throwErrorMessage err
       Right ty -> return [ty]
 

@@ -9,6 +9,15 @@ matrix_search.qpl: matrix_search.traq $(PROJ_DEPS)
 		-p 0.001 \
 		--arg N=20 --arg M=10
 
+matrix_search.py: matrix_search.traq $(PROJ_DEPS)
+	cd ../../ && cabal run qpltoqualtranpy -- \
+		-i examples/matrix_search/$< \
+		-o examples/matrix_search/$@ \
+		-p 0.001 \
+		--arg N=20 --arg M=10
+	python -m py_compile $@
+	black $@
+
 depth3_NAND_formula.qpl: depth3_NAND_formula.traq $(PROJ_DEPS)
 	cd ../../ && cabal run compile -- \
 		-i examples/matrix_search/$< \

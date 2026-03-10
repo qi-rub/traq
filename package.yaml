@@ -36,9 +36,11 @@ dependencies:
   - mtl >= 2.2.2
   - microlens-ghc ^>= 0.4 
   - microlens-mtl ^>= 0.2
-  - lens ^>= 5.3
+  # - lens ^>= 5.3
   - parsec ^>= 3.1.17
   - algebra ^>= 4.3
+  - prettyprinter ^>= 1.7
+  - deepseq
 
 default-extensions:
   - LambdaCase
@@ -66,6 +68,7 @@ _exe_opts: &exe_opts
     - random
     - random-shuffle
     - timeit ^>= 2.0
+    - filepath
   default-extensions:
     - RecordWildCards
 
@@ -84,6 +87,9 @@ executables:
   ### Tools
   compile:
     main: compile.hs
+    <<: *exe_opts
+  qpltoqualtranpy:
+    main: qpltoqualtranpy.hs
     <<: *exe_opts
   ### Experiments & Examples
   matrixsearch:

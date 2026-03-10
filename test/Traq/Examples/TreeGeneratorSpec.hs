@@ -2,6 +2,8 @@
 
 module Traq.Examples.TreeGeneratorSpec where
 
+import Control.DeepSeq (force)
+import Control.Exception (evaluate)
 import qualified Data.Map as Map
 import Text.Parsec.String
 
@@ -13,6 +15,7 @@ import qualified Traq.Analysis as A
 import Traq.Analysis.CostModel.QueryCost (SimpleQueryCost (getCost))
 import qualified Traq.CQPL as CQPL
 import qualified Traq.Compiler as Compiler
+import Traq.Compiler.Qualtran (toPy)
 import Traq.Prelude
 import Traq.Primitives
 import Traq.ProtoLang
@@ -145,6 +148,13 @@ spec = do
         let cost_from_analysis = getCost $ A.costQProg ex'
         getCost cost `shouldBeLE` cost_from_analysis
 
+      xit "target-py-qualtran" $ do
+        ex <- P.renameVars' <$> loadKnapsack 2 20 30 2
+        ex' <- expectRight $ A.annotateProgWith (_exts (A.annSinglePrim eps)) ex
+        ex_cqpl <- expectRight $ Compiler.lowerProgram ex'
+        _ <- evaluate $ force $ toPy ex_cqpl
+        return ()
+
   describe "Loop example" $ do
     it "parses" $ do
       p <-
@@ -177,3 +187,10 @@ spec = do
         let cost = fst (CQPL.programCost ex_cqpl) :: SimpleQueryCost Double
         let cost_from_analysis = getCost $ A.costQProg ex'
         getCost cost `shouldBeLE` cost_from_analysis
+
+      xit "target-py-qualtran" $ do
+        let ex = P.renameVars' $ loopExample @Core' 10 20
+        ex' <- expectRight $ A.annotateProgWith (_exts A.annNoPrims) ex
+        ex_cqpl <- expectRight $ Compiler.lowerProgram ex'
+        _ <- evaluate $ force $ toPy ex_cqpl
+        return ()
