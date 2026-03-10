@@ -293,7 +293,7 @@ instance (Show size, Integral size) => ToQualtranPy (CQPL.UProcBody size) where
         , py_class proc_name "qlt.Bloq" class_body
         ]
 
-instance (Show size) => ToQualtranPy (CQPL.UStmt size) where
+instance (Show size, Integral size) => ToQualtranPy (CQPL.UStmt size) where
   type Ctx (CQPL.UStmt size) = ()
 
   mkPy CQPL.USkipS = pure mempty
@@ -337,12 +337,17 @@ instance (Show size) => ToQualtranPy (CQPL.UStmt size) where
     mkPy body_ustmt
     mkPy (CQPL.adjoint with_ustmt)
 
-instance ToQualtranPy (CQPL.Unitary size) where
+instance (Show size, Integral size) => ToQualtranPy (CQPL.Unitary size) where
   type Ctx (CQPL.Unitary size) = ()
 
   mkPy (CQPL.BasicGateU g) = withEnv () $ mkPy g
   mkPy (CQPL.RevEmbedU xs e) = pure $ PP.pretty "TODO_RevEmbedU"
-  mkPy (CQPL.DistrU d) = pure $ PP.pretty "TODO_DistrU"
+  mkPy (CQPL.DistrU (P.UniformE ty)) = do
+    let bs = P.bestBitsize ty
+    pure $ PP.pretty "qlt.QFTTextBook" <> PP.tupled [PP.pretty (show bs)]
+  mkPy (CQPL.DistrU (P.BernoulliE p)) = do
+    let theta = PP.pretty @String $ printf "%f" (2 * asin (sqrt p))
+    pure $ PP.pretty "qlt.Ry" <> PP.tupled [PP.pretty "angle=" <> theta]
   mkPy (CQPL.Controlled u) = do
     bloq <- mkPy u
     pure $ bloq <> PP.pretty ".controlled()"

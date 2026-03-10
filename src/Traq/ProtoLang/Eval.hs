@@ -23,6 +23,7 @@ module Traq.ProtoLang.Eval (
   valueToBool,
   domainSize,
   bitsize,
+  bestBitsize,
   domain,
 
   -- * Types and Monad
@@ -138,6 +139,13 @@ bitsize (Fin _) = Nothing
 bitsize (Bitvec n) = Just n
 bitsize (Arr n t) = (n *) <$> bitsize t
 bitsize (Tup ts) = sum <$> mapM bitsize ts
+
+-- | number of bits required to represent the max value.
+bestBitsize :: (Integral size) => VarType size -> size
+bestBitsize (Fin n) = ceiling $ logBase (2 :: Double) (fromIntegral n)
+bestBitsize (Bitvec n) = n
+bestBitsize (Arr n t) = n * bestBitsize t
+bestBitsize (Tup ts) = sum $ map bestBitsize ts
 
 -- ================================================================================
 -- Evaluating Basic Expressions
