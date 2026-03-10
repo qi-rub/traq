@@ -139,7 +139,7 @@ py_register name ty =
       shapeArg = case shape of
         [] -> []
         _ -> [PP.pretty "shape=" <> PP.tupled shape]
-   in PP.pretty "qlt.Register" <> PP.tupled ([PP.pretty (show name), dtype] ++ shapeArg)
+   in PP.pretty "qlt.Register" <> PP.tupled ([PP.dquotes (py_sanitizeIdent name), dtype] ++ shapeArg)
 
 py_metaParam :: (Show size) => Either (P.MetaParam size) Ident -> Py ann
 py_metaParam (Left (P.MetaName n)) = py_sanitizeIdent n
@@ -263,10 +263,21 @@ instance (Show size, Integral size) => ToQualtranPy (CQPL.UProcBody size) where
     let regs = zipWith py_register uproc_param_names proc_param_types
     let sig_body = PP.pretty "return qlt.Signature" <> PP.parens (PP.list regs)
 
-    -- stmt_body <- withEnv () $ mkPy uproc_body_stmt
-    let stmt_body = py_raise_s "TODO: implement"
+    stmt_body <- withEnv () $ mkPy uproc_body_stmt
     let bcb_params = PP.pretty "self" : PP.pretty "bb: qlt.BloqBuilder" : map py_sanitizeIdent uproc_param_names
-    let bcb_body = PP.vsep [stmt_body, PP.pretty "return" <+> PP.braces (PP.hsep $ PP.punctuate PP.comma [PP.pretty (show n) <> PP.colon <+> py_sanitizeIdent n | n <- uproc_param_names])]
+    let bcb_body =
+          PP.vsep
+            [ stmt_body
+            , PP.pretty "return"
+                <+> PP.braces
+                  ( PP.hsep $
+                      PP.punctuate
+                        PP.comma
+                        [ PP.dquotes (py_sanitizeIdent n) <> PP.colon <+> py_sanitizeIdent n
+                        | n <- uproc_param_names
+                        ]
+                  )
+            ]
 
     let class_body =
           PP.vsep $
@@ -282,19 +293,24 @@ instance (Show size, Integral size) => ToQualtranPy (CQPL.UProcBody size) where
         , py_class proc_name "qlt.Bloq" class_body
         ]
 
-instance ToQualtranPy (CQPL.UStmt size) where
+instance (Show size) => ToQualtranPy (CQPL.UStmt size) where
   type Ctx (CQPL.UStmt size) = ()
 
   mkPy CQPL.USkipS = pure mempty
   mkPy (CQPL.UCommentS s) = pure $ py_comment s
-  mkPy CQPL.UnitaryS{qargs, unitary} = error "TODO UnitaryS"
-  mkPy CQPL.UCallS{uproc_id, dagger, qargs} = error "TODO UCallS"
+  mkPy CQPL.UnitaryS{qargs, unitary} = pure $ py_raise_s "TODO UnitaryS"
+  mkPy CQPL.UCallS{uproc_id, dagger, qargs} = do
+    let bloq = py_sanitizeIdent uproc_id <> PP.pretty "()"
+    let bloqExpr = if dagger then bloq <> PP.pretty ".adjoint()" else bloq
+    let argVals = PP.list [py_arg q | q <- qargs]
+    let lhs = PP.hsep $ PP.punctuate PP.comma [py_arg q | q <- qargs]
+    pure $ lhs <+> PP.equals <+> PP.pretty "add_bloq" <> PP.tupled [PP.pretty "bb", bloqExpr, argVals]
   -- compound statements
   mkPy (CQPL.USeqS ss) = PP.vsep <$> mapM mkPy ss
-  mkPy CQPL.URepeatS{n_iter, uloop_body} = error "TODO URepeatS"
-  mkPy CQPL.UForInRangeS{iter_meta_var, iter_lim, dagger, uloop_body} = error "TODO UForInRangeS"
-  mkPy CQPL.UForInDomainS{iter_meta_var, iter_ty, dagger, uloop_body} = error "TODO UForInDomainS"
-  mkPy CQPL.UWithComputedS{with_ustmt, body_ustmt} = error "TODO UWithComputedS"
+  mkPy CQPL.URepeatS{n_iter, uloop_body} = pure $ py_raise_s "TODO URepeatS"
+  mkPy CQPL.UForInRangeS{iter_meta_var, iter_lim, dagger, uloop_body} = pure $ py_raise_s "TODO UForInRangeS"
+  mkPy CQPL.UForInDomainS{iter_meta_var, iter_ty, dagger, uloop_body} = pure $ py_raise_s "TODO UForInDomainS"
+  mkPy CQPL.UWithComputedS{with_ustmt, body_ustmt} = pure $ py_raise_s "TODO UWithComputedS"
 
 instance ToQualtranPy (CQPL.Unitary size) where
   type Ctx (CQPL.Unitary size) = ()
