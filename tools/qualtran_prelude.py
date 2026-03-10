@@ -4,6 +4,7 @@ import numpy as np
 
 import qualtran as qlt
 import qualtran.bloqs.basic_gates as qlt_gates
+import qualtran.bloqs.arithmetic as qlt_arith
 from qualtran.bloqs.qft.qft_text_book import QFTTextBook
 
 
@@ -48,15 +49,13 @@ class MultiCopy(qlt.Bloq):
         return qlt.Signature(list(self.regs))
 
     def build_composite_bloq(self, bb, **soqs):
-        from qualtran.bloqs.arithmetic.bitwise import Xor
-
         n = len(self.regs)
         half = n // 2
         names = [r.name for r in self.regs]
         for i in range(half):
             a, b = names[i], names[half + i]
             soqs[a], soqs[b] = bb.add(
-                Xor(self.regs[i].dtype), x=soqs[a], y=soqs[b]
+                qlt_arith.Xor(self.regs[i].dtype), x=soqs[a], y=soqs[b]
             )
         return soqs
 

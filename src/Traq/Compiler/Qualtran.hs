@@ -347,7 +347,6 @@ instance (Show size, Integral size) => ToQualtranPy (CQPL.Unitary size) where
   type Ctx (CQPL.Unitary size) = [P.VarType size]
 
   mkPy (CQPL.BasicGateU g) = mkPy g
-  mkPy (CQPL.RevEmbedU xs e) = pure $ PP.pretty "TODO_RevEmbedU"
   mkPy (CQPL.DistrU (P.UniformE ty)) = do
     let bs = P.bestBitsize ty
     pure $ PP.pretty "QFTTextBook" <> PP.tupled [PP.pretty (show bs)]
@@ -360,6 +359,29 @@ instance (Show size, Integral size) => ToQualtranPy (CQPL.Unitary size) where
   mkPy (CQPL.Adjoint u) = do
     bloq <- mkPy u
     pure $ bloq <> PP.pretty ".adjoint()"
+
+  -- embed classical gates as unitaries
+  mkPy (CQPL.RevEmbedU xs e) = do
+    tys <- view id
+    let ctx = Ctx.fromList $ zip xs tys
+    withEnv ctx $ exprToBloq e
+
+exprToBloq :: (Show size, Integral size) => P.BasicExpr size -> Reader (P.TypingCtx size) (Py ann)
+exprToBloq P.VarE{var} = do
+  ty <- Ctx.unsafeLookupE var
+  pure $ PP.pretty "qlt_arith.Xor" <> PP.tupled [toQltDType ty]
+exprToBloq P.UnOpE{un_op = P.NotOp, operand = P.VarE{}} = do
+  pure $ PP.pretty "qlt_gates.XGate().controlled(qlt.CtrlSpec(cvs=0))"
+exprToBloq P.BinOpE{bin_op = P.LEqOp, lhs = P.VarE{var}, rhs = P.ParamE{param}} = do
+  ty <- Ctx.unsafeLookupE var
+  let v = py_sanitizeIdent param
+  pure $
+    PP.pretty "qlt_arith.LessThanConstant"
+      <> PP.tupled
+        [ PP.pretty $ show $ P.bestBitsize ty
+        , PP.parens (v <> PP.pretty " - 1")
+        ]
+exprToBloq e = error $ "TODO Unitary embedding: " <> show e
 
 instance (Show size, Integral size) => ToQualtranPy (CQPL.BasicGate size) where
   type Ctx (CQPL.BasicGate size) = [P.VarType size]
