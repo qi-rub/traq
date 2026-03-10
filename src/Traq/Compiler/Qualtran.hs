@@ -96,12 +96,50 @@ py_def name params body =
     , py_indent body
     ]
 
-py_class :: Ident -> Py ann -> Py ann
-py_class = undefined
+py_class :: Ident -> Ident -> Py ann -> Py ann
+py_class name parent body =
+  PP.vsep
+    [ PP.pretty "class" <+> PP.pretty name <> PP.parens (PP.pretty parent) <> PP.colon
+    , py_indent body
+    ]
 
-py_funCall :: CQPL.FunctionCall -> Py ann
-py_funCall (CQPL.FunctionCall name) = PP.pretty name
-py_funCall (CQPL.UProcAndMeas name) = PP.pretty name
+py_decorator :: String -> Py ann
+py_decorator s = PP.pretty $ "@" <> s
+
+py_property :: Ident -> Py ann -> Py ann
+py_property name body =
+  PP.vsep
+    [ py_decorator "property"
+    , py_def name [PP.pretty "self"] body
+    ]
+
+bitsize :: (Integral a) => a -> a
+bitsize n
+  | n <= 1 = 1
+  | otherwise = ceiling $ logBase (2 :: Double) (fromIntegral n)
+
+-- | Map a VarType to a Qualtran QDType expression
+toQltDType :: (Show size, Integral size) => P.VarType size -> Py ann
+toQltDType (P.Fin n) =
+  PP.pretty "qlt.BQUInt" <> PP.tupled [PP.pretty (show $ bitsize n), PP.pretty (show n)]
+toQltDType (P.Bitvec n) = PP.pretty "qlt.QAny" <> PP.parens (PP.pretty (show n))
+toQltDType (P.Tup _) = error "TODO toQltDType Tup"
+toQltDType (P.Arr _ t) = toQltDType t -- base dtype; shape handled in py_register
+
+-- | Build shape tuple for a VarType (only Arr adds dimensions)
+toQltShape :: (Show size) => P.VarType size -> [Py ann]
+toQltShape (P.Arr n t) = PP.pretty (show n) : toQltShape t
+toQltShape _ = []
+
+-- | Build a qlt.Register(...) expression
+py_register :: (Show size, Integral size) => Ident -> P.VarType size -> Py ann
+py_register name ty =
+  let dtype = toQltDType ty
+      shape = toQltShape ty
+      shapeArg = case shape of
+        [] -> []
+        _ -> [PP.pretty "shape=" <> PP.tupled shape]
+   in PP.pretty "qlt.Register" <> PP.tupled ([PP.pretty (show name), dtype] ++ shapeArg)
 
 py_metaParam :: (Show size) => Either (P.MetaParam size) Ident -> Py ann
 py_metaParam (Left (P.MetaName n)) = py_sanitizeIdent n
@@ -162,13 +200,13 @@ py_naryOp P.MultiOrOp = PP.pretty "any"
 -- Basic Instances
 -- ============================================================
 
-instance (Show size) => ToQualtranPy (CQPL.Program size) where
+instance (Show size, Integral size) => ToQualtranPy (CQPL.Program size) where
   type Ctx (CQPL.Program size) = ()
 
   mkPy (CQPL.Program ps) =
     PP.vsep . intersperse PP.line <$> mapM mkPy ps
 
-instance (Show size) => ToQualtranPy (CQPL.ProcDef size) where
+instance (Show size, Integral size) => ToQualtranPy (CQPL.ProcDef size) where
   type Ctx (CQPL.ProcDef size) = ()
 
   mkPy CQPL.ProcDef{info_comment, proc_name, proc_meta_params, proc_param_types, proc_body} =
@@ -187,7 +225,7 @@ data ProcBuildCtx size = ProcBuildCtx
   }
   deriving (Read, Show, Eq)
 
-instance (Show size) => ToQualtranPy (CQPL.ProcBody size) where
+instance (Show size, Integral size) => ToQualtranPy (CQPL.ProcBody size) where
   type Ctx (CQPL.ProcBody size) = ProcBuildCtx size
 
   mkPy (CQPL.ProcBodyU ubody) = mkPy ubody
@@ -197,22 +235,62 @@ instance (Show size) => ToQualtranPy (CQPL.ProcBody size) where
 -- Unitary: Emit Qualtran Bloqs
 -- ============================================================
 
-instance ToQualtranPy (CQPL.UProcBody size) where
+instance (Show size, Integral size) => ToQualtranPy (CQPL.UProcBody size) where
   type Ctx (CQPL.UProcBody size) = ProcBuildCtx size
 
+  mkPy CQPL.UProcDecl = do
+    ProcBuildCtx{..} <- view id
+    let meta_attrs = map (\p -> py_sanitizeIdent p <> PP.pretty ": int") proc_meta_params
+    let regs = zipWith py_register uproc_param_names proc_param_types
+         where
+          uproc_param_names = ["q_" <> show i | i <- [1 .. length proc_param_types]]
+    let sig_body = PP.pretty "return qlt.Signature" <> PP.parens (PP.list regs)
+    let class_body =
+          PP.vsep $
+            intersperse
+              PP.line
+              [ PP.vsep meta_attrs
+              , py_property "signature" sig_body
+              ]
+    pure $
+      PP.vsep
+        [ py_decorator "attrs.frozen"
+        , py_class proc_name "qlt.Bloq" class_body
+        ]
   mkPy CQPL.UProcBody{uproc_param_names, uproc_param_tags, uproc_body_stmt} = do
-    pure $ py_raise_s "TODO UProcBody"
-  mkPy CQPL.UProcDecl =
-    pure $ py_raise_s "TODO UProcDecl"
+    ProcBuildCtx{..} <- view id
+    let meta_attrs = map (\p -> py_sanitizeIdent p <> PP.pretty ": int") proc_meta_params
+    let regs = zipWith py_register uproc_param_names proc_param_types
+    let sig_body = PP.pretty "return qlt.Signature" <> PP.parens (PP.list regs)
+
+    -- stmt_body <- withEnv () $ mkPy uproc_body_stmt
+    let stmt_body = py_raise_s "TODO: implement"
+    let bcb_params = PP.pretty "self" : PP.pretty "bb: qlt.BloqBuilder" : map py_sanitizeIdent uproc_param_names
+    let bcb_body = PP.vsep [stmt_body, PP.pretty "return" <+> PP.braces (PP.hsep $ PP.punctuate PP.comma [PP.pretty (show n) <> PP.colon <+> py_sanitizeIdent n | n <- uproc_param_names])]
+
+    let class_body =
+          PP.vsep $
+            intersperse
+              PP.line
+              [ PP.vsep meta_attrs
+              , py_property "signature" sig_body
+              , py_def "build_composite_bloq" bcb_params bcb_body
+              ]
+    pure $
+      PP.vsep
+        [ py_decorator "attrs.frozen"
+        , py_class proc_name "qlt.Bloq" class_body
+        ]
 
 instance ToQualtranPy (CQPL.UStmt size) where
   type Ctx (CQPL.UStmt size) = ()
 
-  mkPy CQPL.USkipS = error "TODO USkipS"
+  mkPy CQPL.USkipS = pure mempty
+  mkPy (CQPL.UCommentS s) = pure $ py_comment s
   mkPy CQPL.UnitaryS{qargs, unitary} = error "TODO UnitaryS"
   mkPy CQPL.UCallS{uproc_id, dagger, qargs} = error "TODO UCallS"
-  mkPy (CQPL.USeqS ss) = error "TODO USeqS"
-  mkPy (CQPL.UCommentS s) = error "TODO UCommentS"
+  -- compound statements
+  mkPy (CQPL.USeqS ss) = PP.vsep <$> mapM mkPy ss
   mkPy CQPL.URepeatS{n_iter, uloop_body} = error "TODO URepeatS"
   mkPy CQPL.UForInRangeS{iter_meta_var, iter_lim, dagger, uloop_body} = error "TODO UForInRangeS"
   mkPy CQPL.UForInDomainS{iter_meta_var, iter_ty, dagger, uloop_body} = error "TODO UForInDomainS"
