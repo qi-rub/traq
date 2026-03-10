@@ -61,7 +61,7 @@ spec = do
     it "parses function" $ do
       parseFunDef @SymCore
         ( unlines
-            [ "def check_entry(i: Fin<N>, j: Fin<M>) -> Bool do"
+            [ "fn check_entry(i: Fin<N>, j: Fin<M>) -> Bool do"
             , "  e <- Oracle(i, j);"
             , "  e' <- !e;"
             , "  return e'"

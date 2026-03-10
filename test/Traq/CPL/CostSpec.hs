@@ -30,8 +30,8 @@ spec = do
     it "call oracle" $ do
       let prog =
             unsafeParseProgram . unlines $
-              [ "declare Oracle(Fin<100>) -> Bool end"
-              , "def main() -> Bool do"
+              [ "ext fn Oracle(Fin<100>) -> Bool end"
+              , "fn main() -> Bool do"
               , "i <- const 10 : Fin<100>;"
               , "res <- Oracle(i);"
               , "return res"
@@ -44,12 +44,12 @@ spec = do
     it "fun call of oracle" $ do
       let prog =
             unsafeParseProgram . unlines $
-              [ "declare Oracle(Fin<100>) -> Bool end"
-              , "def f(i : Fin<100>) -> Bool do"
+              [ "ext fn Oracle(Fin<100>) -> Bool end"
+              , "fn f(i : Fin<100>) -> Bool do"
               , "  b <- Oracle(i);"
               , "  return b"
               , "end"
-              , "def main() -> Bool do"
+              , "fn main() -> Bool do"
               , "  i <- const 10 : Fin<100>;"
               , "  res <- f(i);"
               , "  return res"
@@ -62,12 +62,12 @@ spec = do
     it "search with no oracle" $ do
       let prog =
             unsafeParseProgram . unlines $
-              [ "declare Oracle(Fin<100>) -> Bool end"
-              , "def f(i : Fin<100>) -> Bool do"
+              [ "ext fn Oracle(Fin<100>) -> Bool end"
+              , "fn f(i : Fin<100>) -> Bool do"
               , "  b <- const 0 : Fin<2>;"
               , "  return b"
               , "end"
-              , "def main() -> Bool do"
+              , "fn main() -> Bool do"
               , "  res <- @any<Fin<100>>[f(_)];"
               , "  return res"
               , "end"
@@ -79,8 +79,8 @@ spec = do
     it "search with 1x oracle" $ do
       let prog =
             unsafeParseProgram . unlines $
-              [ "declare Oracle(Fin<100>) -> Bool end"
-              , "def main() -> Bool do"
+              [ "ext fn Oracle(Fin<100>) -> Bool end"
+              , "fn main() -> Bool do"
               , "  res <- @any<Fin<100>>[Oracle(_)];"
               , "  return res"
               , "end"
@@ -93,8 +93,8 @@ spec = do
     it "probabilistic outcome" $ do
       let prog =
             unsafeParseProgram . unlines $
-              [ "declare Oracle(Fin<100>) -> Bool end"
-              , "def main() -> Bool do"
+              [ "ext fn Oracle(Fin<100>) -> Bool end"
+              , "fn main() -> Bool do"
               , "  res1 <-$ uniform : Fin<2>;"
               , "  return res"
               , "end"

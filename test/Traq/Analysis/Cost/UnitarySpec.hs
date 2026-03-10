@@ -33,8 +33,8 @@ spec = describe "unitary cost of statements" $ do
     prog <-
       expectRight $
         unsafeParseProgram . unlines $
-          [ "declare Oracle(Fin<100>) -> Bool end"
-          , "def main() -> Bool do"
+          [ "ext fn Oracle(Fin<100>) -> Bool end"
+          , "fn main() -> Bool do"
           , "i <- const 10 : Fin<100>;"
           , "res <- Oracle(i);"
           , "return res"
@@ -48,12 +48,12 @@ spec = describe "unitary cost of statements" $ do
     prog <-
       expectRight $
         unsafeParseProgram . unlines $
-          [ "declare Oracle(Fin<100>) -> Bool end"
-          , "def f(i : Fin<100>) -> Bool do"
+          [ "ext fn Oracle(Fin<100>) -> Bool end"
+          , "fn f(i : Fin<100>) -> Bool do"
           , "  b <- Oracle(i);"
           , "  return b"
           , "end"
-          , "def main() -> Bool do"
+          , "fn main() -> Bool do"
           , "  i <- const 10 : Fin<100>;"
           , "  res <- f(i);"
           , "  return res"
@@ -67,12 +67,12 @@ spec = describe "unitary cost of statements" $ do
     prog <-
       expectRight $
         unsafeParseProgram . unlines $
-          [ "declare Oracle(Fin<100>) -> Bool end"
-          , "def f(i : Fin<100>) -> Bool do"
+          [ "ext fn Oracle(Fin<100>) -> Bool end"
+          , "fn f(i : Fin<100>) -> Bool do"
           , "  b <- const 0 : Fin<2>;"
           , "  return b"
           , "end"
-          , "def main() -> Bool do"
+          , "fn main() -> Bool do"
           , "  res <- @any<Fin<100>>[f(_)];"
           , "  return res"
           , "end"
@@ -85,8 +85,8 @@ spec = describe "unitary cost of statements" $ do
     prog <-
       expectRight $
         unsafeParseProgram . unlines $
-          [ "declare Oracle(Fin<100>) -> Bool end"
-          , "def main() -> Bool do"
+          [ "ext fn Oracle(Fin<100>) -> Bool end"
+          , "fn main() -> Bool do"
           , "  res <- @any<Fin<100>>[Oracle(_)];"
           , "  return res"
           , "end"

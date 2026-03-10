@@ -77,8 +77,8 @@ spec = do
       prog <-
         expectRight $
           unsafeParseProgram . unlines $
-            [ "declare Oracle(Fin<100>) -> Bool end"
-            , "def main() -> Bool do"
+            [ "ext fn Oracle(Fin<100>) -> Bool end"
+            , "fn main() -> Bool do"
             , "  res1 <-$ uniform : Fin<2>;"
             , "  return res"
             , "end"

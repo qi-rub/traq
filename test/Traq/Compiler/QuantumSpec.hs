@@ -25,7 +25,7 @@ spec :: Spec
 spec = do
   describe "lower simple programs" $ do
     it "assign" $ do
-      ex_ <- expectRight $ CPL.parseProgram @SymCore "def main() -> () do x <- const 0 : Fin<10>; return end"
+      ex_ <- expectRight $ CPL.parseProgram @SymCore "fn main() -> () do x <- const 0 : Fin<10>; return end"
       let ex = CPL.mapSize Sym.unSym ex_
       (cq :: Program SizeT) <- expectRight $ lowerProgram ex
       let Program cq_procs = cq
