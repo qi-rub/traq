@@ -12,6 +12,9 @@ module Traq.CQPL.TypeCheck (
   typeCheckStmt,
   typeCheckProc,
   typeCheckProgram,
+
+  -- * Helpers
+  getArgTy,
 ) where
 
 import Control.Monad (forM, unless, when)
@@ -128,7 +131,7 @@ type TypeChecker size = ReaderT (CheckingCtx size) (Either Err.MyError)
 -- Type Checking
 -- ================================================================================
 
-typeCheckBasicGate :: forall size. (P.TypingReqs size) => BasicGate -> [P.VarType size] -> TypeChecker size ()
+typeCheckBasicGate :: forall size. (P.TypingReqs size) => BasicGate size -> [P.VarType size] -> TypeChecker size ()
 typeCheckBasicGate Toffoli tys = verifyArgTys tys [P.tbool, P.tbool, P.tbool]
 typeCheckBasicGate CNOT tys = verifyArgTys tys [P.tbool, P.tbool]
 typeCheckBasicGate XGate tys = verifyArgTys tys [P.tbool]

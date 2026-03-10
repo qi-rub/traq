@@ -8,6 +8,7 @@ module Traq.Compiler.Qualtran (
   toPy,
 ) where
 
+import Control.Monad.Except (runExceptT)
 import Control.Monad.Reader (Reader, ReaderT (..), runReader)
 import Data.List (intersperse)
 import Prettyprinter ((<+>))
@@ -16,6 +17,8 @@ import Text.Printf (printf)
 
 import Lens.Micro.GHC
 import Lens.Micro.Mtl
+
+import qualified Traq.Data.Context as Ctx
 
 import qualified Traq.CQPL as CQPL
 import Traq.Prelude
@@ -263,7 +266,8 @@ instance (Show size, Integral size) => ToQualtranPy (CQPL.UProcBody size) where
     let regs = zipWith py_register uproc_param_names proc_param_types
     let sig_body = PP.pretty "return qlt.Signature" <> PP.parens (PP.list regs)
 
-    stmt_body <- withEnv () $ mkPy uproc_body_stmt
+    let typCtx = Ctx.fromList (zip uproc_param_names proc_param_types)
+    stmt_body <- withEnv typCtx $ mkPy uproc_body_stmt
     let bcb_params = PP.pretty "self" : PP.pretty "bb: qlt.BloqBuilder" : map py_sanitizeIdent uproc_param_names
     let bcb_body =
           PP.vsep
@@ -294,12 +298,14 @@ instance (Show size, Integral size) => ToQualtranPy (CQPL.UProcBody size) where
         ]
 
 instance (Show size, Integral size) => ToQualtranPy (CQPL.UStmt size) where
-  type Ctx (CQPL.UStmt size) = ()
+  type Ctx (CQPL.UStmt size) = P.TypingCtx size
 
   mkPy CQPL.USkipS = pure mempty
   mkPy (CQPL.UCommentS s) = pure $ py_comment s
   mkPy CQPL.UnitaryS{qargs, unitary} = do
-    bloqExpr <- withEnv () $ mkPy unitary
+    tys <- fmap (either (error . show) id) . runExceptT $ do
+      mapM CQPL.getArgTy qargs
+    bloqExpr <- withEnv tys $ mkPy unitary
     let argVals = PP.list [py_arg q | q <- qargs]
     let lhs = PP.hsep $ PP.punctuate PP.comma [py_arg q | q <- qargs]
     pure $ lhs <+> PP.equals <+> PP.pretty "add_bloq" <> PP.tupled [PP.pretty "bb", bloqExpr, argVals]
@@ -338,9 +344,9 @@ instance (Show size, Integral size) => ToQualtranPy (CQPL.UStmt size) where
     mkPy (CQPL.adjoint with_ustmt)
 
 instance (Show size, Integral size) => ToQualtranPy (CQPL.Unitary size) where
-  type Ctx (CQPL.Unitary size) = ()
+  type Ctx (CQPL.Unitary size) = [P.VarType size]
 
-  mkPy (CQPL.BasicGateU g) = withEnv () $ mkPy g
+  mkPy (CQPL.BasicGateU g) = mkPy g
   mkPy (CQPL.RevEmbedU xs e) = pure $ PP.pretty "TODO_RevEmbedU"
   mkPy (CQPL.DistrU (P.UniformE ty)) = do
     let bs = P.bestBitsize ty
@@ -355,17 +361,19 @@ instance (Show size, Integral size) => ToQualtranPy (CQPL.Unitary size) where
     bloq <- mkPy u
     pure $ bloq <> PP.pretty ".adjoint()"
 
-instance ToQualtranPy CQPL.BasicGate where
-  type Ctx CQPL.BasicGate = ()
+instance ToQualtranPy (CQPL.BasicGate size) where
+  type Ctx (CQPL.BasicGate size) = [P.VarType size]
 
+  -- simple gates
   mkPy CQPL.Toffoli = pure $ PP.pretty "qlt_gates.Toffoli()"
   mkPy CQPL.CNOT = pure $ PP.pretty "qlt_gates.CNOT()"
   mkPy CQPL.XGate = pure $ PP.pretty "qlt_gates.XGate()"
   mkPy CQPL.HGate = pure $ PP.pretty "qlt_gates.Hadamard()"
   mkPy CQPL.ZGate = pure $ PP.pretty "qlt_gates.ZGate()"
+  mkPy (CQPL.Rz theta) = pure $ PP.pretty @String $ printf "qlt_gates.Rz(%f)" theta
+  -- generic gates
   mkPy CQPL.COPY = pure $ PP.dquotes $ PP.pretty "copy"
   mkPy CQPL.SWAP = pure $ PP.dquotes $ PP.pretty "swap"
-  mkPy (CQPL.Rz theta) = pure $ PP.pretty "TODO_Rz"
   mkPy (CQPL.PhaseOnZero theta) = pure $ PP.pretty "TODO_PhaseOnZero"
 
 -- ============================================================

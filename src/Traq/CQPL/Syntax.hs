@@ -80,7 +80,7 @@ class HasAdjoint a where
 -- Unitary Operators
 -- --------------------------------------------------------------------------------
 
-data BasicGate
+data BasicGate size
   = Toffoli
   | CNOT
   | XGate
@@ -92,7 +92,7 @@ data BasicGate
   | PhaseOnZero Double
   deriving (Eq, Show, Read)
 
-instance PP.ToCodeString BasicGate where
+instance PP.ToCodeString (BasicGate size) where
   build XGate = PP.putWord "X"
   build HGate = PP.putWord "H"
   build ZGate = PP.putWord "Z"
@@ -100,14 +100,14 @@ instance PP.ToCodeString BasicGate where
   build (PhaseOnZero theta) = PP.putWord $ printf "PhaseOnZero(%f)" theta
   build g = PP.putWord $ show g
 
-instance HasAdjoint BasicGate where
+instance HasAdjoint (BasicGate size) where
   adjoint (Rz theta) = Rz (-theta)
   adjoint (PhaseOnZero theta) = PhaseOnZero (-theta)
   adjoint g = g
 
 -- | Unitary operators in CQPL
 data Unitary size
-  = BasicGateU BasicGate
+  = BasicGateU (BasicGate size)
   | RevEmbedU [Ident] (P.BasicExpr size)
   | DistrU (P.DistrExpr size)
   | Controlled (Unitary size)
