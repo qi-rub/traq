@@ -12,6 +12,62 @@ def add_bloq(bb: qlt.BloqBuilder, bloq: qlt.Bloq, regs: list[qlt.SoquetT]):
     return bb.add(bloq, **dict(zip(reg_names, regs)))
 
 
+@attrs.frozen
+class MultiSwap(qlt.Bloq):
+    regs: tuple[qlt.Register, ...] = attrs.field(converter=tuple)
+
+    def __attrs_post_init__(self):
+        assert len(self.regs) % 2 == 0, "MultiSwap requires an even number of registers"
+
+    @property
+    def signature(self):
+        return qlt.Signature(list(self.regs))
+
+    def build_composite_bloq(self, bb, **soqs):
+        n = len(self.regs)
+        half = n // 2
+        names = [r.name for r in self.regs]
+        for i in range(half):
+            a, b = names[i], names[half + i]
+            soqs[a], soqs[b] = bb.add(
+                qlt_gates.Swap(self.regs[i].bitsize), x=soqs[a], y=soqs[b]
+            )
+        return soqs
+
+
+@attrs.frozen
+class MultiCopy(qlt.Bloq):
+    regs: tuple[qlt.Register, ...] = attrs.field(converter=tuple)
+
+    def __attrs_post_init__(self):
+        assert len(self.regs) % 2 == 0, "MultiCopy requires an even number of registers"
+
+    @property
+    def signature(self):
+        return qlt.Signature(list(self.regs))
+
+    def build_composite_bloq(self, bb, **soqs):
+        from qualtran.bloqs.arithmetic.bitwise import Xor
+
+        n = len(self.regs)
+        half = n // 2
+        names = [r.name for r in self.regs]
+        for i in range(half):
+            a, b = names[i], names[half + i]
+            soqs[a], soqs[b] = bb.add(Xor(self.regs[i].dtype), x=soqs[a], y=soqs[b])
+        return soqs
+
+
+@attrs.frozen
+class PhaseOnZero(qlt.Bloq):
+    phase: complex
+    regs: tuple[qlt.Register, ...] = attrs.field(converter=tuple)
+
+    @property
+    def signature(self):
+        return qlt.Signature(list(self.regs))
+
+
 def bloq_call_and_meas(bloq: qlt.Bloq, *args):
     # convert bloq to cirq circuit
     # initialize input registers in basis state of args
@@ -56,9 +112,27 @@ class IsEntryZero_U(qlt.Bloq):
 
     def build_composite_bloq(self, bb: qlt.BloqBuilder, i0, j0, e_, e, e_1, e__1):
         i0, j0, e_1 = add_bloq(bb, Matrix_U(), [i0, j0, e_1])
-        e, e_1 = add_bloq(bb, "swap", [e, e_1])
+        e, e_1 = add_bloq(
+            bb,
+            MultiSwap(
+                [
+                    qlt.Register("q_1", qlt.BQUInt(1, 2)),
+                    qlt.Register("q_2", qlt.BQUInt(1, 2)),
+                ]
+            ),
+            [e, e_1],
+        )
         e, e__1 = add_bloq(bb, TODO_RevEmbedU, [e, e__1])
-        e_, e__1 = add_bloq(bb, "swap", [e_, e__1])
+        e_, e__1 = add_bloq(
+            bb,
+            MultiSwap(
+                [
+                    qlt.Register("q_1", qlt.BQUInt(1, 2)),
+                    qlt.Register("q_2", qlt.BQUInt(1, 2)),
+                ]
+            ),
+            [e_, e__1],
+        )
         return {"i0": i0, "j0": j0, "e_": e_, "e": e, "e_1": e_1, "e__1": e__1}
 
 
@@ -126,7 +200,13 @@ class UAny(qlt.Bloq):
                     [i, s_arg[run_ix], aux_3, aux, aux_1, aux_2],
                 )
                 s_arg[run_ix] = add_bloq(bb, QFTTextBook(4).adjoint(), [s_arg[run_ix]])
-                s_arg[run_ix] = add_bloq(bb, TODO_PhaseOnZero, [s_arg[run_ix]])
+                s_arg[run_ix] = add_bloq(
+                    bb,
+                    PhaseOnZero(
+                        3.141592653589793, [qlt.Register("q_1", qlt.BQUInt(4, 10))]
+                    ),
+                    [s_arg[run_ix]],
+                )
                 s_arg[run_ix] = add_bloq(bb, QFTTextBook(4), [s_arg[run_ix]])
                 n_iter[run_ix], ctrl[run_ix] = add_bloq(
                     bb, TODO_RevEmbedU, [n_iter[run_ix], ctrl[run_ix]]
@@ -255,9 +335,27 @@ class IsRowAllOnes_U(qlt.Bloq):
                 aux_prim_8,
             ],
         )
-        hasZero, hasZero_1 = add_bloq(bb, "swap", [hasZero, hasZero_1])
+        hasZero, hasZero_1 = add_bloq(
+            bb,
+            MultiSwap(
+                [
+                    qlt.Register("q_1", qlt.BQUInt(1, 2)),
+                    qlt.Register("q_2", qlt.BQUInt(1, 2)),
+                ]
+            ),
+            [hasZero, hasZero_1],
+        )
         hasZero, okr_1 = add_bloq(bb, TODO_RevEmbedU, [hasZero, okr_1])
-        okr, okr_1 = add_bloq(bb, "swap", [okr, okr_1])
+        okr, okr_1 = add_bloq(
+            bb,
+            MultiSwap(
+                [
+                    qlt.Register("q_1", qlt.BQUInt(1, 2)),
+                    qlt.Register("q_2", qlt.BQUInt(1, 2)),
+                ]
+            ),
+            [okr, okr_1],
+        )
         return {
             "i": i,
             "okr": okr,
@@ -314,7 +412,13 @@ class Grover(qlt.Bloq):
                 bb, IsEntryZero_U(), [i, x, ret_1, aux_4, aux_5, aux_6]
             )
             x = add_bloq(bb, QFTTextBook(4).adjoint(), [x])
-            x = add_bloq(bb, TODO_PhaseOnZero, [x])
+            x = add_bloq(
+                bb,
+                PhaseOnZero(
+                    3.141592653589793, [qlt.Register("q_1", qlt.BQUInt(4, 10))]
+                ),
+                [x],
+            )
             x = add_bloq(bb, QFTTextBook(4), [x])
         ret_1 = add_bloq(bb, qlt_gates.Hadamard(), [ret_1])
         ret_1 = add_bloq(bb, qlt_gates.XGate(), [ret_1])
@@ -550,7 +654,13 @@ class UAny_1(qlt.Bloq):
                 s_arg_1[run_ix] = add_bloq(
                     bb, QFTTextBook(5).adjoint(), [s_arg_1[run_ix]]
                 )
-                s_arg_1[run_ix] = add_bloq(bb, TODO_PhaseOnZero, [s_arg_1[run_ix]])
+                s_arg_1[run_ix] = add_bloq(
+                    bb,
+                    PhaseOnZero(
+                        3.141592653589793, [qlt.Register("q_1", qlt.BQUInt(5, 20))]
+                    ),
+                    [s_arg_1[run_ix]],
+                )
                 s_arg_1[run_ix] = add_bloq(bb, QFTTextBook(5), [s_arg_1[run_ix]])
                 n_iter_1[run_ix], ctrl_1[run_ix] = add_bloq(
                     bb, TODO_RevEmbedU, [n_iter_1[run_ix], ctrl_1[run_ix]]
@@ -898,7 +1008,16 @@ class HasAllOnesRow_U(qlt.Bloq):
                 aux_prim_35,
             ],
         )
-        ok, ok_1 = add_bloq(bb, "swap", [ok, ok_1])
+        ok, ok_1 = add_bloq(
+            bb,
+            MultiSwap(
+                [
+                    qlt.Register("q_1", qlt.BQUInt(1, 2)),
+                    qlt.Register("q_2", qlt.BQUInt(1, 2)),
+                ]
+            ),
+            [ok, ok_1],
+        )
         return {
             "ok": ok,
             "ok_1": ok_1,
@@ -1079,7 +1198,13 @@ class Grover_1(qlt.Bloq):
                 ],
             )
             x_1 = add_bloq(bb, QFTTextBook(5).adjoint(), [x_1])
-            x_1 = add_bloq(bb, TODO_PhaseOnZero, [x_1])
+            x_1 = add_bloq(
+                bb,
+                PhaseOnZero(
+                    3.141592653589793, [qlt.Register("q_1", qlt.BQUInt(5, 20))]
+                ),
+                [x_1],
+            )
             x_1 = add_bloq(bb, QFTTextBook(5), [x_1])
         ret_3 = add_bloq(bb, qlt_gates.Hadamard(), [ret_3])
         ret_3 = add_bloq(bb, qlt_gates.XGate(), [ret_3])

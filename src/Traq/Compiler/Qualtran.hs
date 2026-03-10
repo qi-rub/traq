@@ -361,7 +361,7 @@ instance (Show size, Integral size) => ToQualtranPy (CQPL.Unitary size) where
     bloq <- mkPy u
     pure $ bloq <> PP.pretty ".adjoint()"
 
-instance ToQualtranPy (CQPL.BasicGate size) where
+instance (Show size, Integral size) => ToQualtranPy (CQPL.BasicGate size) where
   type Ctx (CQPL.BasicGate size) = [P.VarType size]
 
   -- simple gates
@@ -372,9 +372,23 @@ instance ToQualtranPy (CQPL.BasicGate size) where
   mkPy CQPL.ZGate = pure $ PP.pretty "qlt_gates.ZGate()"
   mkPy (CQPL.Rz theta) = pure $ PP.pretty @String $ printf "qlt_gates.Rz(%f)" theta
   -- generic gates
-  mkPy CQPL.COPY = pure $ PP.dquotes $ PP.pretty "copy"
-  mkPy CQPL.SWAP = pure $ PP.dquotes $ PP.pretty "swap"
-  mkPy (CQPL.PhaseOnZero theta) = pure $ PP.pretty "TODO_PhaseOnZero"
+  mkPy CQPL.COPY = do
+    tys <- view id
+    let n = length tys
+    let half = n `div` 2
+    let regs = zipWith py_register ["q_" <> show i | i <- [1 .. n]] tys
+    pure $ PP.pretty "MultiCopy" <> PP.parens (PP.list regs)
+  mkPy CQPL.SWAP = do
+    tys <- view id
+    let n = length tys
+    let half = n `div` 2
+    let regs = zipWith py_register ["q_" <> show i | i <- [1 .. n]] tys
+    pure $ PP.pretty "MultiSwap" <> PP.parens (PP.list regs)
+  mkPy (CQPL.PhaseOnZero theta) = do
+    tys <- view id
+    let n = length tys
+    let regs = zipWith py_register ["q_" <> show i | i <- [1 .. n]] tys
+    pure $ PP.pretty "PhaseOnZero" <> PP.tupled [PP.pretty theta, PP.list regs]
 
 -- ============================================================
 -- Classical: Emit native python
