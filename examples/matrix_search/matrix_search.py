@@ -3,7 +3,11 @@ import attrs
 import numpy as np
 import qualtran as qlt
 
-def add_bloq(bb: qlt.BloqBuilder, bloq: qlt.Bloq, regs: list[qlt.SoquetT]):
+def add_bloq(bb: qlt.BloqBuilder, bloq: qlt.Bloq | str, regs: list[qlt.SoquetT]):
+	if bloq == 'swap':
+		return reversed(regs)
+	if bloq == 'copy':
+		raise Exception('TODO')
 	reg_names = [r.name for r in bloq.signature]
 	return bb.add(bloq, **dict(zip(reg_names, regs)))
 
@@ -50,9 +54,9 @@ class IsEntryZero_U(qlt.Bloq):
     , e_1
     , e__1 ):
         i0, j0, e_1 = add_bloq(bb, Matrix_U(), [i0, j0, e_1])
-        raise Exception('TODO UnitaryS')
-        raise Exception('TODO UnitaryS')
-        raise Exception('TODO UnitaryS')
+        e, e_1 = add_bloq(bb, "swap", [e, e_1])
+        e, e__1 = add_bloq(bb, TODO_RevEmbedU, [e, e__1])
+        e_, e__1 = add_bloq(bb, "swap", [e_, e__1])
         return {"i0": i0, "j0": j0, "e_": e_, "e": e, "e_1": e_1, "e__1": e__1}
 
 
@@ -98,8 +102,10 @@ class UAny(qlt.Bloq):
     , n_iter
     , s_arg ):
         raise Exception('TODO UForInRangeS')
-        raise Exception('TODO UnitaryS')
-        raise Exception('TODO UnitaryS')
+        pred_out, ret = add_bloq(bb, TODO_RevEmbedU, [pred_out, ret])
+        s_arg, pred_out, s_result = add_bloq( bb
+        , TODO_RevEmbedU
+        , [s_arg, pred_out, s_result] )
         return {"i": i, "ret": ret, "s_result": s_result, "aux": aux, "aux_1": aux_1, "aux_2": aux_2, "aux_3": aux_3, "ctrl": ctrl, "pred_out": pred_out, "n_iter": n_iter, "s_arg": s_arg}
 
 
@@ -174,9 +180,9 @@ class IsRowAllOnes_U(qlt.Bloq):
         , aux_prim_6
         , aux_prim_7
         , aux_prim_8 ] )
-        raise Exception('TODO UnitaryS')
-        raise Exception('TODO UnitaryS')
-        raise Exception('TODO UnitaryS')
+        hasZero, hasZero_1 = add_bloq(bb, "swap", [hasZero, hasZero_1])
+        hasZero, okr_1 = add_bloq(bb, TODO_RevEmbedU, [hasZero, okr_1])
+        okr, okr_1 = add_bloq(bb, "swap", [okr, okr_1])
         return {"i": i, "okr": okr, "hasZero": hasZero, "hasZero_1": hasZero_1, "s_result": s_result, "aux": aux, "aux_1": aux_1, "aux_2": aux_2, "aux_3": aux_3, "ctrl": ctrl, "pred_out": pred_out, "n_iter": n_iter, "s_arg": s_arg, "aux_prim": aux_prim, "aux_prim_1": aux_prim_1, "aux_prim_2": aux_prim_2, "aux_prim_3": aux_prim_3, "aux_prim_4": aux_prim_4, "aux_prim_5": aux_prim_5, "aux_prim_6": aux_prim_6, "aux_prim_7": aux_prim_7, "aux_prim_8": aux_prim_8, "okr_1": okr_1}
 
 
@@ -204,12 +210,12 @@ class Grover(qlt.Bloq):
     , aux_4
     , aux_5
     , aux_6 ):
-        raise Exception('TODO UnitaryS')
-        raise Exception('TODO UnitaryS')
-        raise Exception('TODO UnitaryS')
+        ret_1 = add_bloq(bb, qlt.XGate(), [ret_1])
+        ret_1 = add_bloq(bb, qlt.Hadamard(), [ret_1])
+        x = add_bloq(bb, TODO_DistrU, [x])
         raise Exception('TODO URepeatS')
-        raise Exception('TODO UnitaryS')
-        raise Exception('TODO UnitaryS')
+        ret_1 = add_bloq(bb, qlt.Hadamard(), [ret_1])
+        ret_1 = add_bloq(bb, qlt.XGate(), [ret_1])
         return {"i": i, "x": x, "ret_1": ret_1, "aux_4": aux_4, "aux_5": aux_5, "aux_6": aux_6}
 
 
@@ -306,8 +312,10 @@ class UAny_1(qlt.Bloq):
     , n_iter_1
     , s_arg_1 ):
         raise Exception('TODO UForInRangeS')
-        raise Exception('TODO UnitaryS')
-        raise Exception('TODO UnitaryS')
+        pred_out_1, ret_2 = add_bloq(bb, TODO_RevEmbedU, [pred_out_1, ret_2])
+        s_arg_1, pred_out_1, s_result_2 = add_bloq( bb
+        , TODO_RevEmbedU
+        , [s_arg_1, pred_out_1, s_result_2] )
         return {"ret_2": ret_2, "s_result_2": s_result_2, "aux_7": aux_7, "aux_8": aux_8, "aux_9": aux_9, "aux_10": aux_10, "aux_11": aux_11, "aux_12": aux_12, "aux_13": aux_13, "aux_14": aux_14, "aux_15": aux_15, "aux_16": aux_16, "aux_17": aux_17, "aux_18": aux_18, "aux_19": aux_19, "aux_20": aux_20, "aux_21": aux_21, "aux_22": aux_22, "aux_23": aux_23, "aux_24": aux_24, "aux_25": aux_25, "aux_26": aux_26, "aux_27": aux_27, "aux_28": aux_28, "ctrl_1": ctrl_1, "pred_out_1": pred_out_1, "n_iter_1": n_iter_1, "s_arg_1": s_arg_1}
 
 
@@ -465,7 +473,7 @@ class HasAllOnesRow_U(qlt.Bloq):
         , aux_prim_33
         , aux_prim_34
         , aux_prim_35 ] )
-        raise Exception('TODO UnitaryS')
+        ok, ok_1 = add_bloq(bb, "swap", [ok, ok_1])
         return {"ok": ok, "ok_1": ok_1, "s_result_2": s_result_2, "aux_7": aux_7, "aux_8": aux_8, "aux_9": aux_9, "aux_10": aux_10, "aux_11": aux_11, "aux_12": aux_12, "aux_13": aux_13, "aux_14": aux_14, "aux_15": aux_15, "aux_16": aux_16, "aux_17": aux_17, "aux_18": aux_18, "aux_19": aux_19, "aux_20": aux_20, "aux_21": aux_21, "aux_22": aux_22, "aux_23": aux_23, "aux_24": aux_24, "aux_25": aux_25, "aux_26": aux_26, "aux_27": aux_27, "aux_28": aux_28, "ctrl_1": ctrl_1, "pred_out_1": pred_out_1, "n_iter_1": n_iter_1, "s_arg_1": s_arg_1, "aux_prim_9": aux_prim_9, "aux_prim_10": aux_prim_10, "aux_prim_11": aux_prim_11, "aux_prim_12": aux_prim_12, "aux_prim_13": aux_prim_13, "aux_prim_14": aux_prim_14, "aux_prim_15": aux_prim_15, "aux_prim_16": aux_prim_16, "aux_prim_17": aux_prim_17, "aux_prim_18": aux_prim_18, "aux_prim_19": aux_prim_19, "aux_prim_20": aux_prim_20, "aux_prim_21": aux_prim_21, "aux_prim_22": aux_prim_22, "aux_prim_23": aux_prim_23, "aux_prim_24": aux_prim_24, "aux_prim_25": aux_prim_25, "aux_prim_26": aux_prim_26, "aux_prim_27": aux_prim_27, "aux_prim_28": aux_prim_28, "aux_prim_29": aux_prim_29, "aux_prim_30": aux_prim_30, "aux_prim_31": aux_prim_31, "aux_prim_32": aux_prim_32, "aux_prim_33": aux_prim_33, "aux_prim_34": aux_prim_34, "aux_prim_35": aux_prim_35}
 
 
@@ -527,12 +535,12 @@ class Grover_1(qlt.Bloq):
     , aux_47
     , aux_48
     , aux_49 ):
-        raise Exception('TODO UnitaryS')
-        raise Exception('TODO UnitaryS')
-        raise Exception('TODO UnitaryS')
+        ret_3 = add_bloq(bb, qlt.XGate(), [ret_3])
+        ret_3 = add_bloq(bb, qlt.Hadamard(), [ret_3])
+        x_1 = add_bloq(bb, TODO_DistrU, [x_1])
         raise Exception('TODO URepeatS')
-        raise Exception('TODO UnitaryS')
-        raise Exception('TODO UnitaryS')
+        ret_3 = add_bloq(bb, qlt.Hadamard(), [ret_3])
+        ret_3 = add_bloq(bb, qlt.XGate(), [ret_3])
         return {"x_1": x_1, "ret_3": ret_3, "aux_29": aux_29, "aux_30": aux_30, "aux_31": aux_31, "aux_32": aux_32, "aux_33": aux_33, "aux_34": aux_34, "aux_35": aux_35, "aux_36": aux_36, "aux_37": aux_37, "aux_38": aux_38, "aux_39": aux_39, "aux_40": aux_40, "aux_41": aux_41, "aux_42": aux_42, "aux_43": aux_43, "aux_44": aux_44, "aux_45": aux_45, "aux_46": aux_46, "aux_47": aux_47, "aux_48": aux_48, "aux_49": aux_49}
 
 

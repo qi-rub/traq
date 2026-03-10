@@ -147,7 +147,7 @@ py_metaParam (Left (P.MetaSize s)) = PP.pretty (show s)
 py_metaParam (Right name) = py_sanitizeIdent name
 
 py_arg :: (Show size) => CQPL.Arg size -> Py ann
-py_arg (CQPL.Arg x) = PP.pretty x
+py_arg (CQPL.Arg x) = py_sanitizeIdent x
 py_arg (CQPL.ArrElemArg a i) = py_arg a <> PP.brackets (py_metaParam (Left i))
 
 -- | Emit a python expression
@@ -298,7 +298,11 @@ instance (Show size) => ToQualtranPy (CQPL.UStmt size) where
 
   mkPy CQPL.USkipS = pure mempty
   mkPy (CQPL.UCommentS s) = pure $ py_comment s
-  mkPy CQPL.UnitaryS{qargs, unitary} = pure $ py_raise_s "TODO UnitaryS"
+  mkPy CQPL.UnitaryS{qargs, unitary} = do
+    bloqExpr <- withEnv () $ mkPy unitary
+    let argVals = PP.list [py_arg q | q <- qargs]
+    let lhs = PP.hsep $ PP.punctuate PP.comma [py_arg q | q <- qargs]
+    pure $ lhs <+> PP.equals <+> PP.pretty "add_bloq" <> PP.tupled [PP.pretty "bb", bloqExpr, argVals]
   mkPy CQPL.UCallS{uproc_id, dagger, qargs} = do
     let bloq = py_sanitizeIdent uproc_id <> PP.pretty "()"
     let bloqExpr = if dagger then bloq <> PP.pretty ".adjoint()" else bloq
@@ -315,24 +319,28 @@ instance (Show size) => ToQualtranPy (CQPL.UStmt size) where
 instance ToQualtranPy (CQPL.Unitary size) where
   type Ctx (CQPL.Unitary size) = ()
 
-  mkPy (CQPL.BasicGateU g) = error "TODO BasicGateU"
-  mkPy (CQPL.RevEmbedU xs e) = error "TODO RevEmbedU"
-  mkPy (CQPL.DistrU d) = error "TODO DistrU"
-  mkPy (CQPL.Controlled u) = error "TODO Controlled"
-  mkPy (CQPL.Adjoint u) = error "TODO Adjoint"
+  mkPy (CQPL.BasicGateU g) = withEnv () $ mkPy g
+  mkPy (CQPL.RevEmbedU xs e) = pure $ PP.pretty "TODO_RevEmbedU"
+  mkPy (CQPL.DistrU d) = pure $ PP.pretty "TODO_DistrU"
+  mkPy (CQPL.Controlled u) = do
+    bloq <- mkPy u
+    pure $ bloq <> PP.pretty ".controlled()"
+  mkPy (CQPL.Adjoint u) = do
+    bloq <- mkPy u
+    pure $ bloq <> PP.pretty ".adjoint()"
 
 instance ToQualtranPy CQPL.BasicGate where
   type Ctx CQPL.BasicGate = ()
 
-  mkPy CQPL.Toffoli = error "TODO Toffoli"
-  mkPy CQPL.CNOT = error "TODO CNOT"
-  mkPy CQPL.XGate = error "TODO XGate"
-  mkPy CQPL.HGate = error "TODO HGate"
-  mkPy CQPL.ZGate = error "TODO ZGate"
-  mkPy CQPL.COPY = error "TODO COPY"
-  mkPy CQPL.SWAP = error "TODO SWAP"
-  mkPy (CQPL.Rz theta) = error "TODO Rz"
-  mkPy (CQPL.PhaseOnZero theta) = error "TODO PhaseOnZero"
+  mkPy CQPL.Toffoli = pure $ PP.pretty "qlt.Toffoli()"
+  mkPy CQPL.CNOT = pure $ PP.pretty "qlt.CNOT()"
+  mkPy CQPL.XGate = pure $ PP.pretty "qlt.XGate()"
+  mkPy CQPL.HGate = pure $ PP.pretty "qlt.Hadamard()"
+  mkPy CQPL.ZGate = pure $ PP.pretty "qlt.ZGate()"
+  mkPy CQPL.COPY = pure $ PP.dquotes $ PP.pretty "copy"
+  mkPy CQPL.SWAP = pure $ PP.dquotes $ PP.pretty "swap"
+  mkPy (CQPL.Rz theta) = pure $ py_raise_s "TODO Rz"
+  mkPy (CQPL.PhaseOnZero theta) = pure $ py_raise_s "TODO PhaseOnZero"
 
 -- ============================================================
 -- Classical: Emit native python
