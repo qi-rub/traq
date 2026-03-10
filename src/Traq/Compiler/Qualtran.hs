@@ -319,9 +319,23 @@ instance (Show size) => ToQualtranPy (CQPL.UStmt size) where
         [ PP.pretty "for _ in range" <> PP.parens n <> PP.colon
         , py_indent body
         ]
-  mkPy CQPL.UForInRangeS{iter_meta_var, iter_lim, dagger, uloop_body} = pure $ py_raise_s "TODO UForInRangeS"
+  mkPy CQPL.UForInRangeS{iter_meta_var, iter_lim, dagger, uloop_body} = do
+    body <- mkPy (if dagger then CQPL.adjoint uloop_body else uloop_body)
+    let n = py_metaParam (Left iter_lim)
+    let range_expr =
+          if dagger
+            then PP.pretty "reversed(range" <> PP.parens n <> PP.pretty ")"
+            else PP.pretty "range" <> PP.parens n
+    pure $
+      PP.vsep
+        [ PP.pretty "for" <+> py_sanitizeIdent iter_meta_var <+> PP.pretty "in" <+> range_expr <> PP.colon
+        , py_indent body
+        ]
   mkPy CQPL.UForInDomainS{iter_meta_var, iter_ty, dagger, uloop_body} = pure $ py_raise_s "TODO UForInDomainS"
-  mkPy CQPL.UWithComputedS{with_ustmt, body_ustmt} = pure $ py_raise_s "TODO UWithComputedS"
+  mkPy CQPL.UWithComputedS{with_ustmt, body_ustmt} = do
+    mkPy with_ustmt
+    mkPy body_ustmt
+    mkPy (CQPL.adjoint with_ustmt)
 
 instance ToQualtranPy (CQPL.Unitary size) where
   type Ctx (CQPL.Unitary size) = ()
