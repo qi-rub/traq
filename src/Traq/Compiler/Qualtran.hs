@@ -311,7 +311,14 @@ instance (Show size) => ToQualtranPy (CQPL.UStmt size) where
     pure $ lhs <+> PP.equals <+> PP.pretty "add_bloq" <> PP.tupled [PP.pretty "bb", bloqExpr, argVals]
   -- compound statements
   mkPy (CQPL.USeqS ss) = PP.vsep <$> mapM mkPy ss
-  mkPy CQPL.URepeatS{n_iter, uloop_body} = pure $ py_raise_s "TODO URepeatS"
+  mkPy CQPL.URepeatS{n_iter, uloop_body} = do
+    body <- mkPy uloop_body
+    let n = py_metaParam (Left n_iter)
+    pure $
+      PP.vsep
+        [ PP.pretty "for _ in range" <> PP.parens n <> PP.colon
+        , py_indent body
+        ]
   mkPy CQPL.UForInRangeS{iter_meta_var, iter_lim, dagger, uloop_body} = pure $ py_raise_s "TODO UForInRangeS"
   mkPy CQPL.UForInDomainS{iter_meta_var, iter_ty, dagger, uloop_body} = pure $ py_raise_s "TODO UForInDomainS"
   mkPy CQPL.UWithComputedS{with_ustmt, body_ustmt} = pure $ py_raise_s "TODO UWithComputedS"
@@ -339,8 +346,8 @@ instance ToQualtranPy CQPL.BasicGate where
   mkPy CQPL.ZGate = pure $ PP.pretty "qlt.ZGate()"
   mkPy CQPL.COPY = pure $ PP.dquotes $ PP.pretty "copy"
   mkPy CQPL.SWAP = pure $ PP.dquotes $ PP.pretty "swap"
-  mkPy (CQPL.Rz theta) = pure $ py_raise_s "TODO Rz"
-  mkPy (CQPL.PhaseOnZero theta) = pure $ py_raise_s "TODO PhaseOnZero"
+  mkPy (CQPL.Rz theta) = pure $ PP.pretty "TODO_Rz"
+  mkPy (CQPL.PhaseOnZero theta) = pure $ PP.pretty "TODO_PhaseOnZero"
 
 -- ============================================================
 -- Classical: Emit native python
@@ -402,7 +409,11 @@ instance (Show size) => ToQualtranPy (CQPL.Stmt size) where
     let lhs = PP.hsep $ PP.punctuate PP.comma arg_vars
     pure $ lhs <+> PP.equals <+> fname <> PP.tupled all_args
   mkPy CQPL.CallS{fun = CQPL.UProcAndMeas proc_id, meta_params, args} = do
-    pure $ py_raise_s "TODO uproc-call-and-meas"
+    let py_mps = map py_metaParam meta_params
+    let bloq = py_sanitizeIdent proc_id <> PP.tupled py_mps
+    let py_args = map py_arg args
+    let lhs = PP.hsep $ PP.punctuate PP.comma py_args
+    pure $ lhs <+> PP.equals <+> PP.pretty "bloq_call_and_meas" <> PP.tupled (bloq : py_args)
   mkPy (CQPL.SeqS ss) = PP.vsep <$> mapM mkPy ss
   mkPy CQPL.IfThenElseS{cond, s_true, s_false} = py_ifte cond <$> mkPy s_true <*> mkPy s_false
   mkPy CQPL.RepeatS{n_iter, loop_body} = do
