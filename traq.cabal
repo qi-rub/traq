@@ -38,6 +38,7 @@ library
       Traq.Analysis.Prelude
       Traq.Compiler
       Traq.Compiler.Prelude
+      Traq.Compiler.Python
       Traq.Compiler.Qualtran
       Traq.Compiler.Quantum
       Traq.Compiler.Unitary
