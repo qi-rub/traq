@@ -153,7 +153,7 @@ instance (Show size, Integral size) => ToQiskitPy (QPL.UStmt size) where
     tys <- fmap (either (error . show) id) . runExceptT $ do
       mapM QPL.getArgTy qargs
     let n_qubits = sum $ map CPL.bestBitsize tys
-    let name = show unitary
+    let name = filter (\c -> c /= '"' && c /= '\\') $ show unitary
     let gate = PP.pretty "qiskit.circuit.Gate" <> PP.tupled [PP.dquotes (PP.pretty name), PP.pretty (show n_qubits), PP.pretty "[]"]
     let qubits = PP.hsep $ PP.punctuate PP.comma [PP.pretty "*" <> py_arg q | q <- qargs]
     pure $ PP.pretty "qc.append" <> PP.tupled [gate, PP.brackets qubits]
@@ -194,35 +194,62 @@ instance (Show size, Integral size) => ToQiskitPy (QPL.BasicGate size) where
 -- Classical: Emit Qiskit circuits with control-flow
 -- ============================================================
 
-instance (Show size) => ToQiskitPy (QPL.CProcBody size) where
+instance (Show size, Integral size) => ToQiskitPy (QPL.CProcBody size) where
   type Ctx (QPL.CProcBody size) = ProcBuildCtx size
 
   -- external
   mkPy QPL.CProcDecl = do
     ProcBuildCtx{..} <- view id
-    let n_args = length proc_param_types
-    let cproc_param_names = ["arg_" <> show i | i <- [1 .. n_args]]
-    let tys = map toPyType proc_param_types
-
-    let typed_args = map py_sanitizeIdent proc_meta_params ++ zipWith py_typedArg cproc_param_names tys
-    pure $
-      py_def proc_name typed_args $
-        py_notImplemented "external function - implement here"
+    let args = map py_sanitizeIdent proc_meta_params
+    let cproc_param_names = ["c_" <> show i | i <- [1 .. length proc_param_types]]
+    let reg_defs =
+          [ py_sanitizeIdent n
+              <+> PP.equals
+              <+> PP.pretty "qiskit.circuit.ClassicalRegister"
+              <> PP.tupled [PP.pretty (show $ CPL.bestBitsize ty), PP.dquotes (py_sanitizeIdent n)]
+          | (n, ty) <- zip cproc_param_names proc_param_types
+          ]
+    let reg_names = map py_sanitizeIdent cproc_param_names
+    let qc_def =
+          PP.pretty "qc"
+            <+> PP.equals
+            <+> PP.pretty "qiskit.circuit.QuantumCircuit"
+            <> PP.tupled (reg_names ++ [PP.pretty "name=" <> PP.dquotes (py_sanitizeIdent proc_name)])
+    let body =
+          PP.vsep $
+            reg_defs
+              ++ [ qc_def
+                 , PP.pretty "return qc"
+                 ]
+    pure $ py_def proc_name args body
 
   -- defined
   mkPy QPL.CProcBody{cproc_param_names, cproc_local_vars, cproc_body_stmt} = do
     ProcBuildCtx{..} <- view id
-    let tys = map toPyType proc_param_types
-
-    let untyped_args = map py_sanitizeIdent (proc_meta_params ++ cproc_param_names)
-    let typed_args = map py_sanitizeIdent proc_meta_params ++ zipWith py_typedArg cproc_param_names tys
-
-    py_def proc_name typed_args . PP.vsep <$> do
-      body <- withEnv () $ mkPy cproc_body_stmt
-      return
-        [ body
-        , py_return untyped_args
-        ]
+    let args = map py_sanitizeIdent proc_meta_params
+    let all_vars = zip cproc_param_names proc_param_types ++ cproc_local_vars
+    let reg_defs =
+          [ py_sanitizeIdent n
+              <+> PP.equals
+              <+> PP.pretty "qiskit.circuit.ClassicalRegister"
+              <> PP.tupled [PP.pretty (show $ CPL.bestBitsize ty), PP.dquotes (py_sanitizeIdent n)]
+          | (n, ty) <- all_vars
+          ]
+    let reg_names = map (py_sanitizeIdent . fst) all_vars
+    let qc_def =
+          PP.pretty "qc"
+            <+> PP.equals
+            <+> PP.pretty "qiskit.circuit.QuantumCircuit"
+            <> PP.tupled (reg_names ++ [PP.pretty "name=" <> PP.dquotes (py_sanitizeIdent proc_name)])
+    stmt_body <- withEnv () $ mkPy cproc_body_stmt
+    let body =
+          PP.vsep $
+            reg_defs
+              ++ [ qc_def
+                 , stmt_body
+                 , PP.pretty "return qc"
+                 ]
+    pure $ py_def proc_name args body
 
 instance (Show size) => ToQiskitPy (QPL.Stmt size) where
   type Ctx (QPL.Stmt size) = ()
@@ -232,7 +259,7 @@ instance (Show size) => ToQiskitPy (QPL.Stmt size) where
   mkPy QPL.AssignS{rets, expr} = do
     let lhs = PP.hsep $ PP.punctuate PP.comma (map py_sanitizeIdent rets)
     pure $ lhs <+> PP.equals <+> py_expr expr
-  mkPy QPL.RandomS{rets, distr_expr} = error "TODO RandomS"
+  mkPy QPL.RandomS{} = pure $ blackbox "RandomS"
   mkPy QPL.RandomDynS{ret, max_var} =
     pure $ PP.pretty ret <+> PP.equals <+> PP.pretty "random.randrange" <> PP.parens (PP.pretty max_var)
   mkPy QPL.CallS{fun = QPL.FunctionCall proc_id, meta_params, args} = do
@@ -243,7 +270,7 @@ instance (Show size) => ToQiskitPy (QPL.Stmt size) where
     let arg_vars = map py_arg args
     let lhs = PP.hsep $ PP.punctuate PP.comma arg_vars
     pure $ lhs <+> PP.equals <+> fname <> PP.tupled all_args
-  mkPy QPL.CallS{fun = QPL.UProcAndMeas proc_id, meta_params, args} = error "TODO UProcAndMeas"
+  mkPy QPL.CallS{fun = QPL.UProcAndMeas{}, meta_params, args} = pure $ blackbox "UProcAndMeas"
   mkPy (QPL.SeqS ss) = PP.vsep <$> mapM mkPy ss
   mkPy QPL.IfThenElseS{cond, s_true, s_false} = py_ifte cond <$> mkPy s_true <*> mkPy s_false
   mkPy QPL.RepeatS{n_iter, loop_body} = do
@@ -254,8 +281,8 @@ instance (Show size) => ToQiskitPy (QPL.Stmt size) where
         [ PP.pretty "for _ in range" <> PP.parens n <> PP.colon
         , py_indent body
         ]
-  mkPy QPL.WhileK{n_iter, cond, loop_body} = error "TODO WhileK"
-  mkPy QPL.WhileKWithCondExpr{n_iter, cond, cond_expr, loop_body} = error "TODO WhileKWithCondExpr"
+  mkPy QPL.WhileK{} = pure $ blackbox "WhileK"
+  mkPy QPL.WhileKWithCondExpr{} = pure $ blackbox "WhileKWithCondExpr"
   mkPy QPL.ForInArray{loop_index, loop_index_ty, loop_values, loop_body} = do
     body <- mkPy loop_body
     let vals = PP.list (map py_expr loop_values)
@@ -264,4 +291,4 @@ instance (Show size) => ToQiskitPy (QPL.Stmt size) where
         [ PP.pretty "for" <+> PP.pretty loop_index <+> PP.pretty "in" <+> vals <> PP.colon
         , py_indent body
         ]
-  mkPy QPL.ForInRangeS{iter_meta_var, iter_lim, loop_body} = error "TODO ForInRangeS"
+  mkPy QPL.ForInRangeS{} = pure $ blackbox "ForInRangeS"
