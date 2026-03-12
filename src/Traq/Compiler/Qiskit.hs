@@ -7,6 +7,7 @@ module Traq.Compiler.Qiskit (
   toPy,
 ) where
 
+import Control.Monad.Except (runExceptT)
 import Control.Monad.Reader (Reader, runReader)
 import Data.List (intersperse)
 import Prettyprinter ((<+>))
@@ -73,6 +74,19 @@ instance (Show size, Integral size) => ToQiskitPy (QPL.ProcBody size) where
   mkPy (QPL.ProcBodyC cbody) = mkPy cbody
 
 -- ============================================================
+-- Qiskit helpers
+-- ============================================================
+
+-- | Emit a black-box gate spanning all qubits. TODO: implement properly.
+blackbox :: String -> Py ann
+blackbox name =
+  PP.pretty "qc.append"
+    <> PP.tupled
+      [ PP.pretty "qiskit.circuit.Gate" <> PP.tupled [PP.dquotes (PP.pretty name), PP.pretty "qc.num_qubits", PP.pretty "[]"]
+      , PP.pretty "qc.qubits"
+      ]
+
+-- ============================================================
 -- Unitary: Emit Qiskit unitary circuits
 -- ============================================================
 
@@ -81,32 +95,78 @@ instance (Show size, Integral size) => ToQiskitPy (QPL.UProcBody size) where
 
   mkPy QPL.UProcDecl = do
     ProcBuildCtx{..} <- view id
-    let n_qubits = sum $ map CPL.bestBitsize proc_param_types
     let args = map py_sanitizeIdent proc_meta_params
+    let uproc_param_names = ["q_" <> show i | i <- [1 .. length proc_param_types]]
+    let reg_defs =
+          [ py_sanitizeIdent n
+              <+> PP.equals
+              <+> PP.pretty "qiskit.circuit.QuantumRegister"
+              <> PP.tupled [PP.pretty (show $ CPL.bestBitsize ty), PP.dquotes (py_sanitizeIdent n)]
+          | (n, ty) <- zip uproc_param_names proc_param_types
+          ]
+    let reg_names = map py_sanitizeIdent uproc_param_names
+    let qc_def =
+          PP.pretty "qc"
+            <+> PP.equals
+            <+> PP.pretty "qiskit.circuit.QuantumCircuit"
+            <> PP.tupled (reg_names ++ [PP.pretty "name=" <> PP.dquotes (py_sanitizeIdent proc_name)])
     let body =
-          PP.pretty "return qiskit.circuit.Gate"
-            <> PP.tupled
-              [ PP.dquotes (py_sanitizeIdent proc_name)
-              , PP.pretty (show n_qubits)
-              , PP.pretty "[]"
-              ]
+          PP.vsep $
+            reg_defs
+              ++ [ qc_def
+                 , PP.pretty "return qc"
+                 ]
     pure $ py_def proc_name args body
   mkPy QPL.UProcBody{uproc_param_names, uproc_param_tags, uproc_body_stmt} = do
     ProcBuildCtx{..} <- view id
-    error "TODO UProcBody"
+    let args = map py_sanitizeIdent proc_meta_params
+    let reg_defs =
+          [ py_sanitizeIdent n
+              <+> PP.equals
+              <+> PP.pretty "qiskit.circuit.QuantumRegister"
+              <> PP.tupled [PP.pretty (show $ CPL.bestBitsize ty), PP.dquotes (py_sanitizeIdent n)]
+          | (n, ty) <- zip uproc_param_names proc_param_types
+          ]
+    let reg_names = map py_sanitizeIdent uproc_param_names
+    let qc_def =
+          PP.pretty "qc"
+            <+> PP.equals
+            <+> PP.pretty "qiskit.circuit.QuantumCircuit"
+            <> PP.tupled (reg_names ++ [PP.pretty "name=" <> PP.dquotes (py_sanitizeIdent proc_name)])
+    let typCtx = Ctx.fromList (zip uproc_param_names proc_param_types)
+    stmt_body <- withEnv typCtx $ mkPy uproc_body_stmt
+    let body =
+          PP.vsep $
+            reg_defs
+              ++ [ qc_def
+                 , stmt_body
+                 , PP.pretty "return qc"
+                 ]
+    pure $ py_def proc_name args body
 
 instance (Show size, Integral size) => ToQiskitPy (QPL.UStmt size) where
   type Ctx (QPL.UStmt size) = CPL.TypingCtx size
 
   mkPy QPL.USkipS = pure mempty
   mkPy (QPL.UCommentS s) = pure $ py_comment s
-  mkPy QPL.UnitaryS{qargs, unitary} = error "TODO UnitaryS"
-  mkPy QPL.UCallS{uproc_id, dagger, qargs} = error "TODO UCallS"
+  mkPy QPL.UnitaryS{qargs, unitary} = do
+    tys <- fmap (either (error . show) id) . runExceptT $ do
+      mapM QPL.getArgTy qargs
+    let n_qubits = sum $ map CPL.bestBitsize tys
+    let name = show unitary
+    let gate = PP.pretty "qiskit.circuit.Gate" <> PP.tupled [PP.dquotes (PP.pretty name), PP.pretty (show n_qubits), PP.pretty "[]"]
+    let qubits = PP.hsep $ PP.punctuate PP.comma [PP.pretty "*" <> py_arg q | q <- qargs]
+    pure $ PP.pretty "qc.append" <> PP.tupled [gate, PP.brackets qubits]
+  mkPy QPL.UCallS{uproc_id, dagger, qargs} = do
+    let gate = py_sanitizeIdent uproc_id <> PP.pretty "().to_gate()"
+    let gateExpr = if dagger then gate <> PP.pretty ".inverse()" else gate
+    let qubits = PP.hsep $ PP.punctuate PP.comma [PP.pretty "*" <> py_arg q | q <- qargs]
+    pure $ PP.pretty "qc.append" <> PP.tupled [gateExpr, PP.brackets qubits]
   mkPy (QPL.USeqS ss) = PP.vsep <$> mapM mkPy ss
-  mkPy QPL.URepeatS{n_iter, uloop_body} = error "TODO URepeatS"
-  mkPy QPL.UForInRangeS{iter_meta_var, iter_lim, dagger, uloop_body} = error "TODO UForInRangeS"
-  mkPy QPL.UForInDomainS{iter_meta_var, iter_ty, dagger, uloop_body} = error "TODO UForInDomainS"
-  mkPy QPL.UWithComputedS{with_ustmt, body_ustmt} = error "TODO UWithComputedS"
+  mkPy QPL.URepeatS{} = pure $ blackbox "URepeatS"
+  mkPy QPL.UForInRangeS{} = pure $ blackbox "UForInRangeS"
+  mkPy QPL.UForInDomainS{} = pure $ blackbox "UForInDomainS"
+  mkPy QPL.UWithComputedS{} = pure $ blackbox "UWithComputedS"
 
 instance (Show size, Integral size) => ToQiskitPy (QPL.Unitary size) where
   type Ctx (QPL.Unitary size) = [CPL.VarType size]
