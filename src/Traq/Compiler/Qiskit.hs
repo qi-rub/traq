@@ -95,8 +95,14 @@ instance (Show size, Integral size) => ToQiskitPy (QPL.UProcBody size) where
 
   mkPy QPL.UProcDecl = do
     ProcBuildCtx{..} <- view id
-    let args = map py_sanitizeIdent proc_meta_params
     let uproc_param_names = ["q_" <> show i | i <- [1 .. length proc_param_types]]
+    let param_defs =
+          [ py_sanitizeIdent p
+              <+> PP.equals
+              <+> PP.pretty "qiskit.circuit.Parameter"
+              <> PP.parens (PP.dquotes (py_sanitizeIdent p))
+          | p <- proc_meta_params
+          ]
     let reg_defs =
           [ py_sanitizeIdent n
               <+> PP.equals
@@ -112,14 +118,21 @@ instance (Show size, Integral size) => ToQiskitPy (QPL.UProcBody size) where
             <> PP.tupled (reg_names ++ [PP.pretty "name=" <> PP.dquotes (py_sanitizeIdent proc_name)])
     let body =
           PP.vsep $
-            reg_defs
+            param_defs
+              ++ reg_defs
               ++ [ qc_def
                  , PP.pretty "return qc"
                  ]
-    pure $ py_def proc_name args body
+    pure $ py_def proc_name [] body
   mkPy QPL.UProcBody{uproc_param_names, uproc_param_tags, uproc_body_stmt} = do
     ProcBuildCtx{..} <- view id
-    let args = map py_sanitizeIdent proc_meta_params
+    let param_defs =
+          [ py_sanitizeIdent p
+              <+> PP.equals
+              <+> PP.pretty "qiskit.circuit.Parameter"
+              <> PP.parens (PP.dquotes (py_sanitizeIdent p))
+          | p <- proc_meta_params
+          ]
     let reg_defs =
           [ py_sanitizeIdent n
               <+> PP.equals
@@ -137,12 +150,13 @@ instance (Show size, Integral size) => ToQiskitPy (QPL.UProcBody size) where
     stmt_body <- withEnv typCtx $ mkPy uproc_body_stmt
     let body =
           PP.vsep $
-            reg_defs
+            param_defs
+              ++ reg_defs
               ++ [ qc_def
                  , stmt_body
                  , PP.pretty "return qc"
                  ]
-    pure $ py_def proc_name args body
+    pure $ py_def proc_name [] body
 
 instance (Show size, Integral size) => ToQiskitPy (QPL.UStmt size) where
   type Ctx (QPL.UStmt size) = CPL.TypingCtx size
@@ -200,8 +214,14 @@ instance (Show size, Integral size) => ToQiskitPy (QPL.CProcBody size) where
   -- external
   mkPy QPL.CProcDecl = do
     ProcBuildCtx{..} <- view id
-    let args = map py_sanitizeIdent proc_meta_params
     let cproc_param_names = ["c_" <> show i | i <- [1 .. length proc_param_types]]
+    let param_defs =
+          [ py_sanitizeIdent p
+              <+> PP.equals
+              <+> PP.pretty "qiskit.circuit.Parameter"
+              <> PP.parens (PP.dquotes (py_sanitizeIdent p))
+          | p <- proc_meta_params
+          ]
     let reg_defs =
           [ py_sanitizeIdent n
               <+> PP.equals
@@ -217,16 +237,23 @@ instance (Show size, Integral size) => ToQiskitPy (QPL.CProcBody size) where
             <> PP.tupled (reg_names ++ [PP.pretty "name=" <> PP.dquotes (py_sanitizeIdent proc_name)])
     let body =
           PP.vsep $
-            reg_defs
+            param_defs
+              ++ reg_defs
               ++ [ qc_def
                  , PP.pretty "return qc"
                  ]
-    pure $ py_def proc_name args body
+    pure $ py_def proc_name [] body
 
   -- defined
   mkPy QPL.CProcBody{cproc_param_names, cproc_local_vars, cproc_body_stmt} = do
     ProcBuildCtx{..} <- view id
-    let args = map py_sanitizeIdent proc_meta_params
+    let param_defs =
+          [ py_sanitizeIdent p
+              <+> PP.equals
+              <+> PP.pretty "qiskit.circuit.Parameter"
+              <> PP.parens (PP.dquotes (py_sanitizeIdent p))
+          | p <- proc_meta_params
+          ]
     let all_vars = zip cproc_param_names proc_param_types ++ cproc_local_vars
     let reg_defs =
           [ py_sanitizeIdent n
@@ -244,12 +271,13 @@ instance (Show size, Integral size) => ToQiskitPy (QPL.CProcBody size) where
     stmt_body <- withEnv () $ mkPy cproc_body_stmt
     let body =
           PP.vsep $
-            reg_defs
+            param_defs
+              ++ reg_defs
               ++ [ qc_def
                  , stmt_body
                  , PP.pretty "return qc"
                  ]
-    pure $ py_def proc_name args body
+    pure $ py_def proc_name [] body
 
 instance (Show size) => ToQiskitPy (QPL.Stmt size) where
   type Ctx (QPL.Stmt size) = ()
@@ -263,13 +291,9 @@ instance (Show size) => ToQiskitPy (QPL.Stmt size) where
   mkPy QPL.RandomDynS{ret, max_var} =
     pure $ PP.pretty ret <+> PP.equals <+> PP.pretty "random.randrange" <> PP.parens (PP.pretty max_var)
   mkPy QPL.CallS{fun = QPL.FunctionCall proc_id, meta_params, args} = do
-    let fname = py_sanitizeIdent proc_id
-    let py_mps = map py_metaParam meta_params
-    let py_args = map py_arg args
-    let all_args = py_mps ++ py_args
-    let arg_vars = map py_arg args
-    let lhs = PP.hsep $ PP.punctuate PP.comma arg_vars
-    pure $ lhs <+> PP.equals <+> fname <> PP.tupled all_args
+    let instr = py_sanitizeIdent proc_id <> PP.pretty "().to_instruction()"
+    let cbits = PP.hsep $ PP.punctuate PP.comma [PP.pretty "*" <> py_arg q | q <- args]
+    pure $ PP.pretty "qc.append" <> PP.tupled [instr, PP.pretty "[]", PP.brackets cbits]
   mkPy QPL.CallS{fun = QPL.UProcAndMeas{}, meta_params, args} = pure $ blackbox "UProcAndMeas"
   mkPy (QPL.SeqS ss) = PP.vsep <$> mapM mkPy ss
   mkPy QPL.IfThenElseS{cond, s_true, s_false} = py_ifte cond <$> mkPy s_true <*> mkPy s_false

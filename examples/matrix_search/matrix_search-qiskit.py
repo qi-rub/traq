@@ -46,7 +46,7 @@ def IsEntryZero():
     e_ = qiskit.circuit.ClassicalRegister(1, "e_")
     e = qiskit.circuit.ClassicalRegister(1, "e")
     qc = qiskit.circuit.QuantumCircuit(i0, j0, e_, e, name="IsEntryZero")
-    i0, j0, e = Matrix(i0, j0, e)
+    qc.append(Matrix().to_instruction(), [], [*i0, *j0, *e])
     e_ = not (e)
     return qc
 
@@ -176,7 +176,8 @@ def IsRowAllOnes_U():
 
 
 # Grover[...]
-def Grover(k):
+def Grover():
+    k = qiskit.circuit.Parameter("k")
     i = qiskit.circuit.QuantumRegister(3, "i")
     x = qiskit.circuit.QuantumRegister(3, "x")
     ret_1 = qiskit.circuit.QuantumRegister(1, "ret_1")
@@ -228,7 +229,7 @@ def IsRowAllOnes():
     okr = qiskit.circuit.ClassicalRegister(1, "okr")
     hasZero = qiskit.circuit.ClassicalRegister(1, "hasZero")
     qc = qiskit.circuit.QuantumCircuit(i, okr, hasZero, name="IsRowAllOnes")
-    i, hasZero = QAny(i, hasZero)
+    qc.append(QAny().to_instruction(), [], [*i, *hasZero])
     okr = not (hasZero)
     return qc
 
@@ -466,7 +467,8 @@ def HasAllOnesRow_U():
 
 
 # Grover[...]
-def Grover_1(k):
+def Grover_1():
+    k = qiskit.circuit.Parameter("k")
     x_1 = qiskit.circuit.QuantumRegister(3, "x_1")
     ret_3 = qiskit.circuit.QuantumRegister(1, "ret_3")
     aux_29 = qiskit.circuit.QuantumRegister(1, "aux_29")
@@ -559,5 +561,5 @@ def QAny_1():
 def HasAllOnesRow():
     ok = qiskit.circuit.ClassicalRegister(1, "ok")
     qc = qiskit.circuit.QuantumCircuit(ok, name="HasAllOnesRow")
-    ok = QAny_1(ok)
+    qc.append(QAny_1().to_instruction(), [], [*ok])
     return qc
