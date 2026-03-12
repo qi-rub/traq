@@ -39,6 +39,7 @@ library
       Traq.Compiler
       Traq.Compiler.Prelude
       Traq.Compiler.Python
+      Traq.Compiler.Qiskit
       Traq.Compiler.Qualtran
       Traq.Compiler.Quantum
       Traq.Compiler.Unitary

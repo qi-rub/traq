@@ -17,7 +17,8 @@ import qualified Traq.Data.Symbolic as Sym
 import qualified Traq.Analysis as Analysis
 import qualified Traq.CPL as CPL
 import qualified Traq.Compiler as Compiler
-import Traq.Compiler.Qualtran
+import qualified Traq.Compiler.Qiskit as Qiskit
+import qualified Traq.Compiler.Qualtran as Qualtran
 import Traq.Prelude
 import qualified Traq.Primitives as P
 import qualified Traq.QPL as QPL
@@ -74,13 +75,14 @@ loadQPLProgram = do
 emitQualtran :: QPL.Program SizeT -> IO String
 emitQualtran qpl_prog = do
   py_preamble <- readFile "tools/qualtran_prelude.py"
-  let py_prog_str = toPy qpl_prog
-  let py_postamble = ""
-  pure $ unlines [py_preamble, py_prog_str, py_postamble]
+  let py_prog_str = Qualtran.toPy qpl_prog
+  pure $ unlines [py_preamble, py_prog_str]
 
 emitQiskit :: QPL.Program SizeT -> IO String
-emitQiskit _qpl_prog = do
-  error "TODO: Qiskit backend not yet implemented"
+emitQiskit qpl_prog = do
+  py_preamble <- readFile "tools/qiskit_prelude.py"
+  let py_prog_str = Qiskit.toPy qpl_prog
+  pure $ unlines [py_preamble, py_prog_str]
 
 -- ============================================================
 -- CLI parser
