@@ -14,6 +14,8 @@ import qualified Prettyprinter as PP
 
 import Lens.Micro.Mtl
 
+import qualified Traq.Data.Context as Ctx
+
 import qualified Traq.CPL as CPL
 import Traq.Compiler.Python
 import Traq.Prelude
@@ -79,7 +81,16 @@ instance (Show size, Integral size) => ToQiskitPy (QPL.UProcBody size) where
 
   mkPy QPL.UProcDecl = do
     ProcBuildCtx{..} <- view id
-    error "TODO UProcDecl"
+    let n_qubits = sum $ map CPL.bestBitsize proc_param_types
+    let args = map py_sanitizeIdent proc_meta_params
+    let body =
+          PP.pretty "return qiskit.circuit.Gate"
+            <> PP.tupled
+              [ PP.dquotes (py_sanitizeIdent proc_name)
+              , PP.pretty (show n_qubits)
+              , PP.pretty "[]"
+              ]
+    pure $ py_def proc_name args body
   mkPy QPL.UProcBody{uproc_param_names, uproc_param_tags, uproc_body_stmt} = do
     ProcBuildCtx{..} <- view id
     error "TODO UProcBody"
