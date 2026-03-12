@@ -88,8 +88,8 @@ executables:
   compile:
     main: compile.hs
     <<: *exe_opts
-  qpltoqualtranpy:
-    main: qpltoqualtranpy.hs
+  qpltopy:
+    main: qpltopy.hs
     <<: *exe_opts
   ### Experiments & Examples
   matrixsearch:

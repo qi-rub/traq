@@ -4,7 +4,6 @@ module Main (main) where
 
 import Control.Monad.Reader (ReaderT, runReaderT)
 import Control.Monad.Trans (lift)
-import Control.Monad.Writer (MonadWriter, execWriterT)
 import Options.Applicative
 import System.FilePath (takeExtension)
 import Text.Read (readMaybe)
@@ -22,14 +21,17 @@ import Traq.Compiler.Qualtran
 import Traq.Prelude
 import qualified Traq.Primitives as P
 import qualified Traq.QPL as QPL
-import qualified Traq.Utils.Printing as PP
 
 -- ============================================================
 -- CLI
 -- ============================================================
 
+data Backend = Qualtran | Qiskit
+  deriving (Read, Show, Eq)
+
 data Options = Options
-  { in_file :: FilePath
+  { backend :: Backend
+  , in_file :: FilePath
   , out_file :: Maybe FilePath
   , eps :: Double
   , params :: [(Ident, SizeT)]
@@ -65,15 +67,43 @@ loadQPLProgram = do
   raw <- lift . readFile =<< view (to in_file)
   return $ read raw
 
+-- ============================================================
+-- Backends
+-- ============================================================
+
+emitQualtran :: QPL.Program SizeT -> IO String
+emitQualtran qpl_prog = do
+  py_preamble <- readFile "tools/qualtran_prelude.py"
+  let py_prog_str = toPy qpl_prog
+  let py_postamble = ""
+  pure $ unlines [py_preamble, py_prog_str, py_postamble]
+
+emitQiskit :: QPL.Program SizeT -> IO String
+emitQiskit _qpl_prog = do
+  error "TODO: Qiskit backend not yet implemented"
+
+-- ============================================================
+-- CLI parser
+-- ============================================================
+
 opts :: ParserInfo Options
 opts =
   info
     (options <**> helper)
-    (fullDesc <> header "Compile QPL programs to Qualtran Python.")
+    (fullDesc <> header "Compile QPL programs to Python.")
  where
   options =
     Options
-      <$> strOption
+      <$> option
+        auto
+        ( long "backend"
+            <> short 'b'
+            <> metavar "BACKEND"
+            <> help "Quantum backend: Qualtran | Qiskit"
+            <> value Qualtran
+            <> showDefault
+        )
+      <*> strOption
         ( long "input"
             <> short 'i'
             <> metavar "INPUT"
@@ -114,9 +144,7 @@ main = do
       ".qpl" -> loadQPLProgram
       ext -> fail $ "Unsupported file extension: " ++ ext
 
-  py_preamble <- readFile "tools/qualtran_prelude.py"
-  let py_prog_str = toPy qpl_prog
-  let py_postamble = ""
-
-  let py_str = unlines [py_preamble, py_prog_str, py_postamble]
+  py_str <- case backend of
+    Qualtran -> emitQualtran qpl_prog
+    Qiskit -> emitQiskit qpl_prog
   maybe putStr writeFile out_file py_str

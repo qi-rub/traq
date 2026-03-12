@@ -348,8 +348,8 @@ executable matrixsearchqcost
     , traq
   default-language: Haskell2010
 
-executable qpltoqualtranpy
-  main-is: qpltoqualtranpy.hs
+executable qpltopy
+  main-is: qpltopy.hs
   hs-source-dirs:
       tools
   default-extensions:
