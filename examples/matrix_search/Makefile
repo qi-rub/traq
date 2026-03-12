@@ -23,8 +23,8 @@ matrix_search-qiskit.py: matrix_search.traq $(PROJ_DEPS)
 		--backend Qiskit \
 		-i examples/matrix_search/$< \
 		-o examples/matrix_search/$@ \
-		-p 0.001 \
-		--arg N=20 --arg M=10
+		-p 0.1 \
+		--arg N=6 --arg M=6
 	python -m py_compile $@
 	black $@
 
