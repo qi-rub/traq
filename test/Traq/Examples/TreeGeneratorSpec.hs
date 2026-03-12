@@ -16,7 +16,8 @@ import Traq.Analysis.CostModel.QueryCost (SimpleQueryCost (getCost))
 import Traq.CPL
 import qualified Traq.CPL as CPL
 import qualified Traq.Compiler as Compiler
-import Traq.Compiler.Qualtran (toPy)
+import qualified Traq.Compiler.Qiskit as Qiskit
+import qualified Traq.Compiler.Qualtran as Qualtran
 import Traq.Prelude
 import Traq.Primitives
 import qualified Traq.QPL as QPL
@@ -152,7 +153,14 @@ spec = do
         ex <- CPL.renameVars' <$> loadKnapsack 2 20 30 2
         ex' <- expectRight $ A.annotateProgWith (_exts (A.annSinglePrim eps)) ex
         ex_cqpl <- expectRight $ Compiler.lowerProgram ex'
-        _ <- evaluate $ force $ toPy ex_cqpl
+        _ <- evaluate $ force $ Qualtran.toPy ex_cqpl
+        return ()
+
+      xit "target-py-qiskit" $ do
+        ex <- CPL.renameVars' <$> loadKnapsack 2 20 30 2
+        ex' <- expectRight $ A.annotateProgWith (_exts (A.annSinglePrim eps)) ex
+        ex_cqpl <- expectRight $ Compiler.lowerProgram ex'
+        _ <- evaluate $ force $ Qiskit.toPy ex_cqpl
         return ()
 
   describe "Loop example" $ do
@@ -192,5 +200,12 @@ spec = do
         let ex = CPL.renameVars' $ loopExample @Core' 10 20
         ex' <- expectRight $ A.annotateProgWith (_exts A.annNoPrims) ex
         ex_cqpl <- expectRight $ Compiler.lowerProgram ex'
-        _ <- evaluate $ force $ toPy ex_cqpl
+        _ <- evaluate $ force $ Qualtran.toPy ex_cqpl
+        return ()
+
+      xit "target-py-qiskit" $ do
+        let ex = CPL.renameVars' $ loopExample @Core' 10 20
+        ex' <- expectRight $ A.annotateProgWith (_exts A.annNoPrims) ex
+        ex_cqpl <- expectRight $ Compiler.lowerProgram ex'
+        _ <- evaluate $ force $ Qiskit.toPy ex_cqpl
         return ()
