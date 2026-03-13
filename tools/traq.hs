@@ -6,6 +6,7 @@ import Control.Monad.Reader (ReaderT, runReaderT)
 import Control.Monad.Trans (lift)
 import Options.Applicative
 import System.FilePath (takeExtension)
+import Text.Printf (printf)
 import Text.Read (readMaybe)
 
 import Lens.Micro.GHC
@@ -22,22 +23,27 @@ import qualified Traq.Compiler.Qualtran as Qualtran
 import Traq.Prelude
 import qualified Traq.Primitives as P
 import qualified Traq.QPL as QPL
+import qualified Traq.Utils.Printing as PP
 
 -- ============================================================
 -- CLI
 -- ============================================================
 
-data Backend = Qualtran | Qiskit
+data Backend = QPL | Qualtran | Qiskit
   deriving (Read, Show, Eq)
 
 data Options = Options
-  { backend :: Backend
+  { target :: Backend
   , in_file :: FilePath
   , out_file :: Maybe FilePath
-  , eps :: Double
+  , eps :: Maybe Double
   , params :: [(Ident, SizeT)]
   }
   deriving (Show)
+
+-- ============================================================
+-- Core
+-- ============================================================
 
 -- | Load a Traq program source, and substitute parameters.
 loadTraqProgram :: ReaderT Options IO (CPL.Program (P.WorstCasePrims SizeT Double))
@@ -55,9 +61,9 @@ loadTraqProgram = do
     subsOnce :: (Ident, SizeT) -> Sym.Sym Int -> Sym.Sym Int
     subsOnce (k, v) = Sym.subst k (Sym.con v)
 
--- | Compiler source to target.
-compile :: (RealFloat prec, Show prec) => CPL.Program (P.WorstCasePrims SizeT prec) -> prec -> IO (QPL.Program SizeT)
-compile prog eps = do
+-- | Compile source CPL to target QPL.
+compileCPL :: (RealFloat prec, Show prec) => CPL.Program (P.WorstCasePrims SizeT prec) -> prec -> IO (QPL.Program SizeT)
+compileCPL prog eps = do
   let prog_rn = if CPL.checkVarsUnique prog then prog else CPL.renameVars' prog
   prog' <- either fail pure $ Analysis.annotateProgWithErrorBudget (Analysis.failProb eps) prog_rn
   either fail pure $ Compiler.lowerProgram prog'
@@ -71,6 +77,11 @@ loadQPLProgram = do
 -- ============================================================
 -- Backends
 -- ============================================================
+
+emitQPL :: QPL.Program SizeT -> IO String
+emitQPL qpl_prog = do
+  let nqubits = QPL.numQubits qpl_prog
+  pure $ unlines [PP.toCodeString qpl_prog, printf "// qubits: %d" nqubits]
 
 emitQualtran :: QPL.Program SizeT -> IO String
 emitQualtran qpl_prog = do
@@ -92,17 +103,17 @@ opts :: ParserInfo Options
 opts =
   info
     (options <**> helper)
-    (fullDesc <> header "Compile QPL programs to Python.")
+    (fullDesc <> header "Traq: Compile CPL programs to QPL, Qualtran, or Qiskit.")
  where
   options =
     Options
       <$> option
         auto
-        ( long "backend"
-            <> short 'b'
-            <> metavar "BACKEND"
-            <> help "Quantum backend: Qualtran | Qiskit"
-            <> value Qualtran
+        ( long "target"
+            <> short 't'
+            <> metavar "TARGET"
+            <> help "Output target: QPL | Qualtran | Qiskit"
+            <> value QPL
             <> showDefault
         )
       <*> strOption
@@ -119,12 +130,14 @@ opts =
                 <> help "Output file (default: stdout)"
             )
         )
-      <*> option
-        auto
-        ( long "failprob"
-            <> short 'p'
-            <> metavar "FLOAT"
-            <> help "The maximum failure probability of the entire program"
+      <*> optional
+        ( option
+            auto
+            ( long "failprob"
+                <> short 'p'
+                <> metavar "FLOAT"
+                <> help "The maximum failure probability of the entire program"
+            )
         )
       <*> many (option (maybeReader parseKeyValue) (long "arg" <> help "parameters..." <> metavar "NAME=VALUE"))
 
@@ -142,11 +155,14 @@ main = do
     case takeExtension in_file of
       ".traq" -> do
         p <- loadTraqProgram
-        lift $ compile p eps
+        case eps of
+          Just e -> lift $ compileCPL p e
+          Nothing -> fail "--failprob is required when compiling .traq files"
       ".qpl" -> loadQPLProgram
       ext -> fail $ "Unsupported file extension: " ++ ext
 
-  py_str <- case backend of
+  out_str <- case target of
+    QPL -> emitQPL qpl_prog
     Qualtran -> emitQualtran qpl_prog
     Qiskit -> emitQiskit qpl_prog
-  maybe putStr writeFile out_file py_str
+  maybe putStr writeFile out_file out_str

@@ -3,14 +3,15 @@ PROJ_DEPS=../../src ../../tools ../../traq.cabal
 all: matrix_search.qpl depth3_NAND_formula.qpl
 
 matrix_search.qpl: matrix_search.traq $(PROJ_DEPS)
-	cd ../../ && cabal run compile -- \
+	cd ../../ && cabal run traq -- \
 		-i examples/matrix_search/$< \
 		-o examples/matrix_search/$@ \
 		-p 0.001 \
 		--arg N=20 --arg M=10
 
 matrix_search.py: matrix_search.traq $(PROJ_DEPS)
-	cd ../../ && cabal run qpltopy -- \
+	cd ../../ && cabal run traq -- \
+		-t Qualtran \
 		-i examples/matrix_search/$< \
 		-o examples/matrix_search/$@ \
 		-p 0.001 \
@@ -19,8 +20,8 @@ matrix_search.py: matrix_search.traq $(PROJ_DEPS)
 	black $@
 
 matrix_search-qiskit.py: matrix_search.traq $(PROJ_DEPS)
-	cd ../../ && cabal run qpltopy -- \
-		--backend Qiskit \
+	cd ../../ && cabal run traq -- \
+		-t Qiskit \
 		-i examples/matrix_search/$< \
 		-o examples/matrix_search/$@ \
 		-p 0.1 \
@@ -29,7 +30,7 @@ matrix_search-qiskit.py: matrix_search.traq $(PROJ_DEPS)
 	black $@
 
 depth3_NAND_formula.qpl: depth3_NAND_formula.traq $(PROJ_DEPS)
-	cd ../../ && cabal run compile -- \
+	cd ../../ && cabal run traq -- \
 		-i examples/matrix_search/$< \
 		-o examples/matrix_search/$@ \
 		-p 0.001 \
