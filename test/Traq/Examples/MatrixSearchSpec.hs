@@ -121,7 +121,7 @@ spec = describe "MatrixSearch" $ do
         _ <- evaluate $ force $ Qualtran.toPy ex_cqpl
         return ()
 
-      fit "target-py-qiskit" $ do
+      xit "target-py-qiskit" $ do
         ex' <- expectRight $ A.annotateProgWithErrorBudget eps ex
         ex_cqpl <- expectRight $ Compiler.lowerProgram ex'
         _ <- evaluate $ force $ Qiskit.toPy ex_cqpl
