@@ -1,3 +1,5 @@
 cirq==1.6.1
 qualtran==0.7.0
+qiskit==2.3.0
+qiskit-aer==0.17.2
 black==26.1.0

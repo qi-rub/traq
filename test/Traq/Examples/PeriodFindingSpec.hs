@@ -14,7 +14,8 @@ import qualified Traq.Analysis as A
 import Traq.Analysis.CostModel.QueryCost (SimpleQueryCost (..))
 import qualified Traq.CPL as CPL
 import qualified Traq.Compiler as Compiler
-import Traq.Compiler.Qualtran (toPy)
+import qualified Traq.Compiler.Qiskit as Qiskit
+import qualified Traq.Compiler.Qualtran as Qualtran
 import Traq.Prelude
 import Traq.Primitives.Class
 import Traq.Primitives.Simons.Quantum
@@ -99,5 +100,11 @@ spec = describe "FindXorPeriod" $ do
       xit "target-py-qualtran" $ \program -> do
         ex' <- expectRight $ A.annotateProgWith (CPL._exts (A.annSinglePrim eps)) program
         ex_cqpl <- expectRight $ Compiler.lowerProgram ex'
-        _ <- evaluate $ force $ toPy ex_cqpl
+        _ <- evaluate $ force $ Qualtran.toPy ex_cqpl
+        return ()
+
+      xit "target-py-qiskit" $ \program -> do
+        ex' <- expectRight $ A.annotateProgWith (CPL._exts (A.annSinglePrim eps)) program
+        ex_cqpl <- expectRight $ Compiler.lowerProgram ex'
+        _ <- evaluate $ force $ Qiskit.toPy ex_cqpl
         return ()

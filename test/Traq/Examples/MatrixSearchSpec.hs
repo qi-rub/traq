@@ -12,7 +12,8 @@ import qualified Traq.Analysis as A
 import Traq.Analysis.CostModel.QueryCost (SimpleQueryCost (getCost))
 import qualified Traq.CPL as CPL
 import qualified Traq.Compiler as Compiler
-import Traq.Compiler.Qualtran (toPy)
+import qualified Traq.Compiler.Qiskit as Qiskit
+import qualified Traq.Compiler.Qualtran as Qualtran
 import Traq.Examples.MatrixSearch
 import Traq.Primitives (Primitive (..))
 import Traq.Primitives.Search.Prelude
@@ -117,7 +118,13 @@ spec = describe "MatrixSearch" $ do
       it "target-py-qualtran" $ do
         ex' <- expectRight $ A.annotateProgWithErrorBudget eps ex
         ex_cqpl <- expectRight $ Compiler.lowerProgram ex'
-        _ <- evaluate $ force $ toPy ex_cqpl
+        _ <- evaluate $ force $ Qualtran.toPy ex_cqpl
+        return ()
+
+      xit "target-py-qiskit" $ do
+        ex' <- expectRight $ A.annotateProgWithErrorBudget eps ex
+        ex_cqpl <- expectRight $ Compiler.lowerProgram ex'
+        _ <- evaluate $ force $ Qiskit.toPy ex_cqpl
         return ()
 
   describe "symbolic" $ do

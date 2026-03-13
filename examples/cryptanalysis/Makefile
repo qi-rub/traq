@@ -3,7 +3,7 @@ PROJ_DEPS=../../src ../../tools ../../traq.cabal
 all: period_finding.qpl even_mansour.qpl 3_round_feistel.qpl grover_meets_simon.qpl
 
 %.qpl: %.traq $(PROJ_DEPS)
-	cd ../../ && cabal run compile -- \
+	cd ../../ && cabal run traq -- \
 		-i examples/cryptanalysis/$< \
 		-o examples/cryptanalysis/$@ \
 		-p 0.001 \

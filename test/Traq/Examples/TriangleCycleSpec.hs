@@ -14,7 +14,8 @@ import qualified Traq.Analysis as A
 import Traq.Analysis.CostModel.QueryCost (SimpleQueryCost (getCost))
 import qualified Traq.CPL as CPL
 import qualified Traq.Compiler as Compiler
-import Traq.Compiler.Qualtran (toPy)
+import qualified Traq.Compiler.Qiskit as Qiskit
+import qualified Traq.Compiler.Qualtran as Qualtran
 import Traq.Prelude
 import Traq.Primitives (DefaultPrims)
 import qualified Traq.QPL as QPL
@@ -72,5 +73,12 @@ spec = describe "Triangle Cycle Finding" $ do
       ex <- loadExample
       ex' <- expectRight $ A.annotateProgWithErrorBudget eps ex
       ex_cqpl <- expectRight $ Compiler.lowerProgram ex'
-      _ <- evaluate $ force $ toPy ex_cqpl
+      _ <- evaluate $ force $ Qualtran.toPy ex_cqpl
+      return ()
+
+    xit "target-py-qiskit" $ do
+      ex <- loadExample
+      ex' <- expectRight $ A.annotateProgWithErrorBudget eps ex
+      ex_cqpl <- expectRight $ Compiler.lowerProgram ex'
+      _ <- evaluate $ force $ Qiskit.toPy ex_cqpl
       return ()

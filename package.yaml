@@ -85,11 +85,8 @@ _expt_opts: &expt_opts
 
 executables:
   ### Tools
-  compile:
-    main: compile.hs
-    <<: *exe_opts
-  qpltoqualtranpy:
-    main: qpltoqualtranpy.hs
+  traq:
+    main: traq.hs
     <<: *exe_opts
   ### Experiments & Examples
   matrixsearch:

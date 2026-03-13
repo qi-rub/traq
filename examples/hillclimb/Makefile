@@ -3,7 +3,7 @@ PROJ_DEPS=../../src ../../tools ../../traq.cabal
 all: max_sat_hillclimb.qpl steep_max_sat.qpl
 
 %.qpl: %.traq $(PROJ_DEPS)
-	cd ../../ && cabal run compile -- \
+	cd ../../ && cabal run traq -- \
 		-i examples/hillclimb/$< \
 		-o examples/hillclimb/$@ \
 		-p 0.001 \
