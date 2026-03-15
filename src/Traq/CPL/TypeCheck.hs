@@ -330,11 +330,11 @@ instance (TypeInferrable ext size) => TypeInferrable (Stmt ext) size where
       throwError $
         "`if` condition must be a boolean, got " <> show (cond, cond_ty)
 
-    sigma_t <- withSandbox $ inferTypes s_true >> use id
-    sigma_f <- withSandbox $ inferTypes s_false >> use id
-    when (sigma_t /= sigma_f) $
-      throwError ("if: branches must declare same variables, got " <> show [sigma_t, sigma_f])
-    id .= sigma_t
+    sigma_t <- withSandbox $ inferTypes s_true >> use _typingCtx
+    sigma_f <- withSandbox $ inferTypes s_false >> use _typingCtx
+    case Ctx.union sigma_t sigma_f of
+      Nothing -> throwError ("if: branches have incompatible variable types: " <> show [sigma_t, sigma_f])
+      Just sigma -> _typingCtx .= sigma
     pure []
 
 -- | Type check a single function.

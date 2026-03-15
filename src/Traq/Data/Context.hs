@@ -25,6 +25,7 @@ module Traq.Data.Context (
   keys,
   elems,
   toAscList,
+  union,
 
   -- * Monadic functions
   unsafeLookup,
@@ -39,10 +40,11 @@ module Traq.Data.Context (
 import Prelude hiding (lookup, null)
 import qualified Prelude
 
-import Control.Monad (when)
+import Control.Monad (guard, when)
 import Control.Monad.Except (MonadError, throwError)
 import Control.Monad.Reader (MonadReader)
-import Control.Monad.State (MonadState)
+import Control.Monad.State (MonadState, execStateT, runStateT)
+import Control.Monad.Trans (lift)
 import qualified Data.Foldable as Foldable
 import qualified Data.List as List
 import GHC.Generics (Generic)
@@ -153,6 +155,13 @@ elems = map snd . toList
 
 toAscList :: Context a -> [(Ident, a)]
 toAscList = List.sortOn fst . toList
+
+union :: (Eq a) => Context a -> Context a -> Maybe (Context a)
+union c c' = (`execStateT` c) $ do
+  Foldable.forM_ (toList c') $ \(x, a) -> do
+    use (at x) >>= \case
+      Nothing -> ins x .= a
+      (Just a') -> guard (a /= a')
 
 -- Monadic functions
 
