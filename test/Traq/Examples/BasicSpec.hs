@@ -144,8 +144,8 @@ spec = do
           assertRight $ Compiler.lowerProgram ex
 
         it "typechecks" $ \ex -> do
-          ex_uqpl <- expectRight $ Compiler.lowerProgram ex
-          assertRight $ QPL.typeCheckProgram ex_uqpl
+          ex_qpl <- expectRight $ Compiler.lowerProgram ex
+          assertRight $ QPL.typeCheckProgram ex_qpl
 
         it "cost" $ \ex -> do
           ex_cqpl <- expectRight $ Compiler.lowerProgram ex

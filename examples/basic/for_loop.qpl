@@ -1,0 +1,24 @@
+uproc main_U(acc : OUT Fin<1000>, one : AUX Fin<1000>, i : AUX Fin<10>, acc_1 : AUX Fin<1000>, one_1 : AUX Fin<1000>, i : AUX Fin<10>, acc_2 : AUX Fin<1000>) {
+  acc_1 *= Embed[() => 0:Fin<1000>];
+  acc, acc_1 *= SWAP;
+  one_1 *= Embed[() => 1:Fin<1000>];
+  one, one_1 *= SWAP;
+  for (#ITER in 0 .. < 10) {
+    i *= Embed[() => #ITER];
+    acc, one, acc_2 *= Embed[(acc, one) => (acc + one)];
+    acc, acc_2 *= SWAP;
+    i *= Embed[() => #ITER];
+  }
+}
+
+proc main(acc : Fin<1000>) { locals : (one : Fin<1000>, i : Fin<10>, i : Fin<10>) } {
+  acc := 0:Fin<1000>;
+  one := 1:Fin<1000>;
+  for (#ITER_1 in 0 .. < 10) {
+    i := #ITER_1;
+    acc := (acc + one);
+  }
+}
+
+
+// qubits: 58

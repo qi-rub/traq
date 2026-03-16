@@ -210,7 +210,15 @@ instance CompileU1 CPL.Stmt where
       _ -> throwError "for loop index must be of type `Fin`"
     iter_meta_var <- newIdent "ITER"
     CPL._typingCtx . Ctx.ins loop_ix .= loop_ty
-    uloop_body <- compileU1 () loop_body
+    uloop_body <- do
+      s <- compileU1 () loop_body
+      let load_ix = UnitaryS{qargs = [Arg loop_ix], unitary = RevEmbedU [] (CPL.ParamE iter_meta_var)}
+      pure $
+        USeqS
+          [ load_ix
+          , s
+          , adjoint load_ix
+          ]
     pure $
       UForInRangeS
         { iter_meta_var
