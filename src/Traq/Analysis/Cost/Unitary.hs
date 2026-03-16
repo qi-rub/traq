@@ -86,6 +86,16 @@ instance CostU1 Expr where
     return $ (sizeToPrec n_iters :: prec) Alg..* body_cost
 
 instance CostU1 Stmt where
+  costU1 ::
+    forall ext cost size prec m.
+    ( m ~ CostAnalysisMonad ext
+    , size ~ SizeType ext
+    , prec ~ PrecType ext
+    , CostU ext size prec
+    , CostModelReqs size prec cost
+    ) =>
+    Stmt ext ->
+    m cost
   costU1 ExprS{expr} = costU1 expr
   costU1 IfThenElseS{s_true, s_false} = do
     cost_t <- costU1 s_true
@@ -94,7 +104,8 @@ instance CostU1 Stmt where
   costU1 (SeqS ss) = Alg.sum <$> mapM costU1 ss
   costU1 ForS{loop_ty, loop_body} = do
     body_cost <- costU1 loop_body
-    return $ (sizeToPrec (domainSize loop_ty) :: prec) Alg..* body_cost
+    let n_iters = loop_ty ^?! _Fin
+    return $ (sizeToPrec n_iters :: prec) Alg..* body_cost
 
 instance CostU1 NamedFunDef where
   -- query an external function

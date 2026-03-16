@@ -131,7 +131,7 @@ spec = do
 
       result `shouldBeDistribution` [([FinV 10], 1.0)]
 
-    fdescribe "Compile" $ do
+    describe "Compile" $ do
       let load_prog =
             parseFromFile (programParser @SymCore) "examples/basic/for_loop.traq"
               >>= expectRight

@@ -18,6 +18,7 @@ import qualified Traq.Data.Context as Ctx
 
 import Traq.Analysis.Error.Prelude
 import Traq.Analysis.Error.Unitary (TraceNormErrorU)
+import Traq.Analysis.Prelude (sizeToPrec)
 import Traq.CPL
 import Traq.Prelude
 
@@ -61,6 +62,10 @@ instance (TVErrorQ ext size prec) => TVErrorQ (Stmt ext) size prec where
     eps_f <- tvErrorQ s_false
     return $ max eps_t eps_f
   tvErrorQ (SeqS ss) = sum <$> mapM tvErrorQ ss
+  tvErrorQ ForS{loop_ty, loop_body} = do
+    body_err <- tvErrorQ loop_body
+    let n_iters = loop_ty ^?! _Fin
+    return $ failProb (sizeToPrec n_iters) * body_err
 
 instance (TVErrorQ ext size prec) => TVErrorQ (FunDef ext) size prec where
   tvErrorQ FunDef{mbody = Nothing} = return 0

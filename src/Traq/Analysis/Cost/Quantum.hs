@@ -101,9 +101,21 @@ instance CostQ1 Expr where
     return $ (sizeToPrec n_iters :: prec) Alg..* body_cost
 
 instance CostQ1 Stmt where
+  costQ1 ::
+    forall ext size prec cost m.
+    ( m ~ CostAnalysisMonad ext
+    , CostQ ext size prec
+    , CostModelReqs size prec cost
+    ) =>
+    Stmt ext ->
+    m cost
   costQ1 ExprS{expr} = costQ1 expr
   costQ1 IfThenElseS{s_true, s_false} = max <$> costQ1 s_true <*> costQ1 s_false
   costQ1 (SeqS ss) = Alg.sum <$> mapM costQ1 ss
+  costQ1 ForS{loop_ty, loop_body} = do
+    body_cost <- costQ1 loop_body
+    let n_iters = loop_ty ^?! _Fin
+    return $ (sizeToPrec n_iters :: prec) Alg..* body_cost
 
 instance CostQ1 NamedFunDef where
   -- query an external function
@@ -173,6 +185,17 @@ instance ExpCostQ1 Stmt where
     (_, cs) <- forAccumM (pure sigma) ss $ \distr s -> do
       c <- Prob.expectationA (expCostQ1 s) distr
       return (distr >>= stepS s, c)
+
+    return $ Alg.sum cs
+  expCostQ1 ForS{loop_ix, loop_ty, loop_body} sigma = do
+    env <- view _evaluationEnv
+    let stepS s sigma_s = eval1 s sigma_s & (runReaderT ?? env)
+    let bind_ix i s = s & at loop_ix ?~ i
+
+    (_, cs) <- forAccumM (pure sigma) (domain loop_ty) $ \distr i -> do
+      let distr_i = fmap (bind_ix i) distr
+      c <- Prob.expectationA (expCostQ1 loop_body) distr_i
+      return (distr_i >>= stepS loop_body, c)
 
     return $ Alg.sum cs
 
