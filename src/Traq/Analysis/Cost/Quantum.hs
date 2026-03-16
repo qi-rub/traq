@@ -16,6 +16,7 @@ module Traq.Analysis.Cost.Quantum (
 ) where
 
 import Control.Monad.Reader (runReader, runReaderT)
+import qualified Data.Map as Map
 
 import Lens.Micro.GHC
 import Lens.Micro.Mtl
@@ -135,12 +136,12 @@ instance ExpCostQ1 Expr where
   expCostQ1 RandomSampleE{distr_expr} _ = return $ callDistrExpr Classical distr_expr
   expCostQ1 FunCallE{fname, args} sigma = do
     fn <- view $ _funCtx . Ctx.at fname . non' (error $ "unable to find function " ++ fname)
-    let arg_vals = [sigma ^?! Ctx.at x . non (error $ "could not find var " ++ x) | x <- args]
+    let arg_vals = [sigma ^?! at x . non (error $ "could not find var " ++ x) | x <- args]
     expCostQ1 (NamedFunDef fname fn) arg_vals
   expCostQ1 PrimCallE{prim} sigma = expCostQ prim sigma
   expCostQ1 LoopE{initial_args, loop_body_fun} sigma = do
     fn@FunDef{param_types} <- view $ _funCtx . Ctx.at loop_body_fun . non' (error $ "unable to find function " ++ loop_body_fun)
-    let init_vals = [sigma ^?! Ctx.at x . non (error $ "could not find var " ++ x) | x <- initial_args]
+    let init_vals = [sigma ^?! at x . non (error $ "could not find var " ++ x) | x <- initial_args]
     let loop_domain = domain (last param_types)
 
     -- evaluate each iteration
@@ -160,7 +161,7 @@ instance ExpCostQ1 Stmt where
   expCostQ1 IfThenElseS{cond, s_true, s_false} sigma = do
     let b =
           sigma
-            ^?! Ctx.at cond
+            ^?! at cond
             . non' (error $ "cannot find variable" ++ cond)
             . to valueToBool
     expCostQ1 (if b then s_true else s_false) sigma
@@ -192,7 +193,7 @@ instance ExpCostQ1 NamedFunDef where
     args = expCostQ1 body_stmt sigma
      where
       -- bind args to the parameter names
-      sigma = Ctx.fromList $ zip param_names args
+      sigma = Map.fromList $ zip param_names args
 
 instance ExpCostQ1 Program where
   expCostQ1 (Program fs) = expCostQ1 $ last fs

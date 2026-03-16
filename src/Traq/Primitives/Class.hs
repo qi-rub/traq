@@ -135,7 +135,7 @@ instance
             . to (fromMaybe (error "unable to find predicate, please typecheck first!"))
 
       let vs = flip map pfun_args $ \case
-            Just x -> Just $ sigma ^. Ctx.at x . non (error "ill-formed program")
+            Just x -> Just $ sigma ^. at x . non (error "ill-formed program")
             Nothing -> Nothing
 
       let eval_fn vs' = CPL.eval1 CPL.NamedFunDef{CPL.fun_name = pfun_name, CPL.fun_def = fn} (placeArgs vs vs')
@@ -435,7 +435,7 @@ instance
             . to (fromMaybe (error "unable to find predicate, please typecheck first!"))
 
       let vs = flip map pfun_args $ \case
-            Just x -> Just $ sigma ^. Ctx.at x . non (error "ill-formed program")
+            Just x -> Just $ sigma ^. at x . non (error "ill-formed program")
             Nothing -> Nothing
 
       let eval_fn vs' =

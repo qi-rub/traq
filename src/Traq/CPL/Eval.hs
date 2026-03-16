@@ -180,7 +180,7 @@ modifyArr (ArrV xs) (FinV i) v = ArrV $ xs & ix i .~ v
 modifyArr _ _ _ = error "invalid inputs"
 
 -- | The deterministic state of the program
-type ProgramState size = Ctx.Context (Value size)
+type ProgramState size = Map.Map Ident (Value size)
 
 class HasProgramState p where
   _state :: (size ~ SizeType p) => Lens' p (ProgramState size)
@@ -195,7 +195,7 @@ evalBasicExpr ::
   ) =>
   BasicExpr size ->
   m (Value size)
-evalBasicExpr VarE{var} = view $ _state . Ctx.at var . non' (error $ "cannot find variable " <> var)
+evalBasicExpr VarE{var} = view $ _state . at var . non' (error $ "cannot find variable " <> var)
 evalBasicExpr DefaultE{ty} = return $ defaultV ty
 evalBasicExpr ConstE{val} = return val
 evalBasicExpr UnOpE{un_op, operand} = do
@@ -350,7 +350,7 @@ lookupS ::
   ) =>
   Ident ->
   m (Value size)
-lookupS x = use $ _state . Ctx.at x . non' (error $ "cannot find variable " ++ x)
+lookupS x = use $ _state . at x . non' (error $ "cannot find variable " ++ x)
 
 evalRandomSampleExpr ::
   ( MonadReader env m
@@ -412,15 +412,15 @@ instance Eval1 Stmt where
 
   eval1 ExprS{rets, expr} sigma = do
     vals <- eval1 expr sigma
-    let sigma' = foldr (\(x, v) -> Ctx.ins x .~ v) sigma (zip rets vals)
+    let sigma' = foldr (\(x, v) -> at x ?~ v) sigma (zip rets vals)
     return sigma'
   eval1 IfThenElseS{cond, s_true, s_false} sigma = do
-    let cond_val = sigma ^. Ctx.at cond . non' (error $ "cannot find " <> cond)
+    let cond_val = sigma ^. at cond . non' (error $ "cannot find " <> cond)
     let s = if fromValue cond_val then s_true else s_false
     eval1 s sigma
   eval1 (SeqS ss) sigma = foldM (flip eval1) sigma ss
   eval1 ForS{loop_ix, loop_ty, loop_body} sigma = do
-    foldM (\s i -> eval1 loop_body (s & Ctx.ins loop_ix .~ i)) sigma (domain loop_ty)
+    foldM (\s i -> eval1 loop_body (s & at loop_ix ?~ i)) sigma (domain loop_ty)
 
 instance Eval1 FunBody where
   type EvalArgs FunBody ext = [Value (SizeType ext)]
@@ -428,7 +428,7 @@ instance Eval1 FunBody where
 
   eval1 FunBody{param_names, ret_names, body_stmt} vals_in = do
     when (length param_names /= length vals_in) $ error (printf "incorrect number of args: expected %s, got %s" (show param_names) (show vals_in))
-    let params = Ctx.fromList $ zip param_names vals_in
+    let params = Map.fromList $ zip param_names vals_in
     sigma' <- eval1 body_stmt params
     (evalStateT ?? sigma') $ mapM lookupS ret_names
 
