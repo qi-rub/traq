@@ -72,12 +72,14 @@ loopExample n w =
         }
     ]
 
+type SymCore = Core (Sym.Sym SizeT) Double
+
 spec :: Spec
 spec = do
   describe "Loop example" $ do
     it "parses" $ do
       p <-
-        parseFromFile (programParser @(Core (Sym.Sym SizeT) Double)) "examples/basic/loop_example.traq"
+        parseFromFile (programParser @SymCore) "examples/basic/loop_example.traq"
           >>= expectRight
       p `shouldBe` loopExample (Sym.var "N") (Sym.var "W")
 
@@ -94,6 +96,50 @@ spec = do
               & expectRight
 
       before load_prog $ do
+        it "lowers" $ \ex -> do
+          assertRight $ Compiler.lowerProgram ex
+
+        it "typechecks" $ \ex -> do
+          ex_uqpl <- expectRight $ Compiler.lowerProgram ex
+          assertRight $ QPL.typeCheckProgram ex_uqpl
+
+        it "cost" $ \ex -> do
+          ex_cqpl <- expectRight $ Compiler.lowerProgram ex
+          let cost = fst (QPL.programCost ex_cqpl) :: SimpleQueryCost Double
+          let cost_from_analysis = getCost $ A.costQProg ex
+          getCost cost `shouldBeLE` cost_from_analysis
+
+        xit "target-py-qualtran" $ \ex -> do
+          ex_cqpl <- expectRight $ Compiler.lowerProgram ex
+          _ <- evaluate $ force $ Qualtran.toPy ex_cqpl
+          return ()
+
+        xit "target-py-qiskit" $ \ex -> do
+          ex_cqpl <- expectRight $ Compiler.lowerProgram ex
+          _ <- evaluate $ force $ Qiskit.toPy ex_cqpl
+          return ()
+
+  fdescribe "for loop" $ do
+    it "parses" $ do
+      p <- parseFromFile (programParser @SymCore) "examples/basic/for_loop.traq"
+      assertRight p
+
+    it "evaluates" $ do
+      Right ex <- parseFromFile (programParser @SymCore) "examples/basic/for_loop.traq"
+      let ex' = mapSize (Sym.unSym . Sym.subst "N" 10 . Sym.subst "W" 20) ex
+      let result = runProgram @Core' ex' mempty []
+
+      result `shouldBeDistribution` [([FinV 10], 1.0)]
+
+    xdescribe "Compile" $ do
+      let load_prog =
+            parseFromFile (programParser @SymCore) "examples/basic/for_loop.traq"
+              >>= expectRight
+                <&> mapSize (Sym.unSym . Sym.subst "N" 10 . Sym.subst "W" 20)
+                <&> A.annotateProgWith (_exts A.annNoPrims)
+              >>= expectRight
+
+      beforeAll load_prog $ do
         it "lowers" $ \ex -> do
           assertRight $ Compiler.lowerProgram ex
 

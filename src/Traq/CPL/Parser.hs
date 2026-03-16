@@ -49,6 +49,8 @@ cplDef =
         , "update"
         , "set"
         , "loop"
+        , "for"
+        , "in"
         , -- functions
           "fn"
         , "ext"
@@ -263,8 +265,23 @@ distrExprP :: TokenParser () -> Parser (DistrExpr SymbSize)
 distrExprP = parseE
 
 instance (Parseable ext, SizeType ext ~ SymbSize) => Parseable (Stmt ext) where
-  parseE tp@TokenParser{..} = SeqS <$> many exprS
+  parseE tp@TokenParser{..} = SeqS <$> many (forS <|> exprS)
    where
+    forS :: Parser (Stmt ext)
+    forS = do
+      reserved "for"
+      (loop_ix, loop_ty) <- parens $ do
+        loop_ix <- identifier
+        reserved "in"
+        loop_ty <- varType tp
+        return (loop_ix, loop_ty)
+
+      reserved "do"
+      loop_body <- stmtP tp
+      reserved "end"
+
+      return ForS{loop_ix, loop_ty, loop_body}
+
     exprS :: Parser (Stmt ext)
     exprS = do
       rets <- commaSep1 identifier

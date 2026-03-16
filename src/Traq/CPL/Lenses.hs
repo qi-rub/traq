@@ -43,6 +43,7 @@ instance (MapSize ext) => MapSize (Stmt ext) where
   mapSize f ExprS{..} = ExprS{expr = mapSize f expr, ..}
   mapSize f IfThenElseS{..} = IfThenElseS{s_true = mapSize f s_true, s_false = mapSize f s_false, ..}
   mapSize f (SeqS ss) = SeqS $ map (mapSize f) ss
+  mapSize f ForS{..} = ForS{loop_ty = fmap f loop_ty, loop_body = mapSize f loop_body, ..}
 
 instance (MapSize ext) => MapSize (FunBody ext) where
   type MappedSize (FunBody ext) size' = FunBody (MappedSize ext size')

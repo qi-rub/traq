@@ -419,6 +419,8 @@ instance Eval1 Stmt where
     let s = if fromValue cond_val then s_true else s_false
     eval1 s sigma
   eval1 (SeqS ss) sigma = foldM (flip eval1) sigma ss
+  eval1 ForS{loop_ix, loop_ty, loop_body} sigma = do
+    foldM (\s i -> eval1 loop_body (s & Ctx.ins loop_ix .~ i)) sigma (domain loop_ty)
 
 instance Eval1 FunBody where
   type EvalArgs FunBody ext = [Value (SizeType ext)]

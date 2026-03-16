@@ -299,6 +299,7 @@ data Stmt ext
   = ExprS {rets :: [Ident], expr :: Expr ext}
   | IfThenElseS {cond :: Ident, s_true, s_false :: Stmt ext}
   | SeqS [Stmt ext]
+  | ForS {loop_ix :: Ident, loop_ty :: VarType (SizeType ext), loop_body :: Stmt ext}
 
 deriving instance (Eq ext, Eq (SizeType ext)) => Eq (Stmt ext)
 deriving instance (Show ext, Show (SizeType ext)) => Show (Stmt ext)
@@ -320,6 +321,11 @@ instance (Show (SizeType ext), PP.ToCodeString ext) => PP.ToCodeString (Stmt ext
     PP.indented $ PP.build s_false
     PP.putLine "end"
   build (SeqS ss) = mapM_ PP.build ss
+  build ForS{loop_ix, loop_ty, loop_body} = do
+    t <- PP.fromBuild loop_ty
+    PP.putLine $ printf "for (%s in %s) do" loop_ix t
+    PP.indented $ PP.build loop_body
+    PP.putLine "end"
 
 -- | The body of a function.
 data FunBody ext = FunBody

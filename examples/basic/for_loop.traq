@@ -1,0 +1,8 @@
+fn main () -> (Fin<W>) do
+    acc <- const 0 : Fin<W>;
+    one <- const 1 : Fin<W>;
+    for (i in Fin<N>) do
+        acc <- acc + one;
+    end
+    return acc
+end
