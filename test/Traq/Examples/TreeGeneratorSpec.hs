@@ -18,6 +18,7 @@ import qualified Traq.CPL as CPL
 import qualified Traq.Compiler as Compiler
 import qualified Traq.Compiler.Qiskit as Qiskit
 import qualified Traq.Compiler.Qualtran as Qualtran
+import Traq.Examples.TreeGenerator
 import Traq.Prelude
 import Traq.Primitives
 import qualified Traq.QPL as QPL
@@ -52,8 +53,8 @@ spec :: Spec
 spec = do
   describe "Tree Generator Example" $ do
     it "parses" $ do
-      expectRight =<< parseFromFile (programParser @Prim) "examples/tree_generator/tree_generator_01_knapsack.traq"
-      -- p `shouldBe` treeGeneratorExample (Sym.var "N") (Sym.var "W") (Sym.var "P")
+      p <- expectRight =<< parseFromFile (programParser @Prim) "examples/tree_generator/tree_generator_01_knapsack.traq"
+      p `shouldBe` treeGeneratorExample @Prim (Sym.var "N") (Sym.var "W") (Sym.var "P") (Sym.var "K")
       return ()
 
     it "typechecks" $ do
@@ -84,7 +85,7 @@ spec = do
             ex <- loadKnapsack 2 20 30 2
             expectRight $ A.annotateProgWith (_exts (A.annSinglePrim eps)) ex
 
-      before load_prog $ do
+      beforeAll load_prog $ do
         it "lowers" $ \ex -> do
           assertRight $ Compiler.lowerProgram ex
 
