@@ -51,36 +51,30 @@ spec = describe "3 round feistel attack" $ do
 
   describe "Compile" $ do
     let eps = A.failProb (0.0001 :: Double)
+    let load_prog = do
+          ex <- CPL.renameVars' <$> loadExample
+          expectRight $ A.annotateProgWith (CPL._exts (A.annSinglePrim eps)) ex
 
-    it "lowers" $ do
-      ex <- CPL.renameVars' <$> loadExample
-      ex' <- expectRight $ A.annotateProgWith (CPL._exts (A.annSinglePrim eps)) ex
-      assertRight $ Compiler.lowerProgram ex'
+    before load_prog $ do
+      it "lowers" $ \ex -> do
+        assertRight $ Compiler.lowerProgram ex
 
-    it "typechecks" $ do
-      ex <- CPL.renameVars' <$> loadExample
-      ex' <- expectRight $ A.annotateProgWith (CPL._exts (A.annSinglePrim eps)) ex
-      ex_uqpl <- expectRight $ Compiler.lowerProgram ex'
-      assertRight $ QPL.typeCheckProgram ex_uqpl
+      it "typechecks" $ \ex -> do
+        ex_uqpl <- expectRight $ Compiler.lowerProgram ex
+        assertRight $ QPL.typeCheckProgram ex_uqpl
 
-    it "cost" $ do
-      ex <- CPL.renameVars' <$> loadExample
-      ex' <- expectRight $ A.annotateProgWith (CPL._exts (A.annSinglePrim eps)) ex
-      ex_cqpl <- expectRight $ Compiler.lowerProgram ex'
-      let cost = fst (QPL.programCost ex_cqpl) :: SimpleQueryCost Double
-      let cost_from_analysis = getCost $ A.costQProg ex'
-      getCost cost `shouldBeLE` cost_from_analysis
+      it "cost" $ \ex -> do
+        ex_cqpl <- expectRight $ Compiler.lowerProgram ex
+        let cost = fst (QPL.programCost ex_cqpl) :: SimpleQueryCost Double
+        let cost_from_analysis = getCost $ A.costQProg ex
+        getCost cost `shouldBeLE` cost_from_analysis
 
-    xit "target-py-qualtran" $ do
-      ex <- CPL.renameVars' <$> loadExample
-      ex' <- expectRight $ A.annotateProgWith (CPL._exts (A.annSinglePrim eps)) ex
-      ex_cqpl <- expectRight $ Compiler.lowerProgram ex'
-      _ <- evaluate $ force $ Qualtran.toPy ex_cqpl
-      return ()
+      xit "target-py-qualtran" $ \ex -> do
+        ex_cqpl <- expectRight $ Compiler.lowerProgram ex
+        _ <- evaluate $ force $ Qualtran.toPy ex_cqpl
+        return ()
 
-    xit "target-py-qiskit" $ do
-      ex <- CPL.renameVars' <$> loadExample
-      ex' <- expectRight $ A.annotateProgWith (CPL._exts (A.annSinglePrim eps)) ex
-      ex_cqpl <- expectRight $ Compiler.lowerProgram ex'
-      _ <- evaluate $ force $ Qiskit.toPy ex_cqpl
-      return ()
+      xit "target-py-qiskit" $ \ex -> do
+        ex_cqpl <- expectRight $ Compiler.lowerProgram ex
+        _ <- evaluate $ force $ Qiskit.toPy ex_cqpl
+        return ()

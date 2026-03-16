@@ -66,53 +66,51 @@ spec = describe "SearchSpec" $ do
 
     describe "Unitary Compile" $ do
       let eps = A.failProb (0.0001 :: Double)
+      let load_prog =
+            expectRight $ A.annotateProgWith (CPL._exts (A.annSinglePrim eps)) ex
 
-      it "lowers" $ do
-        ex' <- expectRight $ A.annotateProgWith (CPL._exts (A.annSinglePrim eps)) ex
-        assertRight $ Compiler.lowerProgramU ex'
+      before load_prog $ do
+        it "lowers" $ \ex' -> do
+          assertRight $ Compiler.lowerProgramU ex'
 
-      it "typechecks" $ do
-        ex' <- expectRight $ A.annotateProgWith (CPL._exts (A.annSinglePrim eps)) ex
-        ex_uqpl <- expectRight $ Compiler.lowerProgramU ex'
-        assertRight $ QPL.typeCheckProgram ex_uqpl
+        it "typechecks" $ \ex' -> do
+          ex_uqpl <- expectRight $ Compiler.lowerProgramU ex'
+          assertRight $ QPL.typeCheckProgram ex_uqpl
 
-      it "preserves cost" $ do
-        ex' <- expectRight $ A.annotateProgWith (CPL._exts (A.annSinglePrim eps)) ex
-        ex_uqpl <- expectRight $ Compiler.lowerProgramU ex'
-        let (uqpl_cost, _) = QPL.programCost ex_uqpl
-        let traq_cost = A.costUProg ex' :: SimpleQueryCost Double
-        uqpl_cost `shouldBeLE` traq_cost
+        it "preserves cost" $ \ex' -> do
+          ex_uqpl <- expectRight $ Compiler.lowerProgramU ex'
+          let (uqpl_cost, _) = QPL.programCost ex_uqpl
+          let traq_cost = A.costUProg ex' :: SimpleQueryCost Double
+          uqpl_cost `shouldBeLE` traq_cost
 
     describe "Compile" $ do
       let eps = A.failProb (0.0001 :: Double)
+      let load_prog =
+            expectRight $ A.annotateProgWith (CPL._exts (A.annSinglePrim eps)) ex
 
-      it "lowers" $ do
-        ex' <- expectRight $ A.annotateProgWith (CPL._exts (A.annSinglePrim eps)) ex
-        assertRight $ Compiler.lowerProgram ex'
+      before load_prog $ do
+        it "lowers" $ \ex' -> do
+          assertRight $ Compiler.lowerProgram ex'
 
-      it "typechecks" $ do
-        ex' <- expectRight $ A.annotateProgWith (CPL._exts (A.annSinglePrim eps)) ex
-        ex_uqpl <- expectRight $ Compiler.lowerProgram ex'
-        assertRight $ QPL.typeCheckProgram ex_uqpl
+        it "typechecks" $ \ex' -> do
+          ex_uqpl <- expectRight $ Compiler.lowerProgram ex'
+          assertRight $ QPL.typeCheckProgram ex_uqpl
 
-      it "cost" $ do
-        ex' <- expectRight $ A.annotateProgWith (CPL._exts (A.annSinglePrim eps)) ex
-        ex_cqpl <- expectRight $ Compiler.lowerProgram ex'
-        let cost = fst (QPL.programCost ex_cqpl) :: SimpleQueryCost Double
-        let cost_from_analysis = getCost $ A.costQProg ex'
-        getCost cost `shouldBeLE` cost_from_analysis
+        it "cost" $ \ex' -> do
+          ex_cqpl <- expectRight $ Compiler.lowerProgram ex'
+          let cost = fst (QPL.programCost ex_cqpl) :: SimpleQueryCost Double
+          let cost_from_analysis = getCost $ A.costQProg ex'
+          getCost cost `shouldBeLE` cost_from_analysis
 
-      xit "target-py-qualtran" $ do
-        ex' <- expectRight $ A.annotateProgWith (CPL._exts (A.annSinglePrim eps)) ex
-        ex_cqpl <- expectRight $ Compiler.lowerProgram ex'
-        _ <- evaluate $ force $ Qualtran.toPy ex_cqpl
-        return ()
+        xit "target-py-qualtran" $ \ex' -> do
+          ex_cqpl <- expectRight $ Compiler.lowerProgram ex'
+          _ <- evaluate $ force $ Qualtran.toPy ex_cqpl
+          return ()
 
-      xit "target-py-qiskit" $ do
-        ex' <- expectRight $ A.annotateProgWith (CPL._exts (A.annSinglePrim eps)) ex
-        ex_cqpl <- expectRight $ Compiler.lowerProgram ex'
-        _ <- evaluate $ force $ Qiskit.toPy ex_cqpl
-        return ()
+        xit "target-py-qiskit" $ \ex' -> do
+          ex_cqpl <- expectRight $ Compiler.lowerProgram ex'
+          _ <- evaluate $ force $ Qiskit.toPy ex_cqpl
+          return ()
 
   describe "arraySearch (returning solution)" $ do
     let n = 10
