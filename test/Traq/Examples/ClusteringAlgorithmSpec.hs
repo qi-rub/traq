@@ -34,7 +34,6 @@ loadExample = do
           & CPL.mapSize (Sym.subst "N" (Sym.con 8))
           & CPL.mapSize (Sym.subst "M" (Sym.con 4))
           & CPL.mapSize Sym.unSym
-          & CPL.renameVars'
   return prog'
 
 spec :: Spec

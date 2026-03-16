@@ -51,7 +51,7 @@ spec = describe "Grover Meets Simon" $ do
   describe "Compile" $ do
     let eps = A.failProb (0.0001 :: Double)
     let load_prog = do
-          ex <- CPL.renameVars' <$> loadExample
+          ex <- loadExample
           expectRight $ A.annotateProgWithErrorBudget eps ex
 
     before load_prog $ do

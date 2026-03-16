@@ -35,7 +35,6 @@ loadExample = do
     prog
       & CPL.mapSize (Sym.subst "N" (Sym.con 8))
       & CPL.mapSize Sym.unSym
-      & CPL.renameVars'
 
 spec :: Spec
 spec = describe "Triangle Cycle Finding" $ do

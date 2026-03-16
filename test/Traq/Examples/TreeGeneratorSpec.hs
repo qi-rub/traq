@@ -130,7 +130,7 @@ spec = do
     describe "Compile" $ do
       let eps = A.failProb (0.0001 :: Double)
       let load_prog = do
-            ex <- CPL.renameVars' <$> loadKnapsack 2 20 30 2
+            ex <- loadKnapsack 2 20 30 2
             expectRight $ A.annotateProgWith (_exts (A.annSinglePrim eps)) ex
 
       before load_prog $ do

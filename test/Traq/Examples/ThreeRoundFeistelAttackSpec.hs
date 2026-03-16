@@ -52,7 +52,7 @@ spec = describe "3 round feistel attack" $ do
   describe "Compile" $ do
     let eps = A.failProb (0.0001 :: Double)
     let load_prog = do
-          ex <- CPL.renameVars' <$> loadExample
+          ex <- loadExample
           expectRight $ A.annotateProgWith (CPL._exts (A.annSinglePrim eps)) ex
 
     before load_prog $ do
