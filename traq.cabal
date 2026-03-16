@@ -406,6 +406,7 @@ test-suite spec
       Traq.Data.Probability.ContSpec
       Traq.Data.Probability.TreeSpec
       Traq.Data.SymbolicSpec
+      Traq.Examples.BasicSpec
       Traq.Examples.ClusteringAlgorithmSpec
       Traq.Examples.DepthThreeNandFormulaSpec
       Traq.Examples.EvenMansourSpec
