@@ -289,6 +289,7 @@ instance
   ( TypeCheckPrim prim (SizeType prim)
   , CPL.TypingReqs (SizeType prim)
   , UnitaryCompilePrim prim (SizeType prim) (PrecType prim)
+  , Integral (SizeType prim)
   ) =>
   Compiler.CompileU (A.AnnFailProb (Primitive prim))
   where
@@ -516,6 +517,7 @@ instance
   , CPL.TypingReqs (SizeType prim)
   , UnitaryCompilePrim prim (SizeType prim) (PrecType prim)
   , QuantumCompilePrim prim (SizeType prim) (PrecType prim)
+  , Integral (SizeType prim)
   ) =>
   Compiler.CompileQ (A.AnnFailProb (Primitive prim))
   where

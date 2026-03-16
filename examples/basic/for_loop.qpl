@@ -1,24 +1,58 @@
-uproc main_U(acc : OUT Fin<1000>, one : AUX Fin<1000>, i : AUX Fin<10>, acc_1 : AUX Fin<1000>, one_1 : AUX Fin<1000>, i : AUX Fin<10>, acc_2 : AUX Fin<1000>) {
+uproc main_U(acc : OUT Fin<1000>, one : AUX Fin<1000>, i : AUX Fin<10>, acc_1 : AUX Fin<1000>, one_1 : AUX Fin<1000>, acc_2 : AUX Fin<1000>, i_1 : AUX Fin<10>, acc_3 : AUX Fin<1000>, i_2 : AUX Fin<10>, acc_4 : AUX Fin<1000>, i_3 : AUX Fin<10>, acc_5 : AUX Fin<1000>, i_4 : AUX Fin<10>, acc_6 : AUX Fin<1000>, i_5 : AUX Fin<10>, acc_7 : AUX Fin<1000>, i_6 : AUX Fin<10>, acc_8 : AUX Fin<1000>, i_7 : AUX Fin<10>, acc_9 : AUX Fin<1000>, i_8 : AUX Fin<10>, acc_10 : AUX Fin<1000>, i_9 : AUX Fin<10>, acc_11 : AUX Fin<1000>) {
   acc_1 *= Embed[() => 0:Fin<1000>];
   acc, acc_1 *= SWAP;
   one_1 *= Embed[() => 1:Fin<1000>];
   one, one_1 *= SWAP;
-  for (#ITER in 0 .. < 10) {
-    i *= Embed[() => #ITER];
-    acc, one, acc_2 *= Embed[(acc, one) => (acc + one)];
-    acc, acc_2 *= SWAP;
-    i *= Embed[() => #ITER];
-  }
+  i *= Embed[() => 0:Fin<10>];
+  i, i *= SWAP;
+  acc, one, acc_2 *= Embed[(acc, one) => (acc + one)];
+  acc, acc_2 *= SWAP;
+  i_1 *= Embed[() => 1:Fin<10>];
+  i_1, i *= SWAP;
+  acc, one, acc_3 *= Embed[(acc, one) => (acc + one)];
+  acc, acc_3 *= SWAP;
+  i_2 *= Embed[() => 2:Fin<10>];
+  i_2, i *= SWAP;
+  acc, one, acc_4 *= Embed[(acc, one) => (acc + one)];
+  acc, acc_4 *= SWAP;
+  i_3 *= Embed[() => 3:Fin<10>];
+  i_3, i *= SWAP;
+  acc, one, acc_5 *= Embed[(acc, one) => (acc + one)];
+  acc, acc_5 *= SWAP;
+  i_4 *= Embed[() => 4:Fin<10>];
+  i_4, i *= SWAP;
+  acc, one, acc_6 *= Embed[(acc, one) => (acc + one)];
+  acc, acc_6 *= SWAP;
+  i_5 *= Embed[() => 5:Fin<10>];
+  i_5, i *= SWAP;
+  acc, one, acc_7 *= Embed[(acc, one) => (acc + one)];
+  acc, acc_7 *= SWAP;
+  i_6 *= Embed[() => 6:Fin<10>];
+  i_6, i *= SWAP;
+  acc, one, acc_8 *= Embed[(acc, one) => (acc + one)];
+  acc, acc_8 *= SWAP;
+  i_7 *= Embed[() => 7:Fin<10>];
+  i_7, i *= SWAP;
+  acc, one, acc_9 *= Embed[(acc, one) => (acc + one)];
+  acc, acc_9 *= SWAP;
+  i_8 *= Embed[() => 8:Fin<10>];
+  i_8, i *= SWAP;
+  acc, one, acc_10 *= Embed[(acc, one) => (acc + one)];
+  acc, acc_10 *= SWAP;
+  i_9 *= Embed[() => 9:Fin<10>];
+  i_9, i *= SWAP;
+  acc, one, acc_11 *= Embed[(acc, one) => (acc + one)];
+  acc, acc_11 *= SWAP;
 }
 
 proc main(acc : Fin<1000>) { locals : (one : Fin<1000>, i : Fin<10>, i : Fin<10>) } {
   acc := 0:Fin<1000>;
   one := 1:Fin<1000>;
-  for (#ITER_1 in 0 .. < 10) {
-    i := #ITER_1;
+  for (#ITER in 0 .. < 10) {
+    i := #ITER;
     acc := (acc + one);
   }
 }
 
 
-// qubits: 58
+// qubits: 180

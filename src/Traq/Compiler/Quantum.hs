@@ -40,10 +40,10 @@ class (CompileU ext) => CompileQ ext where
     [Ident] ->
     m (Stmt (SizeType ext))
 
-instance (CPL.TypingReqs size) => CompileQ (CPL.Core size prec) where
+instance (CPL.TypingReqs size, Integral size) => CompileQ (CPL.Core size prec) where
   compileQ = \case {}
 
-instance (CPL.TypingReqs size) => CompileQ (A.AnnFailProb (CPL.Core size prec)) where
+instance (CPL.TypingReqs size, Integral size) => CompileQ (A.AnnFailProb (CPL.Core size prec)) where
   compileQ (A.AnnFailProb _ ext) = case ext of {}
 
 class CompileQ1 f where

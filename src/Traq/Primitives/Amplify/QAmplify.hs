@@ -132,7 +132,7 @@ instance (CPL.EvalReqs size prec, Floating prec, Ord prec) => QuantumExpCostPrim
 -- Unitary Compilation
 -- --------------------------------------------------------------------------------
 
-instance (Floating prec, RealFrac prec) => UnitaryCompilePrim (QAmplify size prec) size prec where
+instance (Floating prec, RealFrac prec, Eq size) => UnitaryCompilePrim (QAmplify size prec) size prec where
   compileUPrim (QAmplify Amplify{p_min}) eps = do
     -- return vars and types
     ret_tys <- view $ to prim_ret_types

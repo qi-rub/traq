@@ -17,7 +17,7 @@ module Traq.Compiler.Unitary (
   compileU1,
 ) where
 
-import Control.Monad (zipWithM)
+import Control.Monad (forM, zipWithM)
 import Control.Monad.Except (MonadError (throwError))
 import Data.Foldable (Foldable (toList))
 
@@ -39,18 +39,18 @@ import Traq.QPL.Syntax
 -- ================================================================================
 
 -- | Allocate an ancilla register, and update the typing context.
-allocAncillaWithPref :: (size ~ SizeType ext) => Ident -> CPL.VarType size -> CompilerT ext Ident
+allocAncillaWithPref :: (size ~ SizeType ext, Eq size) => Ident -> CPL.VarType size -> CompilerT ext Ident
 allocAncillaWithPref pref ty = do
   name <- newIdent pref
-  zoom CPL._typingCtx $ Ctx.put name ty
+  zoom CPL._typingCtx $ Ctx.putOrMatch name ty
   return name
 
 -- | Allocate an ancilla register @aux_<<n>>@, and update the typing context.
-allocAncilla :: (size ~ SizeType ext) => CPL.VarType size -> CompilerT ext Ident
+allocAncilla :: (size ~ SizeType ext, Eq size) => CPL.VarType size -> CompilerT ext Ident
 allocAncilla = allocAncillaWithPref "aux"
 
 -- | Allocate fresh set of auxiliaries corresponding to the types of given vars.
-freshAux :: (m ~ CompilerT ext) => [Ident] -> m [Ident]
+freshAux :: (m ~ CompilerT ext, size ~ SizeType ext, Eq size) => [Ident] -> m [Ident]
 freshAux xs = do
   tys <- zoom CPL._typingCtx $ mapM Ctx.lookup xs
   zipWithM allocAncillaWithPref xs tys
@@ -62,7 +62,7 @@ withTag tag = map $ \(x, ty) -> (x, tag, ty)
 -- Compiler
 -- ================================================================================
 
-class (CPL.TypeInferrable ext (SizeType ext)) => CompileU ext where
+class (CPL.TypeInferrable ext (SizeType ext), Integral (SizeType ext)) => CompileU ext where
   compileU ::
     forall ext' m.
     ( m ~ CompilerT ext'
@@ -73,10 +73,10 @@ class (CPL.TypeInferrable ext (SizeType ext)) => CompileU ext where
     [Ident] ->
     m (QPL.UStmt (SizeType ext))
 
-instance (CPL.TypingReqs size) => CompileU (CPL.Core size prec) where
+instance (CPL.TypingReqs size, Integral size) => CompileU (CPL.Core size prec) where
   compileU = \case {}
 
-instance (CPL.TypingReqs size) => CompileU (A.AnnFailProb (CPL.Core size prec)) where
+instance (CPL.TypingReqs size, Integral size) => CompileU (A.AnnFailProb (CPL.Core size prec)) where
   compileU (A.AnnFailProb _ ext) = case ext of {}
 
 class CompileU1 f where
@@ -208,24 +208,17 @@ instance CompileU1 CPL.Stmt where
     n <- case loop_ty of
       CPL.Fin n -> pure n
       _ -> throwError "for loop index must be of type `Fin`"
-    iter_meta_var <- newIdent "ITER"
-    CPL._typingCtx . Ctx.ins loop_ix .= loop_ty
-    uloop_body <- do
+    ss <- forM [0 .. n - 1] $ \i -> do
+      tmp <- allocAncillaWithPref loop_ix loop_ty
+      let load_ix =
+            UnitaryS
+              { qargs = [Arg tmp]
+              , unitary = RevEmbedU [] (CPL.ConstE (CPL.FinV i) loop_ty)
+              }
+      let swap_ix = UnitaryS{qargs = [Arg tmp, Arg loop_ix], unitary = BasicGateU SWAP}
       s <- compileU1 () loop_body
-      let load_ix = UnitaryS{qargs = [Arg loop_ix], unitary = RevEmbedU [] (CPL.ParamE iter_meta_var)}
-      pure $
-        USeqS
-          [ load_ix
-          , s
-          , adjoint load_ix
-          ]
-    pure $
-      UForInRangeS
-        { iter_meta_var
-        , iter_lim = CPL.MetaSize n
-        , dagger = False
-        , uloop_body
-        }
+      pure [load_ix, swap_ix, s]
+    pure $ USeqS $ concat ss
 
 instance CompileU1 CPL.FunBody where
   type CompileArgs CPL.FunBody ext = ([CPL.VarType (SizeType ext)], [CPL.VarType (SizeType ext)])

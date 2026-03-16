@@ -191,4 +191,4 @@ putOrMatch :: (MonadError String m, MonadState (Context a) m, Eq a) => Ident -> 
 putOrMatch x v =
   use (at x) >>= \case
     Nothing -> unsafePut x v
-    (Just v') -> when (v /= v') $ throwError (printf "variable `%s` already exists!" x)
+    (Just v') -> when (v /= v') $ throwError (printf "variable `%s` already exists with different value!" x)
