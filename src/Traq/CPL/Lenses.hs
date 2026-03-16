@@ -102,6 +102,9 @@ instance HasExts Stmt where
     s_false <- _exts focus s_false
     pure IfThenElseS{cond, s_true, s_false}
   _exts focus (SeqS ss) = SeqS <$> traverse (_exts focus) ss
+  _exts focus ForS{loop_ix, loop_ty, loop_body} = do
+    loop_body <- _exts focus loop_body
+    pure ForS{loop_ix, loop_ty, loop_body}
 
 instance HasExts FunBody where
   _exts focus FunBody{param_names, ret_names, body_stmt} = do

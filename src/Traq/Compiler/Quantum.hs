@@ -119,6 +119,19 @@ instance CompileQ1 CPL.Stmt where
     s_true <- compileQ1 () s_true
     s_false <- compileQ1 () s_false
     pure IfThenElseS{..}
+  compileQ1 () CPL.ForS{CPL.loop_ix, CPL.loop_ty, CPL.loop_body} = do
+    n <- case loop_ty of
+      CPL.Fin n -> pure n
+      _ -> throwError "for loop index must be of type `Fin`"
+    iter_meta_var <- newIdent "ITER"
+    CPL._typingCtx . Ctx.ins loop_ix .= loop_ty
+    loop_body <- compileQ1 () loop_body
+    pure $
+      ForInRangeS
+        { iter_meta_var
+        , iter_lim = CPL.MetaSize n
+        , loop_body = SeqS [AssignS [loop_ix] (CPL.ParamE iter_meta_var), loop_body]
+        }
 
 instance CompileQ1 CPL.FunBody where
   type CompileQArgs CPL.FunBody ext = ([CPL.VarType (SizeType ext)], [CPL.VarType (SizeType ext)])

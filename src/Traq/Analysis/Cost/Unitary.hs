@@ -92,6 +92,9 @@ instance CostU1 Stmt where
     cost_f <- costU1 s_false
     return $ cost_t Alg.+ cost_f
   costU1 (SeqS ss) = Alg.sum <$> mapM costU1 ss
+  costU1 ForS{loop_ty, loop_body} = do
+    body_cost <- costU1 loop_body
+    return $ (sizeToPrec (domainSize loop_ty) :: prec) Alg..* body_cost
 
 instance CostU1 NamedFunDef where
   -- query an external function

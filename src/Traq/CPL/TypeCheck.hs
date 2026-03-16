@@ -323,6 +323,10 @@ instance (TypeInferrable ext size) => TypeInferrable (Stmt ext) size where
     pure []
   -- sequence
   inferTypes (SeqS ss) = mapM_ inferTypes ss >> pure []
+  -- for loop
+  inferTypes ForS{loop_ix, loop_ty, loop_body} = do
+    Ctx.putOrMatch loop_ix loop_ty
+    inferTypes loop_body
   -- ifte
   inferTypes IfThenElseS{cond, s_true, s_false} = do
     cond_ty <- Ctx.lookup cond

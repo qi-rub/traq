@@ -204,6 +204,20 @@ instance CompileU1 CPL.Stmt where
         , UnitaryS{qargs = map Arg (cond : out_t ++ tmp_t), unitary = Controlled (BasicGateU SWAP)}
         ]
   compileU1 () (CPL.SeqS ss) = QPL.USeqS <$> mapM (compileU1 ()) ss
+  compileU1 () CPL.ForS{CPL.loop_ix, CPL.loop_ty, CPL.loop_body} = do
+    n <- case loop_ty of
+      CPL.Fin n -> pure n
+      _ -> throwError "for loop index must be of type `Fin`"
+    iter_meta_var <- newIdent "ITER"
+    CPL._typingCtx . Ctx.ins loop_ix .= loop_ty
+    uloop_body <- compileU1 () loop_body
+    pure $
+      UForInRangeS
+        { iter_meta_var
+        , iter_lim = CPL.MetaSize n
+        , dagger = False
+        , uloop_body
+        }
 
 instance CompileU1 CPL.FunBody where
   type CompileArgs CPL.FunBody ext = ([CPL.VarType (SizeType ext)], [CPL.VarType (SizeType ext)])

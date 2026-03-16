@@ -119,7 +119,7 @@ spec = do
           _ <- evaluate $ force $ Qiskit.toPy ex_cqpl
           return ()
 
-  fdescribe "for loop" $ do
+  describe "for loop" $ do
     it "parses" $ do
       p <- parseFromFile (programParser @SymCore) "examples/basic/for_loop.traq"
       assertRight p
@@ -131,7 +131,7 @@ spec = do
 
       result `shouldBeDistribution` [([FinV 10], 1.0)]
 
-    xdescribe "Compile" $ do
+    fdescribe "Compile" $ do
       let load_prog =
             parseFromFile (programParser @SymCore) "examples/basic/for_loop.traq"
               >>= expectRight
