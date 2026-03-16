@@ -180,7 +180,9 @@ instance CompileQ1 CPL.Program where
   type CompileQArgs CPL.Program ext = ()
   type CompileQResult CPL.Program ext = ()
 
-  compileQ1 () (CPL.Program fs) = forM_ fs $ \f -> compileU1 () f >> compileQ1 () f
+  compileQ1 () (CPL.Program fs) = forM_ fs $ \f -> do
+    compileU1 () f
+    compileQ1 () f
 
 -- ================================================================================
 -- Entry Point

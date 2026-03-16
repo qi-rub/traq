@@ -38,11 +38,11 @@ loopExample n w =
                   Just
                     FunBody
                       { param_names = ["acc", "i"]
-                      , ret_names = ["acc'"]
+                      , ret_names = ["acc"]
                       , body_stmt =
                           SeqS
                             [ ExprS ["one"] $ BasicExprE $ ConstE (FinV 1) (Fin w)
-                            , ExprS ["acc'"] $
+                            , ExprS ["acc"] $
                                 BasicExprE $
                                   BinOpE AddOp (VarE "acc") (VarE "one")
                             ]
@@ -177,35 +177,31 @@ spec = do
       result `shouldBeDistribution` [([FinV 10], 1.0)]
 
     describe "Compile" $ do
-      it "lowers" $ do
-        let ex = CPL.renameVars' $ loopExample @Core' 10 20
-        ex' <- expectRight $ A.annotateProgWith (_exts A.annNoPrims) ex
-        assertRight $ Compiler.lowerProgram ex'
+      let load_prog = do
+            loopExample @Core' 10 20
+              & A.annotateProgWith (_exts A.annNoPrims)
+              & expectRight
 
-      it "typechecks" $ do
-        let ex = CPL.renameVars' $ loopExample @Core' 10 20
-        ex' <- expectRight $ A.annotateProgWith (_exts A.annNoPrims) ex
-        ex_uqpl <- expectRight $ Compiler.lowerProgram ex'
-        assertRight $ QPL.typeCheckProgram ex_uqpl
+      before load_prog $ do
+        it "lowers" $ \ex -> do
+          assertRight $ Compiler.lowerProgram ex
 
-      it "cost" $ do
-        let ex = CPL.renameVars' $ loopExample @Core' 10 20
-        ex' <- expectRight $ A.annotateProgWith (_exts A.annNoPrims) ex
-        ex_cqpl <- expectRight $ Compiler.lowerProgram ex'
-        let cost = fst (QPL.programCost ex_cqpl) :: SimpleQueryCost Double
-        let cost_from_analysis = getCost $ A.costQProg ex'
-        getCost cost `shouldBeLE` cost_from_analysis
+        it "typechecks" $ \ex -> do
+          ex_uqpl <- expectRight $ Compiler.lowerProgram ex
+          assertRight $ QPL.typeCheckProgram ex_uqpl
 
-      xit "target-py-qualtran" $ do
-        let ex = CPL.renameVars' $ loopExample @Core' 10 20
-        ex' <- expectRight $ A.annotateProgWith (_exts A.annNoPrims) ex
-        ex_cqpl <- expectRight $ Compiler.lowerProgram ex'
-        _ <- evaluate $ force $ Qualtran.toPy ex_cqpl
-        return ()
+        it "cost" $ \ex -> do
+          ex_cqpl <- expectRight $ Compiler.lowerProgram ex
+          let cost = fst (QPL.programCost ex_cqpl) :: SimpleQueryCost Double
+          let cost_from_analysis = getCost $ A.costQProg ex
+          getCost cost `shouldBeLE` cost_from_analysis
 
-      xit "target-py-qiskit" $ do
-        let ex = CPL.renameVars' $ loopExample @Core' 10 20
-        ex' <- expectRight $ A.annotateProgWith (_exts A.annNoPrims) ex
-        ex_cqpl <- expectRight $ Compiler.lowerProgram ex'
-        _ <- evaluate $ force $ Qiskit.toPy ex_cqpl
-        return ()
+        xit "target-py-qualtran" $ \ex -> do
+          ex_cqpl <- expectRight $ Compiler.lowerProgram ex
+          _ <- evaluate $ force $ Qualtran.toPy ex_cqpl
+          return ()
+
+        xit "target-py-qiskit" $ \ex -> do
+          ex_cqpl <- expectRight $ Compiler.lowerProgram ex
+          _ <- evaluate $ force $ Qiskit.toPy ex_cqpl
+          return ()

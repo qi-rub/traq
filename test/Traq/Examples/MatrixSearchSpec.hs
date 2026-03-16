@@ -34,9 +34,6 @@ spec = describe "MatrixSearch" $ do
     it "type checks" $ do
       assertRight $ CPL.typeCheckProg ex
 
-    it "has unique vars" $ do
-      CPL.checkVarsUnique ex `shouldBe` True
-
     let oracleF = \case
           [CPL.FinV i, CPL.FinV j] -> [CPL.toValue $ i == j]
           _ -> undefined

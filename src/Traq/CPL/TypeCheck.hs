@@ -360,8 +360,6 @@ typeCheckFun
     let gamma = Ctx.fromList $ zip param_names param_types
     (_, gamma', ()) <- runRWST (inferTypes body_stmt) funCtx gamma
     forM_ (zip ret_names ret_types) $ \(x, t) -> do
-      when (has _Just (gamma ^. Ctx.at x)) $ do
-        throwError $ printf "parameter `%s` cannot be returned, please copy it into a new variable and return that" x
       t' <- gamma' ^. Ctx.at x & maybe (throwError $ printf "missing in returns: %s" x) pure
       when (t /= t') $
         throwError $

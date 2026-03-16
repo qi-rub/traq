@@ -181,8 +181,6 @@ compileWith ::
   CPL.Program ext ->
   Either String (QPL.Program size)
 compileWith compiler prog = do
-  unless (CPL.checkVarsUnique prog) $
-    throwError "program does not have unique variables!"
   CPL.typeCheckProg prog
 
   let config =

@@ -64,8 +64,7 @@ loadTraqProgram = do
 -- | Compile source CPL to target QPL.
 compileCPL :: (RealFloat prec, Show prec) => CPL.Program (P.WorstCasePrims SizeT prec) -> prec -> IO (QPL.Program SizeT)
 compileCPL prog eps = do
-  let prog_rn = if CPL.checkVarsUnique prog then prog else CPL.renameVars' prog
-  prog' <- either fail pure $ Analysis.annotateProgWithErrorBudget (Analysis.failProb eps) prog_rn
+  prog' <- either fail pure $ Analysis.annotateProgWithErrorBudget (Analysis.failProb eps) prog
   either fail pure $ Compiler.lowerProgram prog'
 
 -- | Load a serialized QPL Program AST.
