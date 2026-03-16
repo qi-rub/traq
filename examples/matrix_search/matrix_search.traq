@@ -1,15 +1,15 @@
 ext fn Matrix(Fin<N>, Fin<M>) -> Bool end
 
-fn IsEntryZero(i0: Fin<N>, j0: Fin<M>) -> Bool do
-	e <- Matrix(i0, j0);
-	e' <- !e;
-	return e'
+fn IsEntryZero(i: Fin<N>, j: Fin<M>) -> Bool do
+	e <- Matrix(i, j);
+	e <- !e;
+	return e
 end
 
 fn IsRowAllOnes(i: Fin<N>) -> Bool do
 	hasZero <- @any<Fin<M>>[IsEntryZero(i, _)];
-	okr <- not hasZero;
-	return okr
+	ok <- not hasZero;
+	return ok
 end
 
 fn HasAllOnesRow() -> Bool do

@@ -48,17 +48,16 @@ mkMatrixExample mkAny n m =
               , body_stmt =
                   SeqS
                     [ ExprS{rets = [e], expr = FunCallE{fname = oracle_name, args = [i, j]}}
-                    , ExprS{rets = [e'], expr = BasicExprE UnOpE{un_op = NotOp, operand = fromString e}}
+                    , ExprS{rets = [e], expr = BasicExprE UnOpE{un_op = NotOp, operand = fromString e}}
                     ]
-              , ret_names = [e']
+              , ret_names = [e]
               }
       , ret_types = [tbool]
       }
    where
-    i = "i0"
-    j = "j0"
+    i = "i"
+    j = "j"
     e = "e"
-    e' = "e'"
 
   check_row_name :: Ident
   check_row_name = "IsRowAllOnes"
@@ -83,7 +82,7 @@ mkMatrixExample mkAny n m =
    where
     i = "i"
     ok = "hasZero"
-    ok' = "okr"
+    ok' = "ok"
 
   check_matrix_name :: Ident
   check_matrix_name = "HasAllOnesRow"

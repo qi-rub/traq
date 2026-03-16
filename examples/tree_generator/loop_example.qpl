@@ -1,32 +1,32 @@
-uproc AddWeight_U(AddWeight_acc : IN Fin<1000>, AddWeight_i : IN Fin<10>, AddWeight_acc' : OUT Fin<1000>, AddWeight_one : AUX Fin<1000>, AddWeight_one_1 : AUX Fin<1000>, AddWeight_acc'_1 : AUX Fin<1000>) {
-  AddWeight_one_1 *= Embed[() => 1:Fin<1000>];
-  AddWeight_one, AddWeight_one_1 *= SWAP;
-  AddWeight_acc, AddWeight_one, AddWeight_acc'_1 *= Embed[(AddWeight_acc, AddWeight_one) => (AddWeight_acc + AddWeight_one)];
-  AddWeight_acc', AddWeight_acc'_1 *= SWAP;
+uproc AddWeight_U(acc : IN Fin<1000>, i : IN Fin<10>, acc : OUT Fin<1000>, one : AUX Fin<1000>, one_1 : AUX Fin<1000>, acc_1 : AUX Fin<1000>) {
+  one_1 *= Embed[() => 1:Fin<1000>];
+  one, one_1 *= SWAP;
+  acc, one, acc_1 *= Embed[(acc, one) => (acc + one)];
+  acc, acc_1 *= SWAP;
 }
 
-proc AddWeight(AddWeight_acc : Fin<1000>, AddWeight_i : Fin<10>, AddWeight_acc' : Fin<1000>) { locals : (AddWeight_one : Fin<1000>) } {
-  AddWeight_one := 1:Fin<1000>;
-  AddWeight_acc' := (AddWeight_acc + AddWeight_one);
+proc AddWeight(acc : Fin<1000>, i : Fin<10>, acc : Fin<1000>) { locals : (one : Fin<1000>) } {
+  one := 1:Fin<1000>;
+  acc := (acc + one);
 }
 
-uproc main_U(main_tw : OUT Fin<1000>, main_acc : AUX Fin<1000>, main_acc_1 : AUX Fin<1000>, main_tw_1 : AUX Fin<1000>, aux : AUX Arr<10, Fin<1000>>, aux_1 : AUX Arr<10, Fin<1000>>, aux_2 : AUX Arr<10, Fin<1000>>, aux_3 : AUX Arr<10, Fin<10>>, aux_4 : AUX Arr<11, Fin<1000>>) {
-  main_acc_1 *= Embed[() => 0:Fin<1000>];
-  main_acc, main_acc_1 *= SWAP;
-  main_acc, aux_4[0] *= COPY;
+uproc main_U(tw : OUT Fin<1000>, acc : AUX Fin<1000>, acc_2 : AUX Fin<1000>, tw_1 : AUX Fin<1000>, aux : AUX Arr<10, Fin<1000>>, aux_1 : AUX Arr<10, Fin<1000>>, aux_2 : AUX Arr<10, Fin<1000>>, aux_3 : AUX Arr<10, Fin<10>>, aux_4 : AUX Arr<11, Fin<1000>>) {
+  acc_2 *= Embed[() => 0:Fin<1000>];
+  acc, acc_2 *= SWAP;
+  acc, aux_4[0] *= COPY;
   for (#ITER in 0 .. < 10) {
     call AddWeight_U(aux_4[#ITER], aux_3[#ITER], aux_4[#ITER], aux[#ITER], aux_1[#ITER], aux_2[#ITER]);
   }
-  aux_4[10], main_tw_1 *= COPY;
-  main_tw, main_tw_1 *= SWAP;
+  aux_4[10], tw_1 *= COPY;
+  tw, tw_1 *= SWAP;
 }
 
-proc main(main_tw : Fin<1000>) { locals : (main_acc : Fin<1000>, iter : Fin<10>) } {
-  main_acc := 0:Fin<1000>;
-  main_tw := main_acc;
+proc main(tw : Fin<1000>) { locals : (acc : Fin<1000>, iter : Fin<10>) } {
+  acc := 0:Fin<1000>;
+  tw := acc;
   for (#ITER_1 in 0 .. < 10) {
     iter := #ITER_1;
-    call AddWeight(main_tw, iter, main_tw);
+    call AddWeight(tw, iter, tw);
   }
 }
 
