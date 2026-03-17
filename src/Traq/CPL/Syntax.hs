@@ -231,13 +231,13 @@ instance (Show size) => PP.ToCodeString (BasicExpr size) where
   build ParamE{param} = PP.putWord $ printf "#%s" param
   build DefaultE{ty} = PP.putWord . printf "default : %s" =<< PP.fromBuild ty
   build ConstE{val, ty} =
-    PP.putWord =<< printf "%s:%s" <$> PP.fromBuild val <*> PP.fromBuild ty
+    PP.putWord =<< printf "const %s:%s" <$> PP.fromBuild val <*> PP.fromBuild ty
   build UnOpE{un_op, operand} =
     PP.putWord =<< (++) <$> PP.fromBuild un_op <*> PP.fromBuild operand
   build BinOpE{bin_op, lhs, rhs} =
     PP.putWord =<< printf "(%s %s %s)" <$> PP.fromBuild lhs <*> PP.fromBuild bin_op <*> PP.fromBuild rhs
   build TernaryE{branch, lhs, rhs} =
-    PP.putWord =<< printf "(ifte %s %s %s)" <$> PP.fromBuild branch <*> PP.fromBuild lhs <*> PP.fromBuild rhs
+    PP.putWord =<< printf "(%s ? %s : %s)" <$> PP.fromBuild branch <*> PP.fromBuild lhs <*> PP.fromBuild rhs
   build NAryE{op, operands} =
     PP.putWord
       =<< printf "%s(%s)"
@@ -378,7 +378,7 @@ instance (Show (SizeType ext), PP.ToCodeString ext) => PP.ToCodeString (NamedFun
       params <- PP.commaList <$> zipWithM showTypedVar param_names param_types
       s_ret_tys <- case ret_types of
         [t] -> PP.fromBuild t
-        _ -> PP.commaList <$> mapM PP.fromBuild ret_types
+        _ -> (++ ")") . ("(" ++) . PP.commaList <$> mapM PP.fromBuild ret_types
       PP.putLine $ printf "fn %s(%s) -> %s do" fun_name params s_ret_tys
       PP.indented $ do
         PP.build body_stmt

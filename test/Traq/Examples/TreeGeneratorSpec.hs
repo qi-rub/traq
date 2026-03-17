@@ -14,7 +14,6 @@ import qualified Traq.Data.Symbolic as Sym
 import qualified Traq.Analysis as A
 import Traq.Analysis.CostModel.QueryCost (SimpleQueryCost (getCost))
 import Traq.CPL
-import qualified Traq.CPL as CPL
 import qualified Traq.Compiler as Compiler
 import qualified Traq.Compiler.Qiskit as Qiskit
 import qualified Traq.Compiler.Qualtran as Qualtran
@@ -22,6 +21,7 @@ import Traq.Examples.TreeGenerator
 import Traq.Prelude
 import Traq.Primitives
 import qualified Traq.QPL as QPL
+import qualified Traq.Utils.Printing as PP
 
 import Test.Hspec
 import TestHelpers
@@ -52,10 +52,16 @@ loadKnapsack n w p k = do
 spec :: Spec
 spec = do
   describe "Tree Generator Example" $ do
-    it "parses" $ do
-      p <- expectRight =<< parseFromFile (programParser @Prim) "examples/tree_generator/tree_generator_01_knapsack.traq"
-      p `shouldBe` treeGeneratorExample @Prim (Sym.var "N") (Sym.var "W") (Sym.var "P") (Sym.var "K")
-      return ()
+    describe "parses" $ do
+      let prog = treeGeneratorExample @Prim (Sym.var "N") (Sym.var "W") (Sym.var "P") (Sym.var "K")
+
+      it "file" $ do
+        p <- expectRight =<< parseFromFile (programParser @Prim) "examples/tree_generator/tree_generator_01_knapsack.traq"
+        p `shouldBe` prog
+
+      it "roundtrip" $ do
+        p <- expectRight $ parseProgram @Prim $ PP.toCodeString prog
+        p `shouldBe` prog
 
     it "typechecks" $ do
       p <-
