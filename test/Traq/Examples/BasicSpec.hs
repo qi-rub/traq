@@ -19,6 +19,7 @@ import qualified Traq.Compiler.Qiskit as Qiskit
 import qualified Traq.Compiler.Qualtran as Qualtran
 import Traq.Prelude
 import qualified Traq.QPL as QPL
+import qualified Traq.Utils.Printing as PP
 
 import Test.Hspec
 import TestHelpers
@@ -77,11 +78,18 @@ type SymCore = Core (Sym.Sym SizeT) Double
 spec :: Spec
 spec = do
   describe "Loop example" $ do
-    it "parses" $ do
-      p <-
-        parseFromFile (programParser @SymCore) "examples/basic/loop_example.traq"
-          >>= expectRight
-      p `shouldBe` loopExample (Sym.var "N") (Sym.var "W")
+    describe "parses" $ do
+      let prog = loopExample @SymCore (Sym.var "N") (Sym.var "W")
+
+      it "file" $ do
+        p <-
+          parseFromFile (programParser @SymCore) "examples/basic/loop_example.traq"
+            >>= expectRight
+        p `shouldBe` prog
+
+      it "roundtrip" $ do
+        p <- expectRight $ parseProgram @SymCore $ PP.toCodeString prog
+        p `shouldBe` prog
 
     it "evaluates" $ do
       let funInterpCtx = Map.singleton "AddWeight" (take 1)
@@ -120,9 +128,15 @@ spec = do
           return ()
 
   describe "for loop" $ do
-    it "parses" $ do
-      p <- parseFromFile (programParser @SymCore) "examples/basic/for_loop.traq"
-      assertRight p
+    describe "parses" $ do
+      it "file" $ do
+        p <- parseFromFile (programParser @SymCore) "examples/basic/for_loop.traq"
+        assertRight p
+
+      it "roundtrip" $ do
+        prog <- expectRight =<< parseFromFile (programParser @SymCore) "examples/basic/for_loop.traq"
+        p <- expectRight $ parseProgram @SymCore $ PP.toCodeString prog
+        p `shouldBe` prog
 
     it "evaluates" $ do
       Right ex <- parseFromFile (programParser @SymCore) "examples/basic/for_loop.traq"

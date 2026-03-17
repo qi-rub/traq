@@ -21,6 +21,7 @@ import qualified Traq.Compiler.Qualtran as Qualtran
 import Traq.Prelude
 import Traq.Primitives (DefaultPrims)
 import qualified Traq.QPL as QPL
+import qualified Traq.Utils.Printing as PP
 
 import Test.Hspec
 import TestHelpers
@@ -40,9 +41,15 @@ loadExample = do
 
 spec :: Spec
 spec = describe "Depth 3 NAND Formula" $ do
-  it "parses" $ do
-    expectRight =<< parseFromFile (CPL.programParser @(DefaultPrims (Sym.Sym SizeT) Double)) examplePath
-    return ()
+  describe "parses" $ do
+    it "file" $ do
+      expectRight =<< parseFromFile (CPL.programParser @(DefaultPrims (Sym.Sym SizeT) Double)) examplePath
+      return ()
+
+    it "roundtrip" $ do
+      prog <- expectRight =<< parseFromFile (CPL.programParser @(DefaultPrims (Sym.Sym SizeT) Double)) examplePath
+      p <- expectRight $ CPL.parseProgram @(DefaultPrims (Sym.Sym SizeT) Double) $ PP.toCodeString prog
+      p `shouldBe` prog
 
   describe "Compile" $ do
     let eps = A.failProb (0.1 :: Double)

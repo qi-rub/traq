@@ -84,8 +84,8 @@ uproc Grover[k](x : Arr<20, Fin<2>>, x_4 : IN Fin<20>, ret_2 : OUT Fin<2>, aux_1
 
 proc QSearch(x : Arr<20, Fin<2>>, ret_2 : Fin<2>, ret_3 : Fin<20>) { locals : (not_done : Fin<2>, Q_sum : Fin<42>, j : Fin<42>, j_lim : Fin<42>) } {
   repeat (8) {
-    Q_sum := 0:Fin<42>;
-    for (j_lim in [1:Fin<42>, 1:Fin<42>, 1:Fin<42>, 2:Fin<42>, 2:Fin<42>, 2:Fin<42>, 3:Fin<42>, 4:Fin<42>, 4:Fin<42>, 4:Fin<42>, 4:Fin<42>, 4:Fin<42>, 4:Fin<42>, 4:Fin<42>]) {
+    Q_sum := const 0:Fin<42>;
+    for (j_lim in [const 1:Fin<42>, const 1:Fin<42>, const 1:Fin<42>, const 2:Fin<42>, const 2:Fin<42>, const 2:Fin<42>, const 3:Fin<42>, const 4:Fin<42>, const 4:Fin<42>, const 4:Fin<42>, const 4:Fin<42>, const 4:Fin<42>, const 4:Fin<42>, const 4:Fin<42>]) {
       j :=$ [1 .. j_lim];
       Q_sum := (Q_sum + j);
       not_done := (not_done && (Q_sum <= j_lim));

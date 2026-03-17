@@ -22,6 +22,7 @@ import qualified Traq.Compiler.Qualtran as Qualtran
 import Traq.Prelude
 import Traq.Primitives (DefaultPrims)
 import qualified Traq.QPL as QPL
+import qualified Traq.Utils.Printing as PP
 
 import Test.Hspec
 import TestHelpers
@@ -30,9 +31,15 @@ spec :: Spec
 spec = do
   describe "SimpleExample" $ do
     let load = parseFromFile (CPLParser.programParser @(DefaultPrims (Sym.Sym SizeT) Double)) "examples/primitives/nondet.traq"
-    it "parses" $ do
-      mEx <- load
-      assertRight mEx
+    describe "parses" $ do
+      it "file" $ do
+        mEx <- load
+        assertRight mEx
+
+      it "roundtrip" $ do
+        prog <- expectRight =<< load
+        p <- expectRight $ CPL.parseProgram @(DefaultPrims (Sym.Sym SizeT) Double) $ PP.toCodeString prog
+        p `shouldBe` prog
 
     let load' = load <&> fromRight (error "parsing failed") <&> CPL.mapSize Sym.unSym
 

@@ -60,7 +60,7 @@ uproc f_U(b : IN Fin<2>, x : IN BitVec<20>, zero : OUT Fin<2>, res : OUT BitVec<
   yL, yR, yL_1, yR_1 *= SWAP;
   alpha_b, yR, res_1 *= Embed[(alpha_b, yR) => (yR ^ alpha_b)];
   res, res_1 *= SWAP;
-  zero_1 *= Embed[() => 0:Fin<2>];
+  zero_1 *= Embed[() => const 0:Fin<2>];
   zero, zero_1 *= SWAP;
 }
 
@@ -68,7 +68,7 @@ proc f(b : Fin<2>, x : BitVec<20>, zero : Fin<2>, res : BitVec<20>) { locals : (
   call alpha(b, alpha_b);
   call E(alpha_b, x, yL, yR);
   res := (yR ^ alpha_b);
-  zero := 0:Fin<2>;
+  zero := const 0:Fin<2>;
 }
 
 uproc SimonOneRound_U(x_1 : OUT Fin<2>, x_2 : OUT BitVec<20>, y : AUX Fin<2>, y_1 : AUX BitVec<20>, yy : AUX Fin<2>, yy_1 : AUX BitVec<20>, aux_20 : AUX BitVec<20>, aux_21 : AUX BitVec<20>, aux_22 : AUX BitVec<20>, aux_23 : AUX BitVec<20>, aux_24 : AUX BitVec<20>, aux_25 : AUX BitVec<20>, aux_26 : AUX BitVec<20>, aux_27 : AUX BitVec<20>, aux_28 : AUX BitVec<20>, aux_29 : AUX BitVec<20>, aux_30 : AUX BitVec<20>, aux_31 : AUX BitVec<20>, aux_32 : AUX BitVec<20>, aux_33 : AUX BitVec<20>, aux_34 : AUX BitVec<20>, aux_35 : AUX BitVec<20>, aux_36 : AUX BitVec<20>, aux_37 : AUX BitVec<20>, aux_38 : AUX BitVec<20>, aux_39 : AUX BitVec<20>, aux_40 : AUX BitVec<20>, aux_41 : AUX BitVec<20>, aux_42 : AUX BitVec<20>, aux_43 : AUX BitVec<20>, aux_44 : AUX BitVec<20>, aux_45 : AUX BitVec<20>, aux_46 : AUX BitVec<20>, aux_47 : AUX Fin<2>) {

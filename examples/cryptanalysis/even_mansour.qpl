@@ -37,7 +37,7 @@ uproc USimon(ret : OUT BitVec<20>, USimon_aux : AUX Arr<31, BitVec<20>>, USimon_
 }
 
 uproc BreakEM_U(k1 : OUT BitVec<20>, k2 : OUT BitVec<20>, ze : AUX BitVec<20>, e_0 : AUX BitVec<20>, p_k1 : AUX BitVec<20>, ze_1 : AUX BitVec<20>, k1_1 : AUX BitVec<20>, x_1 : AUX BitVec<20>, y : AUX BitVec<20>, yy : AUX BitVec<20>, aux : AUX BitVec<20>, aux_1 : AUX BitVec<20>, aux_2 : AUX BitVec<20>, aux_3 : AUX BitVec<20>, aux_4 : AUX BitVec<20>, USimon_aux : AUX Arr<31, BitVec<20>>, USimon_aux_1 : AUX Arr<31, BitVec<20>>, USimon_aux_2 : AUX Arr<31, BitVec<20>>, USimon_aux_3 : AUX Arr<31, BitVec<20>>, USimon_aux_4 : AUX Arr<31, BitVec<20>>, USimon_aux_5 : AUX Arr<31, BitVec<20>>, USimon_aux_6 : AUX Arr<31, BitVec<20>>, USimon_aux_7 : AUX Arr<31, BitVec<20>>, aux_prim : AUX Arr<31, BitVec<20>>, aux_prim_1 : AUX Arr<31, BitVec<20>>, aux_prim_2 : AUX Arr<31, BitVec<20>>, aux_prim_3 : AUX Arr<31, BitVec<20>>, aux_prim_4 : AUX Arr<31, BitVec<20>>, aux_prim_5 : AUX Arr<31, BitVec<20>>, aux_prim_6 : AUX Arr<31, BitVec<20>>, aux_prim_7 : AUX Arr<31, BitVec<20>>, e_0_1 : AUX BitVec<20>, p_k1_1 : AUX BitVec<20>, k2_1 : AUX BitVec<20>) {
-  ze_1 *= Embed[() => 0:BitVec<20>];
+  ze_1 *= Embed[() => const 0:BitVec<20>];
   ze, ze_1 *= SWAP;
   call USimon(k1_1, aux_prim, aux_prim_1, aux_prim_2, aux_prim_3, aux_prim_4, aux_prim_5, aux_prim_6, aux_prim_7);
   k1, k1_1 *= SWAP;
@@ -65,7 +65,7 @@ proc QSimon(ret_1 : BitVec<20>) { locals : (QSimon__u : Arr<31, BitVec<20>>) } {
 }
 
 proc BreakEM(k1 : BitVec<20>, k2 : BitVec<20>) { locals : (ze : BitVec<20>, e_0 : BitVec<20>, p_k1 : BitVec<20>, x_2 : BitVec<20>, y_1 : BitVec<20>, yy_1 : BitVec<20>, aux_5 : BitVec<20>, aux_6 : BitVec<20>, aux_7 : BitVec<20>, aux_8 : BitVec<20>, aux_9 : BitVec<20>, QSimon__u : Arr<31, BitVec<20>>) } {
-  ze := 0:BitVec<20>;
+  ze := const 0:BitVec<20>;
   call QSimon(k1);
   call E(ze, e_0);
   call P(k1, p_k1);

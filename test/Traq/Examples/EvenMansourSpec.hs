@@ -20,6 +20,7 @@ import Traq.Prelude
 import Traq.Primitives.Class
 import Traq.Primitives.Simons.Quantum
 import qualified Traq.QPL as QPL
+import qualified Traq.Utils.Printing as PP
 
 import Test.Hspec
 import TestHelpers
@@ -49,9 +50,15 @@ spec = describe "FindXorPeriod" $ do
   -- p0 matching the code (TODO remove the redundancy)
   let p0 = 0.01 :: Double
 
-  it "parses" $ do
-    expectRight =<< parseFromFile (CPL.programParser @(SPrim (Sym.Sym SizeT))) examplePath
-    return ()
+  describe "parses" $ do
+    it "file" $ do
+      expectRight =<< parseFromFile (CPL.programParser @(SPrim (Sym.Sym SizeT))) examplePath
+      return ()
+
+    it "roundtrip" $ do
+      prog <- expectRight =<< parseFromFile (CPL.programParser @(SPrim (Sym.Sym SizeT))) examplePath
+      p <- expectRight $ CPL.parseProgram @(SPrim (Sym.Sym SizeT)) $ PP.toCodeString prog
+      p `shouldBe` prog
 
   it "typechecks" $ do
     p <-

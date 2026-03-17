@@ -19,6 +19,7 @@ import qualified Traq.Compiler.Qualtran as Qualtran
 import Traq.Prelude
 import Traq.Primitives (DefaultPrims)
 import qualified Traq.QPL as QPL
+import qualified Traq.Utils.Printing as PP
 
 import Test.Hspec
 import TestHelpers
@@ -38,9 +39,15 @@ loadExample = do
 
 spec :: Spec
 spec = describe "Triangle Cycle Finding" $ do
-  it "parses" $ do
-    expectRight =<< parseFromFile (CPL.programParser @P) examplePath
-    return ()
+  describe "parses" $ do
+    it "file" $ do
+      expectRight =<< parseFromFile (CPL.programParser @P) examplePath
+      return ()
+
+    it "roundtrip" $ do
+      prog <- expectRight =<< parseFromFile (CPL.programParser @P) examplePath
+      p <- expectRight $ CPL.parseProgram @P $ PP.toCodeString prog
+      p `shouldBe` prog
 
   it "typechecks" $ do
     ex <- loadExample

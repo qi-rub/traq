@@ -119,8 +119,8 @@ uproc Grover[k](x_3 : IN BitVec<20>, ret_4 : OUT Fin<2>, aux_38 : AUX BitVec<20>
 
 proc QSearch(ret_4 : Fin<2>, ret_5 : BitVec<20>) { locals : (not_done : Fin<2>, Q_sum : Fin<9421>, j : Fin<9421>, j_lim : Fin<9421>) } {
   repeat (7) {
-    Q_sum := 0:Fin<9421>;
-    for (j_lim in [1:Fin<9421>, 1:Fin<9421>, 1:Fin<9421>, 2:Fin<9421>, 2:Fin<9421>, 2:Fin<9421>, 3:Fin<9421>, 4:Fin<9421>, 5:Fin<9421>, 6:Fin<9421>, 7:Fin<9421>, 8:Fin<9421>, 10:Fin<9421>, 12:Fin<9421>, 15:Fin<9421>, 18:Fin<9421>, 22:Fin<9421>, 26:Fin<9421>, 31:Fin<9421>, 38:Fin<9421>, 46:Fin<9421>, 55:Fin<9421>, 66:Fin<9421>, 79:Fin<9421>, 95:Fin<9421>, 114:Fin<9421>, 137:Fin<9421>, 164:Fin<9421>, 197:Fin<9421>, 237:Fin<9421>, 284:Fin<9421>, 341:Fin<9421>, 410:Fin<9421>, 492:Fin<9421>, 590:Fin<9421>, 708:Fin<9421>, 850:Fin<9421>, 1020:Fin<9421>, 1024:Fin<9421>, 1024:Fin<9421>, 1024:Fin<9421>]) {
+    Q_sum := const 0:Fin<9421>;
+    for (j_lim in [const 1:Fin<9421>, const 1:Fin<9421>, const 1:Fin<9421>, const 2:Fin<9421>, const 2:Fin<9421>, const 2:Fin<9421>, const 3:Fin<9421>, const 4:Fin<9421>, const 5:Fin<9421>, const 6:Fin<9421>, const 7:Fin<9421>, const 8:Fin<9421>, const 10:Fin<9421>, const 12:Fin<9421>, const 15:Fin<9421>, const 18:Fin<9421>, const 22:Fin<9421>, const 26:Fin<9421>, const 31:Fin<9421>, const 38:Fin<9421>, const 46:Fin<9421>, const 55:Fin<9421>, const 66:Fin<9421>, const 79:Fin<9421>, const 95:Fin<9421>, const 114:Fin<9421>, const 137:Fin<9421>, const 164:Fin<9421>, const 197:Fin<9421>, const 237:Fin<9421>, const 284:Fin<9421>, const 341:Fin<9421>, const 410:Fin<9421>, const 492:Fin<9421>, const 590:Fin<9421>, const 708:Fin<9421>, const 850:Fin<9421>, const 1020:Fin<9421>, const 1024:Fin<9421>, const 1024:Fin<9421>, const 1024:Fin<9421>]) {
       j :=$ [1 .. j_lim];
       Q_sum := (Q_sum + j);
       not_done := (not_done && (Q_sum <= j_lim));
