@@ -1,6 +1,6 @@
 PROJ_DEPS=../../src ../../tools ../../traq.cabal
 
-all: loop_example.qpl for_loop.qpl
+all: for_loop.qpl
 
 %.qpl: %.traq $(PROJ_DEPS)
 	cd ../../ && cabal run traq -- \

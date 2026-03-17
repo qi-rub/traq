@@ -87,7 +87,6 @@ instance (HasFreeVars ext) => HasFreeVars (Expr ext) where
   freeVarsList RandomSampleE{distr_expr} = freeVarsList distr_expr
   freeVarsList FunCallE{args} = args
   freeVarsList PrimCallE{prim} = freeVarsList prim
-  freeVarsList LoopE{initial_args} = initial_args
 
 -- | The set of free (unbound) variables
 instance (HasFreeVars ext) => HasFreeVars (Stmt ext) where
@@ -162,7 +161,6 @@ instance (RenameVars ext) => RenameVars (Expr ext) where
   renameVars _ e@RandomSampleE{} = e
   renameVars prefix e@FunCallE{args} = e{args = addPrefix prefix args}
   renameVars prefix PrimCallE{prim} = PrimCallE $ renameVars prefix prim
-  renameVars prefix e@LoopE{initial_args} = e{initial_args = addPrefix prefix initial_args}
 
 instance (RenameVars ext) => RenameVars (Stmt ext) where
   renameVars prefix ExprS{rets, expr} =

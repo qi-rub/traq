@@ -94,11 +94,6 @@ instance CostQ1 Expr where
     fn <- view $ _funCtx . Ctx.at fname . non' (error $ "unable to find function " ++ fname)
     costQ1 $ NamedFunDef fname fn
   costQ1 PrimCallE{prim} = costQ prim
-  costQ1 LoopE{loop_body_fun} = do
-    fn@FunDef{param_types} <- view $ _funCtx . Ctx.at loop_body_fun . non' (error $ "unable to find function " ++ loop_body_fun)
-    body_cost <- costQ1 $ NamedFunDef loop_body_fun fn
-    let n_iters = last param_types ^?! _Fin
-    return $ (sizeToPrec n_iters :: prec) Alg..* body_cost
 
 instance CostQ1 Stmt where
   costQ1 ::
@@ -151,22 +146,6 @@ instance ExpCostQ1 Expr where
     let arg_vals = [sigma ^?! at x . non (error $ "could not find var " ++ x) | x <- args]
     expCostQ1 (NamedFunDef fname fn) arg_vals
   expCostQ1 PrimCallE{prim} sigma = expCostQ prim sigma
-  expCostQ1 LoopE{initial_args, loop_body_fun} sigma = do
-    fn@FunDef{param_types} <- view $ _funCtx . Ctx.at loop_body_fun . non' (error $ "unable to find function " ++ loop_body_fun)
-    let init_vals = [sigma ^?! at x . non (error $ "could not find var " ++ x) | x <- initial_args]
-    let loop_domain = domain (last param_types)
-
-    -- evaluate each iteration
-    env <- view _evaluationEnv
-    let run_loop_body i args =
-          eval1 (NamedFunDef loop_body_fun fn) (args ++ [i])
-            & (runReaderT ?? env)
-
-    (_, cs) <- forAccumM (pure init_vals) loop_domain $ \distr i -> do
-      let sigma_fn = fmap (++ [i]) distr
-      iter_cost <- Prob.expectationA (expCostQ1 (NamedFunDef loop_body_fun fn)) sigma_fn
-      return (distr >>= run_loop_body i, iter_cost)
-    return $ Alg.sum cs
 
 instance ExpCostQ1 Stmt where
   expCostQ1 ExprS{expr} sigma = expCostQ1 expr sigma

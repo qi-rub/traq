@@ -119,55 +119,6 @@ instance CompileU1 CPL.Expr where
     let qargs = map Arg $ args ++ rets ++ aux_vars
     return UCallS{uproc_id, qargs, dagger = False}
   compileU1 rets CPL.PrimCallE{prim} = compileU prim rets
-  compileU1 rets CPL.LoopE{initial_args, loop_body_fun} = do
-    CPL.FunDef{param_types, ret_types} <- view (CPL._funCtx . Ctx.at loop_body_fun) >>= maybeWithError "cannot find loop body fun"
-    n <- case last param_types of
-      CPL.Fin n -> pure n
-      _ -> throwError "loop index must be of type `Fin`"
-
-    let uproc_id = mkUProcName loop_body_fun
-    ProcSignature{aux_tys} <- use (_procSignatures . at uproc_id) >>= maybeWithError "cannot find uproc signature"
-
-    -- fresh aux for each iteration
-    aux_vars <- mapM (allocAncilla . CPL.Arr n) aux_tys
-
-    iter_meta_var <- newIdent "ITER"
-    iter_vars <- allocAncilla (CPL.Arr n (CPL.Fin n))
-
-    intermediates <- mapM (allocAncilla . CPL.Arr (n + 1)) ret_types
-
-    let at_ix x = ArrElemArg (Arg x) (CPL.MetaName iter_meta_var)
-
-    return $
-      USeqS $
-        [ UnitaryS
-            [Arg x_in, ArrElemArg (Arg x_out) (MetaSize 0)]
-            (BasicGateU COPY)
-        | (x_out, x_in) <- zip intermediates initial_args
-        ]
-          ++ [ UForInRangeS
-                 { iter_meta_var
-                 , iter_lim = CPL.MetaSize n
-                 , uloop_body =
-                     USeqS
-                       [ UCallS
-                           { uproc_id = uproc_id
-                           , dagger = False
-                           , qargs =
-                               map at_ix intermediates
-                                 ++ [at_ix iter_vars]
-                                 ++ map at_ix intermediates
-                                 ++ map at_ix aux_vars
-                           }
-                       ]
-                 , dagger = False
-                 }
-             ]
-          ++ [ UnitaryS
-                 [ArrElemArg (Arg x_last) (MetaSize n), Arg x_ret]
-                 (BasicGateU COPY)
-             | (x_ret, x_last) <- zip rets intermediates
-             ]
 
 instance CompileU1 CPL.Stmt where
   type CompileArgs CPL.Stmt ext = ()

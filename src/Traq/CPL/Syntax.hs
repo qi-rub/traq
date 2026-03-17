@@ -276,7 +276,6 @@ data Expr ext
   | RandomSampleE {distr_expr :: DistrExpr (SizeType ext)}
   | FunCallE {fname :: Ident, args :: [Ident]}
   | PrimCallE {prim :: ext}
-  | LoopE {initial_args :: [Ident], loop_body_fun :: Ident}
 
 deriving instance (Eq ext, Eq (SizeType ext)) => Eq (Expr ext)
 deriving instance (Show ext, Show (SizeType ext)) => Show (Expr ext)
@@ -290,9 +289,6 @@ instance (Show (SizeType ext), PP.ToCodeString ext) => PP.ToCodeString (Expr ext
   build RandomSampleE{distr_expr} = PP.putLine . printf "$ %s" =<< PP.fromBuild distr_expr
   build FunCallE{fname, args} = PP.putLine $ printf "%s(%s)" fname (PP.commaList args)
   build PrimCallE{prim} = PP.build prim
-  build LoopE{initial_args, loop_body_fun} = do
-    let args = PP.commaList initial_args
-    PP.putWord $ printf "loop (%s) %s" args loop_body_fun
 
 -- | A statement in CPL.
 data Stmt ext

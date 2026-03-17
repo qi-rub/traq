@@ -294,22 +294,6 @@ instance (TypeInferrable ext size) => TypeInferrable (Expr ext) size where
 
   -- `primitive`
   inferTypes PrimCallE{prim} = inferTypes prim
-  -- loop ...
-  inferTypes LoopE{initial_args, loop_body_fun} =
-    do
-      -- extract the current context
-      gamma <- use id
-      in_tys <- runReaderT ?? gamma $ mapM Ctx.lookup' initial_args
-      FunDef{param_types, ret_types} <- lookupFunE loop_body_fun
-      unless (ret_types == in_tys) $
-        throwError "Initial input argument types should match output types of the loop function."
-      unless (init param_types == ret_types) $
-        throwError "Initial N - 1 input param types should match output types of the loop function."
-      when (null param_types) $
-        throwError "There is should be at least one parameter types."
-      case last param_types of
-        (Fin _) -> return ret_types
-        _ -> throwError "Last type of the loop function should be a Fin type."
 
 instance (TypeInferrable ext size) => TypeInferrable (Stmt ext) size where
   -- single statement

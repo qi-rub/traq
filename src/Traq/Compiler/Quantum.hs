@@ -77,37 +77,6 @@ instance CompileQ1 CPL.Expr where
     return $ CallS{fun = FunctionCall proc_id, args = map Arg (args ++ rets), meta_params = []}
   -- primitive call
   compileQ1 rets CPL.PrimCallE{CPL.prim} = compileQ prim rets
-  -- loops
-  compileQ1 rets CPL.LoopE{loop_body_fun, initial_args} = do
-    CPL.FunDef{param_types} <- view (CPL._funCtx . Ctx.at loop_body_fun) >>= maybeWithError "cannot find loop body fun"
-    n <- case last param_types of
-      CPL.Fin n -> pure n
-      _ -> throwError "loop index must be of type `Fin`"
-
-    iter_meta_var <- newIdent "ITER"
-
-    iter_var <- newIdent "iter"
-    CPL._typingCtx . Ctx.ins iter_var .= CPL.Fin n
-
-    let proc_id = mkQProcName loop_body_fun
-
-    return $
-      SeqS $
-        [AssignS [y] (CPL.VarE x) | (x, y) <- zip initial_args rets]
-          ++ [ ForInRangeS
-                 { iter_meta_var
-                 , iter_lim = CPL.MetaSize n
-                 , loop_body =
-                     SeqS
-                       [ AssignS [iter_var] (CPL.ParamE iter_meta_var)
-                       , CallS
-                           { fun = FunctionCall proc_id
-                           , meta_params = []
-                           , args = map Arg rets ++ [Arg iter_var] ++ map Arg rets
-                           }
-                       ]
-                 }
-             ]
 
 instance CompileQ1 CPL.Stmt where
   type CompileQArgs CPL.Stmt ext = ()

@@ -120,7 +120,6 @@ instance (Parseable ext, SizeType ext ~ SymbSize) => Parseable (Expr ext) where
       , indexE
       , tupIndexE
       , updateArrE
-      , loopE
       , varE
       ]
    where
@@ -234,13 +233,6 @@ instance (Parseable ext, SizeType ext ~ SymbSize) => Parseable (Expr ext) where
       reservedOp ":"
       rhs <- VarE <$> identifier
       return $ BasicExprE $ TernaryE{branch, lhs, rhs}
-
-    loopE :: Parser (Expr ext)
-    loopE = do
-      reserved "loop"
-      initial_args <- parens $ commaSep identifier
-      loop_body_fun <- identifier
-      return $ LoopE{initial_args, loop_body_fun}
 
 exprP :: forall ext. (Parseable ext, SizeType ext ~ SymbSize) => TokenParser () -> Parser (Expr ext)
 exprP = parseE

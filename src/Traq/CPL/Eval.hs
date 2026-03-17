@@ -400,12 +400,6 @@ instance Eval1 Expr where
   -- subroutines
   eval1 PrimCallE{prim} sigma = do eval prim sigma
 
-  -- loop
-  eval1 LoopE{initial_args, loop_body_fun} sigma = do
-    fun_def <- view $ _funCtx . Ctx.at loop_body_fun . singular _Just
-    init_vals <- evalStateT ?? sigma $ mapM lookupS initial_args
-    foldM (\args i -> eval1 (NamedFunDef loop_body_fun fun_def) (args ++ [i])) init_vals (domain (last (param_types fun_def)))
-
 instance Eval1 Stmt where
   type EvalArgs Stmt ext = ProgramState (SizeType ext)
   type EvalRets Stmt ext = ProgramState (SizeType ext)

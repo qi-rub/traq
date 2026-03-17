@@ -35,7 +35,6 @@ instance (MapSize ext) => MapSize (Expr ext) where
   mapSize f (RandomSampleE e) = RandomSampleE (fmap f e)
   mapSize f (PrimCallE prim) = PrimCallE (mapSize f prim)
   mapSize _ FunCallE{..} = FunCallE{..}
-  mapSize _ LoopE{..} = LoopE{..}
 
 instance (MapSize ext) => MapSize (Stmt ext) where
   type MappedSize (Stmt ext) size' = Stmt (MappedSize ext size')
@@ -91,7 +90,6 @@ instance HasExts Expr where
   _exts _ RandomSampleE{distr_expr} = pure RandomSampleE{distr_expr}
   _exts _ FunCallE{fname, args} = pure FunCallE{fname, args}
   _exts focus (PrimCallE p) = PrimCallE <$> focus p
-  _exts _ LoopE{initial_args, loop_body_fun} = pure LoopE{initial_args, loop_body_fun}
 
 instance HasExts Stmt where
   _exts focus ExprS{rets, expr} = do
