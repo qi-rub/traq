@@ -135,7 +135,7 @@ instance
             . to (fromMaybe (error "unable to find predicate, please typecheck first!"))
 
       let vs = flip map pfun_args $ \case
-            Just x -> Just $ sigma ^. Ctx.at x . non (error "ill-formed program")
+            Just x -> Just $ sigma ^. at x . non (error "ill-formed program")
             Nothing -> Nothing
 
       let eval_fn vs' = CPL.eval1 CPL.NamedFunDef{CPL.fun_name = pfun_name, CPL.fun_def = fn} (placeArgs vs vs')
@@ -289,6 +289,7 @@ instance
   ( TypeCheckPrim prim (SizeType prim)
   , CPL.TypingReqs (SizeType prim)
   , UnitaryCompilePrim prim (SizeType prim) (PrecType prim)
+  , Integral (SizeType prim)
   ) =>
   Compiler.CompileU (A.AnnFailProb (Primitive prim))
   where
@@ -435,7 +436,7 @@ instance
             . to (fromMaybe (error "unable to find predicate, please typecheck first!"))
 
       let vs = flip map pfun_args $ \case
-            Just x -> Just $ sigma ^. Ctx.at x . non (error "ill-formed program")
+            Just x -> Just $ sigma ^. at x . non (error "ill-formed program")
             Nothing -> Nothing
 
       let eval_fn vs' =
@@ -516,6 +517,7 @@ instance
   , CPL.TypingReqs (SizeType prim)
   , UnitaryCompilePrim prim (SizeType prim) (PrecType prim)
   , QuantumCompilePrim prim (SizeType prim) (PrecType prim)
+  , Integral (SizeType prim)
   ) =>
   Compiler.CompileQ (A.AnnFailProb (Primitive prim))
   where

@@ -19,10 +19,8 @@ loadProgramFromFile :: String -> IO (CPL.Program (Traq.DefaultPrims (Sym.Sym Siz
 loadProgramFromFile fname = do
   sprog_or_err <- parseFromFile (CPL.programParser @(Traq.DefaultPrims (Sym.Sym SizeT) Double)) fname
   sprog <- either (error . show) pure sprog_or_err
-  let sprog' = CPL.renameVars' sprog
   -- putStrLn $ PP.toCodeString sprog
-  -- putStrLn $ PP.toCodeString sprog'
-  return sprog'
+  return sprog
 
 subst :: [(String, SizeT)] -> CPL.Program (Traq.DefaultPrims (Sym.Sym SizeT) Double) -> CPL.Program (Traq.DefaultPrims SizeT Double)
 subst vs p = CPL.mapSize Sym.unSym $ foldl substOne p vs

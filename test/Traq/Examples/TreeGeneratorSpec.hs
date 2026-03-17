@@ -14,65 +14,17 @@ import qualified Traq.Data.Symbolic as Sym
 import qualified Traq.Analysis as A
 import Traq.Analysis.CostModel.QueryCost (SimpleQueryCost (getCost))
 import Traq.CPL
-import qualified Traq.CPL as CPL
 import qualified Traq.Compiler as Compiler
 import qualified Traq.Compiler.Qiskit as Qiskit
 import qualified Traq.Compiler.Qualtran as Qualtran
+import Traq.Examples.TreeGenerator
 import Traq.Prelude
 import Traq.Primitives
 import qualified Traq.QPL as QPL
+import qualified Traq.Utils.Printing as PP
 
 import Test.Hspec
 import TestHelpers
-
-loopExample :: forall ext size. (Num size, size ~ SizeType ext) => size -> size -> Program ext
-loopExample n w =
-  Program
-    [ NamedFunDef
-        { fun_name = "AddWeight"
-        , fun_def =
-            FunDef
-              { param_types = [Fin w, Fin n]
-              , ret_types = [Fin w]
-              , mbody =
-                  Just
-                    FunBody
-                      { param_names = ["acc", "i"]
-                      , ret_names = ["acc'"]
-                      , body_stmt =
-                          SeqS
-                            [ ExprS ["one"] $ BasicExprE $ ConstE (FinV 1) (Fin w)
-                            , ExprS ["acc'"] $
-                                BasicExprE $
-                                  BinOpE AddOp (VarE "acc") (VarE "one")
-                            ]
-                      }
-              }
-        }
-    , NamedFunDef
-        { fun_name = "main"
-        , fun_def =
-            FunDef
-              { param_types = []
-              , ret_types = [Fin w]
-              , mbody =
-                  Just
-                    FunBody
-                      { param_names = []
-                      , ret_names = ["tw"]
-                      , body_stmt =
-                          SeqS
-                            [ ExprS ["acc"] $ BasicExprE $ ConstE (FinV 0) (Fin w)
-                            , ExprS ["tw"] $
-                                LoopE
-                                  { initial_args = ["acc"]
-                                  , loop_body_fun = "AddWeight"
-                                  }
-                            ]
-                      }
-              }
-        }
-    ]
 
 type Prim = DefaultPrims (Sym.Sym SizeT) Double
 type Prim' = DefaultPrims SizeT Double
@@ -100,10 +52,16 @@ loadKnapsack n w p k = do
 spec :: Spec
 spec = do
   describe "Tree Generator Example" $ do
-    it "parses" $ do
-      expectRight =<< parseFromFile (programParser @Prim) "examples/tree_generator/tree_generator_01_knapsack.traq"
-      -- p `shouldBe` treeGeneratorExample (Sym.var "N") (Sym.var "W") (Sym.var "P")
-      return ()
+    describe "parses" $ do
+      let prog = treeGeneratorExample @Prim (Sym.var "N") (Sym.var "W") (Sym.var "P") (Sym.var "K")
+
+      it "file" $ do
+        p <- expectRight =<< parseFromFile (programParser @Prim) "examples/tree_generator/tree_generator_01_knapsack.traq"
+        p `shouldBe` prog
+
+      it "roundtrip" $ do
+        p <- expectRight $ parseProgram @Prim $ PP.toCodeString prog
+        p `shouldBe` prog
 
     it "typechecks" $ do
       p <-
@@ -129,83 +87,30 @@ spec = do
 
     describe "Compile" $ do
       let eps = A.failProb (0.0001 :: Double)
+      let load_prog = do
+            ex <- loadKnapsack 2 20 30 2
+            expectRight $ A.annotateProgWith (_exts (A.annSinglePrim eps)) ex
 
-      it "lowers" $ do
-        ex <- CPL.renameVars' <$> loadKnapsack 2 20 30 2
-        ex' <- expectRight $ A.annotateProgWith (_exts (A.annSinglePrim eps)) ex
-        assertRight $ Compiler.lowerProgram ex'
+      beforeAll load_prog $ do
+        it "lowers" $ \ex -> do
+          assertRight $ Compiler.lowerProgram ex
 
-      it "typechecks" $ do
-        ex <- CPL.renameVars' <$> loadKnapsack 2 20 30 2
-        ex' <- expectRight $ A.annotateProgWith (_exts (A.annSinglePrim eps)) ex
-        ex_uqpl <- expectRight $ Compiler.lowerProgram ex'
-        assertRight $ QPL.typeCheckProgram ex_uqpl
+        it "typechecks" $ \ex -> do
+          ex_uqpl <- expectRight $ Compiler.lowerProgram ex
+          assertRight $ QPL.typeCheckProgram ex_uqpl
 
-      it "cost" $ do
-        ex <- CPL.renameVars' <$> loadKnapsack 2 20 30 2
-        ex' <- expectRight $ A.annotateProgWith (_exts (A.annSinglePrim eps)) ex
-        ex_cqpl <- expectRight $ Compiler.lowerProgram ex'
-        let cost = fst (QPL.programCost ex_cqpl) :: SimpleQueryCost Double
-        let cost_from_analysis = getCost $ A.costQProg ex'
-        getCost cost `shouldBeLE` cost_from_analysis
+        it "cost" $ \ex -> do
+          ex_cqpl <- expectRight $ Compiler.lowerProgram ex
+          let cost = fst (QPL.programCost ex_cqpl) :: SimpleQueryCost Double
+          let cost_from_analysis = getCost $ A.costQProg ex
+          getCost cost `shouldBeLE` cost_from_analysis
 
-      xit "target-py-qualtran" $ do
-        ex <- CPL.renameVars' <$> loadKnapsack 2 20 30 2
-        ex' <- expectRight $ A.annotateProgWith (_exts (A.annSinglePrim eps)) ex
-        ex_cqpl <- expectRight $ Compiler.lowerProgram ex'
-        _ <- evaluate $ force $ Qualtran.toPy ex_cqpl
-        return ()
+        xit "target-py-qualtran" $ \ex -> do
+          ex_cqpl <- expectRight $ Compiler.lowerProgram ex
+          _ <- evaluate $ force $ Qualtran.toPy ex_cqpl
+          return ()
 
-      xit "target-py-qiskit" $ do
-        ex <- CPL.renameVars' <$> loadKnapsack 2 20 30 2
-        ex' <- expectRight $ A.annotateProgWith (_exts (A.annSinglePrim eps)) ex
-        ex_cqpl <- expectRight $ Compiler.lowerProgram ex'
-        _ <- evaluate $ force $ Qiskit.toPy ex_cqpl
-        return ()
-
-  describe "Loop example" $ do
-    it "parses" $ do
-      p <-
-        parseFromFile (programParser @(Core (Sym.Sym SizeT) Double)) "examples/tree_generator/loop_example.traq"
-          >>= expectRight
-      p `shouldBe` loopExample (Sym.var "N") (Sym.var "W")
-
-    it "evaluates" $ do
-      let funInterpCtx = Map.singleton "AddWeight" (take 1)
-      let result = runProgram @Core' (loopExample 10 20) funInterpCtx []
-
-      result `shouldBeDistribution` [([FinV 10], 1.0)]
-
-    describe "Compile" $ do
-      it "lowers" $ do
-        let ex = CPL.renameVars' $ loopExample @Core' 10 20
-        ex' <- expectRight $ A.annotateProgWith (_exts A.annNoPrims) ex
-        assertRight $ Compiler.lowerProgram ex'
-
-      it "typechecks" $ do
-        let ex = CPL.renameVars' $ loopExample @Core' 10 20
-        ex' <- expectRight $ A.annotateProgWith (_exts A.annNoPrims) ex
-        ex_uqpl <- expectRight $ Compiler.lowerProgram ex'
-        assertRight $ QPL.typeCheckProgram ex_uqpl
-
-      it "cost" $ do
-        let ex = CPL.renameVars' $ loopExample @Core' 10 20
-        ex' <- expectRight $ A.annotateProgWith (_exts A.annNoPrims) ex
-        ex_cqpl <- expectRight $ Compiler.lowerProgram ex'
-        let cost = fst (QPL.programCost ex_cqpl) :: SimpleQueryCost Double
-        let cost_from_analysis = getCost $ A.costQProg ex'
-        getCost cost `shouldBeLE` cost_from_analysis
-
-      xit "target-py-qualtran" $ do
-        let ex = CPL.renameVars' $ loopExample @Core' 10 20
-        ex' <- expectRight $ A.annotateProgWith (_exts A.annNoPrims) ex
-        ex_cqpl <- expectRight $ Compiler.lowerProgram ex'
-        _ <- evaluate $ force $ Qualtran.toPy ex_cqpl
-        return ()
-
-      xit "target-py-qiskit" $ do
-        let ex = CPL.renameVars' $ loopExample @Core' 10 20
-        ex' <- expectRight $ A.annotateProgWith (_exts A.annNoPrims) ex
-        ex_cqpl <- expectRight $ Compiler.lowerProgram ex'
-        _ <- evaluate $ force $ Qiskit.toPy ex_cqpl
-        return ()
+        xit "target-py-qiskit" $ \ex -> do
+          ex_cqpl <- expectRight $ Compiler.lowerProgram ex
+          _ <- evaluate $ force $ Qiskit.toPy ex_cqpl
+          return ()

@@ -119,9 +119,9 @@ instance (CPL.EvalReqs SizeT prec) => CPL.Evaluatable (TreeSearch SizeT prec) Si
     check_fun <- view $ CPL._funCtx . Ctx.at checkNode . to (fromMaybe (error "unable to find predicate, please typecheck first!"))
 
     child_args <- runReaderT ?? sigma $ forM getChildrenArgs $ \x -> do
-      view $ Ctx.at x . non (error "invalid arg")
+      view $ at x . non (error "invalid arg")
     check_args <- runReaderT ?? sigma $ forM checkNodeArgs $ \x -> do
-      view $ Ctx.at x . non (error "invalid arg")
+      view $ at x . non (error "invalid arg")
 
     let nxt u =
           ( do

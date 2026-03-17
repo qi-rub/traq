@@ -21,6 +21,7 @@ import qualified Traq.Compiler.Qualtran as Qualtran
 import Traq.Prelude
 import Traq.Primitives
 import qualified Traq.QPL as QPL
+import qualified Traq.Utils.Printing as PP
 
 import Test.Hspec
 import TestHelpers
@@ -40,9 +41,15 @@ loadExample = do
 
 spec :: Spec
 spec = describe "Grover Meets Simon" $ do
-  it "parses" $ do
-    expectRight =<< parseFromFile (CPL.programParser @P) examplePath
-    return ()
+  describe "parses" $ do
+    it "file" $ do
+      expectRight =<< parseFromFile (CPL.programParser @P) examplePath
+      return ()
+
+    it "roundtrip" $ do
+      prog <- expectRight =<< parseFromFile (CPL.programParser @P) examplePath
+      p <- expectRight $ CPL.parseProgram @P $ PP.toCodeString prog
+      p `shouldBe` prog
 
   it "typechecks" $ do
     ex <- loadExample
@@ -50,36 +57,30 @@ spec = describe "Grover Meets Simon" $ do
 
   describe "Compile" $ do
     let eps = A.failProb (0.0001 :: Double)
+    let load_prog = do
+          ex <- loadExample
+          expectRight $ A.annotateProgWithErrorBudget eps ex
 
-    it "lowers" $ do
-      ex <- CPL.renameVars' <$> loadExample
-      ex' <- expectRight $ A.annotateProgWithErrorBudget eps ex
-      assertRight $ Compiler.lowerProgram ex'
+    before load_prog $ do
+      it "lowers" $ \ex -> do
+        assertRight $ Compiler.lowerProgram ex
 
-    it "typechecks" $ do
-      ex <- CPL.renameVars' <$> loadExample
-      ex' <- expectRight $ A.annotateProgWithErrorBudget eps ex
-      ex_uqpl <- expectRight $ Compiler.lowerProgram ex'
-      assertRight $ QPL.typeCheckProgram ex_uqpl
+      it "typechecks" $ \ex -> do
+        ex_uqpl <- expectRight $ Compiler.lowerProgram ex
+        assertRight $ QPL.typeCheckProgram ex_uqpl
 
-    it "cost" $ do
-      ex <- CPL.renameVars' <$> loadExample
-      ex' <- expectRight $ A.annotateProgWithErrorBudget eps ex
-      ex_cqpl <- expectRight $ Compiler.lowerProgram ex'
-      let cost = fst (QPL.programCost ex_cqpl) :: SimpleQueryCost Double
-      let cost_from_analysis = getCost $ A.costQProg ex'
-      getCost cost `shouldBeLE` cost_from_analysis
+      it "cost" $ \ex -> do
+        ex_cqpl <- expectRight $ Compiler.lowerProgram ex
+        let cost = fst (QPL.programCost ex_cqpl) :: SimpleQueryCost Double
+        let cost_from_analysis = getCost $ A.costQProg ex
+        getCost cost `shouldBeLE` cost_from_analysis
 
-    xit "target-py-qualtran" $ do
-      ex <- CPL.renameVars' <$> loadExample
-      ex' <- expectRight $ A.annotateProgWithErrorBudget eps ex
-      ex_cqpl <- expectRight $ Compiler.lowerProgram ex'
-      _ <- evaluate $ force $ Qualtran.toPy ex_cqpl
-      return ()
+      xit "target-py-qualtran" $ \ex -> do
+        ex_cqpl <- expectRight $ Compiler.lowerProgram ex
+        _ <- evaluate $ force $ Qualtran.toPy ex_cqpl
+        return ()
 
-    xit "target-py-qiskit" $ do
-      ex <- CPL.renameVars' <$> loadExample
-      ex' <- expectRight $ A.annotateProgWithErrorBudget eps ex
-      ex_cqpl <- expectRight $ Compiler.lowerProgram ex'
-      _ <- evaluate $ force $ Qiskit.toPy ex_cqpl
-      return ()
+      xit "target-py-qiskit" $ \ex -> do
+        ex_cqpl <- expectRight $ Compiler.lowerProgram ex
+        _ <- evaluate $ force $ Qiskit.toPy ex_cqpl
+        return ()

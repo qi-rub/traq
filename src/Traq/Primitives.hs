@@ -23,6 +23,8 @@ module Traq.Primitives (
 
 import GHC.Generics
 
+import Traq.Data.Subtyping ((:<:) (..))
+
 import qualified Traq.Analysis as A
 import qualified Traq.CPL as CPL
 import Traq.Prelude
@@ -63,6 +65,11 @@ instance CPL.MapSize (DefaultPrimCollection size prec) where
   mapSize f (CAmp p) = CAmp (CPL.mapSize f p)
   mapSize f (QAmp p) = QAmp (CPL.mapSize f p)
   mapSize f (QMax' p) = QMax' (CPL.mapSize f p)
+
+instance QAmplify size prec :<: DefaultPrimCollection size prec where
+  inject = QAmp
+  project (QAmp x) = Just x
+  project _ = Nothing
 
 instance (Show size, Show prec, Fractional prec) => SerializePrim (DefaultPrimCollection size prec) where
   primNames =

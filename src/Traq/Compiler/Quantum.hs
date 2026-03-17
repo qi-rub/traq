@@ -40,10 +40,10 @@ class (CompileU ext) => CompileQ ext where
     [Ident] ->
     m (Stmt (SizeType ext))
 
-instance (CPL.TypingReqs size) => CompileQ (CPL.Core size prec) where
+instance (CPL.TypingReqs size, Integral size) => CompileQ (CPL.Core size prec) where
   compileQ = \case {}
 
-instance (CPL.TypingReqs size) => CompileQ (A.AnnFailProb (CPL.Core size prec)) where
+instance (CPL.TypingReqs size, Integral size) => CompileQ (A.AnnFailProb (CPL.Core size prec)) where
   compileQ (A.AnnFailProb _ ext) = case ext of {}
 
 class CompileQ1 f where
@@ -77,37 +77,6 @@ instance CompileQ1 CPL.Expr where
     return $ CallS{fun = FunctionCall proc_id, args = map Arg (args ++ rets), meta_params = []}
   -- primitive call
   compileQ1 rets CPL.PrimCallE{CPL.prim} = compileQ prim rets
-  -- loops
-  compileQ1 rets CPL.LoopE{loop_body_fun, initial_args} = do
-    CPL.FunDef{param_types} <- view (CPL._funCtx . Ctx.at loop_body_fun) >>= maybeWithError "cannot find loop body fun"
-    n <- case last param_types of
-      CPL.Fin n -> pure n
-      _ -> throwError "loop index must be of type `Fin`"
-
-    iter_meta_var <- newIdent "ITER"
-
-    iter_var <- newIdent "iter"
-    CPL._typingCtx . Ctx.ins iter_var .= CPL.Fin n
-
-    let proc_id = mkQProcName loop_body_fun
-
-    return $
-      SeqS $
-        [AssignS [y] (CPL.VarE x) | (x, y) <- zip initial_args rets]
-          ++ [ ForInRangeS
-                 { iter_meta_var
-                 , iter_lim = CPL.MetaSize n
-                 , loop_body =
-                     SeqS
-                       [ AssignS [iter_var] (CPL.ParamE iter_meta_var)
-                       , CallS
-                           { fun = FunctionCall proc_id
-                           , meta_params = []
-                           , args = map Arg rets ++ [Arg iter_var] ++ map Arg rets
-                           }
-                       ]
-                 }
-             ]
 
 instance CompileQ1 CPL.Stmt where
   type CompileQArgs CPL.Stmt ext = ()
@@ -119,6 +88,19 @@ instance CompileQ1 CPL.Stmt where
     s_true <- compileQ1 () s_true
     s_false <- compileQ1 () s_false
     pure IfThenElseS{..}
+  compileQ1 () CPL.ForS{CPL.loop_ix, CPL.loop_ty, CPL.loop_body} = do
+    n <- case loop_ty of
+      CPL.Fin n -> pure n
+      _ -> throwError "for loop index must be of type `Fin`"
+    iter_meta_var <- newIdent "ITER"
+    CPL._typingCtx . Ctx.ins loop_ix .= loop_ty
+    loop_body <- compileQ1 () loop_body
+    pure $
+      ForInRangeS
+        { iter_meta_var
+        , iter_lim = CPL.MetaSize n
+        , loop_body = SeqS [AssignS [loop_ix] (CPL.ParamE iter_meta_var), loop_body]
+        }
 
 instance CompileQ1 CPL.FunBody where
   type CompileQArgs CPL.FunBody ext = ([CPL.VarType (SizeType ext)], [CPL.VarType (SizeType ext)])
@@ -180,7 +162,9 @@ instance CompileQ1 CPL.Program where
   type CompileQArgs CPL.Program ext = ()
   type CompileQResult CPL.Program ext = ()
 
-  compileQ1 () (CPL.Program fs) = forM_ fs $ \f -> compileU1 () f >> compileQ1 () f
+  compileQ1 () (CPL.Program fs) = forM_ fs $ \f -> do
+    compileU1 () f
+    compileQ1 () f
 
 -- ================================================================================
 -- Entry Point

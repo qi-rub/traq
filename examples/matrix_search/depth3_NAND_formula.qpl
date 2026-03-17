@@ -68,8 +68,8 @@ uproc Grover[k](i1 : Fin<20>, j1 : Fin<10>, x : IN Fin<10>, ret_1 : OUT Fin<2>, 
 
 proc QAny(i1 : Fin<20>, j1 : Fin<10>, ret_1 : Fin<2>) { locals : (s_result_1 : Fin<10>, not_done : Fin<2>, Q_sum : Fin<30>, j : Fin<30>, j_lim : Fin<30>) } {
   repeat (66) {
-    Q_sum := 0:Fin<30>;
-    for (j_lim in [1:Fin<30>, 1:Fin<30>, 1:Fin<30>, 2:Fin<30>, 2:Fin<30>, 2:Fin<30>, 3:Fin<30>, 3:Fin<30>, 3:Fin<30>, 3:Fin<30>, 3:Fin<30>, 3:Fin<30>, 3:Fin<30>]) {
+    Q_sum := const 0:Fin<30>;
+    for (j_lim in [const 1:Fin<30>, const 1:Fin<30>, const 1:Fin<30>, const 2:Fin<30>, const 2:Fin<30>, const 2:Fin<30>, const 3:Fin<30>, const 3:Fin<30>, const 3:Fin<30>, const 3:Fin<30>, const 3:Fin<30>, const 3:Fin<30>, const 3:Fin<30>]) {
       j :=$ [1 .. j_lim];
       Q_sum := (Q_sum + j);
       not_done := (not_done && (Q_sum <= j_lim));
@@ -143,8 +143,8 @@ uproc Grover_1[k](i2 : Fin<20>, x_1 : IN Fin<10>, ret_3 : OUT Fin<2>, aux_29 : A
 
 proc QAny_1(i2 : Fin<20>, ret_3 : Fin<2>) { locals : (s_result_3 : Fin<10>, not_done_1 : Fin<2>, Q_sum_1 : Fin<30>, j_1 : Fin<30>, j_lim_1 : Fin<30>) } {
   repeat (27) {
-    Q_sum_1 := 0:Fin<30>;
-    for (j_lim_1 in [1:Fin<30>, 1:Fin<30>, 1:Fin<30>, 2:Fin<30>, 2:Fin<30>, 2:Fin<30>, 3:Fin<30>, 3:Fin<30>, 3:Fin<30>, 3:Fin<30>, 3:Fin<30>, 3:Fin<30>, 3:Fin<30>]) {
+    Q_sum_1 := const 0:Fin<30>;
+    for (j_lim_1 in [const 1:Fin<30>, const 1:Fin<30>, const 1:Fin<30>, const 2:Fin<30>, const 2:Fin<30>, const 2:Fin<30>, const 3:Fin<30>, const 3:Fin<30>, const 3:Fin<30>, const 3:Fin<30>, const 3:Fin<30>, const 3:Fin<30>, const 3:Fin<30>]) {
       j_1 :=$ [1 .. j_lim_1];
       Q_sum_1 := (Q_sum_1 + j_1);
       not_done_1 := (not_done_1 && (Q_sum_1 <= j_lim_1));
@@ -216,8 +216,8 @@ uproc Grover_2[k](x_2 : IN Fin<20>, ret_5 : OUT Fin<2>, aux_108 : AUX Fin<2>, au
 
 proc QAny_2(ret_5 : Fin<2>) { locals : (s_result_5 : Fin<20>, not_done_2 : Fin<2>, Q_sum_2 : Fin<42>, j_2 : Fin<42>, j_lim_2 : Fin<42>) } {
   repeat (7) {
-    Q_sum_2 := 0:Fin<42>;
-    for (j_lim_2 in [1:Fin<42>, 1:Fin<42>, 1:Fin<42>, 2:Fin<42>, 2:Fin<42>, 2:Fin<42>, 3:Fin<42>, 4:Fin<42>, 4:Fin<42>, 4:Fin<42>, 4:Fin<42>, 4:Fin<42>, 4:Fin<42>, 4:Fin<42>]) {
+    Q_sum_2 := const 0:Fin<42>;
+    for (j_lim_2 in [const 1:Fin<42>, const 1:Fin<42>, const 1:Fin<42>, const 2:Fin<42>, const 2:Fin<42>, const 2:Fin<42>, const 3:Fin<42>, const 4:Fin<42>, const 4:Fin<42>, const 4:Fin<42>, const 4:Fin<42>, const 4:Fin<42>, const 4:Fin<42>, const 4:Fin<42>]) {
       j_2 :=$ [1 .. j_lim_2];
       Q_sum_2 := (Q_sum_2 + j_2);
       not_done_2 := (not_done_2 && (Q_sum_2 <= j_lim_2));

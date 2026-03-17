@@ -34,9 +34,6 @@ spec = describe "MatrixSearch" $ do
     it "type checks" $ do
       assertRight $ CPL.typeCheckProg ex
 
-    it "has unique vars" $ do
-      CPL.checkVarsUnique ex `shouldBe` True
-
     let oracleF = \case
           [CPL.FinV i, CPL.FinV j] -> [CPL.toValue $ i == j]
           _ -> undefined
@@ -79,53 +76,53 @@ spec = describe "MatrixSearch" $ do
 
     describe "Unitary Compile" $ do
       let eps = A.failProb (0.001 :: Double)
-      it "lowers" $ do
-        ex' <- expectRight $ A.annotateProgWithErrorBudgetU eps ex
-        assertRight $ Compiler.lowerProgramU ex'
+      let load_prog =
+            expectRight $ A.annotateProgWithErrorBudgetU eps ex
 
-      it "type checks" $ do
-        ex' <- expectRight $ A.annotateProgWithErrorBudgetU eps ex
-        ex_uqpl <- expectRight $ Compiler.lowerProgramU ex'
-        let tc_res = QPL.typeCheckProgram ex_uqpl
-        either print (const $ pure ()) tc_res
-        assertRight tc_res
+      before load_prog $ do
+        it "lowers" $ \ex' -> do
+          assertRight $ Compiler.lowerProgramU ex'
 
-      it "preserves cost" $ do
-        ex' <- expectRight $ A.annotateProgWithErrorBudgetU eps ex
-        ex_uqpl <- expectRight $ Compiler.lowerProgramU ex'
-        let uqpl_cost = getCost . fst $ QPL.programCost ex_uqpl
-        let traq_cost = getCost $ A.costUProg ex'
-        uqpl_cost `shouldBeLE` traq_cost
+        it "type checks" $ \ex' -> do
+          ex_uqpl <- expectRight $ Compiler.lowerProgramU ex'
+          let tc_res = QPL.typeCheckProgram ex_uqpl
+          either print (const $ pure ()) tc_res
+          assertRight tc_res
+
+        it "preserves cost" $ \ex' -> do
+          ex_uqpl <- expectRight $ Compiler.lowerProgramU ex'
+          let uqpl_cost = getCost . fst $ QPL.programCost ex_uqpl
+          let traq_cost = getCost $ A.costUProg ex'
+          uqpl_cost `shouldBeLE` traq_cost
 
     describe "lower to QPL" $ do
       let eps = A.failProb (0.001 :: Double)
-      it "lowers" $ do
-        ex' <- expectRight $ A.annotateProgWithErrorBudget eps ex
-        assertRight $ Compiler.lowerProgram ex'
+      let load_prog =
+            expectRight $ A.annotateProgWithErrorBudget eps ex
 
-      it "type checks" $ do
-        ex' <- expectRight $ A.annotateProgWithErrorBudget eps ex
-        ex_cqpl <- expectRight $ Compiler.lowerProgram ex'
-        assertRight $ QPL.typeCheckProgram ex_cqpl
+      before load_prog $ do
+        it "lowers" $ \ex' -> do
+          assertRight $ Compiler.lowerProgram ex'
 
-      it "cost" $ do
-        ex' <- expectRight $ A.annotateProgWithErrorBudget eps ex
-        ex_cqpl <- expectRight $ Compiler.lowerProgram ex'
-        let cost = fst (QPL.programCost ex_cqpl) :: SimpleQueryCost Double
-        let cost_from_analysis = getCost $ A.costQProg ex'
-        getCost cost `shouldBeLE` cost_from_analysis
+        it "type checks" $ \ex' -> do
+          ex_cqpl <- expectRight $ Compiler.lowerProgram ex'
+          assertRight $ QPL.typeCheckProgram ex_cqpl
 
-      it "target-py-qualtran" $ do
-        ex' <- expectRight $ A.annotateProgWithErrorBudget eps ex
-        ex_cqpl <- expectRight $ Compiler.lowerProgram ex'
-        _ <- evaluate $ force $ Qualtran.toPy ex_cqpl
-        return ()
+        it "cost" $ \ex' -> do
+          ex_cqpl <- expectRight $ Compiler.lowerProgram ex'
+          let cost = fst (QPL.programCost ex_cqpl) :: SimpleQueryCost Double
+          let cost_from_analysis = getCost $ A.costQProg ex'
+          getCost cost `shouldBeLE` cost_from_analysis
 
-      xit "target-py-qiskit" $ do
-        ex' <- expectRight $ A.annotateProgWithErrorBudget eps ex
-        ex_cqpl <- expectRight $ Compiler.lowerProgram ex'
-        _ <- evaluate $ force $ Qiskit.toPy ex_cqpl
-        return ()
+        it "target-py-qualtran" $ \ex' -> do
+          ex_cqpl <- expectRight $ Compiler.lowerProgram ex'
+          _ <- evaluate $ force $ Qualtran.toPy ex_cqpl
+          return ()
+
+        xit "target-py-qiskit" $ \ex' -> do
+          ex_cqpl <- expectRight $ Compiler.lowerProgram ex'
+          _ <- evaluate $ force $ Qiskit.toPy ex_cqpl
+          return ()
 
   describe "symbolic" $ do
     let n = Sym.var "n" :: Sym.Sym Int

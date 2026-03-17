@@ -42,7 +42,6 @@ module Traq.Compiler.Prelude (
   LoweringEnv,
 ) where
 
-import Control.Monad (unless)
 import Control.Monad.Except (MonadError (throwError))
 import Control.Monad.Extra (loopM)
 import Control.Monad.RWS (RWST, runRWST)
@@ -181,8 +180,6 @@ compileWith ::
   CPL.Program ext ->
   Either String (QPL.Program size)
 compileWith compiler prog = do
-  unless (CPL.checkVarsUnique prog) $
-    throwError "program does not have unique variables!"
   CPL.typeCheckProg prog
 
   let config =

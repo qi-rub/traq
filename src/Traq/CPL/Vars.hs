@@ -87,19 +87,20 @@ instance (HasFreeVars ext) => HasFreeVars (Expr ext) where
   freeVarsList RandomSampleE{distr_expr} = freeVarsList distr_expr
   freeVarsList FunCallE{args} = args
   freeVarsList PrimCallE{prim} = freeVarsList prim
-  freeVarsList LoopE{initial_args} = initial_args
 
 -- | The set of free (unbound) variables
 instance (HasFreeVars ext) => HasFreeVars (Stmt ext) where
   freeVarsList IfThenElseS{cond, s_true, s_false} = cond : freeVarsList s_true ++ freeVarsList s_false
   freeVarsList (SeqS ss) = Set.elems $ Set.fromList (concatMap freeVarsList ss) Set.\\ outVars (SeqS ss)
   freeVarsList ExprS{expr} = freeVarsList expr
+  freeVarsList ForS{loop_ix, loop_body} = Set.elems $ Set.fromList (freeVarsList loop_body) Set.\\ Set.singleton loop_ix
 
 -- | The set of generated output variables
 outVars :: Stmt ext -> VarSet
 outVars IfThenElseS{s_true, s_false} = Set.unions [outVars s_true, outVars s_false]
 outVars (SeqS ss) = Set.unions $ map outVars ss
 outVars ExprS{rets} = Set.fromList rets
+outVars ForS{loop_body} = outVars loop_body
 
 -- | All variables in a statement
 allVars :: (HasFreeVars ext) => Stmt ext -> VarSet
@@ -160,7 +161,6 @@ instance (RenameVars ext) => RenameVars (Expr ext) where
   renameVars _ e@RandomSampleE{} = e
   renameVars prefix e@FunCallE{args} = e{args = addPrefix prefix args}
   renameVars prefix PrimCallE{prim} = PrimCallE $ renameVars prefix prim
-  renameVars prefix e@LoopE{initial_args} = e{initial_args = addPrefix prefix initial_args}
 
 instance (RenameVars ext) => RenameVars (Stmt ext) where
   renameVars prefix ExprS{rets, expr} =
@@ -169,6 +169,12 @@ instance (RenameVars ext) => RenameVars (Stmt ext) where
       , expr = renameVars prefix expr
       }
   renameVars prefix (SeqS ss) = SeqS $ map (renameVars prefix) ss
+  renameVars prefix ForS{loop_ix, loop_ty, loop_body} =
+    ForS
+      { loop_ix = prefix ++ loop_ix
+      , loop_ty
+      , loop_body = renameVars prefix loop_body
+      }
   renameVars _ _ = error "unsupported"
 
 instance (RenameVars ext) => RenameVars (FunBody ext) where

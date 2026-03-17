@@ -49,6 +49,12 @@ cplDef =
         , "update"
         , "set"
         , "loop"
+        , "for"
+        , "in"
+        , "if"
+        , "then"
+        , "else"
+        , "skip"
         , -- functions
           "fn"
         , "ext"
@@ -118,7 +124,6 @@ instance (Parseable ext, SizeType ext ~ SymbSize) => Parseable (Expr ext) where
       , indexE
       , tupIndexE
       , updateArrE
-      , loopE
       , varE
       ]
    where
@@ -233,13 +238,6 @@ instance (Parseable ext, SizeType ext ~ SymbSize) => Parseable (Expr ext) where
       rhs <- VarE <$> identifier
       return $ BasicExprE $ TernaryE{branch, lhs, rhs}
 
-    loopE :: Parser (Expr ext)
-    loopE = do
-      reserved "loop"
-      initial_args <- parens $ commaSep identifier
-      loop_body_fun <- identifier
-      return $ LoopE{initial_args, loop_body_fun}
-
 exprP :: forall ext. (Parseable ext, SizeType ext ~ SymbSize) => TokenParser () -> Parser (Expr ext)
 exprP = parseE
 
@@ -263,8 +261,45 @@ distrExprP :: TokenParser () -> Parser (DistrExpr SymbSize)
 distrExprP = parseE
 
 instance (Parseable ext, SizeType ext ~ SymbSize) => Parseable (Stmt ext) where
-  parseE tp@TokenParser{..} = SeqS <$> many exprS
+  parseE tp@TokenParser{..} =
+    SeqS
+      <$> many
+        ( forS
+            <|> ifteS
+            <|> skipS
+            <|> exprS
+        )
    where
+    forS :: Parser (Stmt ext)
+    forS = do
+      reserved "for"
+      (loop_ix, loop_ty) <- parens $ do
+        loop_ix <- identifier
+        reserved "in"
+        loop_ty <- varType tp
+        return (loop_ix, loop_ty)
+
+      reserved "do"
+      loop_body <- stmtP tp
+      reserved "end"
+
+      return ForS{loop_ix, loop_ty, loop_body}
+
+    ifteS :: Parser (Stmt ext)
+    ifteS = do
+      reserved "if"
+      cond <- parens identifier
+      s_true <- reserved "then" >> stmtP tp
+      s_false <- (reserved "else" >> stmtP tp) <|> pure (SeqS [])
+      reserved "end"
+      return IfThenElseS{..}
+
+    skipS :: Parser (Stmt ext)
+    skipS = do
+      reserved "skip"
+      semi
+      return $ SeqS []
+
     exprS :: Parser (Stmt ext)
     exprS = do
       rets <- commaSep1 identifier

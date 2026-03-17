@@ -35,7 +35,6 @@ instance (MapSize ext) => MapSize (Expr ext) where
   mapSize f (RandomSampleE e) = RandomSampleE (fmap f e)
   mapSize f (PrimCallE prim) = PrimCallE (mapSize f prim)
   mapSize _ FunCallE{..} = FunCallE{..}
-  mapSize _ LoopE{..} = LoopE{..}
 
 instance (MapSize ext) => MapSize (Stmt ext) where
   type MappedSize (Stmt ext) size' = Stmt (MappedSize ext size')
@@ -43,6 +42,7 @@ instance (MapSize ext) => MapSize (Stmt ext) where
   mapSize f ExprS{..} = ExprS{expr = mapSize f expr, ..}
   mapSize f IfThenElseS{..} = IfThenElseS{s_true = mapSize f s_true, s_false = mapSize f s_false, ..}
   mapSize f (SeqS ss) = SeqS $ map (mapSize f) ss
+  mapSize f ForS{..} = ForS{loop_ty = fmap f loop_ty, loop_body = mapSize f loop_body, ..}
 
 instance (MapSize ext) => MapSize (FunBody ext) where
   type MappedSize (FunBody ext) size' = FunBody (MappedSize ext size')
@@ -90,7 +90,6 @@ instance HasExts Expr where
   _exts _ RandomSampleE{distr_expr} = pure RandomSampleE{distr_expr}
   _exts _ FunCallE{fname, args} = pure FunCallE{fname, args}
   _exts focus (PrimCallE p) = PrimCallE <$> focus p
-  _exts _ LoopE{initial_args, loop_body_fun} = pure LoopE{initial_args, loop_body_fun}
 
 instance HasExts Stmt where
   _exts focus ExprS{rets, expr} = do
@@ -101,6 +100,9 @@ instance HasExts Stmt where
     s_false <- _exts focus s_false
     pure IfThenElseS{cond, s_true, s_false}
   _exts focus (SeqS ss) = SeqS <$> traverse (_exts focus) ss
+  _exts focus ForS{loop_ix, loop_ty, loop_body} = do
+    loop_body <- _exts focus loop_body
+    pure ForS{loop_ix, loop_ty, loop_body}
 
 instance HasExts FunBody where
   _exts focus FunBody{param_names, ret_names, body_stmt} = do

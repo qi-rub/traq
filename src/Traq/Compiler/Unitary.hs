@@ -17,7 +17,7 @@ module Traq.Compiler.Unitary (
   compileU1,
 ) where
 
-import Control.Monad (zipWithM)
+import Control.Monad (forM, zipWithM)
 import Control.Monad.Except (MonadError (throwError))
 import Data.Foldable (Foldable (toList))
 
@@ -39,18 +39,18 @@ import Traq.QPL.Syntax
 -- ================================================================================
 
 -- | Allocate an ancilla register, and update the typing context.
-allocAncillaWithPref :: (size ~ SizeType ext) => Ident -> CPL.VarType size -> CompilerT ext Ident
+allocAncillaWithPref :: (size ~ SizeType ext, Eq size) => Ident -> CPL.VarType size -> CompilerT ext Ident
 allocAncillaWithPref pref ty = do
   name <- newIdent pref
-  zoom CPL._typingCtx $ Ctx.put name ty
+  zoom CPL._typingCtx $ Ctx.putOrMatch name ty
   return name
 
 -- | Allocate an ancilla register @aux_<<n>>@, and update the typing context.
-allocAncilla :: (size ~ SizeType ext) => CPL.VarType size -> CompilerT ext Ident
+allocAncilla :: (size ~ SizeType ext, Eq size) => CPL.VarType size -> CompilerT ext Ident
 allocAncilla = allocAncillaWithPref "aux"
 
 -- | Allocate fresh set of auxiliaries corresponding to the types of given vars.
-freshAux :: (m ~ CompilerT ext) => [Ident] -> m [Ident]
+freshAux :: (m ~ CompilerT ext, size ~ SizeType ext, Eq size) => [Ident] -> m [Ident]
 freshAux xs = do
   tys <- zoom CPL._typingCtx $ mapM Ctx.lookup xs
   zipWithM allocAncillaWithPref xs tys
@@ -62,7 +62,7 @@ withTag tag = map $ \(x, ty) -> (x, tag, ty)
 -- Compiler
 -- ================================================================================
 
-class (CPL.TypeInferrable ext (SizeType ext)) => CompileU ext where
+class (CPL.TypeInferrable ext (SizeType ext), Integral (SizeType ext)) => CompileU ext where
   compileU ::
     forall ext' m.
     ( m ~ CompilerT ext'
@@ -73,10 +73,10 @@ class (CPL.TypeInferrable ext (SizeType ext)) => CompileU ext where
     [Ident] ->
     m (QPL.UStmt (SizeType ext))
 
-instance (CPL.TypingReqs size) => CompileU (CPL.Core size prec) where
+instance (CPL.TypingReqs size, Integral size) => CompileU (CPL.Core size prec) where
   compileU = \case {}
 
-instance (CPL.TypingReqs size) => CompileU (A.AnnFailProb (CPL.Core size prec)) where
+instance (CPL.TypingReqs size, Integral size) => CompileU (A.AnnFailProb (CPL.Core size prec)) where
   compileU (A.AnnFailProb _ ext) = case ext of {}
 
 class CompileU1 f where
@@ -119,55 +119,6 @@ instance CompileU1 CPL.Expr where
     let qargs = map Arg $ args ++ rets ++ aux_vars
     return UCallS{uproc_id, qargs, dagger = False}
   compileU1 rets CPL.PrimCallE{prim} = compileU prim rets
-  compileU1 rets CPL.LoopE{initial_args, loop_body_fun} = do
-    CPL.FunDef{param_types, ret_types} <- view (CPL._funCtx . Ctx.at loop_body_fun) >>= maybeWithError "cannot find loop body fun"
-    n <- case last param_types of
-      CPL.Fin n -> pure n
-      _ -> throwError "loop index must be of type `Fin`"
-
-    let uproc_id = mkUProcName loop_body_fun
-    ProcSignature{aux_tys} <- use (_procSignatures . at uproc_id) >>= maybeWithError "cannot find uproc signature"
-
-    -- fresh aux for each iteration
-    aux_vars <- mapM (allocAncilla . CPL.Arr n) aux_tys
-
-    iter_meta_var <- newIdent "ITER"
-    iter_vars <- allocAncilla (CPL.Arr n (CPL.Fin n))
-
-    intermediates <- mapM (allocAncilla . CPL.Arr (n + 1)) ret_types
-
-    let at_ix x = ArrElemArg (Arg x) (CPL.MetaName iter_meta_var)
-
-    return $
-      USeqS $
-        [ UnitaryS
-            [Arg x_in, ArrElemArg (Arg x_out) (MetaSize 0)]
-            (BasicGateU COPY)
-        | (x_out, x_in) <- zip intermediates initial_args
-        ]
-          ++ [ UForInRangeS
-                 { iter_meta_var
-                 , iter_lim = CPL.MetaSize n
-                 , uloop_body =
-                     USeqS
-                       [ UCallS
-                           { uproc_id = uproc_id
-                           , dagger = False
-                           , qargs =
-                               map at_ix intermediates
-                                 ++ [at_ix iter_vars]
-                                 ++ map at_ix intermediates
-                                 ++ map at_ix aux_vars
-                           }
-                       ]
-                 , dagger = False
-                 }
-             ]
-          ++ [ UnitaryS
-                 [ArrElemArg (Arg x_last) (MetaSize n), Arg x_ret]
-                 (BasicGateU COPY)
-             | (x_ret, x_last) <- zip rets intermediates
-             ]
 
 instance CompileU1 CPL.Stmt where
   type CompileArgs CPL.Stmt ext = ()
@@ -204,6 +155,21 @@ instance CompileU1 CPL.Stmt where
         , UnitaryS{qargs = map Arg (cond : out_t ++ tmp_t), unitary = Controlled (BasicGateU SWAP)}
         ]
   compileU1 () (CPL.SeqS ss) = QPL.USeqS <$> mapM (compileU1 ()) ss
+  compileU1 () CPL.ForS{CPL.loop_ix, CPL.loop_ty, CPL.loop_body} = do
+    n <- case loop_ty of
+      CPL.Fin n -> pure n
+      _ -> throwError "for loop index must be of type `Fin`"
+    ss <- forM [0 .. n - 1] $ \i -> do
+      tmp <- allocAncillaWithPref loop_ix loop_ty
+      let load_ix =
+            UnitaryS
+              { qargs = [Arg tmp]
+              , unitary = RevEmbedU [] (CPL.ConstE (CPL.FinV i) loop_ty)
+              }
+      let swap_ix = UnitaryS{qargs = [Arg tmp, Arg loop_ix], unitary = BasicGateU SWAP}
+      s <- compileU1 () loop_body
+      pure [load_ix, swap_ix, s]
+    pure $ USeqS $ concat ss
 
 instance CompileU1 CPL.FunBody where
   type CompileArgs CPL.FunBody ext = ([CPL.VarType (SizeType ext)], [CPL.VarType (SizeType ext)])

@@ -16,6 +16,7 @@ import Traq.Control.Monad (non', (??))
 import qualified Traq.Data.Context as Ctx
 
 import Traq.Analysis.Error.Prelude
+import Traq.Analysis.Prelude (sizeToPrec)
 import Traq.CPL
 import Traq.Prelude
 
@@ -49,7 +50,6 @@ instance (TraceNormErrorU ext size prec) => TraceNormErrorU (Expr ext) size prec
     fn <- view $ _funCtx . Ctx.at fname . non' (error $ "unable to find function " ++ fname)
     traceNormErrorU fn
   traceNormErrorU PrimCallE{prim} = traceNormErrorU prim
-  traceNormErrorU _ = error "unsupported"
 
 instance (TraceNormErrorU ext size prec) => TraceNormErrorU (Stmt ext) size prec where
   traceNormErrorU ExprS{expr} = traceNormErrorU expr
@@ -58,6 +58,10 @@ instance (TraceNormErrorU ext size prec) => TraceNormErrorU (Stmt ext) size prec
     eps_f <- traceNormErrorU s_false
     return $ eps_t + eps_f
   traceNormErrorU (SeqS ss) = sum <$> mapM traceNormErrorU ss
+  traceNormErrorU ForS{loop_ty, loop_body} = do
+    body_err <- traceNormErrorU loop_body
+    let n_iters = loop_ty ^?! _Fin
+    return $ failProb (sizeToPrec n_iters) * body_err
 
 instance (TraceNormErrorU ext size prec) => TraceNormErrorU (FunDef ext) size prec where
   traceNormErrorU FunDef{mbody = Nothing} = return 0
@@ -81,6 +85,6 @@ traceNormErrorUProg ::
   Program ext ->
   FailProb prec
 traceNormErrorUProg (Program fs) =
-  traceNormErrorU main_fn & runReader ?? (namedFunsToFunCtx fs)
+  traceNormErrorU main_fn & runReader ?? namedFunsToFunCtx fs
  where
   main_fn = fun_def $ last fs

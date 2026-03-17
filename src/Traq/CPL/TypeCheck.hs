@@ -30,7 +30,7 @@ module Traq.CPL.TypeCheck (
 import Control.Monad (forM_, unless, when, zipWithM_)
 import Control.Monad.Except (MonadError, throwError)
 import Control.Monad.RWS (RWST (runRWST))
-import Control.Monad.Reader (MonadReader, runReaderT)
+import Control.Monad.Reader (MonadReader)
 import Control.Monad.State (MonadState, evalStateT)
 import Control.Monad.Trans (lift)
 import GHC.Generics
@@ -294,22 +294,6 @@ instance (TypeInferrable ext size) => TypeInferrable (Expr ext) size where
 
   -- `primitive`
   inferTypes PrimCallE{prim} = inferTypes prim
-  -- loop ...
-  inferTypes LoopE{initial_args, loop_body_fun} =
-    do
-      -- extract the current context
-      gamma <- use id
-      in_tys <- runReaderT ?? gamma $ mapM Ctx.lookup' initial_args
-      FunDef{param_types, ret_types} <- lookupFunE loop_body_fun
-      unless (ret_types == in_tys) $
-        throwError "Initial input argument types should match output types of the loop function."
-      unless (init param_types == ret_types) $
-        throwError "Initial N - 1 input param types should match output types of the loop function."
-      when (null param_types) $
-        throwError "There is should be at least one parameter types."
-      case last param_types of
-        (Fin _) -> return ret_types
-        _ -> throwError "Last type of the loop function should be a Fin type."
 
 instance (TypeInferrable ext size) => TypeInferrable (Stmt ext) size where
   -- single statement
@@ -323,6 +307,10 @@ instance (TypeInferrable ext size) => TypeInferrable (Stmt ext) size where
     pure []
   -- sequence
   inferTypes (SeqS ss) = mapM_ inferTypes ss >> pure []
+  -- for loop
+  inferTypes ForS{loop_ix, loop_ty, loop_body} = do
+    Ctx.putOrMatch loop_ix loop_ty
+    inferTypes loop_body
   -- ifte
   inferTypes IfThenElseS{cond, s_true, s_false} = do
     cond_ty <- Ctx.lookup cond
@@ -330,11 +318,11 @@ instance (TypeInferrable ext size) => TypeInferrable (Stmt ext) size where
       throwError $
         "`if` condition must be a boolean, got " <> show (cond, cond_ty)
 
-    sigma_t <- withSandbox $ inferTypes s_true >> use id
-    sigma_f <- withSandbox $ inferTypes s_false >> use id
-    when (sigma_t /= sigma_f) $
-      throwError ("if: branches must declare same variables, got " <> show [sigma_t, sigma_f])
-    id .= sigma_t
+    sigma_t <- withSandbox $ inferTypes s_true >> use _typingCtx
+    sigma_f <- withSandbox $ inferTypes s_false >> use _typingCtx
+    case Ctx.union sigma_t sigma_f of
+      Nothing -> throwError ("if: branches have incompatible variable types: " <> show [sigma_t, sigma_f])
+      Just sigma -> _typingCtx .= sigma
     pure []
 
 -- | Type check a single function.
@@ -360,8 +348,6 @@ typeCheckFun
     let gamma = Ctx.fromList $ zip param_names param_types
     (_, gamma', ()) <- runRWST (inferTypes body_stmt) funCtx gamma
     forM_ (zip ret_names ret_types) $ \(x, t) -> do
-      when (has _Just (gamma ^. Ctx.at x)) $ do
-        throwError $ printf "parameter `%s` cannot be returned, please copy it into a new variable and return that" x
       t' <- gamma' ^. Ctx.at x & maybe (throwError $ printf "missing in returns: %s" x) pure
       when (t /= t') $
         throwError $

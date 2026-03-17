@@ -231,13 +231,13 @@ instance (Show size) => PP.ToCodeString (BasicExpr size) where
   build ParamE{param} = PP.putWord $ printf "#%s" param
   build DefaultE{ty} = PP.putWord . printf "default : %s" =<< PP.fromBuild ty
   build ConstE{val, ty} =
-    PP.putWord =<< printf "%s:%s" <$> PP.fromBuild val <*> PP.fromBuild ty
+    PP.putWord =<< printf "const %s:%s" <$> PP.fromBuild val <*> PP.fromBuild ty
   build UnOpE{un_op, operand} =
     PP.putWord =<< (++) <$> PP.fromBuild un_op <*> PP.fromBuild operand
   build BinOpE{bin_op, lhs, rhs} =
     PP.putWord =<< printf "(%s %s %s)" <$> PP.fromBuild lhs <*> PP.fromBuild bin_op <*> PP.fromBuild rhs
   build TernaryE{branch, lhs, rhs} =
-    PP.putWord =<< printf "(ifte %s %s %s)" <$> PP.fromBuild branch <*> PP.fromBuild lhs <*> PP.fromBuild rhs
+    PP.putWord =<< printf "(%s ? %s : %s)" <$> PP.fromBuild branch <*> PP.fromBuild lhs <*> PP.fromBuild rhs
   build NAryE{op, operands} =
     PP.putWord
       =<< printf "%s(%s)"
@@ -276,7 +276,6 @@ data Expr ext
   | RandomSampleE {distr_expr :: DistrExpr (SizeType ext)}
   | FunCallE {fname :: Ident, args :: [Ident]}
   | PrimCallE {prim :: ext}
-  | LoopE {initial_args :: [Ident], loop_body_fun :: Ident}
 
 deriving instance (Eq ext, Eq (SizeType ext)) => Eq (Expr ext)
 deriving instance (Show ext, Show (SizeType ext)) => Show (Expr ext)
@@ -290,15 +289,13 @@ instance (Show (SizeType ext), PP.ToCodeString ext) => PP.ToCodeString (Expr ext
   build RandomSampleE{distr_expr} = PP.putLine . printf "$ %s" =<< PP.fromBuild distr_expr
   build FunCallE{fname, args} = PP.putLine $ printf "%s(%s)" fname (PP.commaList args)
   build PrimCallE{prim} = PP.build prim
-  build LoopE{initial_args, loop_body_fun} = do
-    let args = PP.commaList initial_args
-    PP.putWord $ printf "loop (%s) %s" args loop_body_fun
 
 -- | A statement in CPL.
 data Stmt ext
   = ExprS {rets :: [Ident], expr :: Expr ext}
   | IfThenElseS {cond :: Ident, s_true, s_false :: Stmt ext}
   | SeqS [Stmt ext]
+  | ForS {loop_ix :: Ident, loop_ty :: VarType (SizeType ext), loop_body :: Stmt ext}
 
 deriving instance (Eq ext, Eq (SizeType ext)) => Eq (Stmt ext)
 deriving instance (Show ext, Show (SizeType ext)) => Show (Stmt ext)
@@ -320,6 +317,11 @@ instance (Show (SizeType ext), PP.ToCodeString ext) => PP.ToCodeString (Stmt ext
     PP.indented $ PP.build s_false
     PP.putLine "end"
   build (SeqS ss) = mapM_ PP.build ss
+  build ForS{loop_ix, loop_ty, loop_body} = do
+    t <- PP.fromBuild loop_ty
+    PP.putLine $ printf "for (%s in %s) do" loop_ix t
+    PP.indented $ PP.build loop_body
+    PP.putLine "end"
 
 -- | The body of a function.
 data FunBody ext = FunBody
@@ -372,7 +374,7 @@ instance (Show (SizeType ext), PP.ToCodeString ext) => PP.ToCodeString (NamedFun
       params <- PP.commaList <$> zipWithM showTypedVar param_names param_types
       s_ret_tys <- case ret_types of
         [t] -> PP.fromBuild t
-        _ -> PP.commaList <$> mapM PP.fromBuild ret_types
+        _ -> (++ ")") . ("(" ++) . PP.commaList <$> mapM PP.fromBuild ret_types
       PP.putLine $ printf "fn %s(%s) -> %s do" fun_name params s_ret_tys
       PP.indented $ do
         PP.build body_stmt

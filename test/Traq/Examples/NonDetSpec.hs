@@ -22,6 +22,7 @@ import qualified Traq.Compiler.Qualtran as Qualtran
 import Traq.Prelude
 import Traq.Primitives (DefaultPrims)
 import qualified Traq.QPL as QPL
+import qualified Traq.Utils.Printing as PP
 
 import Test.Hspec
 import TestHelpers
@@ -30,9 +31,15 @@ spec :: Spec
 spec = do
   describe "SimpleExample" $ do
     let load = parseFromFile (CPLParser.programParser @(DefaultPrims (Sym.Sym SizeT) Double)) "examples/primitives/nondet.traq"
-    it "parses" $ do
-      mEx <- load
-      assertRight mEx
+    describe "parses" $ do
+      it "file" $ do
+        mEx <- load
+        assertRight mEx
+
+      it "roundtrip" $ do
+        prog <- expectRight =<< load
+        p <- expectRight $ CPL.parseProgram @(DefaultPrims (Sym.Sym SizeT) Double) $ PP.toCodeString prog
+        p `shouldBe` prog
 
     let load' = load <&> fromRight (error "parsing failed") <&> CPL.mapSize Sym.unSym
 
@@ -77,36 +84,30 @@ spec = do
 
     describe "Compile" $ do
       let eps = A.failProb (0.0001 :: Double)
+      let load_prog = do
+            ex <- load'
+            expectRight $ A.annotateProgWith (CPL._exts (A.annSinglePrim eps)) ex
 
-      it "lowers" $ do
-        ex <- load'
-        ex' <- expectRight $ A.annotateProgWith (CPL._exts (A.annSinglePrim eps)) ex
-        assertRight $ Compiler.lowerProgram ex'
+      before load_prog $ do
+        it "lowers" $ \ex -> do
+          assertRight $ Compiler.lowerProgram ex
 
-      it "typechecks" $ do
-        ex <- load'
-        ex' <- expectRight $ A.annotateProgWith (CPL._exts (A.annSinglePrim eps)) ex
-        ex_uqpl <- expectRight $ Compiler.lowerProgram ex'
-        assertRight $ QPL.typeCheckProgram ex_uqpl
+        it "typechecks" $ \ex -> do
+          ex_uqpl <- expectRight $ Compiler.lowerProgram ex
+          assertRight $ QPL.typeCheckProgram ex_uqpl
 
-      it "cost" $ do
-        ex <- load'
-        ex' <- expectRight $ A.annotateProgWith (CPL._exts (A.annSinglePrim eps)) ex
-        ex_cqpl <- expectRight $ Compiler.lowerProgram ex'
-        let cost = fst (QPL.programCost ex_cqpl) :: SimpleQueryCost Double
-        let cost_from_analysis = getCost $ A.costQProg ex'
-        getCost cost `shouldBeLE` cost_from_analysis
+        it "cost" $ \ex -> do
+          ex_cqpl <- expectRight $ Compiler.lowerProgram ex
+          let cost = fst (QPL.programCost ex_cqpl) :: SimpleQueryCost Double
+          let cost_from_analysis = getCost $ A.costQProg ex
+          getCost cost `shouldBeLE` cost_from_analysis
 
-      xit "target-py-qualtran" $ do
-        ex <- load'
-        ex' <- expectRight $ A.annotateProgWith (CPL._exts (A.annSinglePrim eps)) ex
-        ex_cqpl <- expectRight $ Compiler.lowerProgram ex'
-        _ <- evaluate $ force $ Qualtran.toPy ex_cqpl
-        return ()
+        xit "target-py-qualtran" $ \ex -> do
+          ex_cqpl <- expectRight $ Compiler.lowerProgram ex
+          _ <- evaluate $ force $ Qualtran.toPy ex_cqpl
+          return ()
 
-      xit "target-py-qiskit" $ do
-        ex <- load'
-        ex' <- expectRight $ A.annotateProgWith (CPL._exts (A.annSinglePrim eps)) ex
-        ex_cqpl <- expectRight $ Compiler.lowerProgram ex'
-        _ <- evaluate $ force $ Qiskit.toPy ex_cqpl
-        return ()
+        xit "target-py-qiskit" $ \ex -> do
+          ex_cqpl <- expectRight $ Compiler.lowerProgram ex
+          _ <- evaluate $ force $ Qiskit.toPy ex_cqpl
+          return ()

@@ -51,8 +51,6 @@ instance CanError (Expr ext) where
   canError FunCallE{fname} = do
     use (_funCtx . Ctx.at fname) >>= maybe (return False) canError
   canError PrimCallE{} = return True
-  canError LoopE{loop_body_fun} = do
-    use (_funCtx . Ctx.at loop_body_fun) >>= maybe (return False) canError
   canError _ = return False
 
 instance CanError (Stmt ext) where
@@ -61,6 +59,7 @@ instance CanError (Stmt ext) where
   canError ExprS{expr} = canError expr
   canError (SeqS ss) = or <$> mapM canError ss
   canError IfThenElseS{s_true, s_false} = (||) <$> canError s_true <*> canError s_false
+  canError ForS{loop_body} = canError loop_body
 
 instance CanError (FunDef ext) where
   type ExtensionType (FunDef ext) = ext
@@ -138,12 +137,6 @@ instance AnnotateWithErrorBudgetU1 Expr where
     annEpsU1 eps (NamedFunDef fname fn)
     pure FunCallE{..}
   annEpsU1 eps (PrimCallE ext') = PrimCallE <$> annEpsU eps ext'
-  annEpsU1 eps LoopE{..} = do
-    fn@FunDef{param_types} <- use (_funCtx . Ctx.at loop_body_fun) >>= maybeWithError "cannot find loop body function"
-    let n_iters = last param_types ^?! _Fin
-    let eps' = splitFailProb eps (sizeToPrec n_iters)
-    annEpsU1 eps' (NamedFunDef loop_body_fun fn)
-    pure LoopE{..}
 
 instance AnnotateWithErrorBudgetQ1 Expr where
   annEpsQ1 _ BasicExprE{..} = pure BasicExprE{..}
@@ -153,12 +146,6 @@ instance AnnotateWithErrorBudgetQ1 Expr where
     annEpsQ1 eps (NamedFunDef fname fn)
     pure FunCallE{..}
   annEpsQ1 eps (PrimCallE ext) = PrimCallE <$> annEpsQ eps ext
-  annEpsQ1 eps LoopE{..} = do
-    fn@FunDef{param_types} <- use (_funCtx . Ctx.at loop_body_fun) >>= maybeWithError "cannot find loop body function"
-    let n_iters = last param_types ^?! _Fin
-    let eps' = splitFailProb eps (sizeToPrec n_iters)
-    annEpsQ1 eps' (NamedFunDef loop_body_fun fn)
-    pure LoopE{..}
 
 instance AnnotateWithErrorBudgetU1 Stmt where
   annEpsU1 eps ExprS{rets, expr} = do
@@ -169,6 +156,10 @@ instance AnnotateWithErrorBudgetU1 Stmt where
     let k = length $ filter id needs_eps
     let eps' = if k == 0 then eps else splitFailProb eps (fromIntegral k)
     SeqS <$> mapM (annEpsU1 eps') ss
+  annEpsU1 eps ForS{loop_ix, loop_ty, loop_body} = do
+    let eps' = splitFailProb eps (sizeToPrec (loop_ty ^?! _Fin))
+    loop_body <- annEpsU1 eps' loop_body
+    pure ForS{loop_ix, loop_ty, loop_body}
   annEpsU1 _ _ = error "UNSUPPORTED"
 
 instance AnnotateWithErrorBudgetQ1 Stmt where
@@ -183,6 +174,10 @@ instance AnnotateWithErrorBudgetQ1 Stmt where
       else do
         let eps' = splitFailProb eps (fromIntegral k)
         SeqS <$> mapM (annEpsQ1 eps') ss
+  annEpsQ1 eps ForS{loop_ix, loop_ty, loop_body} = do
+    let eps' = splitFailProb eps (sizeToPrec (loop_ty ^?! _Fin))
+    loop_body <- annEpsQ1 eps' loop_body
+    pure ForS{loop_ix, loop_ty, loop_body}
   annEpsQ1 _ _ = error "UNSUPPORTED"
 
 instance AnnotateWithErrorBudgetU1 FunBody where

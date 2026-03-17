@@ -130,7 +130,7 @@ instance
 
 simonsOneRound ::
   forall ext size prec m.
-  (size ~ SizeType ext, m ~ PrimCompileMonad ext (SimonsFindXorPeriod size prec)) =>
+  (size ~ SizeType ext, Eq size, m ~ PrimCompileMonad ext (SimonsFindXorPeriod size prec)) =>
   [CPL.VarType size] ->
   m (QPL.ProcDef size)
 simonsOneRound arg_tys = do

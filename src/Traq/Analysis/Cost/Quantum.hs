@@ -16,6 +16,7 @@ module Traq.Analysis.Cost.Quantum (
 ) where
 
 import Control.Monad.Reader (runReader, runReaderT)
+import qualified Data.Map as Map
 
 import Lens.Micro.GHC
 import Lens.Micro.Mtl
@@ -93,16 +94,23 @@ instance CostQ1 Expr where
     fn <- view $ _funCtx . Ctx.at fname . non' (error $ "unable to find function " ++ fname)
     costQ1 $ NamedFunDef fname fn
   costQ1 PrimCallE{prim} = costQ prim
-  costQ1 LoopE{loop_body_fun} = do
-    fn@FunDef{param_types} <- view $ _funCtx . Ctx.at loop_body_fun . non' (error $ "unable to find function " ++ loop_body_fun)
-    body_cost <- costQ1 $ NamedFunDef loop_body_fun fn
-    let n_iters = last param_types ^?! _Fin
-    return $ (sizeToPrec n_iters :: prec) Alg..* body_cost
 
 instance CostQ1 Stmt where
+  costQ1 ::
+    forall ext size prec cost m.
+    ( m ~ CostAnalysisMonad ext
+    , CostQ ext size prec
+    , CostModelReqs size prec cost
+    ) =>
+    Stmt ext ->
+    m cost
   costQ1 ExprS{expr} = costQ1 expr
   costQ1 IfThenElseS{s_true, s_false} = max <$> costQ1 s_true <*> costQ1 s_false
   costQ1 (SeqS ss) = Alg.sum <$> mapM costQ1 ss
+  costQ1 ForS{loop_ty, loop_body} = do
+    body_cost <- costQ1 loop_body
+    let n_iters = loop_ty ^?! _Fin
+    return $ (sizeToPrec n_iters :: prec) Alg..* body_cost
 
 instance CostQ1 NamedFunDef where
   -- query an external function
@@ -135,32 +143,16 @@ instance ExpCostQ1 Expr where
   expCostQ1 RandomSampleE{distr_expr} _ = return $ callDistrExpr Classical distr_expr
   expCostQ1 FunCallE{fname, args} sigma = do
     fn <- view $ _funCtx . Ctx.at fname . non' (error $ "unable to find function " ++ fname)
-    let arg_vals = [sigma ^?! Ctx.at x . non (error $ "could not find var " ++ x) | x <- args]
+    let arg_vals = [sigma ^?! at x . non (error $ "could not find var " ++ x) | x <- args]
     expCostQ1 (NamedFunDef fname fn) arg_vals
   expCostQ1 PrimCallE{prim} sigma = expCostQ prim sigma
-  expCostQ1 LoopE{initial_args, loop_body_fun} sigma = do
-    fn@FunDef{param_types} <- view $ _funCtx . Ctx.at loop_body_fun . non' (error $ "unable to find function " ++ loop_body_fun)
-    let init_vals = [sigma ^?! Ctx.at x . non (error $ "could not find var " ++ x) | x <- initial_args]
-    let loop_domain = domain (last param_types)
-
-    -- evaluate each iteration
-    env <- view _evaluationEnv
-    let run_loop_body i args =
-          eval1 (NamedFunDef loop_body_fun fn) (args ++ [i])
-            & (runReaderT ?? env)
-
-    (_, cs) <- forAccumM (pure init_vals) loop_domain $ \distr i -> do
-      let sigma_fn = fmap (++ [i]) distr
-      iter_cost <- Prob.expectationA (expCostQ1 (NamedFunDef loop_body_fun fn)) sigma_fn
-      return (distr >>= run_loop_body i, iter_cost)
-    return $ Alg.sum cs
 
 instance ExpCostQ1 Stmt where
   expCostQ1 ExprS{expr} sigma = expCostQ1 expr sigma
   expCostQ1 IfThenElseS{cond, s_true, s_false} sigma = do
     let b =
           sigma
-            ^?! Ctx.at cond
+            ^?! at cond
             . non' (error $ "cannot find variable" ++ cond)
             . to valueToBool
     expCostQ1 (if b then s_true else s_false) sigma
@@ -172,6 +164,17 @@ instance ExpCostQ1 Stmt where
     (_, cs) <- forAccumM (pure sigma) ss $ \distr s -> do
       c <- Prob.expectationA (expCostQ1 s) distr
       return (distr >>= stepS s, c)
+
+    return $ Alg.sum cs
+  expCostQ1 ForS{loop_ix, loop_ty, loop_body} sigma = do
+    env <- view _evaluationEnv
+    let stepS s sigma_s = eval1 s sigma_s & (runReaderT ?? env)
+    let bind_ix i s = s & at loop_ix ?~ i
+
+    (_, cs) <- forAccumM (pure sigma) (domain loop_ty) $ \distr i -> do
+      let distr_i = fmap (bind_ix i) distr
+      c <- Prob.expectationA (expCostQ1 loop_body) distr_i
+      return (distr_i >>= stepS loop_body, c)
 
     return $ Alg.sum cs
 
@@ -192,7 +195,7 @@ instance ExpCostQ1 NamedFunDef where
     args = expCostQ1 body_stmt sigma
      where
       -- bind args to the parameter names
-      sigma = Ctx.fromList $ zip param_names args
+      sigma = Map.fromList $ zip param_names args
 
 instance ExpCostQ1 Program where
   expCostQ1 (Program fs) = expCostQ1 $ last fs

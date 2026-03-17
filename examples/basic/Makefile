@@ -1,11 +1,11 @@
 PROJ_DEPS=../../src ../../tools ../../traq.cabal
 
-all: tree_generator_01_knapsack.qpl
+all: for_loop.qpl
 
 %.qpl: %.traq $(PROJ_DEPS)
 	cd ../../ && cabal run traq -- \
-		-i examples/tree_generator/$< \
-		-o examples/tree_generator/$@ \
+		-i examples/basic/$< \
+		-o examples/basic/$@ \
 		-p 0.001 \
 		--arg W=1000 \
 		--arg P=1000 \
