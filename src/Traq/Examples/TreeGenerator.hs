@@ -141,11 +141,17 @@ treeGeneratorExample n w p k =
                                       , ExprS{rets = ["wt_picked"], expr = BasicExprE{basic_expr = BinOpE{bin_op = AddOp, lhs = VarE{var = "wt"}, rhs = VarE{var = "wi"}}}}
                                       , ExprS{rets = ["can_fit"], expr = BasicExprE{basic_expr = BinOpE{bin_op = LEqOp, lhs = VarE{var = "wt_picked"}, rhs = VarE{var = "c"}}}}
                                       , ExprS{rets = ["should_pick"], expr = BasicExprE{basic_expr = BinOpE{bin_op = AndOp, lhs = VarE{var = "try_pick"}, rhs = VarE{var = "can_fit"}}}}
-                                      , ExprS{rets = ["xs"], expr = BasicExprE{basic_expr = UpdateArrE{arr_expr = VarE{var = "xs"}, ix_expr = VarE{var = "i"}, rhs = VarE{var = "should_pick"}}}}
-                                      , ExprS{rets = ["wt"], expr = BasicExprE{basic_expr = TernaryE{branch = VarE{var = "should_pick"}, lhs = VarE{var = "wt_picked"}, rhs = VarE{var = "wt"}}}}
-                                      , ExprS{rets = ["pi"], expr = FunCallE{fname = "Profit", args = ["i"]}}
-                                      , ExprS{rets = ["pr_picked"], expr = BasicExprE{basic_expr = BinOpE{bin_op = AddOp, lhs = VarE{var = "pr"}, rhs = VarE{var = "pi"}}}}
-                                      , ExprS{rets = ["pr"], expr = BasicExprE{basic_expr = TernaryE{branch = VarE{var = "should_pick"}, lhs = VarE{var = "pr_picked"}, rhs = VarE{var = "pr"}}}}
+                                      , IfThenElseS
+                                          { cond = "should_pick"
+                                          , s_true =
+                                              SeqS
+                                                [ ExprS{rets = ["xs"], expr = BasicExprE{basic_expr = UpdateArrE{arr_expr = VarE{var = "xs"}, ix_expr = VarE{var = "i"}, rhs = VarE{var = "should_pick"}}}}
+                                                , ExprS{rets = ["wt"], expr = BasicExprE{basic_expr = VarE{var = "wt_picked"}}}
+                                                , ExprS{rets = ["pi"], expr = FunCallE{fname = "Profit", args = ["i"]}}
+                                                , ExprS{rets = ["pr"], expr = BasicExprE{basic_expr = BinOpE{bin_op = AddOp, lhs = VarE{var = "pr"}, rhs = VarE{var = "pi"}}}}
+                                                ]
+                                          , s_false = SeqS []
+                                          }
                                       ]
                                 }
                             , ExprS{rets = ["ok"], expr = BasicExprE{basic_expr = BinOpE{bin_op = LtOp, lhs = VarE{var = "old_pr"}, rhs = VarE{var = "pr"}}}}

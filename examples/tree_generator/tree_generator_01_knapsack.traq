@@ -55,13 +55,13 @@ fn TreeGen(xs: Arr<N, Bool>, old_pr: Fin<P>) -> (Bool, Arr<N, Bool>) do
         // pick if both above conditions work
         should_pick <- try_pick && can_fit;
 
-        // update
-        xs <- update xs[i] = should_pick;
-        wt <- should_pick ? wt_picked : wt;
-
-        pi <- Profit(i);
-        pr_picked <- pr + pi;
-        pr <- should_pick ? pr_picked : pr;
+        if (should_pick) then
+            // update
+            xs <- update xs[i] = should_pick;
+            wt <- wt_picked;
+            pi <- Profit(i);
+            pr <- pr + pi;
+        end
     end
 
     ok <- pr > old_pr; // profit increased

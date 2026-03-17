@@ -160,7 +160,7 @@ union c c' = (`execStateT` c) $ do
   Foldable.forM_ (toList c') $ \(x, a) -> do
     use (at x) >>= \case
       Nothing -> ins x .= a
-      (Just a') -> guard (a /= a')
+      (Just a') -> guard (a == a')
 
 -- Monadic functions
 

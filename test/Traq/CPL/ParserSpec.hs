@@ -57,6 +57,19 @@ spec = do
                   }
               ]
           )
+
+    it "ifte" $ do
+      parseStmt @SymCore "if (b) then x <- y; else skip; end"
+        `shouldBe` Right
+          ( SeqS
+              [ IfThenElseS
+                  { cond = "b"
+                  , s_true = SeqS [ExprS{rets = ["x"], expr = BasicExprE VarE{var = "y"}}]
+                  , s_false = SeqS [SeqS []]
+                  }
+              ]
+          )
+
   describe "parse function def" $ do
     it "parses function" $ do
       parseFunDef @SymCore

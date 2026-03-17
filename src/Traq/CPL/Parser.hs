@@ -51,6 +51,10 @@ cplDef =
         , "loop"
         , "for"
         , "in"
+        , "if"
+        , "then"
+        , "else"
+        , "skip"
         , -- functions
           "fn"
         , "ext"
@@ -257,7 +261,14 @@ distrExprP :: TokenParser () -> Parser (DistrExpr SymbSize)
 distrExprP = parseE
 
 instance (Parseable ext, SizeType ext ~ SymbSize) => Parseable (Stmt ext) where
-  parseE tp@TokenParser{..} = SeqS <$> many (forS <|> exprS)
+  parseE tp@TokenParser{..} =
+    SeqS
+      <$> many
+        ( forS
+            <|> ifteS
+            <|> skipS
+            <|> exprS
+        )
    where
     forS :: Parser (Stmt ext)
     forS = do
@@ -273,6 +284,21 @@ instance (Parseable ext, SizeType ext ~ SymbSize) => Parseable (Stmt ext) where
       reserved "end"
 
       return ForS{loop_ix, loop_ty, loop_body}
+
+    ifteS :: Parser (Stmt ext)
+    ifteS = do
+      reserved "if"
+      cond <- parens identifier
+      s_true <- reserved "then" >> stmtP tp
+      s_false <- (reserved "else" >> stmtP tp) <|> pure (SeqS [])
+      reserved "end"
+      return IfThenElseS{..}
+
+    skipS :: Parser (Stmt ext)
+    skipS = do
+      reserved "skip"
+      semi
+      return $ SeqS []
 
     exprS :: Parser (Stmt ext)
     exprS = do
