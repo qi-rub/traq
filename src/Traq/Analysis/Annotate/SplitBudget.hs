@@ -151,6 +151,17 @@ instance AnnotateWithErrorBudgetU1 Stmt where
   annEpsU1 eps ExprS{rets, expr} = do
     expr <- annEpsU1 eps expr
     pure ExprS{rets, expr}
+  annEpsU1 eps IfThenElseS{cond, s_true, s_false} = do
+    needs_eps_t <- canError s_true
+    needs_eps_f <- canError s_true
+    let (eps_t, eps_f) = case (needs_eps_t, needs_eps_f) of
+          (True, True) -> let eps_2 = splitFailProb eps 2 in (eps_2, eps_2)
+          (True, False) -> (eps, 0)
+          (False, True) -> (0, eps)
+          _ -> (0, 0)
+    s_true <- annEpsU1 eps_t s_true
+    s_false <- annEpsU1 eps_f s_false
+    pure IfThenElseS{..}
   annEpsU1 eps (SeqS ss) = do
     needs_eps <- mapM canError ss
     let k = length $ filter id needs_eps
@@ -160,12 +171,15 @@ instance AnnotateWithErrorBudgetU1 Stmt where
     let eps' = splitFailProb eps (sizeToPrec (loop_ty ^?! _Fin))
     loop_body <- annEpsU1 eps' loop_body
     pure ForS{loop_ix, loop_ty, loop_body}
-  annEpsU1 _ _ = error "UNSUPPORTED"
 
 instance AnnotateWithErrorBudgetQ1 Stmt where
   annEpsQ1 eps ExprS{rets, expr} = do
     expr <- annEpsQ1 eps expr
     pure ExprS{rets, expr}
+  annEpsQ1 eps IfThenElseS{cond, s_true, s_false} = do
+    s_true <- annEpsQ1 eps s_true
+    s_false <- annEpsQ1 eps s_false
+    pure IfThenElseS{..}
   annEpsQ1 eps (SeqS ss) = do
     needs_eps <- mapM canError ss
     let k = length $ filter id needs_eps
@@ -178,7 +192,6 @@ instance AnnotateWithErrorBudgetQ1 Stmt where
     let eps' = splitFailProb eps (sizeToPrec (loop_ty ^?! _Fin))
     loop_body <- annEpsQ1 eps' loop_body
     pure ForS{loop_ix, loop_ty, loop_body}
-  annEpsQ1 _ _ = error "UNSUPPORTED"
 
 instance AnnotateWithErrorBudgetU1 FunBody where
   annEpsU1 eps FunBody{..} = do
