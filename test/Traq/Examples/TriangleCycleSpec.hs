@@ -27,7 +27,7 @@ import TestHelpers
 type P = DefaultPrims (Sym.Sym SizeT) Double
 
 examplePath :: String
-examplePath = "examples/triangle_finding.traq"
+examplePath = "examples/search/triangle_finding.traq"
 
 loadExample :: IO (CPL.Program (DefaultPrims SizeT Double))
 loadExample = do

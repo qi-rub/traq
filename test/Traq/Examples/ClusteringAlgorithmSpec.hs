@@ -25,7 +25,7 @@ import Test.Hspec
 import TestHelpers
 
 examplePath :: String
-examplePath = "examples/clustering_algorithm.traq"
+examplePath = "examples/search/clustering.traq"
 
 loadExample :: IO (CPL.Program (DefaultPrims SizeT Double))
 loadExample = do

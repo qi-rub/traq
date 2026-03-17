@@ -31,13 +31,10 @@ fn loop_body(i: Fin<N>, j: Fin<N>) -> (Fin<N>, Fin<N>) do
 end
 
 fn main () -> (Fin<N>, Fin<N>) do
-    i0 <-$ uniform : Fin<N>;
-    j0 <-$ uniform : Fin<N>;
-
-    i1, j1 <- loop_body(i0, j0);
-    i2, j2 <- loop_body(i1, j1);
-    i3, j3 <- loop_body(i2, j2);
-    i4, j4 <- loop_body(i3, j3);
-    
-    return i4, j4
+    i <-$ uniform : Fin<N>;
+    j <-$ uniform : Fin<N>;
+    for (iter in Fin<4>) do
+        i, j <- loop_body(i, j);
+    end
+    return i, j
 end
