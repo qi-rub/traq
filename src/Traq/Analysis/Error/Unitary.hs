@@ -50,7 +50,6 @@ instance (TraceNormErrorU ext size prec) => TraceNormErrorU (Expr ext) size prec
     fn <- view $ _funCtx . Ctx.at fname . non' (error $ "unable to find function " ++ fname)
     traceNormErrorU fn
   traceNormErrorU PrimCallE{prim} = traceNormErrorU prim
-  traceNormErrorU _ = error "unsupported"
 
 instance (TraceNormErrorU ext size prec) => TraceNormErrorU (Stmt ext) size prec where
   traceNormErrorU ExprS{expr} = traceNormErrorU expr
@@ -86,6 +85,6 @@ traceNormErrorUProg ::
   Program ext ->
   FailProb prec
 traceNormErrorUProg (Program fs) =
-  traceNormErrorU main_fn & runReader ?? (namedFunsToFunCtx fs)
+  traceNormErrorU main_fn & runReader ?? namedFunsToFunCtx fs
  where
   main_fn = fun_def $ last fs

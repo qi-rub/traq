@@ -43,8 +43,7 @@ import qualified Prelude
 import Control.Monad (guard, when)
 import Control.Monad.Except (MonadError, throwError)
 import Control.Monad.Reader (MonadReader)
-import Control.Monad.State (MonadState, execStateT, runStateT)
-import Control.Monad.Trans (lift)
+import Control.Monad.State (MonadState, execStateT)
 import qualified Data.Foldable as Foldable
 import qualified Data.List as List
 import GHC.Generics (Generic)

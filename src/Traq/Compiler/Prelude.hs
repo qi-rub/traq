@@ -42,7 +42,6 @@ module Traq.Compiler.Prelude (
   LoweringEnv,
 ) where
 
-import Control.Monad (unless)
 import Control.Monad.Except (MonadError (throwError))
 import Control.Monad.Extra (loopM)
 import Control.Monad.RWS (RWST, runRWST)

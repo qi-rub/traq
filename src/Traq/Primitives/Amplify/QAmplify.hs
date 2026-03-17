@@ -12,7 +12,7 @@ module Traq.Primitives.Amplify.QAmplify (
   _EQSearch,
 ) where
 
-import Control.Monad (forM, replicateM, when)
+import Control.Monad (replicateM, when)
 import Control.Monad.Trans (lift)
 import GHC.Generics (Generic)
 
@@ -21,7 +21,6 @@ import Lens.Micro.Mtl
 import qualified Numeric.Algebra as Alg
 
 import Traq.Control.Monad
-import qualified Traq.Data.Context as Ctx
 import qualified Traq.Data.Probability as Prob
 import Traq.Data.Subtyping
 

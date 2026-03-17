@@ -30,7 +30,7 @@ module Traq.CPL.TypeCheck (
 import Control.Monad (forM_, unless, when, zipWithM_)
 import Control.Monad.Except (MonadError, throwError)
 import Control.Monad.RWS (RWST (runRWST))
-import Control.Monad.Reader (MonadReader, runReaderT)
+import Control.Monad.Reader (MonadReader)
 import Control.Monad.State (MonadState, evalStateT)
 import Control.Monad.Trans (lift)
 import GHC.Generics

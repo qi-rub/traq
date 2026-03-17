@@ -53,7 +53,6 @@ instance (TVErrorQ ext size prec) => TVErrorQ (Expr ext) size prec where
     fn <- view $ _funCtx . Ctx.at fname . non' (error $ "unable to find function " ++ fname)
     tvErrorQ fn
   tvErrorQ PrimCallE{prim} = tvErrorQ prim
-  tvErrorQ _ = error "unsupported"
 
 instance (TVErrorQ ext size prec) => TVErrorQ (Stmt ext) size prec where
   tvErrorQ ExprS{expr} = tvErrorQ expr
