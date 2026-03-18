@@ -1,0 +1,78 @@
+ext uproc Oracle_U(Fin<20>, Fin<2>);
+
+ext proc Oracle(Fin<20>, Fin<2>);
+
+// UAny[Fin 20, 1.0e-2]
+uproc UAny(ret : OUT Fin<2>, s_result : OUT Fin<20>, aux : AUX Fin<2>, ctrl : AUX Arr<10, Fin<2>>, pred_out : AUX Arr<10, Fin<2>>, n_iter : AUX Arr<10, Fin<4>>, s_arg : AUX Arr<10, Fin<20>>) {
+  for (#run_ix in 0 .. < 10) {
+    n_iter[#run_ix] *= Distr[uniform : Fin<4>];
+    pred_out[#run_ix] *= X;
+    pred_out[#run_ix] *= H;
+    s_arg[#run_ix] *= Distr[uniform : Fin<20>];
+    for (#LIM in 0 .. < 4) {
+      n_iter[#run_ix], ctrl[#run_ix] *= Embed[(a) => (a <= #LIM)];
+      call Oracle_U(s_arg[#run_ix], aux);
+      ctrl[#run_ix], aux, pred_out[#run_ix] *= Toffoli;
+      call-adj Oracle_U(s_arg[#run_ix], aux);
+      s_arg[#run_ix] *= Adj-Distr[uniform : Fin<20>];
+      s_arg[#run_ix] *= PhaseOnZero(3.141592653589793);
+      s_arg[#run_ix] *= Distr[uniform : Fin<20>];
+      n_iter[#run_ix], ctrl[#run_ix] *= Embed[(a) => (a <= #LIM)];
+    }
+    pred_out[#run_ix] *= H;
+    pred_out[#run_ix] *= X;
+    n_iter[#run_ix] *= Adj-Distr[uniform : Fin<4>];
+    ctrl[#run_ix] *= X;
+    call Oracle_U(s_arg[#run_ix], aux);
+    ctrl[#run_ix], aux, pred_out[#run_ix] *= Toffoli;
+    call-adj Oracle_U(s_arg[#run_ix], aux);
+    ctrl[#run_ix] *= X;
+  }
+  pred_out, ret *= Embed[(a) => multi_or a];
+  s_arg, pred_out, s_result *= Embed[(a, f) => (a selectOn f)];
+}
+
+uproc main_U(ok : OUT Fin<2>, ok_1 : AUX Fin<2>, s_result : AUX Fin<20>, aux : AUX Fin<2>, ctrl : AUX Arr<10, Fin<2>>, pred_out : AUX Arr<10, Fin<2>>, n_iter : AUX Arr<10, Fin<4>>, s_arg : AUX Arr<10, Fin<20>>, aux_prim : AUX Fin<20>, aux_prim_1 : AUX Fin<2>, aux_prim_2 : AUX Arr<10, Fin<2>>, aux_prim_3 : AUX Arr<10, Fin<2>>, aux_prim_4 : AUX Arr<10, Fin<4>>, aux_prim_5 : AUX Arr<10, Fin<20>>) {
+  call UAny(ok_1, aux_prim, aux_prim_1, aux_prim_2, aux_prim_3, aux_prim_4, aux_prim_5);
+  ok, ok_1 *= SWAP;
+}
+
+// Grover[...]
+uproc Grover[k](x : IN Fin<20>, ret_1 : OUT Fin<2>) {
+  ret_1 *= X;
+  ret_1 *= H;
+  x *= Distr[uniform : Fin<20>];
+  repeat (#k) {
+    call Oracle_U(x, ret_1);
+    x *= Adj-Distr[uniform : Fin<20>];
+    x *= PhaseOnZero(3.141592653589793);
+    x *= Distr[uniform : Fin<20>];
+  }
+  ret_1 *= H;
+  ret_1 *= X;
+}
+
+proc QAny(ret_1 : Fin<2>) { locals : (s_result_1 : Fin<20>, not_done : Fin<2>, Q_sum : Fin<42>, j : Fin<42>, j_lim : Fin<42>) } {
+  repeat (5) {
+    Q_sum := const 0:Fin<42>;
+    for (j_lim in [const 1:Fin<42>, const 1:Fin<42>, const 1:Fin<42>, const 2:Fin<42>, const 2:Fin<42>, const 2:Fin<42>, const 3:Fin<42>, const 4:Fin<42>, const 4:Fin<42>, const 4:Fin<42>, const 4:Fin<42>, const 4:Fin<42>, const 4:Fin<42>, const 4:Fin<42>]) {
+      j :=$ [1 .. j_lim];
+      Q_sum := (Q_sum + j);
+      not_done := (not_done && (Q_sum <= j_lim));
+      if (not_done) {
+        meas Grover[j](s_result_1, ret_1);
+        meas Oracle_U(s_result_1, ret_1);
+        not_done := (not_done && ret_1);
+      } else {
+        skip;
+      }
+    }
+  }
+}
+
+proc main(ok : Fin<2>) { locals : () } {
+  call QAny(ok);
+}
+
+
+// qubits: 194
