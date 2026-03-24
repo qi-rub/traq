@@ -11,7 +11,6 @@ def Oracle_U():
     return qc
 
 
-
 def Oracle():
     c_1 = qiskit.circuit.ClassicalRegister(5, "c_1")
     c_2 = qiskit.circuit.ClassicalRegister(1, "c_2")
@@ -28,25 +27,28 @@ def UAny():
     pred_out = qiskit.circuit.QuantumRegister(10, "pred_out")
     n_iter = qiskit.circuit.QuantumRegister(20, "n_iter")
     s_arg = qiskit.circuit.QuantumRegister(50, "s_arg")
-    qc = qiskit.circuit.QuantumCircuit( ret
-    , s_result
-    , aux
-    , ctrl
-    , pred_out
-    , n_iter
-    , s_arg
-    , name="UAny" )
-    qc.append(qiskit.circuit.Gate("UForInRangeS", qc.num_qubits, []), qc.qubits)
-    qc.append( qiskit.circuit.Gate( "RevEmbedU [a] (UnOpE {un_op = AnyOp, operand = VarE {var = a}})"
-    , 11
-    , [] )
-    , [*pred_out, *ret] )
-    qc.append( qiskit.circuit.Gate( "RevEmbedU [a,f] (BinOpE {bin_op = VecSelectOp, lhs = VarE {var = a}, rhs = VarE {var = f}})"
-    , 65
-    , [] )
-    , [*s_arg, *pred_out, *s_result] )
-    return qc
 
+    qc = qiskit.circuit.QuantumCircuit(
+        ret, s_result, aux, ctrl, pred_out, n_iter, s_arg, name="UAny"
+    )
+
+    qc.append(qiskit.circuit.Gate("UForInRangeS", qc.num_qubits, []), qc.qubits)
+    qc.append(
+        qiskit.circuit.Gate(
+            "RevEmbedU [a] (UnOpE {un_op = AnyOp, operand = VarE {var = a}})", 11, []
+        ),
+        [*pred_out, *ret],
+    )
+    qc.append(
+        qiskit.circuit.Gate(
+            "RevEmbedU [a,f] (BinOpE {bin_op = VecSelectOp, lhs = VarE {var = a}, rhs = VarE {var = f}})",
+            65,
+            [],
+        ),
+        [*s_arg, *pred_out, *s_result],
+    )
+
+    return qc
 
 
 def main_U():
@@ -64,24 +66,39 @@ def main_U():
     aux_prim_3 = qiskit.circuit.QuantumRegister(10, "aux_prim_3")
     aux_prim_4 = qiskit.circuit.QuantumRegister(20, "aux_prim_4")
     aux_prim_5 = qiskit.circuit.QuantumRegister(50, "aux_prim_5")
-    qc = qiskit.circuit.QuantumCircuit( ok
-    , ok_1
-    , s_result
-    , aux
-    , ctrl
-    , pred_out
-    , n_iter
-    , s_arg
-    , aux_prim
-    , aux_prim_1
-    , aux_prim_2
-    , aux_prim_3
-    , aux_prim_4
-    , aux_prim_5
-    , name="main_U" )
-    qc.append( UAny().to_gate()
-    , [*ok_1, *aux_prim, *aux_prim_1, *aux_prim_2, *aux_prim_3, *aux_prim_4, *aux_prim_5] )
+
+    qc = qiskit.circuit.QuantumCircuit(
+        ok,
+        ok_1,
+        s_result,
+        aux,
+        ctrl,
+        pred_out,
+        n_iter,
+        s_arg,
+        aux_prim,
+        aux_prim_1,
+        aux_prim_2,
+        aux_prim_3,
+        aux_prim_4,
+        aux_prim_5,
+        name="main_U",
+    )
+
+    qc.append(
+        UAny().to_gate(),
+        [
+            *ok_1,
+            *aux_prim,
+            *aux_prim_1,
+            *aux_prim_2,
+            *aux_prim_3,
+            *aux_prim_4,
+            *aux_prim_5,
+        ],
+    )
     qc.append(qiskit.circuit.Gate("BasicGateU SWAP", 2, []), [*ok, *ok_1])
+
     return qc
 
 
@@ -90,18 +107,19 @@ def Grover():
     k = qiskit.circuit.Parameter("k")
     x = qiskit.circuit.QuantumRegister(5, "x")
     ret_1 = qiskit.circuit.QuantumRegister(1, "ret_1")
+
     qc = qiskit.circuit.QuantumCircuit(x, ret_1, name="Grover")
+
     qc.append(qiskit.circuit.Gate("BasicGateU XGate", 1, []), [*ret_1])
     qc.append(qiskit.circuit.Gate("BasicGateU HGate", 1, []), [*ret_1])
-    qc.append( qiskit.circuit.Gate( "DistrU (UniformE {sample_ty = Fin 20})"
-    , 5
-    , [] )
-    , [*x] )
+    qc.append(
+        qiskit.circuit.Gate("DistrU (UniformE {sample_ty = Fin 20})", 5, []), [*x]
+    )
     qc.append(qiskit.circuit.Gate("URepeatS", qc.num_qubits, []), qc.qubits)
     qc.append(qiskit.circuit.Gate("BasicGateU HGate", 1, []), [*ret_1])
     qc.append(qiskit.circuit.Gate("BasicGateU XGate", 1, []), [*ret_1])
-    return qc
 
+    return qc
 
 
 def QAny():
@@ -111,33 +129,26 @@ def QAny():
     Q_sum = qiskit.circuit.ClassicalRegister(6, "Q_sum")
     j = qiskit.circuit.ClassicalRegister(6, "j")
     j_lim = qiskit.circuit.ClassicalRegister(6, "j_lim")
-    qc = qiskit.circuit.QuantumCircuit( ret_1
-    , s_result_1
-    , not_done
-    , Q_sum
-    , j
-    , j_lim
-    , name="QAny" )
+    qc = qiskit.circuit.QuantumCircuit(
+        ret_1, s_result_1, not_done, Q_sum, j, j_lim, name="QAny"
+    )
     for _ in range(5):
         Q_sum = 0
         for j_lim in [1, 1, 1, 2, 2, 2, 3, 4, 4, 4, 4, 4, 4, 4]:
             j = random.randrange(j_lim)
-            Q_sum = (Q_sum + j)
-            not_done = (not_done and (Q_sum <= j_lim))
-            if (not_done):
-                qc.append( qiskit.circuit.Gate( "UProcAndMeas"
-                , qc.num_qubits
-                , [] )
-                , qc.qubits )
-                qc.append( qiskit.circuit.Gate( "UProcAndMeas"
-                , qc.num_qubits
-                , [] )
-                , qc.qubits )
-                not_done = (not_done and ret_1)
+            Q_sum = Q_sum + j
+            not_done = not_done and (Q_sum <= j_lim)
+            if not_done:
+                qc.append(
+                    qiskit.circuit.Gate("UProcAndMeas", qc.num_qubits, []), qc.qubits
+                )
+                qc.append(
+                    qiskit.circuit.Gate("UProcAndMeas", qc.num_qubits, []), qc.qubits
+                )
+                not_done = not_done and ret_1
             else:
                 pass
     return qc
-
 
 
 def main():

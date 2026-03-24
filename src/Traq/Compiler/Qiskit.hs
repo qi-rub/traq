@@ -98,16 +98,16 @@ instance (Show size, Integral size) => ToQiskitPy (QPL.UProcBody size) where
     let uproc_param_names = ["q_" <> show i | i <- [1 .. length proc_param_types]]
     let param_defs =
           [ py_sanitizeIdent p
-              <+> PP.equals
-              <+> PP.pretty "qiskit.circuit.Parameter"
-              <> PP.parens (PP.dquotes (py_sanitizeIdent p))
+            <+> PP.equals
+            <+> PP.pretty "qiskit.circuit.Parameter"
+            <> PP.parens (PP.dquotes (py_sanitizeIdent p))
           | p <- proc_meta_params
           ]
     let reg_defs =
           [ py_sanitizeIdent n
-              <+> PP.equals
-              <+> PP.pretty "qiskit.circuit.QuantumRegister"
-              <> PP.tupled [PP.pretty (show $ CPL.bestBitsize ty), PP.dquotes (py_sanitizeIdent n)]
+            <+> PP.equals
+            <+> PP.pretty "qiskit.circuit.QuantumRegister"
+            <> PP.tupled [PP.pretty (show $ CPL.bestBitsize ty), PP.dquotes (py_sanitizeIdent n)]
           | (n, ty) <- zip uproc_param_names proc_param_types
           ]
     let reg_names = map py_sanitizeIdent uproc_param_names
@@ -128,16 +128,16 @@ instance (Show size, Integral size) => ToQiskitPy (QPL.UProcBody size) where
     ProcBuildCtx{..} <- view id
     let param_defs =
           [ py_sanitizeIdent p
-              <+> PP.equals
-              <+> PP.pretty "qiskit.circuit.Parameter"
-              <> PP.parens (PP.dquotes (py_sanitizeIdent p))
+            <+> PP.equals
+            <+> PP.pretty "qiskit.circuit.Parameter"
+            <> PP.parens (PP.dquotes (py_sanitizeIdent p))
           | p <- proc_meta_params
           ]
     let reg_defs =
           [ py_sanitizeIdent n
-              <+> PP.equals
-              <+> PP.pretty "qiskit.circuit.QuantumRegister"
-              <> PP.tupled [PP.pretty (show $ CPL.bestBitsize ty), PP.dquotes (py_sanitizeIdent n)]
+            <+> PP.equals
+            <+> PP.pretty "qiskit.circuit.QuantumRegister"
+            <> PP.tupled [PP.pretty (show $ CPL.bestBitsize ty), PP.dquotes (py_sanitizeIdent n)]
           | (n, ty) <- zip uproc_param_names proc_param_types
           ]
     let reg_names = map py_sanitizeIdent uproc_param_names
@@ -152,8 +152,11 @@ instance (Show size, Integral size) => ToQiskitPy (QPL.UProcBody size) where
           PP.vsep $
             param_defs
               ++ reg_defs
-              ++ [ qc_def
+              ++ [ mempty
+                 , qc_def
+                 , mempty
                  , stmt_body
+                 , mempty
                  , PP.pretty "return qc"
                  ]
     pure $ py_def proc_name [] body
@@ -217,16 +220,16 @@ instance (Show size, Integral size) => ToQiskitPy (QPL.CProcBody size) where
     let cproc_param_names = ["c_" <> show i | i <- [1 .. length proc_param_types]]
     let param_defs =
           [ py_sanitizeIdent p
-              <+> PP.equals
-              <+> PP.pretty "qiskit.circuit.Parameter"
-              <> PP.parens (PP.dquotes (py_sanitizeIdent p))
+            <+> PP.equals
+            <+> PP.pretty "qiskit.circuit.Parameter"
+            <> PP.parens (PP.dquotes (py_sanitizeIdent p))
           | p <- proc_meta_params
           ]
     let reg_defs =
           [ py_sanitizeIdent n
-              <+> PP.equals
-              <+> PP.pretty "qiskit.circuit.ClassicalRegister"
-              <> PP.tupled [PP.pretty (show $ CPL.bestBitsize ty), PP.dquotes (py_sanitizeIdent n)]
+            <+> PP.equals
+            <+> PP.pretty "qiskit.circuit.ClassicalRegister"
+            <> PP.tupled [PP.pretty (show $ CPL.bestBitsize ty), PP.dquotes (py_sanitizeIdent n)]
           | (n, ty) <- zip cproc_param_names proc_param_types
           ]
     let reg_names = map py_sanitizeIdent cproc_param_names
@@ -249,17 +252,17 @@ instance (Show size, Integral size) => ToQiskitPy (QPL.CProcBody size) where
     ProcBuildCtx{..} <- view id
     let param_defs =
           [ py_sanitizeIdent p
-              <+> PP.equals
-              <+> PP.pretty "qiskit.circuit.Parameter"
-              <> PP.parens (PP.dquotes (py_sanitizeIdent p))
+            <+> PP.equals
+            <+> PP.pretty "qiskit.circuit.Parameter"
+            <> PP.parens (PP.dquotes (py_sanitizeIdent p))
           | p <- proc_meta_params
           ]
     let all_vars = zip cproc_param_names proc_param_types ++ cproc_local_vars
     let reg_defs =
           [ py_sanitizeIdent n
-              <+> PP.equals
-              <+> PP.pretty "qiskit.circuit.ClassicalRegister"
-              <> PP.tupled [PP.pretty (show $ CPL.bestBitsize ty), PP.dquotes (py_sanitizeIdent n)]
+            <+> PP.equals
+            <+> PP.pretty "qiskit.circuit.ClassicalRegister"
+            <> PP.tupled [PP.pretty (show $ CPL.bestBitsize ty), PP.dquotes (py_sanitizeIdent n)]
           | (n, ty) <- all_vars
           ]
     let reg_names = map (py_sanitizeIdent . fst) all_vars

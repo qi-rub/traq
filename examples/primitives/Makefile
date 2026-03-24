@@ -15,3 +15,4 @@ all: any.qpl any-qiskit.py
 		-o examples/primitives/$@ \
 		-p 0.01 \
 		--target Qiskit
+	black $@
