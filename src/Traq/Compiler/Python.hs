@@ -30,13 +30,13 @@ module Traq.Compiler.Python (
   toPyType,
 ) where
 
-import Control.Monad.Reader (ReaderT (..))
 import Prettyprinter ((<+>))
 import qualified Prettyprinter as PP
 import Text.Printf (printf)
 
 import Lens.Micro.GHC
-import Lens.Micro.Mtl
+
+import Traq.Control.Monad
 
 import qualified Traq.CPL as CPL
 import Traq.Prelude
@@ -47,9 +47,6 @@ import qualified Traq.QPL as QPL
 -- ============================================================
 
 type Py ann = PP.Doc ann
-
-withEnv :: (Monad m) => r -> ReaderT r m a -> ReaderT r' m a
-withEnv r = magnify (lens (const r) const)
 
 py_indent :: Py ann -> Py ann
 py_indent = PP.indent tabwidth

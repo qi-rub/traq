@@ -10,7 +10,6 @@ module Traq.Compiler.Qiskit (
 
 import Control.Monad.Except (runExceptT)
 import Control.Monad.RWS (RWS, runRWS)
-import Control.Monad.Reader (Reader, runReader)
 import Data.List (intersperse)
 import qualified Data.Set as Set
 import Prettyprinter ((<+>))
