@@ -1,4 +1,5 @@
 {-# LANGUAGE DuplicateRecordFields #-}
+{-# LANGUAGE GeneralizedNewtypeDeriving #-}
 {-# LANGUAGE RecordWildCards #-}
 
 {- HLINT ignore "Use camelCase" -}
@@ -8,14 +9,18 @@ module Traq.Compiler.Qiskit (
 ) where
 
 import Control.Monad.Except (runExceptT)
+import Control.Monad.RWS (RWS, runRWS)
 import Control.Monad.Reader (Reader, runReader)
 import Data.List (intersperse)
+import qualified Data.Set as Set
 import Prettyprinter ((<+>))
 import qualified Prettyprinter as PP
 
+import Lens.Micro.GHC
 import Lens.Micro.Mtl
 
 import qualified Traq.Data.Context as Ctx
+import Traq.Data.Default
 
 import qualified Traq.CPL as CPL
 import Traq.Compiler.Python
@@ -26,16 +31,22 @@ import qualified Traq.QPL as QPL
 -- Compile QPL -> py (+Qiskit)
 -- ============================================================
 
+newtype QiskitState = QiskitState (Set.Set Ident)
+  deriving (HasDefault)
+
+_externDefNames :: Lens' QiskitState (Set.Set Ident)
+_externDefNames focus (QiskitState s) = focus s <&> QiskitState
+
 -- | Build python code string.
 class ToQiskitPy a where
   type Ctx a
 
-  mkPy :: a -> Reader (Ctx a) (Py ann)
+  mkPy :: a -> RWS (Ctx a) () QiskitState (Py ann)
 
 -- | Convert a QPL program to a python code string.
 toPy :: QPL.Program SizeT -> String
 toPy prog =
-  let pyDoc = runReader (mkPy prog) ()
+  let (pyDoc, _, _) = runRWS (mkPy prog) () default_
    in show pyDoc
 
 -- ============================================================
