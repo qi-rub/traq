@@ -4,6 +4,7 @@ module Main (main) where
 
 import Control.Monad.Reader (ReaderT, runReaderT)
 import Control.Monad.Trans (lift)
+import Data.List (isPrefixOf)
 import Options.Applicative
 import System.FilePath (takeExtension)
 import Text.Printf (printf)
@@ -82,17 +83,20 @@ emitQPL qpl_prog = do
   let nqubits = QPL.numQubits qpl_prog
   pure $ unlines [PP.toCodeString qpl_prog, printf "// qubits: %d" nqubits]
 
+-- | Insert generated code at the ===CODE-HERE=== marker in a template file.
+emitWithTemplate :: FilePath -> String -> IO String
+emitWithTemplate templatePath code = do
+  template <- readFile templatePath
+  let marker = "# ===CODE-HERE==="
+  pure $ case break (marker `isPrefixOf`) (lines template) of
+    (before, _ : after) -> unlines $ before ++ [code] ++ after
+    _ -> unlines [template, code]
+
 emitQualtran :: QPL.Program SizeT -> IO String
-emitQualtran qpl_prog = do
-  py_preamble <- readFile "tools/qualtran_prelude.py"
-  let py_prog_str = Qualtran.toPy qpl_prog
-  pure $ unlines [py_preamble, py_prog_str]
+emitQualtran = emitWithTemplate "tools/qualtran_prelude.py" . Qualtran.toPy
 
 emitQiskit :: QPL.Program SizeT -> IO String
-emitQiskit qpl_prog = do
-  py_preamble <- readFile "tools/qiskit_prelude.py"
-  let py_prog_str = Qiskit.toPy qpl_prog
-  pure $ unlines [py_preamble, py_prog_str]
+emitQiskit = emitWithTemplate "tools/qiskit_prelude.py" . Qiskit.toPy
 
 -- ============================================================
 -- CLI parser
@@ -104,45 +108,53 @@ opts =
     (options <**> helper)
     (fullDesc <> header "Traq: Compile CPL programs to QPL, Qualtran, or Qiskit.")
  where
-  options =
-    Options
-      <$> option
-        auto
-        ( long "target"
-            <> short 't'
-            <> metavar "TARGET"
-            <> help "Output target: QPL | Qualtran | Qiskit"
-            <> value QPL
-            <> showDefault
-        )
-      <*> strOption
-        ( long "input"
-            <> short 'i'
-            <> metavar "INPUT"
-            <> help "Input file (.traq or .qpl)"
-        )
-      <*> optional
-        ( strOption
-            ( long "output"
-                <> short 'o'
-                <> metavar "OUTPUT"
-                <> help "Output file (default: stdout)"
-            )
-        )
-      <*> optional
-        ( option
-            auto
-            ( long "failprob"
-                <> short 'p'
-                <> metavar "FLOAT"
-                <> help "The maximum failure probability of the entire program"
-            )
-        )
-      <*> many (option (maybeReader parseKeyValue) (long "arg" <> help "parameters..." <> metavar "NAME=VALUE"))
+  options = do
+    target <-
+      option auto $
+        long "target"
+          <> short 't'
+          <> metavar "TARGET"
+          <> help "Output target: QPL | Qualtran | Qiskit"
+          <> value QPL
+          <> showDefault
+
+    in_file <-
+      strOption $
+        long "input"
+          <> short 'i'
+          <> metavar "INPUT"
+          <> help "Input file (.traq or .qpl)"
+
+    out_file <-
+      optional $
+        strOption $
+          long "output"
+            <> short 'o'
+            <> metavar "OUTPUT"
+            <> help "Output file (default: stdout)"
+
+    eps <-
+      optional $
+        option auto $
+          long "failprob"
+            <> short 'p'
+            <> metavar "FLOAT"
+            <> help "The maximum failure probability of the entire program"
+
+    params <-
+      many $
+        option (maybeReader parseKeyValue) $
+          long "arg"
+            <> help "parameters..."
+            <> metavar "NAME=VALUE"
+
+    pure Options{..}
 
   parseKeyValue s = do
-    let key = takeWhile (/= '=') s
-    let valS = tail $ dropWhile (/= '=') s
+    let (key, rest) = break (== '=') s
+    valS <- case rest of
+      '=' : v -> Just v
+      _ -> Nothing
     val <- readMaybe valS
     return (key, val)
 

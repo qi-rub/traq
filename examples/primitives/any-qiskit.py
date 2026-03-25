@@ -2,6 +2,7 @@ import random
 import numpy as np
 import qiskit
 import qiskit.circuit
+from qiskit.circuit import ClassicalRegister, QuantumRegister
 
 
 def Oracle_U():
@@ -97,7 +98,7 @@ def main_U():
             *aux_prim_5,
         ],
     )
-    qc.append(qiskit.circuit.Gate("BasicGateU SWAP", 2, []), [*ok, *ok_1])
+    qc.append(qiskit.circuit.library.SwapGate(), [*ok, *ok_1])
 
     return qc
 
@@ -110,14 +111,25 @@ def Grover():
 
     qc = qiskit.circuit.QuantumCircuit(x, ret_1, name="Grover")
 
-    qc.append(qiskit.circuit.Gate("BasicGateU XGate", 1, []), [*ret_1])
-    qc.append(qiskit.circuit.Gate("BasicGateU HGate", 1, []), [*ret_1])
+    qc.append(qiskit.circuit.library.XGate(), [*ret_1])
+    qc.append(qiskit.circuit.library.HGate(), [*ret_1])
     qc.append(
         qiskit.circuit.Gate("DistrU (UniformE {sample_ty = Fin 20})", 5, []), [*x]
     )
-    qc.append(qiskit.circuit.Gate("URepeatS", qc.num_qubits, []), qc.qubits)
-    qc.append(qiskit.circuit.Gate("BasicGateU HGate", 1, []), [*ret_1])
-    qc.append(qiskit.circuit.Gate("BasicGateU XGate", 1, []), [*ret_1])
+    with qc.for_loop(range(k)):
+        qc.append(Oracle_U().to_gate(), [*x, *ret_1])
+        qc.append(
+            qiskit.circuit.Gate(
+                "DistrU (UniformE {sample_ty = Fin 20})", 5, []
+            ).inverse(),
+            [*x],
+        )
+        qc.append(qiskit.circuit.Gate("PhaseOnZero(3.141592653589793)", 5, []), [*x])
+        qc.append(
+            qiskit.circuit.Gate("DistrU (UniformE {sample_ty = Fin 20})", 5, []), [*x]
+        )
+    qc.append(qiskit.circuit.library.HGate(), [*ret_1])
+    qc.append(qiskit.circuit.library.XGate(), [*ret_1])
 
     return qc
 
@@ -156,3 +168,11 @@ def main():
     qc = qiskit.circuit.QuantumCircuit(ok, name="main")
     qc.append(QAny().to_instruction(), [], [*ok])
     return qc
+
+
+def cli():
+    pass
+
+
+if __name__ == "__main__":
+    cli()
