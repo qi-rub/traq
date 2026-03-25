@@ -55,8 +55,15 @@ toPy prog =
 instance (Show size, Integral size) => ToQiskitPy (QPL.Program size) where
   type Ctx (QPL.Program size) = ()
 
-  mkPy (QPL.Program ps) =
-    PP.vsep . intersperse PP.line <$> mapM mkPy ps
+  mkPy (QPL.Program ps) = do
+    code <- PP.vsep . intersperse PP.line <$> mapM mkPy ps
+    exts <- py_tupled . map (PP.dquotes . PP.pretty) . Set.toList <$> use _externDefNames
+    pure $
+      PP.vsep
+        [ code
+        , PP.pretty "EXTERN_DEFS" <+> PP.equals <+> exts
+        , PP.pretty "ENTRY_POINT" <+> PP.equals <+> (PP.dquotes . PP.pretty . QPL.proc_name $ last ps)
+        ]
 
 instance (Show size, Integral size) => ToQiskitPy (QPL.ProcDef size) where
   type Ctx (QPL.ProcDef size) = ()

@@ -27,6 +27,7 @@ module Traq.Compiler.Python (
   py_unOp,
   py_binOp,
   py_naryOp,
+  py_tupled,
   toPyType,
 ) where
 
@@ -75,6 +76,11 @@ py_comment c = PP.vsep $ lines c <&> \l -> PP.pretty $ "# " <> l
 
 py_pass :: Py ann
 py_pass = PP.pretty "pass"
+
+-- | Python tuple literal, handling the singleton case with a trailing comma.
+py_tupled :: [Py ann] -> Py ann
+py_tupled [x] = PP.parens (x <> PP.comma)
+py_tupled xs = PP.tupled xs
 
 py_ifte :: String -> Py ann -> Py ann -> Py ann
 py_ifte b s_t s_f =

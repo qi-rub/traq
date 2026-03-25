@@ -170,6 +170,10 @@ def main():
     return qc
 
 
+EXTERN_DEFS = ()
+ENTRY_POINT = "main"
+
+
 def cli():
     import argparse
 
@@ -186,7 +190,6 @@ def cli():
 
     if args.draw:
         qc.draw("mpl", filename=args.draw)
-        print(f"Wrote {args.draw}")
 
     if args.qasm:
         from qiskit.qasm3 import dumps
