@@ -4,20 +4,32 @@
 
 module Main where
 
+import Control.Monad (when)
+import Options.Applicative
 import Text.Parsec.String (parseFromFile)
-import qualified Traq.Data.Symbolic as Sym
-
-import Lens.Micro.GHC
-
 import qualified Traq.Analysis as A
-import Traq.Prelude
+import Traq.Analysis.CostModel.QueryCost
 import qualified Traq.CPL as CPL
-
-import Traq.Analysis.CostModel.QueryCost (SimpleQueryCost (..))
-import Traq.Primitives (Primitive)
+import Traq.Prelude
+import Traq.Primitives (DefaultPrims, Primitive)
 import Traq.Primitives.Search.DetSearch (DetSearch (..))
 import Traq.Primitives.Search.QSearchCFNW (QSearchCFNW (..))
 import Traq.Primitives.Search.RandomSearch (RandomSearch (..))
+
+import Lens.Micro.GHC
+
+import qualified Traq.Data.Symbolic as Sym
+
+data Options = Options
+  { optCompareCosts :: Bool
+  , optDemo :: Bool
+  }
+
+optionsParser :: Parser Options
+optionsParser =
+  Options
+    <$> switch (long "compare-costs" <> short 'c' <> help "Run cost comparison")
+    <*> switch (long "demo" <> short 'd' <> help "Run demo analysis")
 
 type Matrix = SizeT -> SizeT -> Bool
 
@@ -52,10 +64,8 @@ expectedCost n m matrix eps = do
 
   return $ getCost $ A.expCostQProg program_annotated mempty interp
 
-main :: IO ()
-main = do
-  putStrLn "Demo: Matrix Search"
-
+compareCosts :: IO ()
+compareCosts = do
   let (n, m) = (500, 500)
   let sample_matrix _i j = j /= m - 1
   let eps = 0.001
@@ -68,3 +78,31 @@ main = do
   print =<< expectedCost @(Primitive (DetSearch _ _)) n m sample_matrix eps
   putStr "  Randomized   : "
   print =<< expectedCost @(Primitive (RandomSearch _ _)) n m sample_matrix eps
+
+demo :: IO ()
+demo = do
+  let (n, m) = (20, 10)
+  let eps = 0.001
+
+  Right loaded_program <- parseFromFile (CPL.programParser @(DefaultPrims (Sym.Sym Int) Double)) "examples/matrix_search/matrix_search.traq"
+  let prog = CPL.mapSize (Sym.unSym . Sym.subst "M" (Sym.con m) . Sym.subst "N" (Sym.con n)) loaded_program
+  prog_ann <- either fail pure $ A.annotateProgWithErrorBudget (A.failProb eps) prog
+
+  let sample_matrix i j = i <= j
+  let interp = mempty & at "Matrix" ?~ matrixToFun sample_matrix
+
+  putStrLn $ "tvErrorQ  : " ++ show (A.tvErrorQProg prog_ann)
+  putStrLn $ "costU     : " ++ show (A.costUProg prog_ann :: QueryCost Double)
+  putStrLn $ "costQ     : " ++ show (A.costQProg prog_ann :: QueryCost Double)
+  putStrLn $ "expCostQ  : " ++ show (A.expCostQProg prog_ann mempty interp :: QueryCost Double)
+
+main :: IO ()
+main = do
+  opts <- execParser optsInfo
+  when (optDemo opts) demo
+  when (optCompareCosts opts) compareCosts
+ where
+  optsInfo =
+    info
+      (optionsParser <**> helper)
+      (fullDesc <> progDesc "Matrix Search Demo")
