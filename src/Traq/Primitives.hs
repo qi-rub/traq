@@ -22,9 +22,6 @@ module Traq.Primitives (
 ) where
 
 import GHC.Generics
-
-import Traq.Data.Subtyping ((:<:) (..))
-
 import qualified Traq.Analysis as A
 import qualified Traq.CPL as CPL
 import Traq.Prelude
@@ -37,6 +34,8 @@ import Traq.Primitives.Search.Prelude
 import Traq.Primitives.Search.QSearchCFNW
 import Traq.Primitives.Search.RandomSearch
 import Traq.Primitives.Simons.Quantum
+
+import Traq.Data.Subtyping ((:<:) (..))
 
 -- ================================================================================
 -- Default primitives: Supports exp cost and compile
