@@ -17,7 +17,7 @@ import Traq.Control.Monad
 import qualified Traq.Data.Context as Ctx
 
 import Traq.Analysis.Error.Prelude
-import Traq.Analysis.Error.Unitary (TraceNormErrorU)
+import Traq.Analysis.Error.Unitary (TVErrorU)
 import Traq.Analysis.Prelude (sizeToPrec)
 import Traq.CPL
 import Traq.Prelude
@@ -27,7 +27,7 @@ class
   ( ErrorReqs size prec
   , SizeType ext ~ size
   , PrecType ext ~ prec
-  , TraceNormErrorU ext size prec
+  , TVErrorU ext size prec
   ) =>
   TVErrorQ ext size prec
     | ext -> size prec

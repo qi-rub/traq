@@ -157,13 +157,13 @@ instance
   ( UnitaryCostPrim prim size prec
   , A.ErrorReqs size prec
   ) =>
-  A.TraceNormErrorU (A.AnnFailProb (Primitive prim)) size prec
+  A.TVErrorU (A.AnnFailProb (Primitive prim)) size prec
   where
-  traceNormErrorU (A.AnnFailProb eps (Primitive par_funs prim)) = do
+  tvErrorU (A.AnnFailProb eps (Primitive par_funs prim)) = do
     let query_costs = map totalWeakUnitaryQueries . shapeToList $ unitaryQueryCosts prim eps
     eps_fn <- forM par_funs $ \PartialFun{pfun_name} -> do
       fn <- view $ CPL._funCtx . Ctx.at pfun_name . non' (error "invalid function")
-      A.traceNormErrorU fn
+      A.tvErrorU fn
 
     let tot_eps_fns = sum $ zipWith A.unitarySubroutineTVErrorTotal query_costs eps_fn
     return $ eps + tot_eps_fns
@@ -369,7 +369,7 @@ instance
     eps_fns <- forM par_funs $ \PartialFun{pfun_name} -> do
       fn <- view $ CPL._funCtx . Ctx.at pfun_name . non' (error "invalid function")
       eps_q <- A.tvErrorQ fn
-      eps_u <- A.traceNormErrorU fn
+      eps_u <- A.tvErrorU fn
       return (eps_q, eps_u)
     let (eps_fns_q, eps_fns_u) = unzip eps_fns
 

@@ -149,7 +149,7 @@ spec = describe "MatrixSearch" $ do
         cu `shouldBe` from_formula
 
       it "unitary error" $ \ex -> do
-        let err_u = A.traceNormErrorUProg ex
+        let err_u = A.tvErrorUProg ex
 
         let eps_sub = A.unitarySubroutineTVError eps_inner
         let eps_sub_tot = A.failProb (2.0 * ucF n eps_outer) * eps_sub
