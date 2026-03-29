@@ -1,0 +1,6 @@
+ext fn Oracle(Fin<20>) -> Fin<30> end
+
+fn main() -> Fin<30> do
+	y, x <- @max<Fin<20>, Fin<30>>[Oracle(_)];
+	return y
+end
