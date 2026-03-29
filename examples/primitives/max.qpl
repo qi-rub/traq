@@ -1,0 +1,65 @@
+ext uproc Oracle_U(Fin<20>, Fin<30>);
+
+ext proc Oracle(Fin<20>, Fin<30>);
+
+uproc UMax(ret : Fin<30>, ret_1 : Fin<20>, inp : AUX Arr<20, Fin<20>>, out : AUX Arr<20, Fin<30>>) {
+  for (#x_2 in Fin<20>) {
+    call Oracle_U(inp[#x_2], out[#x_2]);
+  }
+  // unitarily compute: ret := max(out); ret_1 := argmax(out);
+}
+
+uproc main_U(y : OUT Fin<30>, x : AUX Fin<20>, y_1 : AUX Fin<30>, x_1 : AUX Fin<20>, aux_prim : AUX Arr<20, Fin<20>>, aux_prim_1 : AUX Arr<20, Fin<30>>) {
+  call UMax(y_1, x_1, aux_prim, aux_prim_1);
+  y, x, y_1, x_1 *= SWAP;
+}
+
+uproc Compare(y_2 : Fin<30>, x_3 : Fin<20>, b : Fin<2>, out_1 : AUX Fin<30>) {
+  call Oracle_U(x_3, out_1);
+  y_2, out_1, b *= Embed[(a, b) => (a < b)];
+}
+
+uproc Grover[k](y_3 : Fin<30>, x_4 : Fin<20>, b_1 : Fin<2>, aux : AUX Fin<30>) {
+  b_1 *= X;
+  b_1 *= H;
+  x_4 *= Distr[uniform : Fin<20>];
+  repeat (#k) {
+    call Compare(y_3, x_4, b_1, aux);
+    x_4 *= Adj-Distr[uniform : Fin<20>];
+    x_4 *= PhaseOnZero(3.141592653589793);
+    x_4 *= Distr[uniform : Fin<20>];
+  }
+  b_1 *= H;
+  b_1 *= X;
+}
+
+proc QSearch_infty(fuel : Fin<432>, y_4 : Fin<30>, x_5 : Fin<20>) { locals : (j_lim : Fin<432>, j : Fin<432>, not_done : Fin<2>, b_2 : Fin<2>) } {
+  not_done := const 1:Fin<2>;
+  for (j_lim in [const 1:Fin<432>, const 1:Fin<432>, const 1:Fin<432>, const 2:Fin<432>, const 2:Fin<432>, const 2:Fin<432>, const 3:Fin<432>, const 4:Fin<432>, const 4:Fin<432>, const 4:Fin<432>, const 4:Fin<432>, const 4:Fin<432>, const 4:Fin<432>, const 4:Fin<432>, const 4:Fin<432>, const 4:Fin<432>, const 4:Fin<432>, const 4:Fin<432>, const 4:Fin<432>, const 4:Fin<432>, const 4:Fin<432>, const 4:Fin<432>, const 4:Fin<432>, const 4:Fin<432>, const 4:Fin<432>, const 4:Fin<432>, const 4:Fin<432>, const 4:Fin<432>, const 4:Fin<432>, const 4:Fin<432>, const 4:Fin<432>, const 4:Fin<432>, const 4:Fin<432>, const 4:Fin<432>, const 4:Fin<432>, const 4:Fin<432>, const 4:Fin<432>, const 4:Fin<432>, const 4:Fin<432>, const 4:Fin<432>, const 4:Fin<432>, const 4:Fin<432>, const 4:Fin<432>, const 4:Fin<432>, const 4:Fin<432>, const 4:Fin<432>, const 4:Fin<432>, const 4:Fin<432>, const 4:Fin<432>, const 4:Fin<432>, const 4:Fin<432>, const 4:Fin<432>, const 4:Fin<432>, const 4:Fin<432>, const 4:Fin<432>, const 4:Fin<432>, const 4:Fin<432>, const 4:Fin<432>, const 4:Fin<432>, const 4:Fin<432>, const 4:Fin<432>, const 4:Fin<432>, const 4:Fin<432>, const 4:Fin<432>, const 4:Fin<432>, const 4:Fin<432>, const 4:Fin<432>, const 4:Fin<432>, const 4:Fin<432>, const 4:Fin<432>, const 4:Fin<432>, const 4:Fin<432>, const 4:Fin<432>, const 4:Fin<432>, const 4:Fin<432>, const 4:Fin<432>, const 4:Fin<432>, const 4:Fin<432>, const 4:Fin<432>, const 4:Fin<432>, const 4:Fin<432>, const 4:Fin<432>, const 4:Fin<432>, const 4:Fin<432>, const 4:Fin<432>, const 4:Fin<432>, const 4:Fin<432>, const 4:Fin<432>, const 4:Fin<432>, const 4:Fin<432>, const 4:Fin<432>, const 4:Fin<432>, const 4:Fin<432>, const 4:Fin<432>, const 4:Fin<432>, const 4:Fin<432>, const 4:Fin<432>, const 4:Fin<432>, const 4:Fin<432>, const 4:Fin<432>, const 4:Fin<432>, const 4:Fin<432>, const 4:Fin<432>, const 4:Fin<432>, const 4:Fin<432>, const 4:Fin<432>, const 4:Fin<432>, const 4:Fin<432>, const 4:Fin<432>, const 4:Fin<432>, const 4:Fin<432>, const 4:Fin<432>]) {
+    j :=$ [1 .. j_lim];
+    not_done := (not_done && (j <= fuel));
+    if (not_done) {
+      fuel := (fuel - j);
+      meas Grover[j](y_4, x_5, b_2);
+      not_done := (not_done && not b_2);
+    } else {
+      skip;
+    }
+  }
+}
+
+proc QMax(ret_2 : Fin<30>, ret_3 : Fin<20>) { locals : (fuel_1 : Fin<432>) } {
+  fuel_1 := const 431:Fin<432>;
+  ret_3 :=$ uniform : Fin<20>;
+  call Oracle(ret_3, ret_2);
+  repeat (432) {
+    call QSearch_infty(fuel_1, ret_2, ret_3);
+  }
+}
+
+proc main(y : Fin<30>) { locals : (x : Fin<20>) } {
+  call QMax(y, x);
+}
+
+
+// qubits: 220

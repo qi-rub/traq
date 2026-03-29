@@ -3,8 +3,8 @@
 {-# LANGUAGE UndecidableInstances #-}
 
 module Traq.Analysis.Error.Unitary (
-  TraceNormErrorU (..),
-  traceNormErrorUProg,
+  TVErrorU (..),
+  tvErrorUProg,
 ) where
 
 import Control.Monad.Reader (runReader)
@@ -20,19 +20,19 @@ import Traq.Analysis.Prelude (sizeToPrec)
 import Traq.CPL
 import Traq.Prelude
 
--- | Trace-norm error w.r.t unitary compiler
+-- | Total variation error w.r.t unitary compiler
 class
   ( ErrorReqs size prec
   , SizeType ext ~ size
   , PrecType ext ~ prec
   ) =>
-  TraceNormErrorU ext size prec
+  TVErrorU ext size prec
     | ext -> size prec
   where
-  traceNormErrorU ::
+  tvErrorU ::
     forall ext' m.
     ( m ~ ErrorAnalysisMonad ext'
-    , TraceNormErrorU ext' size prec
+    , TVErrorU ext' size prec
     , SizeType ext' ~ size
     , PrecType ext' ~ prec
     ) =>
@@ -43,48 +43,48 @@ class
 -- Core Language
 -- ================================================================================
 
-instance (TraceNormErrorU ext size prec) => TraceNormErrorU (Expr ext) size prec where
-  traceNormErrorU BasicExprE{} = return 0
-  traceNormErrorU RandomSampleE{} = return 0
-  traceNormErrorU FunCallE{fname} = do
+instance (TVErrorU ext size prec) => TVErrorU (Expr ext) size prec where
+  tvErrorU BasicExprE{} = return 0
+  tvErrorU RandomSampleE{} = return 0
+  tvErrorU FunCallE{fname} = do
     fn <- view $ _funCtx . Ctx.at fname . non' (error $ "unable to find function " ++ fname)
-    traceNormErrorU fn
-  traceNormErrorU PrimCallE{prim} = traceNormErrorU prim
+    tvErrorU fn
+  tvErrorU PrimCallE{prim} = tvErrorU prim
 
-instance (TraceNormErrorU ext size prec) => TraceNormErrorU (Stmt ext) size prec where
-  traceNormErrorU ExprS{expr} = traceNormErrorU expr
-  traceNormErrorU IfThenElseS{s_true, s_false} = do
-    eps_t <- traceNormErrorU s_true
-    eps_f <- traceNormErrorU s_false
+instance (TVErrorU ext size prec) => TVErrorU (Stmt ext) size prec where
+  tvErrorU ExprS{expr} = tvErrorU expr
+  tvErrorU IfThenElseS{s_true, s_false} = do
+    eps_t <- tvErrorU s_true
+    eps_f <- tvErrorU s_false
     return $ eps_t + eps_f
-  traceNormErrorU (SeqS ss) = sum <$> mapM traceNormErrorU ss
-  traceNormErrorU ForS{loop_ty, loop_body} = do
-    body_err <- traceNormErrorU loop_body
+  tvErrorU (SeqS ss) = sum <$> mapM tvErrorU ss
+  tvErrorU ForS{loop_ty, loop_body} = do
+    body_err <- tvErrorU loop_body
     let n_iters = loop_ty ^?! _Fin
     return $ failProb (sizeToPrec n_iters) * body_err
 
-instance (TraceNormErrorU ext size prec) => TraceNormErrorU (FunDef ext) size prec where
-  traceNormErrorU FunDef{mbody = Nothing} = return 0
-  traceNormErrorU FunDef{mbody = Just FunBody{body_stmt}} = traceNormErrorU body_stmt
+instance (TVErrorU ext size prec) => TVErrorU (FunDef ext) size prec where
+  tvErrorU FunDef{mbody = Nothing} = return 0
+  tvErrorU FunDef{mbody = Just FunBody{body_stmt}} = tvErrorU body_stmt
 
-instance (TraceNormErrorU ext size prec) => TraceNormErrorU (NamedFunDef ext) size prec where
-  traceNormErrorU = traceNormErrorU . fun_def
+instance (TVErrorU ext size prec) => TVErrorU (NamedFunDef ext) size prec where
+  tvErrorU = tvErrorU . fun_def
 
-instance (ErrorReqs size prec) => TraceNormErrorU (Core size prec) size prec where
-  traceNormErrorU = \case {}
+instance (ErrorReqs size prec) => TVErrorU (Core size prec) size prec where
+  tvErrorU = \case {}
 
 -- ================================================================================
 -- Entry Points
 -- ================================================================================
 
-traceNormErrorUProg ::
-  ( TraceNormErrorU ext size prec
+tvErrorUProg ::
+  ( TVErrorU ext size prec
   , SizeType ext ~ size
   , PrecType ext ~ prec
   ) =>
   Program ext ->
   FailProb prec
-traceNormErrorUProg (Program fs) =
-  traceNormErrorU main_fn & runReader ?? namedFunsToFunCtx fs
+tvErrorUProg (Program fs) =
+  tvErrorU main_fn & runReader ?? namedFunsToFunCtx fs
  where
   main_fn = fun_def $ last fs
