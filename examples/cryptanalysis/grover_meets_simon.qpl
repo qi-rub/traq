@@ -67,7 +67,6 @@ proc innerAttack(k : BitVec<20>, res : Fin<2>) { locals : (k1 : BitVec<20>, x_2 
   call classifier(k, k1, res);
 }
 
-// USearch[Bitvec 20, 5.0e-4]
 uproc USearch(ret_2 : OUT Fin<2>, ret_3 : OUT BitVec<20>, aux_10 : AUX BitVec<20>, aux_11 : AUX BitVec<20>, aux_12 : AUX BitVec<20>, aux_13 : AUX BitVec<20>, aux_14 : AUX BitVec<20>, aux_15 : AUX BitVec<20>, aux_16 : AUX BitVec<20>, aux_17 : AUX BitVec<20>, aux_18 : AUX BitVec<20>, aux_19 : AUX BitVec<20>, aux_20 : AUX Arr<79, BitVec<20>>, aux_21 : AUX Arr<79, BitVec<20>>, aux_22 : AUX Arr<79, BitVec<20>>, aux_23 : AUX Arr<79, BitVec<20>>, aux_24 : AUX Arr<79, BitVec<20>>, aux_25 : AUX Arr<79, BitVec<20>>, aux_26 : AUX Arr<79, BitVec<20>>, aux_27 : AUX Arr<79, BitVec<20>>, aux_28 : AUX Arr<79, BitVec<20>>, aux_29 : AUX Arr<79, BitVec<20>>, aux_30 : AUX Arr<79, BitVec<20>>, aux_31 : AUX Arr<79, BitVec<20>>, aux_32 : AUX Arr<79, BitVec<20>>, aux_33 : AUX Arr<79, BitVec<20>>, aux_34 : AUX Arr<79, BitVec<20>>, aux_35 : AUX Arr<79, BitVec<20>>, aux_36 : AUX Fin<2>, aux_37 : AUX Fin<2>, ctrl : AUX Arr<16, Fin<2>>, pred_out : AUX Arr<16, Fin<2>>, n_iter : AUX Arr<16, Fin<805>>, s_arg : AUX Arr<16, BitVec<20>>) {
   for (#run_ix in 0 .. < 16) {
     n_iter[#run_ix] *= Distr[uniform : Fin<805>];
@@ -102,7 +101,6 @@ uproc outerAttack_U(k0 : OUT BitVec<20>, ok : AUX Fin<2>, ok_1 : AUX Fin<2>, k0_
   ok, k0, ok_1, k0_1 *= SWAP;
 }
 
-// Grover[...]
 uproc Grover[k](x_3 : IN BitVec<20>, ret_4 : OUT Fin<2>, aux_38 : AUX BitVec<20>, aux_39 : AUX BitVec<20>, aux_40 : AUX BitVec<20>, aux_41 : AUX BitVec<20>, aux_42 : AUX BitVec<20>, aux_43 : AUX BitVec<20>, aux_44 : AUX BitVec<20>, aux_45 : AUX BitVec<20>, aux_46 : AUX BitVec<20>, aux_47 : AUX BitVec<20>, aux_48 : AUX Arr<79, BitVec<20>>, aux_49 : AUX Arr<79, BitVec<20>>, aux_50 : AUX Arr<79, BitVec<20>>, aux_51 : AUX Arr<79, BitVec<20>>, aux_52 : AUX Arr<79, BitVec<20>>, aux_53 : AUX Arr<79, BitVec<20>>, aux_54 : AUX Arr<79, BitVec<20>>, aux_55 : AUX Arr<79, BitVec<20>>, aux_56 : AUX Arr<79, BitVec<20>>, aux_57 : AUX Arr<79, BitVec<20>>, aux_58 : AUX Arr<79, BitVec<20>>, aux_59 : AUX Arr<79, BitVec<20>>, aux_60 : AUX Arr<79, BitVec<20>>, aux_61 : AUX Arr<79, BitVec<20>>, aux_62 : AUX Arr<79, BitVec<20>>, aux_63 : AUX Arr<79, BitVec<20>>, aux_64 : AUX Fin<2>) {
   ret_4 *= X;
   ret_4 *= H;

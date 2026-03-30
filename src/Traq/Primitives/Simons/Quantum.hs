@@ -162,8 +162,7 @@ simonsOneRound arg_tys = do
 
   return
     QPL.ProcDef
-      { QPL.info_comment = ""
-      , QPL.proc_name
+      { QPL.proc_name
       , QPL.proc_meta_params = []
       , QPL.proc_param_types = arg_tys ++ arg_tys ++ arg_tys ++ pred_aux_tys
       , QPL.proc_body =
@@ -221,8 +220,7 @@ instance
 
     return
       QPL.ProcDef
-        { QPL.info_comment = ""
-        , QPL.proc_name
+        { QPL.proc_name
         , QPL.proc_meta_params = []
         , QPL.proc_param_types = arg_tys ++ map snd xts
         , QPL.proc_body =
@@ -275,8 +273,7 @@ instance
 
     return
       QPL.ProcDef
-        { QPL.info_comment = ""
-        , QPL.proc_name
+        { QPL.proc_name
         , QPL.proc_meta_params = []
         , QPL.proc_param_types = arg_tys
         , QPL.proc_body =

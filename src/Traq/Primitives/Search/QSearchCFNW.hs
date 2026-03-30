@@ -40,7 +40,6 @@ import Control.Monad.Writer (censor, listen)
 import Data.Maybe (fromJust)
 import Data.String (fromString)
 import GHC.Generics (Generic)
-import Text.Printf (printf)
 
 import Lens.Micro.GHC
 import Lens.Micro.Mtl
@@ -429,12 +428,6 @@ instance
     -- name:
     let prim_name = (case search_kind of AnyK -> "UAny"; AllK -> "UAll"; SearchK -> "USearch")
     qsearch_proc_name <- lift $ Compiler.newIdent prim_name
-    let info_comment =
-          (printf :: String -> String -> String -> String -> String)
-            "%s[%s, %s]"
-            prim_name
-            (show search_ty)
-            (show $ A.getFailProb eps)
     let all_params =
           Compiler.withTag QPL.ParamOut [(ret, CPL.tbool), (x_out, search_ty)]
             ++ Compiler.withTag QPL.ParamAux (zip pred_ancilla pred_aux_tys)
@@ -442,8 +435,7 @@ instance
 
     return
       QPL.ProcDef
-        { QPL.info_comment = info_comment
-        , QPL.proc_name = qsearch_proc_name
+        { QPL.proc_name = qsearch_proc_name
         , QPL.proc_meta_params = []
         , QPL.proc_param_types = map (view _3) all_params
         , QPL.proc_body =
@@ -649,8 +641,7 @@ instance
             ++ Compiler.withTag QPL.ParamAux (zip upred_aux_vars pred_aux_tys)
     let uproc_grover_k =
           QPL.ProcDef
-            { QPL.info_comment = "Grover[...]"
-            , QPL.proc_name = uproc_grover_k_name
+            { QPL.proc_name = uproc_grover_k_name
             , QPL.proc_meta_params = ["k"]
             , QPL.proc_param_types = map (view _3) uproc_grover_k_params
             , QPL.proc_body =

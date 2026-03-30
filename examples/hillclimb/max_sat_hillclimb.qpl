@@ -26,7 +26,6 @@ proc good(x : Arr<20, Fin<2>>, i : Fin<20>, ok : Fin<2>) { locals : (w : Fin<100
   ok := (w < w');
 }
 
-// USearch[Fin 20, 3.333333333333333e-4]
 uproc USearch(x : Arr<20, Fin<2>>, ret : OUT Fin<2>, ret_1 : OUT Fin<20>, aux : AUX Fin<1000>, aux_1 : AUX Fin<2>, aux_2 : AUX Fin<2>, aux_3 : AUX Arr<20, Fin<2>>, aux_4 : AUX Fin<1000>, aux_5 : AUX Fin<1000>, aux_6 : AUX Fin<2>, aux_7 : AUX Fin<2>, aux_8 : AUX Arr<20, Fin<2>>, aux_9 : AUX Fin<1000>, aux_10 : AUX Fin<2>, aux_11 : AUX Fin<2>, ctrl : AUX Arr<17, Fin<2>>, pred_out : AUX Arr<17, Fin<2>>, n_iter : AUX Arr<17, Fin<4>>, s_arg : AUX Arr<17, Fin<20>>) {
   for (#run_ix in 0 .. < 17) {
     n_iter[#run_ix] *= Distr[uniform : Fin<4>];
@@ -67,7 +66,6 @@ uproc hillclimb_iter_U(x : IN Arr<20, Fin<2>>, x' : OUT Arr<20, Fin<2>>, ok : AU
   x', x'_2 *= SWAP;
 }
 
-// Grover[...]
 uproc Grover[k](x : Arr<20, Fin<2>>, x_4 : IN Fin<20>, ret_2 : OUT Fin<2>, aux_12 : AUX Fin<1000>, aux_13 : AUX Fin<2>, aux_14 : AUX Fin<2>, aux_15 : AUX Arr<20, Fin<2>>, aux_16 : AUX Fin<1000>, aux_17 : AUX Fin<1000>, aux_18 : AUX Fin<2>, aux_19 : AUX Fin<2>, aux_20 : AUX Arr<20, Fin<2>>, aux_21 : AUX Fin<1000>, aux_22 : AUX Fin<2>) {
   ret_2 *= X;
   ret_2 *= H;

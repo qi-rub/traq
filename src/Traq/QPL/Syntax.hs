@@ -109,6 +109,7 @@ instance HasAdjoint (BasicGate size) where
 -- | Unitary operators in QPL
 data Unitary prec size
   = BasicGateU (BasicGate size)
+  | NamedGateU Ident
   | RevEmbedU [Ident] (CPL.BasicExpr size)
   | DistrU (CPL.DistrExpr prec size)
   | Controlled (Unitary prec size)
@@ -120,6 +121,7 @@ type instance PrecType (Unitary prec size) = prec
 
 instance (Show prec, Show size) => PP.ToCodeString (Unitary prec size) where
   build (BasicGateU g) = PP.build g
+  build (NamedGateU g) = PP.putWord $ show g
   build (RevEmbedU xs e) = do
     e_s <- PP.fromBuild e
     PP.putWord $ printf "Embed[(%s) => %s]" (PP.commaList xs) e_s
@@ -412,8 +414,7 @@ buildProcBody (ProcBodyC p) = buildCProcBody p
 
 data ProcDef size
   = ProcDef
-  { info_comment :: String
-  , proc_name :: Ident
+  { proc_name :: Ident
   , proc_meta_params :: [Ident]
   , proc_param_types :: [VarType size]
   , proc_body :: ProcBody size
@@ -427,9 +428,7 @@ instance ClassifyProc (ProcDef size) where
 type instance SizeType (ProcDef size) = size
 
 instance (Show size) => PP.ToCodeString (ProcDef size) where
-  build ProcDef{info_comment, proc_name, proc_meta_params, proc_param_types, proc_body} = do
-    PP.putComment info_comment
-
+  build ProcDef{proc_name, proc_meta_params, proc_param_types, proc_body} = do
     let full_proc_name =
           printf
             "%s%s"

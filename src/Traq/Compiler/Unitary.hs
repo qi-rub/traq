@@ -211,7 +211,6 @@ instance CompileU1 CPL.FunDef where
 
   -- ext fn: compile as-is to ext uproc
   compileU1 proc_name CPL.FunDef{param_types, ret_types, mbody = Nothing} = do
-    let info_comment = ""
     let proc_meta_params = []
     let proc_param_types = param_types ++ ret_types
     let proc_body = QPL.ProcBodyU QPL.UProcDecl
@@ -220,7 +219,6 @@ instance CompileU1 CPL.FunDef where
 
   -- fn: compile to uproc, and pass aux types.
   compileU1 proc_name CPL.FunDef{param_types, ret_types, mbody = Just body} = do
-    let info_comment = ""
     let proc_meta_params = []
 
     (body', aux_tys) <- compileU1 (param_types, ret_types) body

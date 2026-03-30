@@ -19,7 +19,6 @@ def Oracle():
     return qc
 
 
-# UAny[Fin 20, 1.0e-2]
 def UAny():
     ret = qiskit.circuit.QuantumRegister(1, "ret")
     s_result = qiskit.circuit.QuantumRegister(5, "s_result")
@@ -103,7 +102,6 @@ def main_U():
     return qc
 
 
-# Grover[...]
 def Grover():
     k = qiskit.circuit.Parameter("k")
     x = qiskit.circuit.QuantumRegister(5, "x")

@@ -30,7 +30,6 @@ proc check(dmax : Fin<100>, ij : Tup<Fin<10>, Fin<10>>, ok : Fin<2>) { locals : 
   ok := (dmax < dist');
 }
 
-// USearch[Tup [Fin 10,Fin 10], 2.5e-4]
 uproc USearch(dmax : Fin<100>, ret : OUT Fin<2>, ret_1 : OUT Tup<Fin<10>, Fin<10>>, aux : AUX Fin<10>, aux_1 : AUX Fin<10>, aux_2 : AUX Arr<10, Fin<100>>, aux_3 : AUX Arr<10, Fin<100>>, aux_4 : AUX Fin<100>, aux_5 : AUX Fin<10>, aux_6 : AUX Fin<10>, aux_7 : AUX Arr<10, Fin<100>>, aux_8 : AUX Arr<10, Fin<100>>, aux_9 : AUX Fin<100>, aux_10 : AUX Fin<2>, aux_11 : AUX Fin<2>, ctrl : AUX Arr<17, Fin<2>>, pred_out : AUX Arr<17, Fin<2>>, n_iter : AUX Arr<17, Fin<8>>, s_arg : AUX Arr<17, Tup<Fin<10>, Fin<10>>>) {
   for (#run_ix in 0 .. < 17) {
     n_iter[#run_ix] *= Distr[uniform : Fin<8>];
@@ -75,7 +74,6 @@ uproc loop_body_U(i : IN Fin<10>, j : IN Fin<10>, i' : OUT Fin<10>, j' : OUT Fin
   j', j'_1 *= SWAP;
 }
 
-// Grover[...]
 uproc Grover[k](dmax : Fin<100>, x : IN Tup<Fin<10>, Fin<10>>, ret_2 : OUT Fin<2>, aux_12 : AUX Fin<10>, aux_13 : AUX Fin<10>, aux_14 : AUX Arr<10, Fin<100>>, aux_15 : AUX Arr<10, Fin<100>>, aux_16 : AUX Fin<100>, aux_17 : AUX Fin<10>, aux_18 : AUX Fin<10>, aux_19 : AUX Arr<10, Fin<100>>, aux_20 : AUX Arr<10, Fin<100>>, aux_21 : AUX Fin<100>, aux_22 : AUX Fin<2>) {
   ret_2 *= X;
   ret_2 *= H;

@@ -14,7 +14,6 @@ proc IsEntryZero(i : Fin<20>, j : Fin<10>, e : Fin<2>) { locals : () } {
   e := not e;
 }
 
-// UAny[Fin 10, 2.6774112591424054e-13]
 uproc UAny(i : Fin<20>, ret : OUT Fin<2>, s_result : OUT Fin<10>, aux : AUX Fin<2>, aux_1 : AUX Fin<2>, aux_2 : AUX Fin<2>, ctrl : AUX Arr<59, Fin<2>>, pred_out : AUX Arr<59, Fin<2>>, n_iter : AUX Arr<59, Fin<3>>, s_arg : AUX Arr<59, Fin<10>>) {
   for (#run_ix in 0 .. < 59) {
     n_iter[#run_ix] *= Distr[uniform : Fin<3>];
@@ -51,7 +50,6 @@ uproc IsRowAllOnes_U(i : IN Fin<20>, ok : OUT Fin<2>, hasZero : AUX Fin<2>, hasZ
   ok, ok_1 *= SWAP;
 }
 
-// Grover[...]
 uproc Grover[k](i : Fin<20>, x : IN Fin<10>, ret_1 : OUT Fin<2>, aux_3 : AUX Fin<2>, aux_4 : AUX Fin<2>) {
   ret_1 *= X;
   ret_1 *= H;
@@ -89,7 +87,6 @@ proc IsRowAllOnes(i : Fin<20>, ok : Fin<2>) { locals : (hasZero : Fin<2>) } {
   ok := not hasZero;
 }
 
-// UAny[Fin 20, 5.0e-4]
 uproc UAny_1(ret_2 : OUT Fin<2>, s_result_2 : OUT Fin<20>, aux_5 : AUX Fin<2>, aux_6 : AUX Fin<2>, aux_7 : AUX Fin<10>, aux_8 : AUX Fin<2>, aux_9 : AUX Fin<2>, aux_10 : AUX Fin<2>, aux_11 : AUX Arr<59, Fin<2>>, aux_12 : AUX Arr<59, Fin<2>>, aux_13 : AUX Arr<59, Fin<3>>, aux_14 : AUX Arr<59, Fin<10>>, aux_15 : AUX Fin<10>, aux_16 : AUX Fin<2>, aux_17 : AUX Fin<2>, aux_18 : AUX Fin<2>, aux_19 : AUX Arr<59, Fin<2>>, aux_20 : AUX Arr<59, Fin<2>>, aux_21 : AUX Arr<59, Fin<3>>, aux_22 : AUX Arr<59, Fin<10>>, aux_23 : AUX Fin<2>, aux_24 : AUX Fin<2>, ctrl_1 : AUX Arr<16, Fin<2>>, pred_out_1 : AUX Arr<16, Fin<2>>, n_iter_1 : AUX Arr<16, Fin<4>>, s_arg_1 : AUX Arr<16, Fin<20>>) {
   for (#run_ix in 0 .. < 16) {
     n_iter_1[#run_ix] *= Distr[uniform : Fin<4>];
@@ -124,7 +121,6 @@ uproc HasAllOnesRow_U(ok : OUT Fin<2>, ok_2 : AUX Fin<2>, s_result_2 : AUX Fin<2
   ok, ok_2 *= SWAP;
 }
 
-// Grover[...]
 uproc Grover_1[k](x_1 : IN Fin<20>, ret_3 : OUT Fin<2>, aux_25 : AUX Fin<2>, aux_26 : AUX Fin<2>, aux_27 : AUX Fin<10>, aux_28 : AUX Fin<2>, aux_29 : AUX Fin<2>, aux_30 : AUX Fin<2>, aux_31 : AUX Arr<59, Fin<2>>, aux_32 : AUX Arr<59, Fin<2>>, aux_33 : AUX Arr<59, Fin<3>>, aux_34 : AUX Arr<59, Fin<10>>, aux_35 : AUX Fin<10>, aux_36 : AUX Fin<2>, aux_37 : AUX Fin<2>, aux_38 : AUX Fin<2>, aux_39 : AUX Arr<59, Fin<2>>, aux_40 : AUX Arr<59, Fin<2>>, aux_41 : AUX Arr<59, Fin<3>>, aux_42 : AUX Arr<59, Fin<10>>, aux_43 : AUX Fin<2>) {
   ret_3 *= X;
   ret_3 *= H;

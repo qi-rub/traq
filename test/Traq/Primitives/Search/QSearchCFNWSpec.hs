@@ -77,15 +77,13 @@ spec = do
         let uprog =
               QPL.Program
                 [ QPL.ProcDef
-                    { QPL.info_comment = ""
-                    , QPL.proc_name = "Oracle"
+                    { QPL.proc_name = "Oracle"
                     , QPL.proc_meta_params = []
                     , QPL.proc_param_types = []
                     , QPL.proc_body = QPL.ProcBodyU QPL.UProcDecl
                     }
                 , QPL.ProcDef
-                    { QPL.info_comment = ""
-                    , QPL.proc_name = "main"
+                    { QPL.proc_name = "main"
                     , QPL.proc_meta_params = []
                     , QPL.proc_param_types = undefined
                     , QPL.proc_body =

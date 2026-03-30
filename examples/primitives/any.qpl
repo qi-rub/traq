@@ -2,7 +2,6 @@ ext uproc Oracle_U(Fin<20>, Fin<2>);
 
 ext proc Oracle(Fin<20>, Fin<2>);
 
-// UAny[Fin 20, 1.0e-2]
 uproc UAny(ret : OUT Fin<2>, s_result : OUT Fin<20>, aux : AUX Fin<2>, ctrl : AUX Arr<10, Fin<2>>, pred_out : AUX Arr<10, Fin<2>>, n_iter : AUX Arr<10, Fin<4>>, s_arg : AUX Arr<10, Fin<20>>) {
   for (#run_ix in 0 .. < 10) {
     n_iter[#run_ix] *= Distr[uniform : Fin<4>];
@@ -37,7 +36,6 @@ uproc main_U(ok : OUT Fin<2>, ok_1 : AUX Fin<2>, s_result : AUX Fin<20>, aux : A
   ok, ok_1 *= SWAP;
 }
 
-// Grover[...]
 uproc Grover[k](x : IN Fin<20>, ret_1 : OUT Fin<2>) {
   ret_1 *= X;
   ret_1 *= H;

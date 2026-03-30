@@ -179,8 +179,7 @@ instance (Floating prec, RealFrac prec, Eq size) => UnitaryCompilePrim (QAmplify
 
     return
       QPL.ProcDef
-        { QPL.info_comment = ""
-        , QPL.proc_name = qamplify_proc_name
+        { QPL.proc_name = qamplify_proc_name
         , QPL.proc_meta_params = []
         , QPL.proc_param_types = map (view _3) all_params
         , QPL.proc_body =
