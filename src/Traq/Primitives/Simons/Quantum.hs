@@ -216,6 +216,9 @@ instance
                   "simon's post-processing: unitarily solve linear system: (%s) . (%s) = 0"
                   (PP.commaList rets)
                   (PP.commaList $ take (length arg_tys) $ map fst xts)
+            , QPL.UnitaryS
+                (map QPL.Arg $ rets ++ take (length arg_tys) (map fst xts))
+                $ QPL.NamedGateU "SolveLinearSystem"
             ]
 
     return
@@ -269,6 +272,7 @@ instance
                   "simon's post-processing: solve linear system: (%s) . (%s) = 0"
                   (PP.commaList rets)
                   (PP.commaList $ map fst xts)
+            , QPL.BlackBoxS (rets ++ map fst xts) "SolveLinearSystem"
             ]
 
     return

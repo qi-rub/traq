@@ -78,6 +78,7 @@ instance HasCost (Stmt size) where
   cost SkipS = return Alg.zero
   cost (CommentS _) = return Alg.zero
   cost AssignS{} = return Alg.zero
+  cost BlackBoxS{} = return Alg.zero
   cost RandomS{} = return Alg.zero
   cost RandomDynS{} = return Alg.zero
   -- single statements

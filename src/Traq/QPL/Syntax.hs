@@ -121,7 +121,7 @@ type instance PrecType (Unitary prec size) = prec
 
 instance (Show prec, Show size) => PP.ToCodeString (Unitary prec size) where
   build (BasicGateU g) = PP.build g
-  build (NamedGateU g) = PP.putWord $ show g
+  build (NamedGateU g) = PP.putWord $ "NamedGate(" <> show g <> ")"
   build (RevEmbedU xs e) = do
     e_s <- PP.fromBuild e
     PP.putWord $ printf "Embed[(%s) => %s]" (PP.commaList xs) e_s
@@ -237,6 +237,7 @@ data Stmt size
   = SkipS
   | CommentS String
   | AssignS {rets :: [Ident], expr :: CPL.BasicExpr size}
+  | BlackBoxS {rets :: [Ident], bbname :: Ident}
   | RandomS {rets :: [Ident], distr_expr :: CPL.DistrExpr Double size}
   | RandomDynS {ret :: Ident, max_var :: Ident}
   | CallS {fun :: FunctionCall, meta_params :: [Either (MetaParam size) Ident], args :: [Arg size]}
@@ -260,6 +261,8 @@ instance (Show size) => PP.ToCodeString (Stmt size) where
   build AssignS{rets, expr} = do
     e_s <- PP.fromBuild expr
     PP.putLine $ printf "%s := %s;" (PP.commaList rets) e_s
+  build BlackBoxS{rets, bbname} =
+    PP.putLine $ printf "call %s(%s);" (show bbname) (PP.commaList rets)
   build RandomS{rets, distr_expr} = do
     distr_s <- PP.fromBuild distr_expr
     PP.putLine $ printf "%s :=$ %s;" (PP.commaList rets) distr_s

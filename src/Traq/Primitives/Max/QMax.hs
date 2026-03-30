@@ -141,7 +141,8 @@ instance (CPL.TypingReqs size, Integral size, RealFloat prec, Show prec) => Unit
 
         Compiler.addUStmt $ call_ufun (inp_ix : oup_ix : aux_ix)
 
-      Compiler.addUStmt $ QPL.UCommentS $ printf "unitarily compute: %s := max(%s); %s := argmax(%s);" res_var oup argmax_var oup
+      Compiler.addUStmt $ QPL.UnitaryS [QPL.Arg oup, QPL.Arg res_var] $ QPL.NamedGateU "max"
+      Compiler.addUStmt $ QPL.UnitaryS [QPL.Arg oup, QPL.Arg argmax_var] $ QPL.NamedGateU "argmax"
 
 -- ================================================================================
 -- Quantum

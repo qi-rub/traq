@@ -27,7 +27,8 @@ uproc UMax(x : Arr<20, Fin<2>>, ret : Fin<1000>, ret_1 : Fin<20>, inp : AUX Arr<
   for (#x_4 in Fin<20>) {
     call good_U(x, inp[#x_4], out[#x_4], aux[#x_4], aux_1[#x_4], aux_2[#x_4], aux_3[#x_4], aux_4[#x_4], aux_5[#x_4], aux_6[#x_4], aux_7[#x_4], aux_8[#x_4]);
   }
-  // unitarily compute: ret := max(out); ret_1 := argmax(out);
+  out, ret *= NamedGate("max");
+  out, ret_1 *= NamedGate("argmax");
 }
 
 uproc hillclimb_iter_U(x : IN Arr<20, Fin<2>>, x' : OUT Arr<20, Fin<2>>, w : AUX Fin<1000>, i : AUX Fin<20>, b : AUX Fin<2>, b' : AUX Fin<2>, w_2 : AUX Fin<1000>, i_1 : AUX Fin<20>, aux_prim : AUX Arr<20, Fin<20>>, aux_prim_1 : AUX Arr<20, Fin<1000>>, aux_prim_2 : AUX Arr<20, Fin<1000>>, aux_prim_3 : AUX Arr<20, Fin<2>>, aux_prim_4 : AUX Arr<20, Fin<2>>, aux_prim_5 : AUX Arr<20, Arr<20, Fin<2>>>, aux_prim_6 : AUX Arr<20, Fin<1000>>, aux_prim_7 : AUX Arr<20, Fin<2>>, aux_prim_8 : AUX Arr<20, Fin<2>>, aux_prim_9 : AUX Arr<20, Arr<20, Fin<2>>>, aux_prim_10 : AUX Arr<20, Fin<1000>>, b_2 : AUX Fin<2>, b'_2 : AUX Fin<2>, x'_2 : AUX Arr<20, Fin<2>>) {
