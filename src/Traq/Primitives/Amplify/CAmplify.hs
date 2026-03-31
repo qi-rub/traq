@@ -39,6 +39,10 @@ instance CPL.MapSize (CAmplify size prec) where
   type MappedSize (CAmplify size prec) size' = CAmplify size' prec
   mapSize f (CAmplify p) = CAmplify (CPL.mapSize f p)
 
+instance CPL.MapPrec (CAmplify size prec) where
+  type MappedPrec (CAmplify size prec) prec' = CAmplify size prec'
+  mapPrec f (CAmplify p) = CAmplify (CPL.mapPrec f p)
+
 -- Inherited instances
 instance (Show prec, Fractional prec) => SerializePrim (CAmplify size prec) where
   primNames = ["amplify"]

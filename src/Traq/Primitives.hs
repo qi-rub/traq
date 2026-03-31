@@ -66,6 +66,16 @@ instance CPL.MapSize (DefaultPrimCollection size prec) where
   mapSize f (QAmp p) = QAmp (CPL.mapSize f p)
   mapSize f (QMax' p) = QMax' (CPL.mapSize f p)
 
+instance CPL.MapPrec (DefaultPrimCollection size prec) where
+  type MappedPrec (DefaultPrimCollection size prec) prec' = DefaultPrimCollection size prec'
+
+  mapPrec f (QAny p) = QAny (CPL.mapPrec f p)
+  mapPrec f (RAny p) = RAny (CPL.mapPrec f p)
+  mapPrec f (DAny p) = DAny (CPL.mapPrec f p)
+  mapPrec f (CAmp p) = CAmp (CPL.mapPrec f p)
+  mapPrec f (QAmp p) = QAmp (CPL.mapPrec f p)
+  mapPrec f (QMax' p) = QMax' (CPL.mapPrec f p)
+
 instance QAmplify size prec :<: DefaultPrimCollection size prec where
   inject = QAmp
   project (QAmp x) = Just x
@@ -152,7 +162,13 @@ instance CPL.MapSize (WorstCasePrimCollection size prec) where
   mapSize f (FromDefault p) = FromDefault (CPL.mapSize f p)
   mapSize f (Simon p) = Simon (CPL.mapSize f p)
 
-instance (Show size, prec ~ Double) => SerializePrim (WorstCasePrimCollection size prec) where
+instance CPL.MapPrec (WorstCasePrimCollection size prec) where
+  type MappedPrec (WorstCasePrimCollection size prec) prec' = WorstCasePrimCollection size prec'
+
+  mapPrec f (FromDefault p) = FromDefault (CPL.mapPrec f p)
+  mapPrec f (Simon p) = Simon (CPL.mapPrec f p)
+
+instance (Show size, Show prec, Fractional prec) => SerializePrim (WorstCasePrimCollection size prec) where
   primNames = primNames @(DefaultPrimCollection size prec) ++ ["findXorPeriod"]
 
   primNameOf (FromDefault p) = primNameOf p

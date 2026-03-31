@@ -71,6 +71,10 @@ instance (CPL.MapSize prim) => CPL.MapSize (Primitive prim) where
   type MappedSize (Primitive prim) size' = Primitive (CPL.MappedSize prim size')
   mapSize f (Primitive par_funs prim) = Primitive par_funs (CPL.mapSize f prim)
 
+instance (CPL.MapPrec prim) => CPL.MapPrec (Primitive prim) where
+  type MappedPrec (Primitive prim) prec' = Primitive (CPL.MappedPrec prim prec')
+  mapPrec f (Primitive par_funs prim) = Primitive par_funs (CPL.mapPrec f prim)
+
 instance CPL.HasFreeVars (Primitive prim) where
   freeVarsList (Primitive par_funs _) = concatMap (catMaybes . pfun_args) par_funs
 
@@ -81,7 +85,7 @@ instance (SerializePrim prim) => PP.ToCodeString (Primitive prim) where
     PP.putWord $ printf "@%s<%s>[%s]" (primNameOf prim) (PP.commaList $ printPrimParams prim) fns
 
 -- Parsing
-instance (SerializePrim prim, SizeType prim ~ Sym.Sym SizeT) => CPL.Parseable (Primitive prim) where
+instance (SerializePrim prim, SizeType prim ~ Sym.Sym SizeT, PrecType prim ~ Sym.Sym Double) => CPL.Parseable (Primitive prim) where
   parseE tp@TokenParser{..} = do
     ('@' : name) <- foldr1 (<|>) $ map (\s -> try $ symbol $ "@" ++ s) $ primNames @prim
     prim <- angles $ parsePrimParams tp name
@@ -290,6 +294,7 @@ instance
   , CPL.TypingReqs (SizeType prim)
   , UnitaryCompilePrim prim (SizeType prim) (PrecType prim)
   , Integral (SizeType prim)
+  , Real (PrecType prim)
   ) =>
   Compiler.CompileU (A.AnnFailProb (Primitive prim))
   where
@@ -518,6 +523,7 @@ instance
   , UnitaryCompilePrim prim (SizeType prim) (PrecType prim)
   , QuantumCompilePrim prim (SizeType prim) (PrecType prim)
   , Integral (SizeType prim)
+  , Real (PrecType prim)
   ) =>
   Compiler.CompileQ (A.AnnFailProb (Primitive prim))
   where

@@ -56,6 +56,10 @@ instance CPL.MapSize (RandomSearch size prec) where
   type MappedSize (RandomSearch size prec) size' = RandomSearch size' prec
   mapSize f (RandomSearch p) = RandomSearch (CPL.mapSize f p)
 
+instance CPL.MapPrec (RandomSearch size prec) where
+  type MappedPrec (RandomSearch size prec) prec' = RandomSearch size prec'
+  mapPrec f (RandomSearch p) = RandomSearch (CPL.mapPrec f p)
+
 instance (Show size) => SerializePrim (RandomSearch size prec) where
   primNames = ["any"]
   parsePrimParams tp s = RandomSearch <$> parsePrimParams tp s

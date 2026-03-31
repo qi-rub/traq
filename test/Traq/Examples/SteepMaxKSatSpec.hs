@@ -25,7 +25,7 @@ import Test.Hspec
 import TestHelpers
 
 type Prims = WorstCasePrims SizeT Double
-type SymPrims = WorstCasePrims (Sym.Sym SizeT) Double
+type SymPrims = WorstCasePrims (Sym.Sym SizeT) (Sym.Sym Double)
 
 examplePath :: String
 examplePath = "examples/hillclimb/steep_max_sat.traq"
@@ -38,6 +38,7 @@ loadExample = do
       & CPL.mapSize (Sym.subst "n" (Sym.con 4))
       & CPL.mapSize (Sym.subst "W" (Sym.con 8))
       & CPL.mapSize Sym.unSym
+      & CPL.mapPrec Sym.unSym
 
 spec :: Spec
 spec = describe "Steep max-k-sat" $ do

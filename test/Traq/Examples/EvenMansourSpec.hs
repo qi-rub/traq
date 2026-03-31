@@ -28,19 +28,20 @@ import TestHelpers
 examplePath :: String
 examplePath = "examples/cryptanalysis/even_mansour.traq"
 
-type SPrim size = Primitive (SimonsFindXorPeriod size Double)
+type SPrim size prec = Primitive (SimonsFindXorPeriod size prec)
 
 loadEvenMansour ::
   -- | bitsize @n@ of the inputs/outputs
   SizeT ->
-  IO (CPL.Program (SPrim SizeT))
+  IO (CPL.Program (SPrim SizeT Double))
 loadEvenMansour n = do
-  Right prog <- parseFromFile (CPL.programParser @(SPrim (Sym.Sym SizeT))) examplePath
+  Right prog <- parseFromFile (CPL.programParser @(SPrim (Sym.Sym SizeT) (Sym.Sym Double))) examplePath
   return $
     prog
       & CPL.mapSize (Sym.subst "N" (Sym.con (2 ^ n)))
       & CPL.mapSize (Sym.subst "n" (Sym.con n))
       & CPL.mapSize Sym.unSym
+      & CPL.mapPrec Sym.unSym
 
 spec :: Spec
 spec = describe "FindXorPeriod" $ do
@@ -52,17 +53,17 @@ spec = describe "FindXorPeriod" $ do
 
   describe "parses" $ do
     it "file" $ do
-      expectRight =<< parseFromFile (CPL.programParser @(SPrim (Sym.Sym SizeT))) examplePath
+      expectRight =<< parseFromFile (CPL.programParser @(SPrim (Sym.Sym SizeT) (Sym.Sym Double))) examplePath
       return ()
 
     it "roundtrip" $ do
-      prog <- expectRight =<< parseFromFile (CPL.programParser @(SPrim (Sym.Sym SizeT))) examplePath
-      p <- expectRight $ CPL.parseProgram @(SPrim (Sym.Sym SizeT)) $ PP.toCodeString prog
+      prog <- expectRight =<< parseFromFile (CPL.programParser @(SPrim (Sym.Sym SizeT) (Sym.Sym Double))) examplePath
+      p <- expectRight $ CPL.parseProgram @(SPrim (Sym.Sym SizeT) (Sym.Sym Double)) $ PP.toCodeString prog
       p `shouldBe` prog
 
   it "typechecks" $ do
     p <-
-      parseFromFile (CPL.programParser @(SPrim (Sym.Sym SizeT))) examplePath
+      parseFromFile (CPL.programParser @(SPrim (Sym.Sym SizeT) (Sym.Sym Double))) examplePath
         >>= expectRight
     assertRight $ CPL.typeCheckProg p
 

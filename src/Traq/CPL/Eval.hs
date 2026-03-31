@@ -359,10 +359,10 @@ evalRandomSampleExpr ::
   , Prob.MonadProb prec m
   , EvalReqs size prec
   ) =>
-  DistrExpr size ->
+  DistrExpr prec size ->
   m (Value size)
 evalRandomSampleExpr UniformE{sample_ty} = Prob.uniform (domain sample_ty)
-evalRandomSampleExpr BernoulliE{prob_one} = toValue <$> Prob.bernoulli (realToFrac prob_one)
+evalRandomSampleExpr BernoulliE{prob_one} = toValue <$> Prob.bernoulli prob_one
 
 class Eval1 f where
   type EvalArgs f ext

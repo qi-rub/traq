@@ -29,24 +29,25 @@ examplePath = "examples/search/clustering.traq"
 
 loadExample :: IO (CPL.Program (DefaultPrims SizeT Double))
 loadExample = do
-  Right prog <- parseFromFile (CPL.programParser @(DefaultPrims (Sym.Sym SizeT) Double)) examplePath
+  Right prog <- parseFromFile (CPL.programParser @(DefaultPrims (Sym.Sym SizeT) (Sym.Sym Double))) examplePath
   let prog' =
         prog
           & CPL.mapSize (Sym.subst "N" (Sym.con 8))
           & CPL.mapSize (Sym.subst "M" (Sym.con 4))
           & CPL.mapSize Sym.unSym
+          & CPL.mapPrec Sym.unSym
   return prog'
 
 spec :: Spec
 spec = describe "Clustering Algorithm" $ do
   describe "parses" $ do
     it "file" $ do
-      expectRight =<< parseFromFile (CPL.programParser @(DefaultPrims (Sym.Sym SizeT) Double)) examplePath
+      expectRight =<< parseFromFile (CPL.programParser @(DefaultPrims (Sym.Sym SizeT) (Sym.Sym Double))) examplePath
       return ()
 
     it "roundtrip" $ do
-      prog <- expectRight =<< parseFromFile (CPL.programParser @(DefaultPrims (Sym.Sym SizeT) Double)) examplePath
-      p <- expectRight $ CPL.parseProgram @(DefaultPrims (Sym.Sym SizeT) Double) $ PP.toCodeString prog
+      prog <- expectRight =<< parseFromFile (CPL.programParser @(DefaultPrims (Sym.Sym SizeT) (Sym.Sym Double))) examplePath
+      p <- expectRight $ CPL.parseProgram @(DefaultPrims (Sym.Sym SizeT) (Sym.Sym Double)) $ PP.toCodeString prog
       p `shouldBe` prog
 
   it "typechecks" $ do

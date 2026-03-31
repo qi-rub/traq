@@ -55,15 +55,19 @@ instance CPL.MapSize (FindXorPeriod size prec) where
   type MappedSize (FindXorPeriod size prec) size' = (FindXorPeriod size' prec)
   mapSize f FindXorPeriod{n, ..} = FindXorPeriod{n = f n, ..}
 
+instance CPL.MapPrec (FindXorPeriod size prec) where
+  type MappedPrec (FindXorPeriod size prec) prec' = FindXorPeriod size prec'
+  mapPrec f FindXorPeriod{n, p_0} = FindXorPeriod{n, p_0 = f p_0}
+
 -- Pretty Printing
-instance (Show size) => SerializePrim (FindXorPeriod size Double) where
+instance (Show size, Show prec, Fractional prec) => SerializePrim (FindXorPeriod size prec) where
   primNames = ["findXorPeriod"]
-  parsePrimParams TokenParser{..} _ = do
+  parsePrimParams tp@TokenParser{..} _ = do
     n <- (Sym.con . fromInteger <$> integer) <|> (Sym.var <$> identifier)
-    comma
-    p_0 <- float
+    _ <- comma
+    p_0 <- CPL.symbPrec tp
     return FindXorPeriod{n, p_0}
-  printPrimParams FindXorPeriod{n, p_0} = [show n, printf "%.2f" p_0]
+  printPrimParams FindXorPeriod{n, p_0} = [show n, show p_0]
 
 -- | Bitsize
 bitsize :: (CPL.TypingReqs size) => CPL.VarType size -> Maybe size

@@ -15,15 +15,15 @@ import Traq.Prelude
 import qualified Traq.Primitives as Traq
 import qualified Traq.Utils.Printing as PP
 
-loadProgramFromFile :: String -> IO (CPL.Program (Traq.DefaultPrims (Sym.Sym SizeT) Double))
+loadProgramFromFile :: String -> IO (CPL.Program (Traq.DefaultPrims (Sym.Sym SizeT) (Sym.Sym Double)))
 loadProgramFromFile fname = do
-  sprog_or_err <- parseFromFile (CPL.programParser @(Traq.DefaultPrims (Sym.Sym SizeT) Double)) fname
+  sprog_or_err <- parseFromFile (CPL.programParser @(Traq.DefaultPrims (Sym.Sym SizeT) (Sym.Sym Double))) fname
   sprog <- either (error . show) pure sprog_or_err
   -- putStrLn $ PP.toCodeString sprog
   return sprog
 
-subst :: [(String, SizeT)] -> CPL.Program (Traq.DefaultPrims (Sym.Sym SizeT) Double) -> CPL.Program (Traq.DefaultPrims SizeT Double)
-subst vs p = CPL.mapSize Sym.unSym $ foldl substOne p vs
+subst :: [(String, SizeT)] -> CPL.Program (Traq.DefaultPrims (Sym.Sym SizeT) (Sym.Sym Double)) -> CPL.Program (Traq.DefaultPrims SizeT Double)
+subst vs p = CPL.mapPrec Sym.unSym $ CPL.mapSize Sym.unSym $ foldl substOne p vs
  where
   substOne p' (x, v) = CPL.mapSize (Sym.subst x (Sym.con v)) p'
 

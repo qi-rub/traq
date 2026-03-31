@@ -31,24 +31,25 @@ examplePath = "examples/matrix_search/depth3_NAND_formula.traq"
 
 loadExample :: IO (CPL.Program (DefaultPrims SizeT Double))
 loadExample = do
-  Right prog <- parseFromFile (CPL.programParser @(DefaultPrims (Sym.Sym SizeT) Double)) examplePath
+  Right prog <- parseFromFile (CPL.programParser @(DefaultPrims (Sym.Sym SizeT) (Sym.Sym Double))) examplePath
   return $
     prog
       & CPL.mapSize (Sym.subst "N" (Sym.con 8))
       & CPL.mapSize (Sym.subst "M" (Sym.con 4))
       & CPL.mapSize (Sym.subst "K" (Sym.con 2))
       & CPL.mapSize Sym.unSym
+      & CPL.mapPrec Sym.unSym
 
 spec :: Spec
 spec = describe "Depth 3 NAND Formula" $ do
   describe "parses" $ do
     it "file" $ do
-      expectRight =<< parseFromFile (CPL.programParser @(DefaultPrims (Sym.Sym SizeT) Double)) examplePath
+      expectRight =<< parseFromFile (CPL.programParser @(DefaultPrims (Sym.Sym SizeT) (Sym.Sym Double))) examplePath
       return ()
 
     it "roundtrip" $ do
-      prog <- expectRight =<< parseFromFile (CPL.programParser @(DefaultPrims (Sym.Sym SizeT) Double)) examplePath
-      p <- expectRight $ CPL.parseProgram @(DefaultPrims (Sym.Sym SizeT) Double) $ PP.toCodeString prog
+      prog <- expectRight =<< parseFromFile (CPL.programParser @(DefaultPrims (Sym.Sym SizeT) (Sym.Sym Double))) examplePath
+      p <- expectRight $ CPL.parseProgram @(DefaultPrims (Sym.Sym SizeT) (Sym.Sym Double)) $ PP.toCodeString prog
       p `shouldBe` prog
 
   describe "Compile" $ do

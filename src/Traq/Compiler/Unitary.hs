@@ -62,7 +62,13 @@ withTag tag = map $ \(x, ty) -> (x, tag, ty)
 -- Compiler
 -- ================================================================================
 
-class (CPL.TypeInferrable ext (SizeType ext), Integral (SizeType ext)) => CompileU ext where
+class
+  ( CPL.TypeInferrable ext (SizeType ext)
+  , Integral (SizeType ext)
+  , Real (PrecType ext)
+  ) =>
+  CompileU ext
+  where
   compileU ::
     forall ext' m.
     ( m ~ CompilerT ext'
@@ -73,10 +79,10 @@ class (CPL.TypeInferrable ext (SizeType ext), Integral (SizeType ext)) => Compil
     [Ident] ->
     m (QPL.UStmt (SizeType ext))
 
-instance (CPL.TypingReqs size, Integral size) => CompileU (CPL.Core size prec) where
+instance (CPL.TypingReqs size, Integral size, Real prec) => CompileU (CPL.Core size prec) where
   compileU = \case {}
 
-instance (CPL.TypingReqs size, Integral size) => CompileU (A.AnnFailProb (CPL.Core size prec)) where
+instance (CPL.TypingReqs size, Integral size, Real prec) => CompileU (A.AnnFailProb (CPL.Core size prec)) where
   compileU (A.AnnFailProb _ ext) = case ext of {}
 
 class CompileU1 f where
@@ -107,7 +113,7 @@ instance CompileU1 CPL.Expr where
     rets' <- freshAux rets
     return $
       USeqS
-        [ UnitaryS (map Arg rets) (DistrU distr_expr)
+        [ UnitaryS (map Arg rets) (DistrU (CPL.mapPrec realToFrac distr_expr))
         , UnitaryS (map Arg (rets ++ rets')) (BasicGateU COPY)
         ]
   compileU1 rets CPL.FunCallE{fname, args} = do

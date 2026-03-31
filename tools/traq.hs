@@ -38,6 +38,7 @@ data Options = Options
   , out_file :: Maybe FilePath
   , eps :: Maybe Double
   , params :: [(Ident, SizeT)]
+  , paramsf :: [(Ident, Double)]
   }
   deriving (Show)
 
@@ -49,17 +50,24 @@ data Options = Options
 loadTraqProgram :: ReaderT Options IO (CPL.Program (P.WorstCasePrims SizeT Double))
 loadTraqProgram = do
   code <- lift . readFile =<< view (to in_file)
-  case CPL.parseProgram @(P.WorstCasePrims _ Double) code of
+  case CPL.parseProgram @(P.WorstCasePrims _ (Sym.Sym Double)) code of
     Left err -> fail $ show err
     Right prog -> do
       ps <- view (to params)
-      pure $ CPL.mapSize (subs_params ps) prog
+      pf <- view (to paramsf)
+      pure $ CPL.mapPrec (subs_paramsf ps pf) $ CPL.mapSize (subs_params ps) prog
  where
+  subsOnce :: (Num a, Eq a) => (Ident, a) -> Sym.Sym a -> Sym.Sym a
+  subsOnce (k, v) = Sym.subst k (Sym.con v)
+
   subs_params :: [(Ident, SizeT)] -> (Sym.Sym Int -> SizeT)
   subs_params params s = Sym.unSym $ foldr subsOnce s params
+
+  subs_paramsf :: [(Ident, SizeT)] -> [(Ident, Double)] -> (Sym.Sym Double -> Double)
+  subs_paramsf ps pf s = Sym.unSym $ foldr subsOnce (foldr subsI s ps) pf
    where
-    subsOnce :: (Ident, SizeT) -> Sym.Sym Int -> Sym.Sym Int
-    subsOnce (k, v) = Sym.subst k (Sym.con v)
+    subsI :: (Ident, SizeT) -> Sym.Sym Double -> Sym.Sym Double
+    subsI (k, v) = subsOnce (k, fromIntegral v)
 
 -- | Compile source CPL to target QPL.
 compileCPL :: (RealFloat prec, Show prec) => CPL.Program (P.WorstCasePrims SizeT prec) -> prec -> IO (QPL.Program SizeT)
@@ -139,12 +147,19 @@ opts =
             )
         )
       <*> many (option (maybeReader parseKeyValue) (long "arg" <> help "parameters..." <> metavar "NAME=VALUE"))
+      <*> many (option (maybeReader parseKeyValueF) (long "argf" <> help "float parameters..." <> metavar "NAME=VALUE"))
 
   parseKeyValue s = do
     let key = takeWhile (/= '=') s
     let valS = tail $ dropWhile (/= '=') s
     val <- readMaybe valS
     return (key, val)
+
+  parseKeyValueF s = do
+    let key = takeWhile (/= '=') s
+    let valS = tail $ dropWhile (/= '=') s
+    val <- readMaybe valS
+    return (key, val :: Double)
 
 main :: IO ()
 main = do
