@@ -20,18 +20,19 @@ module Traq.Compiler.Unitary (
 import Control.Monad (forM, zipWithM)
 import Control.Monad.Except (MonadError (throwError))
 import Data.Foldable (Foldable (toList))
-import qualified Traq.Analysis.Annotate.Prelude as A
-import qualified Traq.CPL as CPL
-import Traq.Compiler.Prelude
-import Traq.Prelude
-import qualified Traq.QPL as QPL
-import Traq.QPL.Syntax
 
 import Lens.Micro.GHC
 import Lens.Micro.Mtl
 
 import Traq.Control.Monad
 import qualified Traq.Data.Context as Ctx
+
+import qualified Traq.Analysis.Annotate.Prelude as A
+import qualified Traq.CPL as CPL
+import Traq.Compiler.Prelude
+import Traq.Prelude
+import qualified Traq.QPL as QPL
+import Traq.QPL.Syntax
 
 -- ================================================================================
 -- Helpers

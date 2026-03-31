@@ -9,10 +9,10 @@ module Traq.CPL.Lenses (
   _exts,
 ) where
 
+import Lens.Micro.GHC
+
 import Traq.CPL.Syntax
 import Traq.Prelude
-
-import Lens.Micro.GHC
 
 -- ================================================================================
 -- Functor extension

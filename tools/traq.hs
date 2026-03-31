@@ -8,6 +8,13 @@ import Options.Applicative
 import System.FilePath (takeExtension)
 import Text.Printf (printf)
 import Text.Read (readMaybe)
+
+import Lens.Micro.GHC
+import Lens.Micro.Mtl
+
+import Traq.Control.Monad
+import qualified Traq.Data.Symbolic as Sym
+
 import qualified Traq.Analysis as Analysis
 import qualified Traq.CPL as CPL
 import qualified Traq.Compiler as Compiler
@@ -17,12 +24,6 @@ import Traq.Prelude
 import qualified Traq.Primitives as P
 import qualified Traq.QPL as QPL
 import qualified Traq.Utils.Printing as PP
-
-import Lens.Micro.GHC
-import Lens.Micro.Mtl
-
-import Traq.Control.Monad
-import qualified Traq.Data.Symbolic as Sym
 
 -- ============================================================
 -- CLI

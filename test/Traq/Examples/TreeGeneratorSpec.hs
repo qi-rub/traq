@@ -6,6 +6,11 @@ import Control.DeepSeq (force)
 import Control.Exception (evaluate)
 import qualified Data.Map as Map
 import Text.Parsec.String
+
+import Lens.Micro.GHC
+
+import qualified Traq.Data.Symbolic as Sym
+
 import qualified Traq.Analysis as A
 import Traq.Analysis.CostModel.QueryCost (SimpleQueryCost (getCost))
 import Traq.CPL
@@ -17,10 +22,6 @@ import Traq.Prelude
 import Traq.Primitives
 import qualified Traq.QPL as QPL
 import qualified Traq.Utils.Printing as PP
-
-import Lens.Micro.GHC
-
-import qualified Traq.Data.Symbolic as Sym
 
 import Test.Hspec
 import TestHelpers
