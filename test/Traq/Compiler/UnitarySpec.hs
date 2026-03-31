@@ -14,7 +14,7 @@ import qualified Traq.Utils.Printing as PP
 import Test.Hspec
 import TestHelpers
 
-type SymCore = CPL.Core (Sym.Sym SizeT) Double
+type SymCore = CPL.Core (Sym.Sym SizeT) (Sym.Sym Double)
 
 spec :: Spec
 spec = do
@@ -52,5 +52,5 @@ spec = do
         expectRight $
           CPL.parseProgram @SymCore
             "fn ternary(b: Bool, x: Fin<10>, y: Fin<10>) -> Fin<10> do if (b) then r <- x; else r <- y; end return r end"
-      let ex' = CPL.mapSize Sym.unSym ex
+      let ex' = CPL.mapPrec Sym.unSym $ CPL.mapSize Sym.unSym ex
       assertRight $ lowerProgramU ex'

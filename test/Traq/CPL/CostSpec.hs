@@ -20,7 +20,7 @@ import Test.Hspec
 import TestHelpers
 
 unsafeParseProgram :: String -> Program DefaultPrims'
-unsafeParseProgram = mapSize Sym.unSym . either (error . show) id . (parseProgram @(DefaultPrims (Sym.Sym SizeT) Double))
+unsafeParseProgram = mapPrec Sym.unSym . mapSize Sym.unSym . either (error . show) id . (parseProgram @(DefaultPrims (Sym.Sym SizeT) (Sym.Sym Double)))
 
 spec :: Spec
 spec = do

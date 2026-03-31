@@ -49,11 +49,11 @@ data Options = Options
 loadTraqProgram :: ReaderT Options IO (CPL.Program (P.WorstCasePrims SizeT Double))
 loadTraqProgram = do
   code <- lift . readFile =<< view (to in_file)
-  case CPL.parseProgram @(P.WorstCasePrims _ Double) code of
+  case CPL.parseProgram @(P.WorstCasePrims _ (Sym.Sym Double)) code of
     Left err -> fail $ show err
     Right prog -> do
       ps <- view (to params)
-      pure $ CPL.mapSize (subs_params ps) prog
+      pure $ CPL.mapPrec Sym.unSym $ CPL.mapSize (subs_params ps) prog
  where
   subs_params :: [(Ident, SizeT)] -> (Sym.Sym Int -> SizeT)
   subs_params params s = Sym.unSym $ foldr subsOnce s params

@@ -23,8 +23,10 @@ treeGeneratorExample ::
   size ->
   size ->
   size ->
+  prec ->
+  prec ->
   Program ext
-treeGeneratorExample n w p k =
+treeGeneratorExample n w p k bernoulli_prob amplify_pmin =
   Program
     [ NamedFunDef
         { fun_name = "Capacity"
@@ -135,7 +137,7 @@ treeGeneratorExample n w p k =
                                 , loop_body =
                                     SeqS
                                       [ ExprS{rets = ["xi"], expr = BasicExprE{basic_expr = DynIndexE{arr_expr = VarE{var = "xs"}, ix_expr = VarE{var = "i"}}}}
-                                      , ExprS{rets = ["y"], expr = RandomSampleE{distr_expr = BernoulliE{prob_one = 0.2}}}
+                                      , ExprS{rets = ["y"], expr = RandomSampleE{distr_expr = BernoulliE{prob_one = bernoulli_prob}}}
                                       , ExprS{rets = ["try_pick"], expr = BasicExprE{basic_expr = BinOpE{bin_op = XorOp, lhs = VarE{var = "xi"}, rhs = VarE{var = "y"}}}}
                                       , ExprS{rets = ["wi"], expr = FunCallE{fname = "Weight", args = ["i"]}}
                                       , ExprS{rets = ["wt_picked"], expr = BasicExprE{basic_expr = BinOpE{bin_op = AddOp, lhs = VarE{var = "wt"}, rhs = VarE{var = "wi"}}}}
@@ -186,7 +188,7 @@ treeGeneratorExample n w p k =
                                                 { prim =
                                                     Primitive
                                                       [PartialFun{pfun_name = "TreeGen", pfun_args = [Just "xs", Just "pr"]}]
-                                                      (inject (QAmplify @size (Amplify{p_min = 1.0e-2 :: prec})))
+                                                      (inject (QAmplify @size (Amplify{p_min = amplify_pmin})))
                                                 }
                                           }
                                       , ExprS{rets = ["xs"], expr = BasicExprE{basic_expr = TernaryE{branch = VarE{var = "ok"}, lhs = VarE{var = "xs'"}, rhs = VarE{var = "xs"}}}}

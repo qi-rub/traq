@@ -109,7 +109,7 @@ instance HasAdjoint (BasicGate size) where
 data Unitary size
   = BasicGateU (BasicGate size)
   | RevEmbedU [Ident] (CPL.BasicExpr size)
-  | DistrU (CPL.DistrExpr size)
+  | DistrU (CPL.DistrExpr Double size)
   | Controlled (Unitary size)
   | Adjoint (Unitary size)
   deriving (Eq, Show, Read)
@@ -233,7 +233,7 @@ data Stmt size
   = SkipS
   | CommentS String
   | AssignS {rets :: [Ident], expr :: CPL.BasicExpr size}
-  | RandomS {rets :: [Ident], distr_expr :: CPL.DistrExpr size}
+  | RandomS {rets :: [Ident], distr_expr :: CPL.DistrExpr Double size}
   | RandomDynS {ret :: Ident, max_var :: Ident}
   | CallS {fun :: FunctionCall, meta_params :: [Either (MetaParam size) Ident], args :: [Arg size]}
   | SeqS [Stmt size]

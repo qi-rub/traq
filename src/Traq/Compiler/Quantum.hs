@@ -10,19 +10,18 @@ module Traq.Compiler.Quantum (
 
 import Control.Monad (forM_)
 import Control.Monad.Except (MonadError (..))
-
-import Lens.Micro.GHC
-import Lens.Micro.Mtl
-
-import Traq.Control.Monad
-import qualified Traq.Data.Context as Ctx
-
 import qualified Traq.Analysis.Annotate.Prelude as A
 import qualified Traq.CPL as CPL
 import Traq.Compiler.Prelude
 import Traq.Compiler.Unitary
 import Traq.Prelude
 import Traq.QPL.Syntax
+
+import Lens.Micro.GHC
+import Lens.Micro.Mtl
+
+import Traq.Control.Monad
+import qualified Traq.Data.Context as Ctx
 
 -- ================================================================================
 -- Compiler
@@ -40,10 +39,10 @@ class (CompileU ext) => CompileQ ext where
     [Ident] ->
     m (Stmt (SizeType ext))
 
-instance (CPL.TypingReqs size, Integral size) => CompileQ (CPL.Core size prec) where
+instance (CPL.TypingReqs size, Integral size, Real prec) => CompileQ (CPL.Core size prec) where
   compileQ = \case {}
 
-instance (CPL.TypingReqs size, Integral size) => CompileQ (A.AnnFailProb (CPL.Core size prec)) where
+instance (CPL.TypingReqs size, Integral size, Real prec) => CompileQ (A.AnnFailProb (CPL.Core size prec)) where
   compileQ (A.AnnFailProb _ ext) = case ext of {}
 
 class CompileQ1 f where
@@ -70,7 +69,7 @@ instance CompileQ1 CPL.Expr where
   -- basic expressions
   compileQ1 rets CPL.BasicExprE{CPL.basic_expr} = return $ AssignS rets basic_expr
   -- random sampling expressions
-  compileQ1 rets CPL.RandomSampleE{CPL.distr_expr} = return $ RandomS rets distr_expr
+  compileQ1 rets CPL.RandomSampleE{CPL.distr_expr} = return $ RandomS rets (CPL.mapPrec realToFrac distr_expr)
   -- function call
   compileQ1 rets CPL.FunCallE{CPL.fname, CPL.args} = do
     let proc_id = mkQProcName fname

@@ -46,16 +46,18 @@ substCtx Ctx{..} =
 
 worstCaseCost
   , expectedCost ::
-    forall primT primT'.
+    forall primT'.
     ( CPL.Parseable primT'
-    , A.AnnotateWithErrorBudgetU primT
-    , A.AnnotateWithErrorBudgetQ primT
-    , A.ExpCostQ (A.AnnFailProb primT) SizeT Double
     , SizeType primT' ~ Sym.Sym Int
-    , CPL.MapSize primT'
-    , primT ~ CPL.MappedSize primT' Int
-    , primT' ~ CPL.MappedSize primT (Sym.Sym Int)
-    , PP.ToCodeString primT
+    , PrecType primT' ~ Sym.Sym Double
+    , CPL.MapPrec primT'
+    , CPL.MapSize (CPL.MappedPrec primT' Double)
+    , SizeType (CPL.MappedPrec primT' Double) ~ Sym.Sym Int
+    , PrecType (CPL.MappedPrec primT' Double) ~ Double
+    , A.AnnotateWithErrorBudgetU (CPL.MappedSize (CPL.MappedPrec primT' Double) Int)
+    , A.AnnotateWithErrorBudgetQ (CPL.MappedSize (CPL.MappedPrec primT' Double) Int)
+    , A.ExpCostQ (A.AnnFailProb (CPL.MappedSize (CPL.MappedPrec primT' Double) Int)) SizeT Double
+    , PP.ToCodeString (CPL.MappedSize (CPL.MappedPrec primT' Double) Int)
     ) =>
     Ctx ->
     Double ->
@@ -64,7 +66,7 @@ worstCaseCost
 worstCaseCost ctx eps = do
   -- load the program
   loaded_program <- either (fail . show) pure =<< parseFromFile (CPL.programParser @primT') "examples/tree_generator/tree_generator_01_knapsack.traq"
-  let program = CPL.mapSize (substCtx ctx) loaded_program
+  let program = CPL.mapSize (substCtx ctx) $ CPL.mapPrec Sym.unSym loaded_program
   program_annotated <- either fail pure $ A.annotateProgWithErrorBudget (A.failProb eps) program
 
   return $ getCost $ A.costQProg program_annotated
@@ -72,7 +74,7 @@ worstCaseCost ctx eps = do
 expectedCost ctx@Ctx{..} eps = do
   -- load the program
   loaded_program <- either (fail . show) pure =<< parseFromFile (CPL.programParser @primT') "examples/tree_generator/tree_generator_01_knapsack.traq"
-  let program = CPL.mapSize (substCtx ctx) loaded_program
+  let program = CPL.mapSize (substCtx ctx) $ CPL.mapPrec Sym.unSym loaded_program
   -- putStrLn $ replicate 80 '='
   -- putStrLn $ PP.toCodeString program
   -- putStrLn $ replicate 80 '='
@@ -107,10 +109,10 @@ main = do
   putStrLn "Costs for sample 0-1 knapsack instance:"
 
   putStr "  Quantum (worst-case):   "
-  print =<< worstCaseCost @(Primitive (QAmplify _ _)) ctx eps
+  print =<< worstCaseCost @(Primitive (QAmplify (Sym.Sym Int) (Sym.Sym Double))) ctx eps
   putStr "  Classical (worst-case): "
-  print =<< worstCaseCost @(Primitive (CAmplify _ _)) ctx eps
+  print =<< worstCaseCost @(Primitive (CAmplify (Sym.Sym Int) (Sym.Sym Double))) ctx eps
   putStr "  Quantum (expected):     "
-  print =<< expectedCost @(Primitive (QAmplify _ _)) ctx eps
+  print =<< expectedCost @(Primitive (QAmplify (Sym.Sym Int) (Sym.Sym Double))) ctx eps
   putStr "  Classical (expected):   "
-  print =<< expectedCost @(Primitive (CAmplify _ _)) ctx eps
+  print =<< expectedCost @(Primitive (CAmplify (Sym.Sym Int) (Sym.Sym Double))) ctx eps

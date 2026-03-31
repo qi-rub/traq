@@ -49,11 +49,15 @@ instance CPL.MapSize (Amplify size prec) where
   type MappedSize (Amplify size prec) size' = (Amplify size' prec)
   mapSize _ Amplify{..} = Amplify{..}
 
+instance CPL.MapPrec (Amplify size prec) where
+  type MappedPrec (Amplify size prec) prec' = (Amplify size prec')
+  mapPrec f Amplify{p_min} = Amplify{p_min = f p_min}
+
 -- Pretty Printing
 instance (Show prec, Fractional prec) => SerializePrim (Amplify size prec) where
   primNames = ["amplify"]
 
-  parsePrimParams tp _ = Amplify . realToFrac <$> float tp
+  parsePrimParams tp _ = Amplify <$> CPL.symbPrec tp
   printPrimParams Amplify{p_min} = [show p_min]
 
 -- Type check

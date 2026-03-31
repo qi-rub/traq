@@ -11,6 +11,10 @@ module Traq.CPL.Parser (
   parseStmt,
   varType,
 
+  -- * Symbolic types
+  SymbPrec,
+  symbPrec,
+
   -- * Helpers
   isValidIdentifier,
 ) where
@@ -38,6 +42,9 @@ import Traq.Prelude
 
 -- | Basic symbolic type
 type SymbSize = Sym.Sym SizeT
+
+-- | Symbolic precision type
+type SymbPrec = Sym.Sym Double
 
 cplDef :: LanguageDef st
 cplDef =
@@ -86,6 +93,16 @@ instance Parseable (Core SymbSize prec) where
 symbSize :: TokenParser () -> Parser SymbSize
 symbSize TokenParser{..} = (Sym.con . fromIntegral <$> integer) <|> (Sym.var <$> identifier)
 
+symbPrec :: TokenParser () -> Parser SymbPrec
+symbPrec TokenParser{..} = try powExpr <|> atom
+ where
+  atom = (Sym.con <$> float) <|> (Sym.var <$> identifier)
+  powExpr = do
+    base <- atom
+    _ <- symbol "**"
+    e <- atom
+    return $ base ** e
+
 varType :: TokenParser () -> Parser (VarType SymbSize)
 varType tp@TokenParser{..} = boolType <|> finType <|> bitvecType <|> arrType <|> tupleType
  where
@@ -108,7 +125,7 @@ varType tp@TokenParser{..} = boolType <|> finType <|> bitvecType <|> arrType <|>
 typedTerm :: TokenParser () -> Parser a -> Parser (a, VarType SymbSize)
 typedTerm tp@TokenParser{..} pa = (,) <$> pa <*> (reservedOp ":" *> varType tp)
 
-instance (Parseable ext, SizeType ext ~ SymbSize) => Parseable (Expr ext) where
+instance (Parseable ext, SizeType ext ~ SymbSize, PrecType ext ~ SymbPrec) => Parseable (Expr ext) where
   parseE tp@TokenParser{..} =
     choice . map try $
       [ parens (exprP tp)
@@ -238,29 +255,29 @@ instance (Parseable ext, SizeType ext ~ SymbSize) => Parseable (Expr ext) where
       rhs <- VarE <$> identifier
       return $ BasicExprE $ TernaryE{branch, lhs, rhs}
 
-exprP :: forall ext. (Parseable ext, SizeType ext ~ SymbSize) => TokenParser () -> Parser (Expr ext)
+exprP :: forall ext. (Parseable ext, SizeType ext ~ SymbSize, PrecType ext ~ SymbPrec) => TokenParser () -> Parser (Expr ext)
 exprP = parseE
 
-instance Parseable (DistrExpr SymbSize) where
+instance Parseable (DistrExpr SymbPrec SymbSize) where
   parseE tp@TokenParser{..} = choice $ map try [uniformE, bernoulliE]
    where
-    uniformE :: Parser (DistrExpr SymbSize)
+    uniformE :: Parser (DistrExpr SymbPrec SymbSize)
     uniformE = do
       reserved "uniform"
       colon
       sample_ty <- varType tp
       return UniformE{..}
 
-    bernoulliE :: Parser (DistrExpr SymbSize)
+    bernoulliE :: Parser (DistrExpr SymbPrec SymbSize)
     bernoulliE = do
       reserved "bernoulli"
-      prob_one <- brackets float
+      prob_one <- brackets (symbPrec tp)
       return BernoulliE{..}
 
-distrExprP :: TokenParser () -> Parser (DistrExpr SymbSize)
+distrExprP :: TokenParser () -> Parser (DistrExpr SymbPrec SymbSize)
 distrExprP = parseE
 
-instance (Parseable ext, SizeType ext ~ SymbSize) => Parseable (Stmt ext) where
+instance (Parseable ext, SizeType ext ~ SymbSize, PrecType ext ~ SymbPrec) => Parseable (Stmt ext) where
   parseE tp@TokenParser{..} =
     SeqS
       <$> many
@@ -307,10 +324,10 @@ instance (Parseable ext, SizeType ext ~ SymbSize) => Parseable (Stmt ext) where
       semi
       return ExprS{rets, expr}
 
-stmtP :: forall ext. (Parseable ext, SizeType ext ~ SymbSize) => TokenParser () -> Parser (Stmt ext)
+stmtP :: forall ext. (Parseable ext, SizeType ext ~ SymbSize, PrecType ext ~ SymbPrec) => TokenParser () -> Parser (Stmt ext)
 stmtP = parseE
 
-namedFunDef :: (Parseable ext, SizeType ext ~ SymbSize) => TokenParser () -> Parser (NamedFunDef ext)
+namedFunDef :: (Parseable ext, SizeType ext ~ SymbSize, PrecType ext ~ SymbPrec) => TokenParser () -> Parser (NamedFunDef ext)
 namedFunDef tp@TokenParser{..} = do
   reserved "fn"
   fun_name <- identifier
@@ -326,7 +343,7 @@ namedFunDef tp@TokenParser{..} = do
   let fun_def = FunDef{..}
   return NamedFunDef{..}
 
-funDecl :: (SizeType ext ~ SymbSize) => TokenParser () -> Parser (NamedFunDef ext)
+funDecl :: (SizeType ext ~ SymbSize, PrecType ext ~ SymbPrec) => TokenParser () -> Parser (NamedFunDef ext)
 funDecl tp@TokenParser{..} = do
   reserved "ext" >> reserved "fn"
   fun_name <- identifier
@@ -338,12 +355,12 @@ funDecl tp@TokenParser{..} = do
   let fun_def = FunDef{mbody = Nothing, ..}
   return NamedFunDef{..}
 
-program :: (Parseable ext, SizeType ext ~ SymbSize) => TokenParser () -> Parser (Program ext)
+program :: (Parseable ext, SizeType ext ~ SymbSize, PrecType ext ~ SymbPrec) => TokenParser () -> Parser (Program ext)
 program tp = do
   fs <- many (namedFunDef tp <|> funDecl tp)
   return $ Program fs
 
-programParser :: (Parseable ext, SizeType ext ~ SymbSize) => Parser (Program ext)
+programParser :: (Parseable ext, SizeType ext ~ SymbSize, PrecType ext ~ SymbPrec) => Parser (Program ext)
 programParser = whiteSpace p *> program cplTokenParser <* eof
  where
   p = cplTokenParser
@@ -353,13 +370,13 @@ parseCode parser = parse (whiteSpace p *> parser p <* eof) ""
  where
   p = cplTokenParser
 
-parseProgram :: (Parseable ext, SizeType ext ~ SymbSize) => String -> Either ParseError (Program ext)
+parseProgram :: (Parseable ext, SizeType ext ~ SymbSize, PrecType ext ~ SymbPrec) => String -> Either ParseError (Program ext)
 parseProgram = parseCode program
 
-parseFunDef :: (Parseable ext, SizeType ext ~ SymbSize) => String -> Either ParseError (NamedFunDef ext)
+parseFunDef :: (Parseable ext, SizeType ext ~ SymbSize, PrecType ext ~ SymbPrec) => String -> Either ParseError (NamedFunDef ext)
 parseFunDef = parseCode namedFunDef
 
-parseStmt :: (Parseable ext, SizeType ext ~ SymbSize) => String -> Either ParseError (Stmt ext)
+parseStmt :: (Parseable ext, SizeType ext ~ SymbSize, PrecType ext ~ SymbPrec) => String -> Either ParseError (Stmt ext)
 parseStmt = parseCode stmtP
 
 isValidIdentifier :: String -> Bool

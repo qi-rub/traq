@@ -24,9 +24,9 @@ import qualified Traq.Primitives as Traq
 import qualified Traq.QPL as QPL
 import qualified Traq.Utils.Printing as PP
 
-loadProgramFromFile :: String -> IO (CPL.Program (Traq.DefaultPrims (Sym.Sym SizeT) Double))
+loadProgramFromFile :: String -> IO (CPL.Program (Traq.DefaultPrims (Sym.Sym SizeT) (Sym.Sym Double)))
 loadProgramFromFile fname = do
-  sprog_or_err <- parseFromFile (CPL.programParser @(Traq.DefaultPrims (Sym.Sym SizeT) Double)) fname
+  sprog_or_err <- parseFromFile (CPL.programParser @(Traq.DefaultPrims (Sym.Sym SizeT) (Sym.Sym Double))) fname
   sprog <- either (error . show) pure sprog_or_err
   let sprog' = CPL.renameVars "" sprog
   when show_prog $ do
@@ -99,7 +99,8 @@ depth3NAND = do
   forM_ ns $ \n -> do
     let prog =
           sprog
-            & CPL.mapSize
+            & CPL.mapPrec Sym.unSym
+            . CPL.mapSize
               ( Sym.unSym
                   . Sym.subst "N" (Sym.con n)
                   . Sym.subst "M" (Sym.con n)
@@ -119,7 +120,7 @@ hillClimbExpt = do
   let ns = [10, 20 .. 100] ++ [200, 300 .. 1000]
   putStrLn "n, time, qubits"
   forM_ ns $ \n -> do
-    let prog = CPL.mapSize (Sym.unSym . Sym.subst "n" (Sym.con n) . Sym.subst "W" 100) sprog
+    let prog = CPL.mapPrec Sym.unSym $ CPL.mapSize (Sym.unSym . Sym.subst "n" (Sym.con n) . Sym.subst "W" 100) sprog
 
     -- compute the weight of an assignment
     let phi _ = [CPL.FinV 0]
@@ -135,7 +136,7 @@ triangleFinding = do
   let ns = [10, 20 .. 120]
   putStrLn "N, time, qubits"
   forM_ ns $ \n -> do
-    let prog = sprog & CPL.mapSize (Sym.unSym . Sym.subst "N" (Sym.con n))
+    let prog = sprog & CPL.mapPrec Sym.unSym . CPL.mapSize (Sym.unSym . Sym.subst "N" (Sym.con n))
     adj <- replicateM n (replicateM n (randomIO :: IO Bool))
     let f = \case
           [CPL.FinV u, CPL.FinV v] -> [CPL.toValue $ adj !! u !! v]

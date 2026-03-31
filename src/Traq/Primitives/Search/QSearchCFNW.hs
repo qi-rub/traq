@@ -141,6 +141,11 @@ instance CPL.MapSize (QSearchCFNW size prec) where
 
   mapSize f (QSearchCFNW p) = QSearchCFNW (CPL.mapSize f p)
 
+instance CPL.MapPrec (QSearchCFNW size prec) where
+  type MappedPrec (QSearchCFNW size prec) prec' = QSearchCFNW size prec'
+
+  mapPrec f (QSearchCFNW p) = QSearchCFNW (CPL.mapPrec f p)
+
 instance PrimSearch size prec :<: QSearchCFNW size prec where
   inject = QSearchCFNW
   project (QSearchCFNW p) = Just p

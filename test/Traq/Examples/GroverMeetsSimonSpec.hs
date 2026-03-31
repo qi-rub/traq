@@ -29,7 +29,7 @@ import TestHelpers
 examplePath :: String
 examplePath = "examples/cryptanalysis/grover_meets_simon.traq"
 
-type P = WorstCasePrims (Sym.Sym SizeT) Double
+type P = WorstCasePrims (Sym.Sym SizeT) (Sym.Sym Double)
 
 loadExample :: IO (CPL.Program (WorstCasePrims SizeT Double))
 loadExample = do
@@ -38,6 +38,7 @@ loadExample = do
     prog
       & CPL.mapSize (Sym.subst "n" (Sym.con 4))
       & CPL.mapSize Sym.unSym
+      & CPL.mapPrec Sym.unSym
 
 spec :: Spec
 spec = describe "Grover Meets Simon" $ do

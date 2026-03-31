@@ -257,14 +257,15 @@ instance (Show size) => PP.ToCodeString (BasicExpr size) where
 -- ================================================================================
 
 -- | An expression denoting a probablity distribution.
-data DistrExpr size
+data DistrExpr prec size
   = UniformE {sample_ty :: VarType size}
-  | BernoulliE {prob_one :: Double}
+  | BernoulliE {prob_one :: prec}
   deriving (Eq, Show, Read, Functor)
 
-type instance SizeType (DistrExpr size) = size
+type instance SizeType (DistrExpr prec size) = size
+type instance PrecType (DistrExpr prec size) = prec
 
-instance (Show size) => PP.ToCodeString (DistrExpr size) where
+instance (Show prec, Show size) => PP.ToCodeString (DistrExpr prec size) where
   build UniformE{sample_ty} = PP.putWord . printf "uniform : %s" =<< PP.fromBuild sample_ty
   build BernoulliE{prob_one} = PP.putWord $ printf "bernoulli[%s]" (show prob_one)
 
@@ -273,18 +274,18 @@ instance (Show size) => PP.ToCodeString (DistrExpr size) where
 -}
 data Expr ext
   = BasicExprE {basic_expr :: BasicExpr (SizeType ext)}
-  | RandomSampleE {distr_expr :: DistrExpr (SizeType ext)}
+  | RandomSampleE {distr_expr :: DistrExpr (PrecType ext) (SizeType ext)}
   | FunCallE {fname :: Ident, args :: [Ident]}
   | PrimCallE {prim :: ext}
 
-deriving instance (Eq ext, Eq (SizeType ext)) => Eq (Expr ext)
-deriving instance (Show ext, Show (SizeType ext)) => Show (Expr ext)
-deriving instance (Read ext, Read (SizeType ext)) => Read (Expr ext)
+deriving instance (Eq ext, Eq (SizeType ext), Eq (PrecType ext)) => Eq (Expr ext)
+deriving instance (Show ext, Show (SizeType ext), Show (PrecType ext)) => Show (Expr ext)
+deriving instance (Read ext, Read (SizeType ext), Read (PrecType ext)) => Read (Expr ext)
 
 type instance SizeType (Expr ext) = SizeType ext
 type instance PrecType (Expr ext) = PrecType ext
 
-instance (Show (SizeType ext), PP.ToCodeString ext) => PP.ToCodeString (Expr ext) where
+instance (Show (SizeType ext), Show (PrecType ext), PP.ToCodeString ext) => PP.ToCodeString (Expr ext) where
   build BasicExprE{basic_expr} = PP.build basic_expr
   build RandomSampleE{distr_expr} = PP.putLine . printf "$ %s" =<< PP.fromBuild distr_expr
   build FunCallE{fname, args} = PP.putLine $ printf "%s(%s)" fname (PP.commaList args)
@@ -297,14 +298,14 @@ data Stmt ext
   | SeqS [Stmt ext]
   | ForS {loop_ix :: Ident, loop_ty :: VarType (SizeType ext), loop_body :: Stmt ext}
 
-deriving instance (Eq ext, Eq (SizeType ext)) => Eq (Stmt ext)
-deriving instance (Show ext, Show (SizeType ext)) => Show (Stmt ext)
-deriving instance (Read ext, Read (SizeType ext)) => Read (Stmt ext)
+deriving instance (Eq ext, Eq (SizeType ext), Eq (PrecType ext)) => Eq (Stmt ext)
+deriving instance (Show ext, Show (SizeType ext), Show (PrecType ext)) => Show (Stmt ext)
+deriving instance (Read ext, Read (SizeType ext), Read (PrecType ext)) => Read (Stmt ext)
 
 type instance SizeType (Stmt ext) = SizeType ext
 type instance PrecType (Stmt ext) = PrecType ext
 
-instance (Show (SizeType ext), PP.ToCodeString ext) => PP.ToCodeString (Stmt ext) where
+instance (Show (SizeType ext), Show (PrecType ext), PP.ToCodeString ext) => PP.ToCodeString (Stmt ext) where
   build ExprS{rets, expr} = do
     expr_s <- PP.fromBuild expr
     PP.putLine $ case expr_s of
@@ -329,9 +330,9 @@ data FunBody ext = FunBody
   , body_stmt :: Stmt ext
   }
 
-deriving instance (Eq ext, Eq (SizeType ext)) => Eq (FunBody ext)
-deriving instance (Show ext, Show (SizeType ext)) => Show (FunBody ext)
-deriving instance (Read ext, Read (SizeType ext)) => Read (FunBody ext)
+deriving instance (Eq ext, Eq (SizeType ext), Eq (PrecType ext)) => Eq (FunBody ext)
+deriving instance (Show ext, Show (SizeType ext), Show (PrecType ext)) => Show (FunBody ext)
+deriving instance (Read ext, Read (SizeType ext), Read (PrecType ext)) => Read (FunBody ext)
 
 type instance SizeType (FunBody ext) = SizeType ext
 type instance PrecType (FunBody ext) = PrecType ext
@@ -342,9 +343,9 @@ data FunDef ext = FunDef
   , mbody :: Maybe (FunBody ext)
   }
 
-deriving instance (Eq ext, Eq (SizeType ext)) => Eq (FunDef ext)
-deriving instance (Show ext, Show (SizeType ext)) => Show (FunDef ext)
-deriving instance (Read ext, Read (SizeType ext)) => Read (FunDef ext)
+deriving instance (Eq ext, Eq (SizeType ext), Eq (PrecType ext)) => Eq (FunDef ext)
+deriving instance (Show ext, Show (SizeType ext), Show (PrecType ext)) => Show (FunDef ext)
+deriving instance (Read ext, Read (SizeType ext), Read (PrecType ext)) => Read (FunDef ext)
 
 type instance SizeType (FunDef ext) = SizeType ext
 type instance PrecType (FunDef ext) = PrecType ext
@@ -352,14 +353,14 @@ type instance PrecType (FunDef ext) = PrecType ext
 -- | A function with a name
 data NamedFunDef ext = NamedFunDef {fun_name :: Ident, fun_def :: FunDef ext}
 
-deriving instance (Eq ext, Eq (SizeType ext)) => Eq (NamedFunDef ext)
-deriving instance (Show ext, Show (SizeType ext)) => Show (NamedFunDef ext)
-deriving instance (Read ext, Read (SizeType ext)) => Read (NamedFunDef ext)
+deriving instance (Eq ext, Eq (SizeType ext), Eq (PrecType ext)) => Eq (NamedFunDef ext)
+deriving instance (Show ext, Show (SizeType ext), Show (PrecType ext)) => Show (NamedFunDef ext)
+deriving instance (Read ext, Read (SizeType ext), Read (PrecType ext)) => Read (NamedFunDef ext)
 
 type instance SizeType (NamedFunDef ext) = SizeType ext
 type instance PrecType (NamedFunDef ext) = PrecType ext
 
-instance (Show (SizeType ext), PP.ToCodeString ext) => PP.ToCodeString (NamedFunDef ext) where
+instance (Show (SizeType ext), Show (PrecType ext), PP.ToCodeString ext) => PP.ToCodeString (NamedFunDef ext) where
   -- fn
   build
     NamedFunDef
@@ -405,9 +406,9 @@ instance HasFunCtx (FunCtx ext) ext where _funCtx = id
 -- | A program is a list of named functions, with the last being the entry point.
 newtype Program ext = Program [NamedFunDef ext]
 
-deriving instance (Eq ext, Eq (SizeType ext)) => Eq (Program ext)
-deriving instance (Show ext, Show (SizeType ext)) => Show (Program ext)
-deriving instance (Read ext, Read (SizeType ext)) => Read (Program ext)
+deriving instance (Eq ext, Eq (SizeType ext), Eq (PrecType ext)) => Eq (Program ext)
+deriving instance (Show ext, Show (SizeType ext), Show (PrecType ext)) => Show (Program ext)
+deriving instance (Read ext, Read (SizeType ext), Read (PrecType ext)) => Read (Program ext)
 
 type instance SizeType (Program ext) = SizeType ext
 type instance PrecType (Program ext) = PrecType ext
@@ -421,7 +422,7 @@ programToFunCtx (Program fs) = namedFunsToFunCtx fs
 funCtxToNamedFuns :: FunCtx ext -> [NamedFunDef ext]
 funCtxToNamedFuns fs = [NamedFunDef{fun_name, fun_def} | (fun_name, fun_def) <- Ctx.toList fs]
 
-instance (Show (SizeType ext), PP.ToCodeString ext) => PP.ToCodeString (Program ext) where
+instance (Show (SizeType ext), Show (PrecType ext), PP.ToCodeString ext) => PP.ToCodeString (Program ext) where
   build (Program fs) = mapM_ (\f -> PP.build f >> PP.endl) fs
 
 {- | Void extension (i.e. only use the core language)

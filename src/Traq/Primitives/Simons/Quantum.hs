@@ -54,6 +54,10 @@ instance CPL.MapSize (SimonsFindXorPeriod size prec) where
   type MappedSize (SimonsFindXorPeriod size prec) size' = (SimonsFindXorPeriod size' prec)
   mapSize f (SimonsFindXorPeriod p) = SimonsFindXorPeriod (CPL.mapSize f p)
 
+instance CPL.MapPrec (SimonsFindXorPeriod size prec) where
+  type MappedPrec (SimonsFindXorPeriod size prec) prec' = (SimonsFindXorPeriod size prec')
+  mapPrec f (SimonsFindXorPeriod p) = SimonsFindXorPeriod (CPL.mapPrec f p)
+
 -- ================================================================================
 -- Basic Instances
 -- ================================================================================
@@ -62,7 +66,7 @@ instance FindXorPeriod size prec :<: SimonsFindXorPeriod size prec
 
 instance IsA (FindXorPeriod size prec) (SimonsFindXorPeriod size prec)
 
-instance (Show size) => SerializePrim (SimonsFindXorPeriod size Double) where
+instance (Show size, Show prec, Fractional prec) => SerializePrim (SimonsFindXorPeriod size prec) where
   primNames = ["findXorPeriod"]
   parsePrimParams tp s = SimonsFindXorPeriod <$> parsePrimParams tp s
   printPrimParams (SimonsFindXorPeriod prim) = printPrimParams prim

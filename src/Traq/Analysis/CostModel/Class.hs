@@ -21,4 +21,4 @@ class (Alg.Monoidal c, Alg.Module (PrecType c) c) => CostModel c where
   callExpr :: QueryType -> CPL.BasicExpr size -> c
 
   -- | Execute a distribution (randomized) expression
-  callDistrExpr :: QueryType -> CPL.DistrExpr size -> c
+  callDistrExpr :: QueryType -> CPL.DistrExpr prec size -> c
