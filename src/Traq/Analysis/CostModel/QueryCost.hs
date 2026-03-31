@@ -72,9 +72,10 @@ instance (Alg.Rig a) => CostModel (QueryCost a) where
   query Unitary f = default_{uqueries = Map.singleton f Alg.one}
   query Classical f = default_{cqueries = Map.singleton f Alg.one}
 
-  -- no cost for basic expressions
-  callExpr _ _ = default_
-  callDistrExpr _ _ = default_
+  -- no cost for basic expressions and ops
+  callExpr _ = default_
+  callDistrExpr _ = default_
+  callUOp _ = default_
 
 {- | A simple cost that counts the number of queries to all external functions.
 It treats unitary and classical queries as the same.
@@ -100,6 +101,7 @@ instance (Alg.Module a a, Alg.Rig a) => CostModel (SimpleQueryCost a) where
   -- one query each
   query _ _ = SimpleQueryCost Alg.one
 
-  -- no cost for basic expressions
-  callExpr _ _ = SimpleQueryCost Alg.zero
-  callDistrExpr _ _ = SimpleQueryCost Alg.zero
+  -- no cost for basic expressions and ops
+  callExpr _ = SimpleQueryCost Alg.zero
+  callDistrExpr _ = SimpleQueryCost Alg.zero
+  callUOp _ = SimpleQueryCost Alg.zero

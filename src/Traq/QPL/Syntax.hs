@@ -90,6 +90,7 @@ data BasicGate size
   | SWAP
   | Rz Double
   | PhaseOnZero Double
+  | Unif
   deriving (Eq, Show, Read)
 
 instance PP.ToCodeString (BasicGate size) where
@@ -106,17 +107,18 @@ instance HasAdjoint (BasicGate size) where
   adjoint g = g
 
 -- | Unitary operators in QPL
-data Unitary size
+data Unitary prec size
   = BasicGateU (BasicGate size)
   | RevEmbedU [Ident] (CPL.BasicExpr size)
-  | DistrU (CPL.DistrExpr Double size)
-  | Controlled (Unitary size)
-  | Adjoint (Unitary size)
+  | DistrU (CPL.DistrExpr prec size)
+  | Controlled (Unitary prec size)
+  | Adjoint (Unitary prec size)
   deriving (Eq, Show, Read)
 
-type instance SizeType (Unitary size) = size
+type instance SizeType (Unitary prec size) = size
+type instance PrecType (Unitary prec size) = prec
 
-instance (Show size) => PP.ToCodeString (Unitary size) where
+instance (Show prec, Show size) => PP.ToCodeString (Unitary prec size) where
   build (BasicGateU g) = PP.build g
   build (RevEmbedU xs e) = do
     e_s <- PP.fromBuild e
@@ -127,7 +129,7 @@ instance (Show size) => PP.ToCodeString (Unitary size) where
   build (Controlled u) = PP.putWord . ("Ctrl-" <>) =<< PP.fromBuild u
   build (Adjoint u) = PP.putWord . ("Adj-" <>) =<< PP.fromBuild u
 
-instance HasAdjoint (Unitary size) where
+instance HasAdjoint (Unitary prec size) where
   adjoint (BasicGateU g) = BasicGateU (adjoint g)
   adjoint u@(RevEmbedU _ _) = u
   adjoint (Controlled u) = Controlled (adjoint u)
@@ -141,7 +143,7 @@ instance HasAdjoint (Unitary size) where
 -- | Unitary Statement
 data UStmt size
   = USkipS
-  | UnitaryS {qargs :: [Arg size], unitary :: Unitary size} -- q... *= U
+  | UnitaryS {qargs :: [Arg size], unitary :: Unitary Double size} -- q... *= U
   | UCallS {uproc_id :: Ident, dagger :: Bool, qargs :: [Arg size]} -- call F(q...)
   | USeqS [UStmt size] -- W1; W2; ...
   | -- placeholders

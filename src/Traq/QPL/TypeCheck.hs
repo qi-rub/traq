@@ -141,11 +141,12 @@ typeCheckBasicGate (Rz _) tys = verifyArgTys tys [CPL.tbool]
 typeCheckBasicGate (PhaseOnZero _) _ = return ()
 typeCheckBasicGate COPY tys = let n = length tys `div` 2 in verifyArgTys (take n tys) (drop n tys)
 typeCheckBasicGate SWAP tys = let n = length tys `div` 2 in verifyArgTys (take n tys) (drop n tys)
+typeCheckBasicGate Unif _ = return ()
 
-typeCheckUnitary :: forall size. (CPL.TypingReqs size) => Unitary size -> [CPL.VarType size] -> TypeChecker size ()
+typeCheckUnitary :: forall size prec. (CPL.TypingReqs size) => Unitary prec size -> [CPL.VarType size] -> TypeChecker size ()
 typeCheckUnitary (BasicGateU g) tys = typeCheckBasicGate g tys
-typeCheckUnitary (DistrU (CPL.UniformE ty)) tys = verifyArgTys tys [ty]
-typeCheckUnitary (DistrU (CPL.BernoulliE _)) tys = verifyArgTys tys [CPL.tbool]
+typeCheckUnitary (DistrU (CPL.UniformE ty)) tys = verifyArgTys tys [ty, ty]
+typeCheckUnitary (DistrU (CPL.BernoulliE _)) tys = verifyArgTys tys [CPL.tbool, CPL.tbool]
 typeCheckUnitary (RevEmbedU xs e) tys = do
   let in_tys = take (length xs) tys
   let gamma = Ctx.fromList $ zip xs in_tys
