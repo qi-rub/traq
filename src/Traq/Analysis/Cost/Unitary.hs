@@ -92,16 +92,22 @@ instance CostU1 Stmt where
     ) =>
     Stmt ext ->
     m cost
-  costU1 ExprS{expr} = costU1 expr
+  costU1 ExprS{expr} = do
+    expr_cost <- costU1 expr
+    return $ expr_cost Alg.+ callUOp (QPL.BasicGateU QPL.SWAP)
   costU1 IfThenElseS{s_true, s_false} = do
     cost_t <- costU1 s_true
     cost_f <- costU1 s_false
-    return $ cost_t Alg.+ cost_f
+    let copy = callUOp (QPL.BasicGateU QPL.COPY)
+    let swap = callUOp (QPL.BasicGateU QPL.SWAP)
+    let cswap = callUOp (QPL.Controlled (QPL.BasicGateU QPL.SWAP))
+    return $ Alg.sum [copy, copy, cost_t, swap, cost_f, cswap, cswap]
   costU1 (SeqS ss) = Alg.sum <$> mapM costU1 ss
   costU1 ForS{loop_ty, loop_body} = do
     body_cost <- costU1 loop_body
     let n_iters = loop_ty ^?! _Fin
-    return $ (sizeToPrec n_iters :: prec) Alg..* body_cost
+    let iter_overhead = callUOp (QPL.RevEmbedU [] (ConstE (FinV 0) loop_ty)) Alg.+ callUOp (QPL.BasicGateU QPL.SWAP)
+    return $ (sizeToPrec n_iters :: prec) Alg..* (iter_overhead Alg.+ body_cost)
 
 instance CostU1 NamedFunDef where
   -- query an external function
