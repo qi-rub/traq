@@ -18,10 +18,10 @@ class (Alg.Monoidal c, Alg.Module (PrecType c) c) => CostModel c where
   -- | Make one query to a function of the given name
   query :: QueryType -> Ident -> c
 
-  -- | Execute a classical expression.
+  -- | Execute a classical expression assignment.
   callExpr :: CPL.BasicExpr size -> c
 
-  -- | Execute a classical distribution (randomized) expression
+  -- | Execute a classical distribution (randomized) expression assignment.
   callDistrExpr :: (prec ~ PrecType c) => CPL.DistrExpr prec size -> c
 
   -- | Execute a basic unitary operation of QPL
