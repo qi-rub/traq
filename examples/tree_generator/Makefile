@@ -9,5 +9,6 @@ all: tree_generator_01_knapsack.qpl
 		-p 0.001 \
 		--arg W=1000 \
 		--arg P=1000 \
-		--arg N=10 \
-		--arg K=3
+		--arg N=4 \
+		--arg K=3 \
+		--argf p=0.2
