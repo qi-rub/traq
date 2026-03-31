@@ -58,7 +58,7 @@ spec :: Spec
 spec = do
   describe "Tree Generator Example" $ do
     describe "parses" $ do
-      let prog = treeGeneratorExample @Prim (Sym.var "N") (Sym.var "W") (Sym.var "P") (Sym.var "K") (Sym.var "p") (Sym.var "p" ** Sym.var "N")
+      let prog = treeGeneratorExample @Prim (Sym.var "N") (Sym.var "W") (Sym.var "P") (Sym.var "K") (Sym.var "p")
 
       it "file" $ do
         p <- expectRight =<< parseFromFile (programParser @Prim) "examples/tree_generator/tree_generator_01_knapsack.traq"

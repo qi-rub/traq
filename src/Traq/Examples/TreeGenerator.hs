@@ -4,6 +4,7 @@ module Traq.Examples.TreeGenerator where
 
 import Traq.Data.Subtyping
 
+import Traq.Analysis (SizeToPrec (..))
 import Traq.CPL.Syntax
 import Traq.Prelude
 import Traq.Primitives
@@ -18,15 +19,15 @@ treeGeneratorExample ::
   , PrecType ext ~ prec
   , ext ~ Primitive prim
   , QAmplify size prec :<: prim
+  , SizeToPrec size prec
   ) =>
   size ->
   size ->
   size ->
   size ->
   prec ->
-  prec ->
   Program ext
-treeGeneratorExample n w p k bernoulli_prob amplify_pmin =
+treeGeneratorExample n w p k bernoulli_prob =
   Program
     [ NamedFunDef
         { fun_name = "Capacity"
@@ -188,7 +189,7 @@ treeGeneratorExample n w p k bernoulli_prob amplify_pmin =
                                                 { prim =
                                                     Primitive
                                                       [PartialFun{pfun_name = "TreeGen", pfun_args = [Just "xs", Just "pr"]}]
-                                                      (inject (QAmplify @size (Amplify{p_min = amplify_pmin})))
+                                                      (inject (QAmplify @size (Amplify{p_min = bernoulli_prob ** sizeToPrec n})))
                                                 }
                                           }
                                       , ExprS{rets = ["xs"], expr = BasicExprE{basic_expr = TernaryE{branch = VarE{var = "ok"}, lhs = VarE{var = "xs'"}, rhs = VarE{var = "xs"}}}}
