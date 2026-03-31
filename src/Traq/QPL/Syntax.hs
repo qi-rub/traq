@@ -90,6 +90,7 @@ data BasicGate size
   | SWAP
   | Rz Double
   | PhaseOnZero Double
+  | Unif
   deriving (Eq, Show, Read)
 
 instance PP.ToCodeString (BasicGate size) where

@@ -112,10 +112,9 @@ instance CompileU1 CPL.Expr where
   compileU1 rets CPL.RandomSampleE{distr_expr} = do
     rets' <- freshAux rets
     return $
-      USeqS
-        [ UnitaryS (map Arg rets) (DistrU (CPL.mapPrec realToFrac distr_expr))
-        , UnitaryS (map Arg (rets ++ rets')) (BasicGateU COPY)
-        ]
+      UnitaryS
+        (map Arg (rets ++ rets'))
+        (DistrU (CPL.mapPrec realToFrac distr_expr))
   compileU1 rets CPL.FunCallE{fname, args} = do
     let uproc_id = mkUProcName fname
     ProcSignature{aux_tys} <- use (_procSignatures . at uproc_id) >>= maybeWithError "cannot find uproc signature"
