@@ -88,8 +88,8 @@ instance CostQ1 Expr where
     ) =>
     Expr ext ->
     m cost
-  costQ1 BasicExprE{basic_expr} = return $ callExpr Classical basic_expr
-  costQ1 RandomSampleE{distr_expr} = return $ callDistrExpr Classical distr_expr
+  costQ1 BasicExprE{basic_expr} = return $ callExpr basic_expr
+  costQ1 RandomSampleE{distr_expr} = return $ callDistrExpr distr_expr
   costQ1 FunCallE{fname} = do
     fn <- view $ _funCtx . Ctx.at fname . non' (error $ "unable to find function " ++ fname)
     costQ1 $ NamedFunDef fname fn
@@ -139,8 +139,8 @@ class ExpCostQ1 f where
     m cost
 
 instance ExpCostQ1 Expr where
-  expCostQ1 BasicExprE{basic_expr} _ = return $ callExpr Classical basic_expr
-  expCostQ1 RandomSampleE{distr_expr} _ = return $ callDistrExpr Classical distr_expr
+  expCostQ1 BasicExprE{basic_expr} _ = return $ callExpr basic_expr
+  expCostQ1 RandomSampleE{distr_expr} _ = return $ callDistrExpr distr_expr
   expCostQ1 FunCallE{fname, args} sigma = do
     fn <- view $ _funCtx . Ctx.at fname . non' (error $ "unable to find function " ++ fname)
     let arg_vals = [sigma ^?! at x . non (error $ "could not find var " ++ x) | x <- args]

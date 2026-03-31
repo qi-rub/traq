@@ -1,4 +1,5 @@
 {-# LANGUAGE DuplicateRecordFields #-}
+{-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE RecordWildCards #-}
 
 {- HLINT ignore "Use camelCase" -}
@@ -182,8 +183,8 @@ instance (Show size, Integral size) => ToQiskitPy (QPL.UStmt size) where
   mkPy QPL.UForInDomainS{} = pure $ blackbox "UForInDomainS"
   mkPy QPL.UWithComputedS{} = pure $ blackbox "UWithComputedS"
 
-instance (Show size, Integral size) => ToQiskitPy (QPL.Unitary size) where
-  type Ctx (QPL.Unitary size) = [CPL.VarType size]
+instance (Show size, Integral size) => ToQiskitPy (QPL.Unitary Double size) where
+  type Ctx (QPL.Unitary Double size) = [CPL.VarType size]
 
   mkPy (QPL.BasicGateU g) = mkPy g
   mkPy (QPL.DistrU d) = error "TODO DistrU"

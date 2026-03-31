@@ -22,7 +22,7 @@ class (Alg.Monoidal c, Alg.Module (PrecType c) c) => CostModel c where
   callExpr :: CPL.BasicExpr size -> c
 
   -- | Execute a classical distribution (randomized) expression
-  callDistrExpr :: CPL.DistrExpr prec size -> c
+  callDistrExpr :: (prec ~ PrecType c) => CPL.DistrExpr prec size -> c
 
   -- | Execute a basic unitary operation of QPL
-  callUOp :: QPL.Unitary size -> c
+  callUOp :: (prec ~ PrecType c) => QPL.Unitary prec size -> c

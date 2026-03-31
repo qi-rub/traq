@@ -24,6 +24,7 @@ import Traq.Analysis.CostModel.Class
 import Traq.Analysis.Prelude
 import Traq.CPL.Syntax
 import Traq.Prelude
+import qualified Traq.QPL.Syntax as QPL
 
 -- | Cost w.r.t. unitary compiler
 class
@@ -73,8 +74,8 @@ instance CostU1 Expr where
     ) =>
     Expr ext ->
     m cost
-  costU1 BasicExprE{basic_expr} = return $ callExpr Unitary basic_expr
-  costU1 RandomSampleE{distr_expr} = return $ callDistrExpr Unitary distr_expr
+  costU1 BasicExprE{basic_expr} = return $ callUOp (QPL.RevEmbedU [] basic_expr)
+  costU1 RandomSampleE{distr_expr} = return $ callUOp (QPL.DistrU distr_expr)
   costU1 FunCallE{fname} = do
     fn <- view $ _funCtx . Ctx.at fname . non' (error $ "unable to find function " ++ fname)
     costU1 $ NamedFunDef fname fn
