@@ -139,8 +139,7 @@ uproc TreeGen_U(xs : IN Arr<4, Fin<2>>, old_pr : IN Fin<1000>, ok : OUT Fin<2>, 
   i_8, i *= SWAP;
   i, xs, xi_9 *= Embed[(i, xs) => xs[i]];
   xi, xi_9 *= SWAP;
-  y_1 *= Distr[bernoulli[0.2]];
-  y_1, y_1_1 *= COPY;
+  y_1, y_1_1 *= Distr[bernoulli[0.2]];
   y, y_1 *= SWAP;
   xi, y, try_pick_1 *= Embed[(xi, y) => (xi ^ y)];
   try_pick, try_pick_1 *= SWAP;
@@ -169,8 +168,7 @@ uproc TreeGen_U(xs : IN Arr<4, Fin<2>>, old_pr : IN Fin<1000>, ok : OUT Fin<2>, 
   i_9, i *= SWAP;
   i, xs, xi_10 *= Embed[(i, xs) => xs[i]];
   xi, xi_10 *= SWAP;
-  y_2 *= Distr[bernoulli[0.2]];
-  y_2, y_2_1 *= COPY;
+  y_2, y_2_1 *= Distr[bernoulli[0.2]];
   y, y_2 *= SWAP;
   xi, y, try_pick_2 *= Embed[(xi, y) => (xi ^ y)];
   try_pick, try_pick_2 *= SWAP;
@@ -199,8 +197,7 @@ uproc TreeGen_U(xs : IN Arr<4, Fin<2>>, old_pr : IN Fin<1000>, ok : OUT Fin<2>, 
   i_10, i *= SWAP;
   i, xs, xi_11 *= Embed[(i, xs) => xs[i]];
   xi, xi_11 *= SWAP;
-  y_3 *= Distr[bernoulli[0.2]];
-  y_3, y_3_1 *= COPY;
+  y_3, y_3_1 *= Distr[bernoulli[0.2]];
   y, y_3 *= SWAP;
   xi, y, try_pick_3 *= Embed[(xi, y) => (xi ^ y)];
   try_pick, try_pick_3 *= SWAP;
@@ -229,8 +226,7 @@ uproc TreeGen_U(xs : IN Arr<4, Fin<2>>, old_pr : IN Fin<1000>, ok : OUT Fin<2>, 
   i_11, i *= SWAP;
   i, xs, xi_12 *= Embed[(i, xs) => xs[i]];
   xi, xi_12 *= SWAP;
-  y_4 *= Distr[bernoulli[0.2]];
-  y_4, y_4_1 *= COPY;
+  y_4, y_4_1 *= Distr[bernoulli[0.2]];
   y, y_4 *= SWAP;
   xi, y, try_pick_4 *= Embed[(xi, y) => (xi ^ y)];
   try_pick, try_pick_4 *= SWAP;

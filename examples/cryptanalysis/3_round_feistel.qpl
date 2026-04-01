@@ -72,14 +72,14 @@ proc f(b : Fin<2>, x : BitVec<20>, zero : Fin<2>, res : BitVec<20>) { locals : (
 }
 
 uproc SimonOneRound_U(x_1 : OUT Fin<2>, x_2 : OUT BitVec<20>, y : AUX Fin<2>, y_1 : AUX BitVec<20>, yy : AUX Fin<2>, yy_1 : AUX BitVec<20>, aux_20 : AUX BitVec<20>, aux_21 : AUX BitVec<20>, aux_22 : AUX BitVec<20>, aux_23 : AUX BitVec<20>, aux_24 : AUX BitVec<20>, aux_25 : AUX BitVec<20>, aux_26 : AUX BitVec<20>, aux_27 : AUX BitVec<20>, aux_28 : AUX BitVec<20>, aux_29 : AUX BitVec<20>, aux_30 : AUX BitVec<20>, aux_31 : AUX BitVec<20>, aux_32 : AUX BitVec<20>, aux_33 : AUX BitVec<20>, aux_34 : AUX BitVec<20>, aux_35 : AUX BitVec<20>, aux_36 : AUX BitVec<20>, aux_37 : AUX BitVec<20>, aux_38 : AUX BitVec<20>, aux_39 : AUX BitVec<20>, aux_40 : AUX BitVec<20>, aux_41 : AUX BitVec<20>, aux_42 : AUX BitVec<20>, aux_43 : AUX BitVec<20>, aux_44 : AUX BitVec<20>, aux_45 : AUX BitVec<20>, aux_46 : AUX BitVec<20>, aux_47 : AUX Fin<2>) {
-  x_1 *= Distr[uniform : Fin<2>];
-  x_2 *= Distr[uniform : BitVec<20>];
+  x_1 *= Unif;
+  x_2 *= Unif;
   call f_U(x_1, x_2, y, y_1, aux_20, aux_21, aux_22, aux_23, aux_24, aux_25, aux_26, aux_27, aux_28, aux_29, aux_30, aux_31, aux_32, aux_33, aux_34, aux_35, aux_36, aux_37, aux_38, aux_39, aux_40, aux_41, aux_42, aux_43, aux_44, aux_45, aux_46, aux_47);
   y, yy *= COPY;
   y_1, yy_1 *= COPY;
   call-adj f_U(x_1, x_2, y, y_1, aux_20, aux_21, aux_22, aux_23, aux_24, aux_25, aux_26, aux_27, aux_28, aux_29, aux_30, aux_31, aux_32, aux_33, aux_34, aux_35, aux_36, aux_37, aux_38, aux_39, aux_40, aux_41, aux_42, aux_43, aux_44, aux_45, aux_46, aux_47);
-  x_2 *= Adj-Distr[uniform : BitVec<20>];
-  x_1 *= Adj-Distr[uniform : Fin<2>];
+  x_2 *= Unif;
+  x_1 *= Unif;
 }
 
 uproc USimon(ret : OUT Fin<2>, ret_1 : OUT BitVec<20>, USimon_aux : AUX Arr<32, Fin<2>>, USimon_aux_1 : AUX Arr<32, BitVec<20>>, USimon_aux_2 : AUX Arr<32, Fin<2>>, USimon_aux_3 : AUX Arr<32, BitVec<20>>, USimon_aux_4 : AUX Arr<32, Fin<2>>, USimon_aux_5 : AUX Arr<32, BitVec<20>>, USimon_aux_6 : AUX Arr<32, BitVec<20>>, USimon_aux_7 : AUX Arr<32, BitVec<20>>, USimon_aux_8 : AUX Arr<32, BitVec<20>>, USimon_aux_9 : AUX Arr<32, BitVec<20>>, USimon_aux_10 : AUX Arr<32, BitVec<20>>, USimon_aux_11 : AUX Arr<32, BitVec<20>>, USimon_aux_12 : AUX Arr<32, BitVec<20>>, USimon_aux_13 : AUX Arr<32, BitVec<20>>, USimon_aux_14 : AUX Arr<32, BitVec<20>>, USimon_aux_15 : AUX Arr<32, BitVec<20>>, USimon_aux_16 : AUX Arr<32, BitVec<20>>, USimon_aux_17 : AUX Arr<32, BitVec<20>>, USimon_aux_18 : AUX Arr<32, BitVec<20>>, USimon_aux_19 : AUX Arr<32, BitVec<20>>, USimon_aux_20 : AUX Arr<32, BitVec<20>>, USimon_aux_21 : AUX Arr<32, BitVec<20>>, USimon_aux_22 : AUX Arr<32, BitVec<20>>, USimon_aux_23 : AUX Arr<32, BitVec<20>>, USimon_aux_24 : AUX Arr<32, BitVec<20>>, USimon_aux_25 : AUX Arr<32, BitVec<20>>, USimon_aux_26 : AUX Arr<32, BitVec<20>>, USimon_aux_27 : AUX Arr<32, BitVec<20>>, USimon_aux_28 : AUX Arr<32, BitVec<20>>, USimon_aux_29 : AUX Arr<32, BitVec<20>>, USimon_aux_30 : AUX Arr<32, BitVec<20>>, USimon_aux_31 : AUX Arr<32, BitVec<20>>, USimon_aux_32 : AUX Arr<32, BitVec<20>>, USimon_aux_33 : AUX Arr<32, Fin<2>>) {
@@ -96,14 +96,14 @@ uproc AttackThreeRoundFeistel_U(s : OUT BitVec<20>, zero : AUX Fin<2>, zero_2 : 
 }
 
 uproc SimonOneRound_U_1(x_3 : OUT Fin<2>, x_4 : OUT BitVec<20>, y_2 : AUX Fin<2>, y_3 : AUX BitVec<20>, yy_2 : AUX Fin<2>, yy_3 : AUX BitVec<20>, aux_48 : AUX BitVec<20>, aux_49 : AUX BitVec<20>, aux_50 : AUX BitVec<20>, aux_51 : AUX BitVec<20>, aux_52 : AUX BitVec<20>, aux_53 : AUX BitVec<20>, aux_54 : AUX BitVec<20>, aux_55 : AUX BitVec<20>, aux_56 : AUX BitVec<20>, aux_57 : AUX BitVec<20>, aux_58 : AUX BitVec<20>, aux_59 : AUX BitVec<20>, aux_60 : AUX BitVec<20>, aux_61 : AUX BitVec<20>, aux_62 : AUX BitVec<20>, aux_63 : AUX BitVec<20>, aux_64 : AUX BitVec<20>, aux_65 : AUX BitVec<20>, aux_66 : AUX BitVec<20>, aux_67 : AUX BitVec<20>, aux_68 : AUX BitVec<20>, aux_69 : AUX BitVec<20>, aux_70 : AUX BitVec<20>, aux_71 : AUX BitVec<20>, aux_72 : AUX BitVec<20>, aux_73 : AUX BitVec<20>, aux_74 : AUX BitVec<20>, aux_75 : AUX Fin<2>) {
-  x_3 *= Distr[uniform : Fin<2>];
-  x_4 *= Distr[uniform : BitVec<20>];
+  x_3 *= Unif;
+  x_4 *= Unif;
   call f_U(x_3, x_4, y_2, y_3, aux_48, aux_49, aux_50, aux_51, aux_52, aux_53, aux_54, aux_55, aux_56, aux_57, aux_58, aux_59, aux_60, aux_61, aux_62, aux_63, aux_64, aux_65, aux_66, aux_67, aux_68, aux_69, aux_70, aux_71, aux_72, aux_73, aux_74, aux_75);
   y_2, yy_2 *= COPY;
   y_3, yy_3 *= COPY;
   call-adj f_U(x_3, x_4, y_2, y_3, aux_48, aux_49, aux_50, aux_51, aux_52, aux_53, aux_54, aux_55, aux_56, aux_57, aux_58, aux_59, aux_60, aux_61, aux_62, aux_63, aux_64, aux_65, aux_66, aux_67, aux_68, aux_69, aux_70, aux_71, aux_72, aux_73, aux_74, aux_75);
-  x_4 *= Adj-Distr[uniform : BitVec<20>];
-  x_3 *= Adj-Distr[uniform : Fin<2>];
+  x_4 *= Unif;
+  x_3 *= Unif;
 }
 
 proc QSimon(ret_2 : Fin<2>, ret_3 : BitVec<20>) { locals : (QSimon__u : Arr<32, Fin<2>>, QSimon__u_1 : Arr<32, BitVec<20>>) } {

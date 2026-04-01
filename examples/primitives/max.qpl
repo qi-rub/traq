@@ -23,12 +23,12 @@ uproc Compare(y_2 : Fin<30>, x_3 : Fin<20>, b : Fin<2>, out_1 : AUX Fin<30>) {
 uproc Grover[k](y_3 : Fin<30>, x_4 : Fin<20>, b_1 : Fin<2>, aux : AUX Fin<30>) {
   b_1 *= X;
   b_1 *= H;
-  x_4 *= Distr[uniform : Fin<20>];
+  x_4 *= Unif;
   repeat (#k) {
     call Compare(y_3, x_4, b_1, aux);
-    x_4 *= Adj-Distr[uniform : Fin<20>];
+    x_4 *= Adj-Unif;
     x_4 *= PhaseOnZero(3.141592653589793);
-    x_4 *= Distr[uniform : Fin<20>];
+    x_4 *= Unif;
   }
   b_1 *= H;
   b_1 *= X;
