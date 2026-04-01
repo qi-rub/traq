@@ -2,6 +2,7 @@
 
 module Main (main) where
 
+import Control.Monad (unless)
 import Control.Monad.Reader (ReaderT, runReaderT)
 import Control.Monad.Trans (lift)
 import Data.List (isPrefixOf)
@@ -40,6 +41,7 @@ data Options = Options
   , eps :: Maybe Double
   , params :: [(Ident, SizeT)]
   , paramsf :: [(Ident, Double)]
+  , experimental :: Bool
   }
   deriving (Show)
 
@@ -109,6 +111,14 @@ emitQiskit = emitWithTemplate "tools/qiskit_prelude.py" . Qiskit.toPy
 -- ============================================================
 -- CLI parser
 -- ============================================================
+parseKeyValue :: (Read a) => String -> Maybe (String, a)
+parseKeyValue s = do
+  let (key, rest) = break (== '=') s
+  valS <- case rest of
+    '=' : v -> Just v
+    _ -> Nothing
+  val <- readMaybe valS
+  return (key, val)
 
 opts :: ParserInfo Options
 opts =
@@ -122,7 +132,7 @@ opts =
         long "target"
           <> short 't'
           <> metavar "TARGET"
-          <> help "Output target: QPL | Qualtran | Qiskit"
+          <> help "Output target: QPL | Qualtran (experimental) | Qiskit (experimental)"
           <> value QPL
           <> showDefault
 
@@ -156,27 +166,28 @@ opts =
             <> help "parameters..."
             <> metavar "NAME=VALUE"
 
-    paramsf <- many (option (maybeReader parseKeyValueF) (long "argf" <> help "float parameters..." <> metavar "NAME=VALUE"))
+    paramsf <-
+      many $
+        option (maybeReader parseKeyValue) $
+          long "argf"
+            <> help "float parameters..."
+            <> metavar "NAME=VALUE"
+
+    experimental <-
+      switch $
+        long "experimental"
+          <> help "Enable experimental features"
 
     pure Options{..}
-
-  parseKeyValue s = do
-    let (key, rest) = break (== '=') s
-    valS <- case rest of
-      '=' : v -> Just v
-      _ -> Nothing
-    val <- readMaybe valS
-    return (key, val)
-
-  parseKeyValueF s = do
-    let key = takeWhile (/= '=') s
-    let valS = tail $ dropWhile (/= '=') s
-    val <- readMaybe valS
-    return (key, val :: Double)
 
 main :: IO ()
 main = do
   options@Options{..} <- execParser opts
+
+  let guardExperimental feat =
+        unless experimental $
+          fail $
+            "feature " <> feat <> " is experimental; pass --experimental to run it anyway"
 
   qpl_prog <- (runReaderT ?? options) $ do
     case takeExtension in_file of
@@ -190,6 +201,6 @@ main = do
 
   out_str <- case target of
     QPL -> emitQPL qpl_prog
-    Qualtran -> emitQualtran qpl_prog
-    Qiskit -> emitQiskit qpl_prog
+    Qualtran -> guardExperimental "backend:Qualtran" >> emitQualtran qpl_prog
+    Qiskit -> guardExperimental "backend:Qiskit" >> emitQiskit qpl_prog
   maybe putStr writeFile out_file out_str
