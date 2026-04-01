@@ -4,23 +4,23 @@ ext proc Oracle(Fin<20>, Fin<2>);
 
 uproc UAny(ret : OUT Fin<2>, s_result : OUT Fin<20>, aux : AUX Fin<2>, ctrl : AUX Arr<10, Fin<2>>, pred_out : AUX Arr<10, Fin<2>>, n_iter : AUX Arr<10, Fin<4>>, s_arg : AUX Arr<10, Fin<20>>) {
   for (#run_ix in 0 .. < 10) {
-    n_iter[#run_ix] *= Distr[uniform : Fin<4>];
+    n_iter[#run_ix] *= Unif;
     pred_out[#run_ix] *= X;
     pred_out[#run_ix] *= H;
-    s_arg[#run_ix] *= Distr[uniform : Fin<20>];
+    s_arg[#run_ix] *= Unif;
     for (#LIM in 0 .. < 4) {
       n_iter[#run_ix], ctrl[#run_ix] *= Embed[(a) => (a <= #LIM)];
       call Oracle_U(s_arg[#run_ix], aux);
       ctrl[#run_ix], aux, pred_out[#run_ix] *= Toffoli;
       call-adj Oracle_U(s_arg[#run_ix], aux);
-      s_arg[#run_ix] *= Adj-Distr[uniform : Fin<20>];
+      s_arg[#run_ix] *= Adj-Unif;
       s_arg[#run_ix] *= PhaseOnZero(3.141592653589793);
-      s_arg[#run_ix] *= Distr[uniform : Fin<20>];
+      s_arg[#run_ix] *= Unif;
       n_iter[#run_ix], ctrl[#run_ix] *= Embed[(a) => (a <= #LIM)];
     }
     pred_out[#run_ix] *= H;
     pred_out[#run_ix] *= X;
-    n_iter[#run_ix] *= Adj-Distr[uniform : Fin<4>];
+    n_iter[#run_ix] *= Unif;
     ctrl[#run_ix] *= X;
     call Oracle_U(s_arg[#run_ix], aux);
     ctrl[#run_ix], aux, pred_out[#run_ix] *= Toffoli;
@@ -39,12 +39,12 @@ uproc main_U(ok : OUT Fin<2>, ok_1 : AUX Fin<2>, s_result : AUX Fin<20>, aux : A
 uproc Grover[k](x : IN Fin<20>, ret_1 : OUT Fin<2>) {
   ret_1 *= X;
   ret_1 *= H;
-  x *= Distr[uniform : Fin<20>];
+  x *= Unif;
   repeat (#k) {
     call Oracle_U(x, ret_1);
-    x *= Adj-Distr[uniform : Fin<20>];
+    x *= Adj-Unif;
     x *= PhaseOnZero(3.141592653589793);
-    x *= Distr[uniform : Fin<20>];
+    x *= Unif;
   }
   ret_1 *= H;
   ret_1 *= X;

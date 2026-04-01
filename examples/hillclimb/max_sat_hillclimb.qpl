@@ -28,23 +28,23 @@ proc good(x : Arr<20, Fin<2>>, i : Fin<20>, ok : Fin<2>) { locals : (w : Fin<100
 
 uproc USearch(x : Arr<20, Fin<2>>, ret : OUT Fin<2>, ret_1 : OUT Fin<20>, aux : AUX Fin<1000>, aux_1 : AUX Fin<2>, aux_2 : AUX Fin<2>, aux_3 : AUX Arr<20, Fin<2>>, aux_4 : AUX Fin<1000>, aux_5 : AUX Fin<1000>, aux_6 : AUX Fin<2>, aux_7 : AUX Fin<2>, aux_8 : AUX Arr<20, Fin<2>>, aux_9 : AUX Fin<1000>, aux_10 : AUX Fin<2>, aux_11 : AUX Fin<2>, ctrl : AUX Arr<17, Fin<2>>, pred_out : AUX Arr<17, Fin<2>>, n_iter : AUX Arr<17, Fin<4>>, s_arg : AUX Arr<17, Fin<20>>) {
   for (#run_ix in 0 .. < 17) {
-    n_iter[#run_ix] *= Distr[uniform : Fin<4>];
+    n_iter[#run_ix] *= Unif;
     pred_out[#run_ix] *= X;
     pred_out[#run_ix] *= H;
-    s_arg[#run_ix] *= Distr[uniform : Fin<20>];
+    s_arg[#run_ix] *= Unif;
     for (#LIM in 0 .. < 4) {
       n_iter[#run_ix], ctrl[#run_ix] *= Embed[(a) => (a <= #LIM)];
       call good_U(x, s_arg[#run_ix], aux_11, aux, aux_1, aux_2, aux_3, aux_4, aux_5, aux_6, aux_7, aux_8, aux_9, aux_10);
       ctrl[#run_ix], aux_11, pred_out[#run_ix] *= Toffoli;
       call-adj good_U(x, s_arg[#run_ix], aux_11, aux, aux_1, aux_2, aux_3, aux_4, aux_5, aux_6, aux_7, aux_8, aux_9, aux_10);
-      s_arg[#run_ix] *= Adj-Distr[uniform : Fin<20>];
+      s_arg[#run_ix] *= Adj-Unif;
       s_arg[#run_ix] *= PhaseOnZero(3.141592653589793);
-      s_arg[#run_ix] *= Distr[uniform : Fin<20>];
+      s_arg[#run_ix] *= Unif;
       n_iter[#run_ix], ctrl[#run_ix] *= Embed[(a) => (a <= #LIM)];
     }
     pred_out[#run_ix] *= H;
     pred_out[#run_ix] *= X;
-    n_iter[#run_ix] *= Adj-Distr[uniform : Fin<4>];
+    n_iter[#run_ix] *= Unif;
     ctrl[#run_ix] *= X;
     call good_U(x, s_arg[#run_ix], aux_11, aux, aux_1, aux_2, aux_3, aux_4, aux_5, aux_6, aux_7, aux_8, aux_9, aux_10);
     ctrl[#run_ix], aux_11, pred_out[#run_ix] *= Toffoli;
@@ -69,12 +69,12 @@ uproc hillclimb_iter_U(x : IN Arr<20, Fin<2>>, x' : OUT Arr<20, Fin<2>>, ok : AU
 uproc Grover[k](x : Arr<20, Fin<2>>, x_4 : IN Fin<20>, ret_2 : OUT Fin<2>, aux_12 : AUX Fin<1000>, aux_13 : AUX Fin<2>, aux_14 : AUX Fin<2>, aux_15 : AUX Arr<20, Fin<2>>, aux_16 : AUX Fin<1000>, aux_17 : AUX Fin<1000>, aux_18 : AUX Fin<2>, aux_19 : AUX Fin<2>, aux_20 : AUX Arr<20, Fin<2>>, aux_21 : AUX Fin<1000>, aux_22 : AUX Fin<2>) {
   ret_2 *= X;
   ret_2 *= H;
-  x_4 *= Distr[uniform : Fin<20>];
+  x_4 *= Unif;
   repeat (#k) {
     call good_U(x, x_4, ret_2, aux_12, aux_13, aux_14, aux_15, aux_16, aux_17, aux_18, aux_19, aux_20, aux_21, aux_22);
-    x_4 *= Adj-Distr[uniform : Fin<20>];
+    x_4 *= Adj-Unif;
     x_4 *= PhaseOnZero(3.141592653589793);
-    x_4 *= Distr[uniform : Fin<20>];
+    x_4 *= Unif;
   }
   ret_2 *= H;
   ret_2 *= X;

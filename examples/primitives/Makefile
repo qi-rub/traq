@@ -1,6 +1,8 @@
 PROJ_DEPS=../../src ../../tools ../../traq.cabal
 
-all: any.qpl any-qiskit.py max.qpl
+all: any.qpl max.qpl
+
+full: all any-qiskit.py 
 
 %.qpl: %.traq $(PROJ_DEPS)
 	cd ../../ && cabal run traq -- \

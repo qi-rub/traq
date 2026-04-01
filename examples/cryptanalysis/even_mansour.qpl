@@ -22,11 +22,11 @@ proc f(x : BitVec<20>, fx : BitVec<20>) { locals : (ex : BitVec<20>, px : BitVec
 }
 
 uproc SimonOneRound_U(x_1 : OUT BitVec<20>, y : AUX BitVec<20>, yy : AUX BitVec<20>, aux : AUX BitVec<20>, aux_1 : AUX BitVec<20>, aux_2 : AUX BitVec<20>, aux_3 : AUX BitVec<20>, aux_4 : AUX BitVec<20>) {
-  x_1 *= Distr[uniform : BitVec<20>];
+  x_1 *= Unif;
   call f_U(x_1, y, aux, aux_1, aux_2, aux_3, aux_4);
   y, yy *= COPY;
   call-adj f_U(x_1, y, aux, aux_1, aux_2, aux_3, aux_4);
-  x_1 *= Adj-Distr[uniform : BitVec<20>];
+  x_1 *= Unif;
 }
 
 uproc USimon(ret : OUT BitVec<20>, USimon_aux : AUX Arr<31, BitVec<20>>, USimon_aux_1 : AUX Arr<31, BitVec<20>>, USimon_aux_2 : AUX Arr<31, BitVec<20>>, USimon_aux_3 : AUX Arr<31, BitVec<20>>, USimon_aux_4 : AUX Arr<31, BitVec<20>>, USimon_aux_5 : AUX Arr<31, BitVec<20>>, USimon_aux_6 : AUX Arr<31, BitVec<20>>, USimon_aux_7 : AUX Arr<31, BitVec<20>>) {
@@ -51,11 +51,11 @@ uproc BreakEM_U(k1 : OUT BitVec<20>, k2 : OUT BitVec<20>, ze : AUX BitVec<20>, e
 }
 
 uproc SimonOneRound_U_1(x_2 : OUT BitVec<20>, y_1 : AUX BitVec<20>, yy_1 : AUX BitVec<20>, aux_5 : AUX BitVec<20>, aux_6 : AUX BitVec<20>, aux_7 : AUX BitVec<20>, aux_8 : AUX BitVec<20>, aux_9 : AUX BitVec<20>) {
-  x_2 *= Distr[uniform : BitVec<20>];
+  x_2 *= Unif;
   call f_U(x_2, y_1, aux_5, aux_6, aux_7, aux_8, aux_9);
   y_1, yy_1 *= COPY;
   call-adj f_U(x_2, y_1, aux_5, aux_6, aux_7, aux_8, aux_9);
-  x_2 *= Adj-Distr[uniform : BitVec<20>];
+  x_2 *= Unif;
 }
 
 proc QSimon(ret_1 : BitVec<20>) { locals : (QSimon__u : Arr<31, BitVec<20>>) } {

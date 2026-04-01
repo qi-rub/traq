@@ -46,23 +46,23 @@ proc CompletesTriangle(i : Fin<10>, j : Fin<10>, k : Fin<10>, result : Fin<2>) {
 
 uproc UAny(i : Fin<10>, j : Fin<10>, ret : OUT Fin<2>, s_result : OUT Fin<10>, aux : AUX Fin<2>, aux_1 : AUX Fin<2>, aux_2 : AUX Fin<2>, aux_3 : AUX Fin<2>, aux_4 : AUX Fin<2>, aux_5 : AUX Fin<2>, aux_6 : AUX Fin<2>, aux_7 : AUX Fin<2>, aux_8 : AUX Fin<2>, aux_9 : AUX Fin<2>, aux_10 : AUX Fin<2>, aux_11 : AUX Fin<2>, aux_12 : AUX Fin<2>, aux_13 : AUX Fin<2>, aux_14 : AUX Fin<2>, aux_15 : AUX Fin<2>, aux_16 : AUX Fin<2>, aux_17 : AUX Fin<2>, aux_18 : AUX Fin<2>, aux_19 : AUX Fin<2>, aux_20 : AUX Fin<2>, aux_21 : AUX Fin<2>, aux_22 : AUX Fin<2>, aux_23 : AUX Fin<2>, ctrl : AUX Arr<62, Fin<2>>, pred_out : AUX Arr<62, Fin<2>>, n_iter : AUX Arr<62, Fin<3>>, s_arg : AUX Arr<62, Fin<10>>) {
   for (#run_ix in 0 .. < 62) {
-    n_iter[#run_ix] *= Distr[uniform : Fin<3>];
+    n_iter[#run_ix] *= Unif;
     pred_out[#run_ix] *= X;
     pred_out[#run_ix] *= H;
-    s_arg[#run_ix] *= Distr[uniform : Fin<10>];
+    s_arg[#run_ix] *= Unif;
     for (#LIM in 0 .. < 3) {
       n_iter[#run_ix], ctrl[#run_ix] *= Embed[(a) => (a <= #LIM)];
       call CompletesTriangle_U(i, j, s_arg[#run_ix], aux_23, aux, aux_1, aux_2, aux_3, aux_4, aux_5, aux_6, aux_7, aux_8, aux_9, aux_10, aux_11, aux_12, aux_13, aux_14, aux_15, aux_16, aux_17, aux_18, aux_19, aux_20, aux_21, aux_22);
       ctrl[#run_ix], aux_23, pred_out[#run_ix] *= Toffoli;
       call-adj CompletesTriangle_U(i, j, s_arg[#run_ix], aux_23, aux, aux_1, aux_2, aux_3, aux_4, aux_5, aux_6, aux_7, aux_8, aux_9, aux_10, aux_11, aux_12, aux_13, aux_14, aux_15, aux_16, aux_17, aux_18, aux_19, aux_20, aux_21, aux_22);
-      s_arg[#run_ix] *= Adj-Distr[uniform : Fin<10>];
+      s_arg[#run_ix] *= Adj-Unif;
       s_arg[#run_ix] *= PhaseOnZero(3.141592653589793);
-      s_arg[#run_ix] *= Distr[uniform : Fin<10>];
+      s_arg[#run_ix] *= Unif;
       n_iter[#run_ix], ctrl[#run_ix] *= Embed[(a) => (a <= #LIM)];
     }
     pred_out[#run_ix] *= H;
     pred_out[#run_ix] *= X;
-    n_iter[#run_ix] *= Adj-Distr[uniform : Fin<3>];
+    n_iter[#run_ix] *= Unif;
     ctrl[#run_ix] *= X;
     call CompletesTriangle_U(i, j, s_arg[#run_ix], aux_23, aux, aux_1, aux_2, aux_3, aux_4, aux_5, aux_6, aux_7, aux_8, aux_9, aux_10, aux_11, aux_12, aux_13, aux_14, aux_15, aux_16, aux_17, aux_18, aux_19, aux_20, aux_21, aux_22);
     ctrl[#run_ix], aux_23, pred_out[#run_ix] *= Toffoli;
@@ -89,12 +89,12 @@ uproc HasTriangleCycle_U(ij : IN Tup<Fin<10>, Fin<10>>, result : OUT Fin<2>, i :
 uproc Grover[k](i : Fin<10>, j : Fin<10>, x : IN Fin<10>, ret_1 : OUT Fin<2>, aux_24 : AUX Fin<2>, aux_25 : AUX Fin<2>, aux_26 : AUX Fin<2>, aux_27 : AUX Fin<2>, aux_28 : AUX Fin<2>, aux_29 : AUX Fin<2>, aux_30 : AUX Fin<2>, aux_31 : AUX Fin<2>, aux_32 : AUX Fin<2>, aux_33 : AUX Fin<2>, aux_34 : AUX Fin<2>, aux_35 : AUX Fin<2>, aux_36 : AUX Fin<2>, aux_37 : AUX Fin<2>, aux_38 : AUX Fin<2>, aux_39 : AUX Fin<2>, aux_40 : AUX Fin<2>, aux_41 : AUX Fin<2>, aux_42 : AUX Fin<2>, aux_43 : AUX Fin<2>, aux_44 : AUX Fin<2>, aux_45 : AUX Fin<2>, aux_46 : AUX Fin<2>) {
   ret_1 *= X;
   ret_1 *= H;
-  x *= Distr[uniform : Fin<10>];
+  x *= Unif;
   repeat (#k) {
     call CompletesTriangle_U(i, j, x, ret_1, aux_24, aux_25, aux_26, aux_27, aux_28, aux_29, aux_30, aux_31, aux_32, aux_33, aux_34, aux_35, aux_36, aux_37, aux_38, aux_39, aux_40, aux_41, aux_42, aux_43, aux_44, aux_45, aux_46);
-    x *= Adj-Distr[uniform : Fin<10>];
+    x *= Adj-Unif;
     x *= PhaseOnZero(3.141592653589793);
-    x *= Distr[uniform : Fin<10>];
+    x *= Unif;
   }
   ret_1 *= H;
   ret_1 *= X;
@@ -128,23 +128,23 @@ proc HasTriangleCycle(ij : Tup<Fin<10>, Fin<10>>, result : Fin<2>) { locals : (i
 
 uproc UAny_1(ret_2 : OUT Fin<2>, s_result_2 : OUT Tup<Fin<10>, Fin<10>>, aux_47 : AUX Fin<10>, aux_48 : AUX Fin<10>, aux_49 : AUX Fin<2>, aux_50 : AUX Fin<2>, aux_51 : AUX Fin<10>, aux_52 : AUX Fin<10>, aux_53 : AUX Fin<2>, aux_54 : AUX Fin<2>, aux_55 : AUX Fin<10>, aux_56 : AUX Fin<2>, aux_57 : AUX Fin<2>, aux_58 : AUX Fin<2>, aux_59 : AUX Fin<2>, aux_60 : AUX Fin<2>, aux_61 : AUX Fin<2>, aux_62 : AUX Fin<2>, aux_63 : AUX Fin<2>, aux_64 : AUX Fin<2>, aux_65 : AUX Fin<2>, aux_66 : AUX Fin<2>, aux_67 : AUX Fin<2>, aux_68 : AUX Fin<2>, aux_69 : AUX Fin<2>, aux_70 : AUX Fin<2>, aux_71 : AUX Fin<2>, aux_72 : AUX Fin<2>, aux_73 : AUX Fin<2>, aux_74 : AUX Fin<2>, aux_75 : AUX Fin<2>, aux_76 : AUX Fin<2>, aux_77 : AUX Fin<2>, aux_78 : AUX Fin<2>, aux_79 : AUX Fin<2>, aux_80 : AUX Arr<62, Fin<2>>, aux_81 : AUX Arr<62, Fin<2>>, aux_82 : AUX Arr<62, Fin<3>>, aux_83 : AUX Arr<62, Fin<10>>, aux_84 : AUX Fin<10>, aux_85 : AUX Fin<2>, aux_86 : AUX Fin<2>, aux_87 : AUX Fin<2>, aux_88 : AUX Fin<2>, aux_89 : AUX Fin<2>, aux_90 : AUX Fin<2>, aux_91 : AUX Fin<2>, aux_92 : AUX Fin<2>, aux_93 : AUX Fin<2>, aux_94 : AUX Fin<2>, aux_95 : AUX Fin<2>, aux_96 : AUX Fin<2>, aux_97 : AUX Fin<2>, aux_98 : AUX Fin<2>, aux_99 : AUX Fin<2>, aux_100 : AUX Fin<2>, aux_101 : AUX Fin<2>, aux_102 : AUX Fin<2>, aux_103 : AUX Fin<2>, aux_104 : AUX Fin<2>, aux_105 : AUX Fin<2>, aux_106 : AUX Fin<2>, aux_107 : AUX Fin<2>, aux_108 : AUX Fin<2>, aux_109 : AUX Arr<62, Fin<2>>, aux_110 : AUX Arr<62, Fin<2>>, aux_111 : AUX Arr<62, Fin<3>>, aux_112 : AUX Arr<62, Fin<10>>, aux_113 : AUX Fin<2>, aux_114 : AUX Fin<2>, ctrl_1 : AUX Arr<16, Fin<2>>, pred_out_1 : AUX Arr<16, Fin<2>>, n_iter_1 : AUX Arr<16, Fin<8>>, s_arg_1 : AUX Arr<16, Tup<Fin<10>, Fin<10>>>) {
   for (#run_ix in 0 .. < 16) {
-    n_iter_1[#run_ix] *= Distr[uniform : Fin<8>];
+    n_iter_1[#run_ix] *= Unif;
     pred_out_1[#run_ix] *= X;
     pred_out_1[#run_ix] *= H;
-    s_arg_1[#run_ix] *= Distr[uniform : Tup<Fin<10>, Fin<10>>];
+    s_arg_1[#run_ix] *= Unif;
     for (#LIM in 0 .. < 8) {
       n_iter_1[#run_ix], ctrl_1[#run_ix] *= Embed[(a) => (a <= #LIM)];
       call HasTriangleCycle_U(s_arg_1[#run_ix], aux_114, aux_47, aux_48, aux_49, aux_50, aux_51, aux_52, aux_53, aux_54, aux_55, aux_56, aux_57, aux_58, aux_59, aux_60, aux_61, aux_62, aux_63, aux_64, aux_65, aux_66, aux_67, aux_68, aux_69, aux_70, aux_71, aux_72, aux_73, aux_74, aux_75, aux_76, aux_77, aux_78, aux_79, aux_80, aux_81, aux_82, aux_83, aux_84, aux_85, aux_86, aux_87, aux_88, aux_89, aux_90, aux_91, aux_92, aux_93, aux_94, aux_95, aux_96, aux_97, aux_98, aux_99, aux_100, aux_101, aux_102, aux_103, aux_104, aux_105, aux_106, aux_107, aux_108, aux_109, aux_110, aux_111, aux_112, aux_113);
       ctrl_1[#run_ix], aux_114, pred_out_1[#run_ix] *= Toffoli;
       call-adj HasTriangleCycle_U(s_arg_1[#run_ix], aux_114, aux_47, aux_48, aux_49, aux_50, aux_51, aux_52, aux_53, aux_54, aux_55, aux_56, aux_57, aux_58, aux_59, aux_60, aux_61, aux_62, aux_63, aux_64, aux_65, aux_66, aux_67, aux_68, aux_69, aux_70, aux_71, aux_72, aux_73, aux_74, aux_75, aux_76, aux_77, aux_78, aux_79, aux_80, aux_81, aux_82, aux_83, aux_84, aux_85, aux_86, aux_87, aux_88, aux_89, aux_90, aux_91, aux_92, aux_93, aux_94, aux_95, aux_96, aux_97, aux_98, aux_99, aux_100, aux_101, aux_102, aux_103, aux_104, aux_105, aux_106, aux_107, aux_108, aux_109, aux_110, aux_111, aux_112, aux_113);
-      s_arg_1[#run_ix] *= Adj-Distr[uniform : Tup<Fin<10>, Fin<10>>];
+      s_arg_1[#run_ix] *= Adj-Unif;
       s_arg_1[#run_ix] *= PhaseOnZero(3.141592653589793);
-      s_arg_1[#run_ix] *= Distr[uniform : Tup<Fin<10>, Fin<10>>];
+      s_arg_1[#run_ix] *= Unif;
       n_iter_1[#run_ix], ctrl_1[#run_ix] *= Embed[(a) => (a <= #LIM)];
     }
     pred_out_1[#run_ix] *= H;
     pred_out_1[#run_ix] *= X;
-    n_iter_1[#run_ix] *= Adj-Distr[uniform : Fin<8>];
+    n_iter_1[#run_ix] *= Unif;
     ctrl_1[#run_ix] *= X;
     call HasTriangleCycle_U(s_arg_1[#run_ix], aux_114, aux_47, aux_48, aux_49, aux_50, aux_51, aux_52, aux_53, aux_54, aux_55, aux_56, aux_57, aux_58, aux_59, aux_60, aux_61, aux_62, aux_63, aux_64, aux_65, aux_66, aux_67, aux_68, aux_69, aux_70, aux_71, aux_72, aux_73, aux_74, aux_75, aux_76, aux_77, aux_78, aux_79, aux_80, aux_81, aux_82, aux_83, aux_84, aux_85, aux_86, aux_87, aux_88, aux_89, aux_90, aux_91, aux_92, aux_93, aux_94, aux_95, aux_96, aux_97, aux_98, aux_99, aux_100, aux_101, aux_102, aux_103, aux_104, aux_105, aux_106, aux_107, aux_108, aux_109, aux_110, aux_111, aux_112, aux_113);
     ctrl_1[#run_ix], aux_114, pred_out_1[#run_ix] *= Toffoli;
@@ -163,12 +163,12 @@ uproc HasTriangle_U(found_triangle : OUT Fin<2>, found_triangle_1 : AUX Fin<2>, 
 uproc Grover_1[k](x_1 : IN Tup<Fin<10>, Fin<10>>, ret_3 : OUT Fin<2>, aux_115 : AUX Fin<10>, aux_116 : AUX Fin<10>, aux_117 : AUX Fin<2>, aux_118 : AUX Fin<2>, aux_119 : AUX Fin<10>, aux_120 : AUX Fin<10>, aux_121 : AUX Fin<2>, aux_122 : AUX Fin<2>, aux_123 : AUX Fin<10>, aux_124 : AUX Fin<2>, aux_125 : AUX Fin<2>, aux_126 : AUX Fin<2>, aux_127 : AUX Fin<2>, aux_128 : AUX Fin<2>, aux_129 : AUX Fin<2>, aux_130 : AUX Fin<2>, aux_131 : AUX Fin<2>, aux_132 : AUX Fin<2>, aux_133 : AUX Fin<2>, aux_134 : AUX Fin<2>, aux_135 : AUX Fin<2>, aux_136 : AUX Fin<2>, aux_137 : AUX Fin<2>, aux_138 : AUX Fin<2>, aux_139 : AUX Fin<2>, aux_140 : AUX Fin<2>, aux_141 : AUX Fin<2>, aux_142 : AUX Fin<2>, aux_143 : AUX Fin<2>, aux_144 : AUX Fin<2>, aux_145 : AUX Fin<2>, aux_146 : AUX Fin<2>, aux_147 : AUX Fin<2>, aux_148 : AUX Arr<62, Fin<2>>, aux_149 : AUX Arr<62, Fin<2>>, aux_150 : AUX Arr<62, Fin<3>>, aux_151 : AUX Arr<62, Fin<10>>, aux_152 : AUX Fin<10>, aux_153 : AUX Fin<2>, aux_154 : AUX Fin<2>, aux_155 : AUX Fin<2>, aux_156 : AUX Fin<2>, aux_157 : AUX Fin<2>, aux_158 : AUX Fin<2>, aux_159 : AUX Fin<2>, aux_160 : AUX Fin<2>, aux_161 : AUX Fin<2>, aux_162 : AUX Fin<2>, aux_163 : AUX Fin<2>, aux_164 : AUX Fin<2>, aux_165 : AUX Fin<2>, aux_166 : AUX Fin<2>, aux_167 : AUX Fin<2>, aux_168 : AUX Fin<2>, aux_169 : AUX Fin<2>, aux_170 : AUX Fin<2>, aux_171 : AUX Fin<2>, aux_172 : AUX Fin<2>, aux_173 : AUX Fin<2>, aux_174 : AUX Fin<2>, aux_175 : AUX Fin<2>, aux_176 : AUX Fin<2>, aux_177 : AUX Arr<62, Fin<2>>, aux_178 : AUX Arr<62, Fin<2>>, aux_179 : AUX Arr<62, Fin<3>>, aux_180 : AUX Arr<62, Fin<10>>, aux_181 : AUX Fin<2>) {
   ret_3 *= X;
   ret_3 *= H;
-  x_1 *= Distr[uniform : Tup<Fin<10>, Fin<10>>];
+  x_1 *= Unif;
   repeat (#k) {
     call HasTriangleCycle_U(x_1, ret_3, aux_115, aux_116, aux_117, aux_118, aux_119, aux_120, aux_121, aux_122, aux_123, aux_124, aux_125, aux_126, aux_127, aux_128, aux_129, aux_130, aux_131, aux_132, aux_133, aux_134, aux_135, aux_136, aux_137, aux_138, aux_139, aux_140, aux_141, aux_142, aux_143, aux_144, aux_145, aux_146, aux_147, aux_148, aux_149, aux_150, aux_151, aux_152, aux_153, aux_154, aux_155, aux_156, aux_157, aux_158, aux_159, aux_160, aux_161, aux_162, aux_163, aux_164, aux_165, aux_166, aux_167, aux_168, aux_169, aux_170, aux_171, aux_172, aux_173, aux_174, aux_175, aux_176, aux_177, aux_178, aux_179, aux_180, aux_181);
-    x_1 *= Adj-Distr[uniform : Tup<Fin<10>, Fin<10>>];
+    x_1 *= Adj-Unif;
     x_1 *= PhaseOnZero(3.141592653589793);
-    x_1 *= Distr[uniform : Tup<Fin<10>, Fin<10>>];
+    x_1 *= Unif;
   }
   ret_3 *= H;
   ret_3 *= X;
