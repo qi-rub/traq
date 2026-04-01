@@ -27,12 +27,12 @@ import TestHelpers
 roundTrip :: Program DefaultPrims' -> Expectation
 roundTrip p = do
   code <- PP.toCodeStringM p
-  p'_sym <- expectRight $ parseProgram @(DefaultPrims (Sym.Sym SizeT) Double) code
-  let p' = p'_sym & mapSize Sym.unSym & rewriteAST flattenSeq
+  p'_sym <- expectRight $ parseProgram @(DefaultPrims (Sym.Sym SizeT) (Sym.Sym Double)) code
+  let p' = p'_sym & mapSize Sym.unSym & mapPrec Sym.unSym & rewriteAST flattenSeq
   p' `shouldBe` p
   return ()
 
-type SymCore = Core (Sym.Sym SizeT) Double
+type SymCore = Core (Sym.Sym SizeT) (Sym.Sym Double)
 
 spec :: Spec
 spec = do
@@ -104,7 +104,7 @@ spec = do
 
   describe "parse file" $ do
     it "parses example" $ do
-      e <- parseFromFile (programParser @(DefaultPrims (Sym.Sym SizeT) Double)) "examples/matrix_search/matrix_search.traq" >>= expectRight
+      e <- parseFromFile (programParser @(DefaultPrims (Sym.Sym SizeT) (Sym.Sym Double))) "examples/matrix_search/matrix_search.traq" >>= expectRight
       let e' = rewriteAST flattenSeq e
       e' `shouldBe` mkMatrixExample (\ty f -> PrimCallE $ Primitive [f] $ QAny $ QSearchCFNW $ PrimSearch AnyK ty) (Sym.var "N") (Sym.var "M")
 
@@ -113,11 +113,12 @@ spec = do
       roundTrip (matrixExampleS 4 5)
       roundTrip (matrixExampleS 10 10)
     it "max_sat_hillclimb" $ do
-      e_sym <- expectRight =<< parseFromFile (programParser @(DefaultPrims (Sym.Sym SizeT) Double)) "examples/hillclimb/max_sat_hillclimb.traq"
+      e_sym <- expectRight =<< parseFromFile (programParser @(DefaultPrims (Sym.Sym SizeT) (Sym.Sym Double))) "examples/hillclimb/max_sat_hillclimb.traq"
       let e =
             e_sym
               & mapSize (Sym.subst "n" 10)
               & mapSize (Sym.subst "W" 1000)
               & mapSize Sym.unSym
+              & mapPrec Sym.unSym
               & rewriteAST flattenSeq
       roundTrip e

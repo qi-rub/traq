@@ -60,7 +60,12 @@ instance ValidPrimShape QMaxFunArg where
 instance CPL.MapSize (QMax size prec) where
   type MappedSize (QMax size prec) size' = QMax size' prec
 
-  mapSize f (QMax t r) = QMax (CPL.mapSize f t) (CPL.mapSize f r)
+  mapSize f (QMax t r) = QMax (fmap f t) (fmap f r)
+
+instance CPL.MapPrec (QMax size prec) where
+  type MappedPrec (QMax size prec) prec' = QMax size prec'
+
+  mapPrec _ (QMax t r) = QMax t r
 
 instance (Show size) => SerializePrim (QMax size prec) where
   primNames = ["max"]

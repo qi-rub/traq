@@ -5,6 +5,7 @@
 
 module Traq.CPL.Lenses (
   MapSize (..),
+  MapPrec (..),
   _exts,
 ) where
 
@@ -21,18 +22,30 @@ import Traq.Prelude
 class MapSize ext where
   type MappedSize ext size'
 
-  mapSize :: (size ~ SizeType ext, size' ~ SizeType ext', ext' ~ MappedSize ext size') => (size -> size') -> (ext -> ext')
+  mapSize ::
+    ( size ~ SizeType ext
+    , size' ~ SizeType ext'
+    , ext' ~ MappedSize ext size'
+    , PrecType ext ~ PrecType ext'
+    ) =>
+    (size -> size') -> (ext -> ext')
 
 instance MapSize (VarType size) where
   type MappedSize (VarType size) size' = VarType size'
 
   mapSize = fmap
 
+instance MapSize (DistrExpr prec size) where
+  type MappedSize (DistrExpr prec size) size' = DistrExpr prec size'
+
+  mapSize f (UniformE ty) = UniformE (fmap f ty)
+  mapSize _ (BernoulliE p) = BernoulliE p
+
 instance (MapSize ext) => MapSize (Expr ext) where
   type MappedSize (Expr ext) size' = Expr (MappedSize ext size')
 
   mapSize f (BasicExprE e) = BasicExprE (fmap f e)
-  mapSize f (RandomSampleE e) = RandomSampleE (fmap f e)
+  mapSize f (RandomSampleE e) = RandomSampleE (mapSize f e)
   mapSize f (PrimCallE prim) = PrimCallE (mapSize f prim)
   mapSize _ FunCallE{..} = FunCallE{..}
 
@@ -74,6 +87,68 @@ instance MapSize (Core size prec) where
 
   mapSize _ = \case {}
 
+-- ================================================================================
+-- MapPrec: map over the precision type
+-- ================================================================================
+
+class MapPrec ext where
+  type MappedPrec ext prec'
+
+  mapPrec ::
+    ( prec ~ PrecType ext
+    , prec' ~ PrecType ext'
+    , ext' ~ MappedPrec ext prec'
+    , SizeType ext ~ SizeType ext'
+    ) =>
+    (prec -> prec') -> (ext -> ext')
+
+instance MapPrec (DistrExpr prec size) where
+  type MappedPrec (DistrExpr prec size) prec' = DistrExpr prec' size
+
+  mapPrec _ (UniformE ty) = UniformE ty
+  mapPrec f (BernoulliE p) = BernoulliE (f p)
+
+instance (MapPrec ext) => MapPrec (Expr ext) where
+  type MappedPrec (Expr ext) prec' = Expr (MappedPrec ext prec')
+
+  mapPrec f (BasicExprE e) = BasicExprE e
+  mapPrec f (RandomSampleE e) = RandomSampleE (mapPrec f e)
+  mapPrec f (PrimCallE prim) = PrimCallE (mapPrec f prim)
+  mapPrec _ FunCallE{..} = FunCallE{..}
+
+instance (MapPrec ext) => MapPrec (Stmt ext) where
+  type MappedPrec (Stmt ext) prec' = Stmt (MappedPrec ext prec')
+
+  mapPrec f ExprS{..} = ExprS{expr = mapPrec f expr, ..}
+  mapPrec f IfThenElseS{..} = IfThenElseS{s_true = mapPrec f s_true, s_false = mapPrec f s_false, ..}
+  mapPrec f (SeqS ss) = SeqS $ map (mapPrec f) ss
+  mapPrec f ForS{..} = ForS{loop_body = mapPrec f loop_body, ..}
+
+instance (MapPrec ext) => MapPrec (FunBody ext) where
+  type MappedPrec (FunBody ext) prec' = FunBody (MappedPrec ext prec')
+
+  mapPrec f FunBody{..} = FunBody{body_stmt = mapPrec f body_stmt, ..}
+
+instance (MapPrec ext) => MapPrec (FunDef ext) where
+  type MappedPrec (FunDef ext) prec' = FunDef (MappedPrec ext prec')
+
+  mapPrec f FunDef{..} = FunDef{mbody = fmap (mapPrec f) mbody, ..}
+
+instance (MapPrec ext) => MapPrec (NamedFunDef ext) where
+  type MappedPrec (NamedFunDef ext) prec' = NamedFunDef (MappedPrec ext prec')
+
+  mapPrec f NamedFunDef{..} = NamedFunDef{fun_def = mapPrec f fun_def, ..}
+
+instance (MapPrec ext) => MapPrec (Program ext) where
+  type MappedPrec (Program ext) prec' = Program (MappedPrec ext prec')
+
+  mapPrec f (Program fs) = Program $ map (mapPrec f) fs
+
+instance MapPrec (Core size prec) where
+  type MappedPrec (Core size prec) prec' = Core size prec'
+
+  mapPrec _ = \case {}
+
 -- ============================================================================
 -- Simple traversal to focus on each `ext` in the program.
 -- ============================================================================
@@ -82,7 +157,7 @@ instance MapSize (Core size prec) where
 class HasExts f where
   _exts ::
     forall ext ext'.
-    (SizeType ext ~ SizeType ext') =>
+    (SizeType ext ~ SizeType ext', PrecType ext ~ PrecType ext') =>
     Traversal (f ext) (f ext') ext ext'
 
 instance HasExts Expr where

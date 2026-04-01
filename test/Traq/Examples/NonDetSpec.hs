@@ -30,7 +30,7 @@ import TestHelpers
 spec :: Spec
 spec = do
   describe "SimpleExample" $ do
-    let load = parseFromFile (CPLParser.programParser @(DefaultPrims (Sym.Sym SizeT) Double)) "examples/primitives/nondet.traq"
+    let load = parseFromFile (CPLParser.programParser @(DefaultPrims (Sym.Sym SizeT) (Sym.Sym Double))) "examples/primitives/nondet.traq"
     describe "parses" $ do
       it "file" $ do
         mEx <- load
@@ -38,10 +38,10 @@ spec = do
 
       it "roundtrip" $ do
         prog <- expectRight =<< load
-        p <- expectRight $ CPL.parseProgram @(DefaultPrims (Sym.Sym SizeT) Double) $ PP.toCodeString prog
+        p <- expectRight $ CPL.parseProgram @(DefaultPrims (Sym.Sym SizeT) (Sym.Sym Double)) $ PP.toCodeString prog
         p `shouldBe` prog
 
-    let load' = load <&> fromRight (error "parsing failed") <&> CPL.mapSize Sym.unSym
+    let load' = load <&> fromRight (error "parsing failed") <&> CPL.mapSize Sym.unSym <&> CPL.mapPrec Sym.unSym
 
     it "typechecks" $ do
       ex <- load'

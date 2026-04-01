@@ -24,7 +24,7 @@ import qualified Traq.Utils.Printing as PP
 import Test.Hspec
 import TestHelpers
 
-type P = DefaultPrims (Sym.Sym SizeT) Double
+type P = DefaultPrims (Sym.Sym SizeT) (Sym.Sym Double)
 
 examplePath :: String
 examplePath = "examples/search/triangle_finding.traq"
@@ -36,6 +36,7 @@ loadExample = do
     prog
       & CPL.mapSize (Sym.subst "N" (Sym.con 8))
       & CPL.mapSize Sym.unSym
+      & CPL.mapPrec Sym.unSym
 
 spec :: Spec
 spec = describe "Triangle Cycle Finding" $ do

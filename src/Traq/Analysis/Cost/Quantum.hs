@@ -88,8 +88,8 @@ instance CostQ1 Expr where
     ) =>
     Expr ext ->
     m cost
-  costQ1 BasicExprE{basic_expr} = return $ callExpr Classical basic_expr
-  costQ1 RandomSampleE{distr_expr} = return $ callDistrExpr Classical distr_expr
+  costQ1 BasicExprE{basic_expr} = return $ callExpr basic_expr
+  costQ1 RandomSampleE{distr_expr} = return $ callDistrExpr distr_expr
   costQ1 FunCallE{fname} = do
     fn <- view $ _funCtx . Ctx.at fname . non' (error $ "unable to find function " ++ fname)
     costQ1 $ NamedFunDef fname fn
@@ -110,7 +110,8 @@ instance CostQ1 Stmt where
   costQ1 ForS{loop_ty, loop_body} = do
     body_cost <- costQ1 loop_body
     let n_iters = loop_ty ^?! _Fin
-    return $ (sizeToPrec n_iters :: prec) Alg..* body_cost
+    let iter_overhead = callExpr (ParamE "")
+    return $ (sizeToPrec n_iters :: prec) Alg..* (iter_overhead Alg.+ body_cost)
 
 instance CostQ1 NamedFunDef where
   -- query an external function
@@ -139,8 +140,8 @@ class ExpCostQ1 f where
     m cost
 
 instance ExpCostQ1 Expr where
-  expCostQ1 BasicExprE{basic_expr} _ = return $ callExpr Classical basic_expr
-  expCostQ1 RandomSampleE{distr_expr} _ = return $ callDistrExpr Classical distr_expr
+  expCostQ1 BasicExprE{basic_expr} _ = return $ callExpr basic_expr
+  expCostQ1 RandomSampleE{distr_expr} _ = return $ callDistrExpr distr_expr
   expCostQ1 FunCallE{fname, args} sigma = do
     fn <- view $ _funCtx . Ctx.at fname . non' (error $ "unable to find function " ++ fname)
     let arg_vals = [sigma ^?! at x . non (error $ "could not find var " ++ x) | x <- args]
@@ -170,11 +171,12 @@ instance ExpCostQ1 Stmt where
     env <- view _evaluationEnv
     let stepS s sigma_s = eval1 s sigma_s & (runReaderT ?? env)
     let bind_ix i s = s & at loop_ix ?~ i
+    let iter_overhead = callExpr (ParamE "")
 
     (_, cs) <- forAccumM (pure sigma) (domain loop_ty) $ \distr i -> do
       let distr_i = fmap (bind_ix i) distr
       c <- Prob.expectationA (expCostQ1 loop_body) distr_i
-      return (distr_i >>= stepS loop_body, c)
+      return (distr_i >>= stepS loop_body, iter_overhead Alg.+ c)
 
     return $ Alg.sum cs
 

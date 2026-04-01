@@ -25,7 +25,7 @@ import Test.Hspec
 import TestHelpers
 
 type Prims = WorstCasePrims SizeT Double
-type SymPrims = WorstCasePrims (Sym.Sym SizeT) Double
+type SymPrims = WorstCasePrims (Sym.Sym SizeT) (Sym.Sym Double)
 
 examplePath :: String
 examplePath = "examples/cryptanalysis/3_round_feistel.traq"
@@ -39,6 +39,7 @@ loadExample = do
       & CPL.mapSize (Sym.subst "n" (Sym.con n))
       & CPL.mapSize (Sym.subst "n_plus_1" (Sym.con (n + 1)))
       & CPL.mapSize Sym.unSym
+      & CPL.mapPrec Sym.unSym
 
 spec :: Spec
 spec = describe "3 round feistel attack" $ do

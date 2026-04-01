@@ -44,7 +44,7 @@ fn TreeGen(xs: Arr<N, Bool>, old_pr: Fin<P>) -> (Bool, Arr<N, Bool>) do
         // For the i-th element, flip it with some probability $p$,
         // and pick it only if it can be added within capacity. 
         xi <- xs[i]; // old value
-        y <-$ bernoulli[0.2]; // should change? (w.p. 0.2)
+        y <-$ bernoulli[p]; // should change? (w.p. p)
         try_pick <- xi ^ y; // should pick?
 
         // check the capacity
@@ -73,7 +73,7 @@ fn Knapsack() -> Arr<N, Bool> do
     xs <- default : Arr<N, Bool>;
     for (iter in Fin<K>) do
         pr <- TotalProfit(xs);
-        ok, xs' <- @amplify<0.01>[TreeGen(xs, pr)];
+        ok, xs' <- @amplify<p ** N>[TreeGen(xs, pr)];
         xs <- ok ? xs' : xs;
     end
     return xs

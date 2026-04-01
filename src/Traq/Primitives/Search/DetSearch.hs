@@ -38,6 +38,10 @@ instance CPL.MapSize (DetSearch size prec) where
   type MappedSize (DetSearch size prec) size' = DetSearch size' prec
   mapSize f (DetSearch p) = DetSearch (CPL.mapSize f p)
 
+instance CPL.MapPrec (DetSearch size prec) where
+  type MappedPrec (DetSearch size prec) prec' = DetSearch size prec'
+  mapPrec f (DetSearch p) = DetSearch (CPL.mapPrec f p)
+
 instance PrimSearch size prec :<: DetSearch size prec
 
 instance (Show size) => SerializePrim (DetSearch size prec) where

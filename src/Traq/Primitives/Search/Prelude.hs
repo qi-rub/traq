@@ -1,6 +1,7 @@
 {-# LANGUAGE DuplicateRecordFields #-}
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE MultiParamTypeClasses #-}
+{-# LANGUAGE RecordWildCards #-}
 
 module Traq.Primitives.Search.Prelude (
   -- * Base class for Search Primitives
@@ -45,6 +46,10 @@ type instance PrimFnShape (PrimSearch size prec) = BooleanPredicate
 instance CPL.MapSize (PrimSearch size prec) where
   type MappedSize (PrimSearch size prec) size' = PrimSearch size' prec
   mapSize f PrimSearch{search_kind, search_ty} = PrimSearch{search_kind, search_ty = fmap f search_ty}
+
+instance CPL.MapPrec (PrimSearch size prec) where
+  type MappedPrec (PrimSearch size prec) prec' = PrimSearch size prec'
+  mapPrec _ PrimSearch{..} = PrimSearch{..}
 
 instance (Show size) => SerializePrim (PrimSearch size prec) where
   primNames = ["any", "all", "search"]

@@ -22,8 +22,8 @@ import TestHelpers
 
 unsafeParseProgram :: String -> Either String (Program DefaultPrims')
 unsafeParseProgram code = do
-  prog <- first show $ parseProgram @(DefaultPrims (Sym.Sym SizeT) Double) code
-  pure $ mapSize Sym.unSym prog
+  prog <- first show $ parseProgram @(DefaultPrims (Sym.Sym SizeT) (Sym.Sym Double)) code
+  pure $ mapPrec Sym.unSym $ mapSize Sym.unSym prog
 
 spec :: Spec
 spec = describe "unitary cost of statements" $ do

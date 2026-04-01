@@ -216,15 +216,15 @@ instance (Show size, Integral size) => ToQualtranPy (QPL.UStmt size) where
     mkPy body_ustmt
     mkPy (QPL.adjoint with_ustmt)
 
-instance (Show size, Integral size) => ToQualtranPy (QPL.Unitary size) where
-  type Ctx (QPL.Unitary size) = [CPL.VarType size]
+instance (Show size, Integral size, RealFloat prec) => ToQualtranPy (QPL.Unitary prec size) where
+  type Ctx (QPL.Unitary prec size) = [CPL.VarType size]
 
   mkPy (QPL.BasicGateU g) = mkPy g
   mkPy (QPL.DistrU (CPL.UniformE ty)) = do
     let bs = CPL.bestBitsize ty
     pure $ PP.pretty "QFTTextBook" <> PP.tupled [PP.pretty (show bs)]
   mkPy (QPL.DistrU (CPL.BernoulliE p)) = do
-    let theta = PP.pretty @String $ printf "%f" (2 * asin (sqrt p))
+    let theta = PP.pretty @String $ printf "%f" (realToFrac @_ @Double $ 2 * asin (sqrt p))
     pure $ PP.pretty "qlt_gates.Ry" <> PP.tupled [PP.pretty "angle=" <> theta]
   mkPy (QPL.Controlled u) = do
     bloq <- mkPy u

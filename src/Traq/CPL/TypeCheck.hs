@@ -273,7 +273,7 @@ instance (TypeInferrable p size, size ~ SizeType p) => GTypeInferrable (K1 i p) 
 -- Core Language
 -- --------------------------------------------------------------------------------
 
-instance (TypingReqs size) => TypeInferrable (DistrExpr size) size where
+instance (TypingReqs size) => TypeInferrable (DistrExpr prec size) size where
   inferTypes UniformE{sample_ty} = pure [sample_ty]
   inferTypes BernoulliE{} = pure [tbool]
 

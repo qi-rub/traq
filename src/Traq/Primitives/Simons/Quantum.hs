@@ -54,6 +54,10 @@ instance CPL.MapSize (SimonsFindXorPeriod size prec) where
   type MappedSize (SimonsFindXorPeriod size prec) size' = (SimonsFindXorPeriod size' prec)
   mapSize f (SimonsFindXorPeriod p) = SimonsFindXorPeriod (CPL.mapSize f p)
 
+instance CPL.MapPrec (SimonsFindXorPeriod size prec) where
+  type MappedPrec (SimonsFindXorPeriod size prec) prec' = (SimonsFindXorPeriod size prec')
+  mapPrec f (SimonsFindXorPeriod p) = SimonsFindXorPeriod (CPL.mapPrec f p)
+
 -- ================================================================================
 -- Basic Instances
 -- ================================================================================
@@ -62,7 +66,7 @@ instance FindXorPeriod size prec :<: SimonsFindXorPeriod size prec
 
 instance IsA (FindXorPeriod size prec) (SimonsFindXorPeriod size prec)
 
-instance (Show size) => SerializePrim (SimonsFindXorPeriod size Double) where
+instance (Show size, Show prec, Fractional prec) => SerializePrim (SimonsFindXorPeriod size prec) where
   primNames = ["findXorPeriod"]
   parsePrimParams tp s = SimonsFindXorPeriod <$> parsePrimParams tp s
   printPrimParams (SimonsFindXorPeriod prim) = printPrimParams prim
@@ -144,7 +148,7 @@ simonsOneRound arg_tys = do
   ys' <- lift $ mapM (Compiler.allocAncillaWithPref "yy") arg_tys
   aux <- lift $ mapM Compiler.allocAncilla pred_aux_tys
 
-  let had_xs = QPL.USeqS [QPL.UnitaryS [QPL.Arg x] (QPL.DistrU $ CPL.UniformE t) | (x, t) <- zip xs arg_tys]
+  let had_xs = QPL.USeqS [QPL.UnitaryS [QPL.Arg x] (QPL.BasicGateU QPL.Unif) | (x, t) <- zip xs arg_tys]
   let call_g = call_upred (map QPL.Arg (xs ++ ys ++ aux))
   let copy_out = QPL.USeqS [QPL.UnitaryS [QPL.Arg y, QPL.Arg y'] (QPL.BasicGateU QPL.COPY) | (y, y') <- zip ys ys']
 

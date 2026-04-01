@@ -141,6 +141,11 @@ instance CPL.MapSize (QSearchCFNW size prec) where
 
   mapSize f (QSearchCFNW p) = QSearchCFNW (CPL.mapSize f p)
 
+instance CPL.MapPrec (QSearchCFNW size prec) where
+  type MappedPrec (QSearchCFNW size prec) prec' = QSearchCFNW size prec'
+
+  mapPrec f (QSearchCFNW p) = QSearchCFNW (CPL.mapPrec f p)
+
 instance PrimSearch size prec :<: QSearchCFNW size prec where
   inject = QSearchCFNW
   project (QSearchCFNW p) = Just p
@@ -254,7 +259,7 @@ addGroverIteration ::
   UQSearchBuilder ext ()
 addGroverIteration c x b = do
   x_ty <- view $ to search_arg_type
-  let unifX = QPL.DistrU (CPL.UniformE x_ty)
+  let unifX = QPL.BasicGateU QPL.Unif
   addPredCall c x b
   writeElem $ QPL.UnitaryS [x] (QPL.Adjoint unifX)
   writeElem $ QPL.UnitaryS [x] (QPL.BasicGateU (QPL.PhaseOnZero pi)) -- reflect on |0>
@@ -280,7 +285,7 @@ algoQSearchZalkaRandomIterStep r r_reg ctrl_bit x_reg b_reg = do
   x_ty <- view $ to search_arg_type
 
   -- uniform r
-  let prep_r = QPL.UnitaryS [r_reg] (QPL.DistrU (CPL.UniformE r_ty))
+  let prep_r = QPL.UnitaryS [r_reg] (QPL.BasicGateU QPL.Unif)
 
   withComputed prep_r $ do
     -- b in minus state for grover
@@ -291,7 +296,7 @@ algoQSearchZalkaRandomIterStep r r_reg ctrl_bit x_reg b_reg = do
             ]
     withComputed prep_b $ do
       -- uniform x
-      writeElem $ QPL.UnitaryS [x_reg] (QPL.DistrU (CPL.UniformE x_ty))
+      writeElem $ QPL.UnitaryS [x_reg] (QPL.BasicGateU QPL.Unif)
 
       -- controlled iterate
       let meta_ix_name = "LIM"
@@ -474,7 +479,7 @@ groverK k (x, x_ty) b mk_pred =
     , QPL.adjoint prepb
     ]
  where
-  unifX = QPL.DistrU (CPL.UniformE x_ty)
+  unifX = QPL.BasicGateU QPL.Unif
 
   -- map b to |-> and x to uniform
   prepb, prepx :: QPL.UStmt size

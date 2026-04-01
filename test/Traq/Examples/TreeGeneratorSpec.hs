@@ -26,7 +26,7 @@ import qualified Traq.Utils.Printing as PP
 import Test.Hspec
 import TestHelpers
 
-type Prim = DefaultPrims (Sym.Sym SizeT) Double
+type Prim = DefaultPrims (Sym.Sym SizeT) (Sym.Sym Double)
 type Prim' = DefaultPrims SizeT Double
 
 loadKnapsack ::
@@ -38,8 +38,10 @@ loadKnapsack ::
   SizeT ->
   -- | number of iterations
   SizeT ->
+  -- | bernoulli probability
+  Double ->
   IO (Program Prim')
-loadKnapsack n w p k = do
+loadKnapsack n w p k prob = do
   Right prog <- parseFromFile (programParser @Prim) "examples/tree_generator/tree_generator_01_knapsack.traq"
   return $
     prog
@@ -48,20 +50,24 @@ loadKnapsack n w p k = do
       & mapSize (Sym.subst "P" (Sym.con p))
       & mapSize (Sym.subst "K" (Sym.con k))
       & mapSize Sym.unSym
+      & mapPrec (Sym.subst "p" (Sym.con prob))
+      & mapPrec (Sym.subst "N" (Sym.con (fromIntegral n)))
+      & mapPrec Sym.unSym
 
 spec :: Spec
 spec = do
   describe "Tree Generator Example" $ do
     describe "parses" $ do
-      let prog = treeGeneratorExample @Prim (Sym.var "N") (Sym.var "W") (Sym.var "P") (Sym.var "K")
+      let prog = treeGeneratorExample @Prim (Sym.var "N") (Sym.var "W") (Sym.var "P") (Sym.var "K") (Sym.var "p")
 
       it "file" $ do
         p <- expectRight =<< parseFromFile (programParser @Prim) "examples/tree_generator/tree_generator_01_knapsack.traq"
         p `shouldBe` prog
 
       it "roundtrip" $ do
-        p <- expectRight $ parseProgram @Prim $ PP.toCodeString prog
-        p `shouldBe` prog
+        let prog' = mapPrec (Sym.subst "p" 0.2 . Sym.subst "N" 10) prog
+        p <- expectRight $ parseProgram @Prim $ PP.toCodeString prog'
+        p `shouldBe` prog'
 
     it "typechecks" $ do
       p <-
@@ -71,7 +77,7 @@ spec = do
 
     it "evaluates" $ do
       let n = 2
-      prog <- loadKnapsack n 20 30 2
+      prog <- loadKnapsack n 20 30 2 0.2
       let funInterpCtx =
             Map.fromList
               [ ("Capacity", const [FinV 20])
@@ -88,7 +94,7 @@ spec = do
     describe "Compile" $ do
       let eps = A.failProb (0.0001 :: Double)
       let load_prog = do
-            ex <- loadKnapsack 2 20 30 2
+            ex <- loadKnapsack 2 20 30 2 0.2
             expectRight $ A.annotateProgWith (_exts (A.annSinglePrim eps)) ex
 
       beforeAll load_prog $ do

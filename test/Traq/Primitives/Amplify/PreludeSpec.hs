@@ -239,11 +239,11 @@ spec = describe "amplify" $ do
           CPL.programParser
           "examples/primitives/amplify/amplify1.traq"
           >>= expectRight
-      p `shouldBe` exampleProgram1 @(Sym.Sym Int) @Double (Sym.var "N")
+      p `shouldBe` exampleProgram1 @(Sym.Sym Int) @(Sym.Sym Double) (Sym.var "N")
 
     it "round-trips through print/parse" $ do
       let stmt = "ok, result <- @amplify<2.0e-2>[f(x1, x2)];\n"
-      let parsed = CPL.parseStmt @(Primitive (Amplify (Sym.Sym Int) Double)) stmt
+      let parsed = CPL.parseStmt @(Primitive (Amplify (Sym.Sym Int) (Sym.Sym Double))) stmt
       let printed = PP.toCodeString <$> parsed
       printed `shouldBe` Right stmt
 
@@ -265,7 +265,7 @@ spec = describe "amplify" $ do
           CPL.programParser
           "examples/primitives/amplify/amplify2.traq"
           >>= expectRight
-      p `shouldBe` exampleProgram2 @(Sym.Sym Int) @Double (Sym.var "N")
+      p `shouldBe` exampleProgram2 @(Sym.Sym Int) @(Sym.Sym Double) (Sym.var "N")
 
     let program2 = exampleProgram2 3
 
@@ -288,7 +288,7 @@ spec = describe "amplify" $ do
           CPL.programParser
           "examples/primitives/amplify/amplify3.traq"
           >>= expectRight
-      p `shouldBe` exampleProgram3 @(Sym.Sym Int) @Double (Sym.var "N")
+      p `shouldBe` exampleProgram3 @(Sym.Sym Int) @(Sym.Sym Double) (Sym.var "N")
 
     let program3 = exampleProgram3 3
 

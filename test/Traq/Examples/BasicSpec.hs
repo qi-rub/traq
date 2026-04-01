@@ -23,7 +23,7 @@ import qualified Traq.Utils.Printing as PP
 import Test.Hspec
 import TestHelpers
 
-type SymCore = Core (Sym.Sym SizeT) Double
+type SymCore = Core (Sym.Sym SizeT) (Sym.Sym Double)
 
 spec :: Spec
 spec = do
@@ -40,7 +40,7 @@ spec = do
 
     it "evaluates" $ do
       Right ex <- parseFromFile (programParser @SymCore) "examples/basic/for_loop.traq"
-      let ex' = mapSize (Sym.unSym . Sym.subst "N" 10 . Sym.subst "W" 20) ex
+      let ex' = mapPrec Sym.unSym $ mapSize (Sym.unSym . Sym.subst "N" 10 . Sym.subst "W" 20) ex
       let result = runProgram @Core' ex' mempty []
 
       result `shouldBeDistribution` [([FinV 10], 1.0)]
@@ -50,6 +50,7 @@ spec = do
             parseFromFile (programParser @SymCore) "examples/basic/for_loop.traq"
               >>= expectRight
                 <&> mapSize (Sym.unSym . Sym.subst "N" 10 . Sym.subst "W" 20)
+                <&> mapPrec Sym.unSym
                 <&> A.annotateProgWith (_exts A.annNoPrims)
               >>= expectRight
 

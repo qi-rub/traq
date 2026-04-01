@@ -32,7 +32,7 @@ class SerializePrim prim where
     _ -> error "primitive has multiple names, please override primNameOf"
 
   -- | parse the primitive info given its name
-  parsePrimParams :: (SizeType prim ~ Sym.Sym SizeT) => TokenParser () -> Ident -> Parser prim
+  parsePrimParams :: (SizeType prim ~ Sym.Sym SizeT, PrecType prim ~ Sym.Sym Double) => TokenParser () -> Ident -> Parser prim
 
   -- | print the primitives parameters.
   printPrimParams :: prim -> [String]
