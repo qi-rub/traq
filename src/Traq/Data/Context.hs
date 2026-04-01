@@ -126,7 +126,7 @@ null (Context m) = Prelude.null m
 trunc :: Ident -> Context a -> Context a
 trunc k (Context m) = Context (go m)
  where
-  go = tail . dropWhile ((k /=) . view _var)
+  go = drop 1 . dropWhile ((k /=) . view _var)
 
 merge :: Context a -> Context a -> Context a
 merge (Context m) (Context m') = Context (m' ++ m)
