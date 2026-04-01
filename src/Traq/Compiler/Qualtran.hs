@@ -132,7 +132,7 @@ instance (Show size, Integral size) => ToQualtranPy (QPL.UProcBody size) where
         [ py_decorator "attrs.frozen"
         , py_class proc_name "qlt.Bloq" class_body
         ]
-  mkPy QPL.UProcBody{uproc_param_names, uproc_param_tags, uproc_body_stmt} = do
+  mkPy QPL.UProcBody{uproc_param_names, uproc_body_stmt} = do
     ProcBuildCtx{..} <- view id
     let meta_attrs = map (\p -> py_sanitizeIdent p <> PP.pretty ": int") proc_meta_params
     let regs = zipWith py_register uproc_param_names proc_param_types

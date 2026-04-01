@@ -125,13 +125,12 @@ instance (CPL.EvalReqs SizeT prec) => CPL.Evaluatable (TreeSearch SizeT prec) Si
 
     let nxt u =
           ( do
-              cs <- CPL.eval1 (CPL.NamedFunDef getChildren child_fun) (child_args ++ [u])
-              return (head cs, cs !! 1)
+              [c0, c1] <- CPL.eval1 (CPL.NamedFunDef getChildren child_fun) (child_args ++ [u])
+              return (c0, c1)
           )
     let chk u =
           ( do
-              vs <- CPL.eval1 (CPL.NamedFunDef checkNode check_fun) (check_args ++ [u])
-              let ok = head vs
+              [ok] <- CPL.eval1 (CPL.NamedFunDef checkNode check_fun) (check_args ++ [u])
               return $ CPL.valueToBool ok
           )
 

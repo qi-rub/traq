@@ -145,7 +145,7 @@ py_expr CPL.TernaryE{branch, lhs, rhs} = PP.parens $ py_expr lhs <+> PP.pretty "
 py_expr CPL.NAryE{op, operands} = py_naryOp op <> PP.tupled (map py_expr operands)
 py_expr CPL.IndexE{arr_expr, ix_val} = py_expr arr_expr <> PP.brackets (PP.pretty (show ix_val))
 py_expr CPL.DynIndexE{arr_expr, ix_expr} = py_expr arr_expr <> PP.brackets (py_expr ix_expr)
-py_expr CPL.UpdateArrE{arr_expr, ix_expr, rhs} = error "TODO UpdateArrE"
+py_expr CPL.UpdateArrE{} = error "TODO UpdateArrE"
 py_expr CPL.ProjectE{tup_expr, tup_ix_val} = py_expr tup_expr <> PP.brackets (PP.pretty (show tup_ix_val))
 
 py_val :: (Show size) => CPL.Value size -> Py ann
