@@ -15,13 +15,6 @@ where
 import Control.Monad (replicateM)
 import Control.Monad.Except (throwError)
 import GHC.Generics (Generic)
-import qualified Traq.Analysis as A
-import qualified Traq.CPL as CPL
-import qualified Traq.Compiler as Compiler
-import Traq.Prelude
-import Traq.Primitives.Amplify.Prelude
-import Traq.Primitives.Class
-import qualified Traq.QPL as QPL
 
 import Lens.Micro.GHC
 import Lens.Micro.Mtl
@@ -29,6 +22,14 @@ import qualified Numeric.Algebra as Alg
 
 import qualified Traq.Data.Probability as Prob
 import Traq.Data.Subtyping
+
+import qualified Traq.Analysis as A
+import qualified Traq.CPL as CPL
+import qualified Traq.Compiler as Compiler
+import Traq.Prelude
+import Traq.Primitives.Amplify.Prelude
+import Traq.Primitives.Class
+import qualified Traq.QPL as QPL
 
 -- | Classical (probabilistic) bounded repetition.
 newtype CAmplify size prec = CAmplify (Amplify size prec)
