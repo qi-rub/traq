@@ -153,16 +153,10 @@ type instance SizeType (FnType size) = size
 -- | Unary operations
 data UnOp
   = NotOp
-  | AnyOp
-  | AllOp
-  | MajOp
   deriving (Eq, Show, Read)
 
 instance PP.ToCodeString UnOp where
   build NotOp = PP.putWord "not "
-  build AnyOp = PP.putWord "multi_or "
-  build AllOp = PP.putWord "multi_and "
-  build MajOp = PP.putWord "majority "
 
 -- | Binary operations
 data BinOp

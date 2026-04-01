@@ -261,9 +261,6 @@ exprToBloq CPL.BinOpE{bin_op = CPL.LEqOp, lhs = CPL.VarE{var}, rhs = CPL.ParamE{
         [ PP.pretty $ show $ CPL.bestBitsize ty
         , PP.parens (v <> PP.pretty " - 1")
         ]
-exprToBloq CPL.UnOpE{un_op = CPL.AnyOp, operand = CPL.VarE{var}} = do
-  ty <- Ctx.unsafeLookupE var
-  pure $ namedBloq "AnyOp" [ty, CPL.tbool]
 exprToBloq CPL.BinOpE{bin_op = CPL.VecSelectOp, lhs = CPL.VarE{var = x}, rhs = CPL.VarE{var = y}} = do
   tx <- Ctx.unsafeLookupE x
   let etx = case tx of

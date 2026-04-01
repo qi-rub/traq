@@ -161,9 +161,6 @@ py_defaultVal (CPL.Tup ts) = PP.tupled (map py_defaultVal ts)
 
 py_unOp :: CPL.UnOp -> Py ann
 py_unOp CPL.NotOp = PP.pretty "not "
-py_unOp CPL.AnyOp = PP.pretty "any"
-py_unOp CPL.AllOp = PP.pretty "all"
-py_unOp CPL.MajOp = error "TODO MajOp"
 
 py_binOp :: CPL.BinOp -> Py ann
 py_binOp CPL.AddOp = PP.pretty "+"
