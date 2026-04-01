@@ -6,6 +6,11 @@ module Traq.Examples.SearchSpec (spec) where
 import Control.DeepSeq (force)
 import Control.Exception (evaluate)
 import qualified Data.Map as Map
+import Text.Parsec.String (parseFromFile)
+
+import Lens.Micro.GHC
+
+import qualified Traq.Data.Symbolic as Sym
 
 import qualified Traq.Analysis as A
 import Traq.Analysis.CostModel.QueryCost (SimpleQueryCost (..))
@@ -15,6 +20,7 @@ import qualified Traq.Compiler.Qiskit as Qiskit
 import qualified Traq.Compiler.Qualtran as Qualtran
 import Traq.Examples.Search
 import Traq.Prelude
+import Traq.Primitives
 import Traq.Primitives.Search.QSearchCFNW (_EQSearch, _QSearchZalka)
 import qualified Traq.QPL as QPL
 import qualified Traq.Utils.Printing as PP
@@ -128,3 +134,18 @@ spec = describe "SearchSpec" $ do
       let res = CPL.runProgram @_ @Double ex interpCtx []
 
       res `shouldBeDistribution` [([CPL.FinV 1, CPL.FinV i], 1 / 3) | i <- planted_sols]
+
+  describe "any" $ do
+    let load =
+          parseFromFile (CPL.programParser @(DefaultPrims (Sym.Sym SizeT) (Sym.Sym Double))) "examples/primitives/any.traq"
+            >>= expectRight
+              <&> CPL.mapSize Sym.unSym
+              <&> CPL.mapPrec Sym.unSym
+              <&> A.annotateProgWith (CPL._exts (A.annSinglePrim (A.failProb 0.01)))
+            >>= expectRight
+
+    beforeAll load $ do
+      xit "target-qiskit" $ \ex -> do
+        ex_qpl <- expectRight $ Compiler.lowerProgram ex
+        _ <- evaluate $ force $ Qiskit.toPy ex_qpl
+        return ()

@@ -261,8 +261,7 @@ buildProcHelper is_uproc proc_name_basic proc_meta_params params m = do
     ([], _, False) ->
       pure $
         QPL.ProcDef
-          { info_comment = ""
-          , proc_name
+          { proc_name
           , proc_meta_params
           , proc_param_types = map snd params
           , proc_body =
@@ -276,8 +275,7 @@ buildProcHelper is_uproc proc_name_basic proc_meta_params params m = do
     (_, [], True) ->
       pure $
         QPL.ProcDef
-          { info_comment = ""
-          , proc_name
+          { proc_name
           , proc_meta_params
           , proc_param_types = map snd params ++ map snd local_vars
           , proc_body =

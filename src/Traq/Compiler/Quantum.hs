@@ -131,8 +131,7 @@ instance CompileQ1 CPL.FunDef where
   compileQ1 proc_name CPL.FunDef{CPL.param_types, CPL.ret_types, CPL.mbody = Nothing} = do
     return
       ProcDef
-        { info_comment = ""
-        , proc_name
+        { proc_name
         , proc_meta_params = []
         , proc_param_types = param_types ++ ret_types
         , proc_body = ProcBodyC CProcDecl
@@ -142,8 +141,7 @@ instance CompileQ1 CPL.FunDef where
 
     return
       ProcDef
-        { info_comment = ""
-        , proc_name
+        { proc_name
         , proc_meta_params = []
         , proc_param_types = param_types ++ ret_types
         , proc_body = ProcBodyC cproc_body

@@ -145,6 +145,7 @@ typeCheckBasicGate Unif _ = return ()
 
 typeCheckUnitary :: forall size prec. (CPL.TypingReqs size) => Unitary prec size -> [CPL.VarType size] -> TypeChecker size ()
 typeCheckUnitary (BasicGateU g) tys = typeCheckBasicGate g tys
+typeCheckUnitary (NamedGateU _) _ = pure ()
 typeCheckUnitary (DistrU (CPL.UniformE ty)) tys = verifyArgTys tys [ty, ty]
 typeCheckUnitary (DistrU (CPL.BernoulliE _)) tys = verifyArgTys tys [CPL.tbool, CPL.tbool]
 typeCheckUnitary (RevEmbedU xs e) tys = do
@@ -267,6 +268,7 @@ typeCheckStmt ForInRangeS{loop_body, iter_meta_var, iter_lim} = do
     CPL.MetaName _ -> Err.throwErrorMessage "cannot find iteration"
   local (CPL._typingCtx . Ctx.ins ('#' : iter_meta_var) .~ iter_ty) $
     typeCheckStmt loop_body
+typeCheckStmt BlackBoxS{} = return ()
 -- try by desugaring
 typeCheckStmt s = case desugarS s of
   Just s' -> typeCheckStmt s'

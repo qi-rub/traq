@@ -1,5 +1,6 @@
 {-# LANGUAGE DuplicateRecordFields #-}
 {-# LANGUAGE FlexibleInstances #-}
+{-# LANGUAGE GeneralizedNewtypeDeriving #-}
 {-# LANGUAGE RecordWildCards #-}
 
 {- HLINT ignore "Use camelCase" -}
@@ -9,14 +10,17 @@ module Traq.Compiler.Qiskit (
 ) where
 
 import Control.Monad.Except (runExceptT)
-import Control.Monad.Reader (Reader, runReader)
+import Control.Monad.RWS (RWS, runRWS)
 import Data.List (intersperse)
+import qualified Data.Set as Set
 import Prettyprinter ((<+>))
 import qualified Prettyprinter as PP
 
+import Lens.Micro.GHC
 import Lens.Micro.Mtl
 
 import qualified Traq.Data.Context as Ctx
+import Traq.Data.Default
 
 import qualified Traq.CPL as CPL
 import Traq.Compiler.Python
@@ -27,16 +31,22 @@ import qualified Traq.QPL as QPL
 -- Compile QPL -> py (+Qiskit)
 -- ============================================================
 
+newtype QiskitState = QiskitState (Set.Set Ident)
+  deriving (HasDefault)
+
+_externDefNames :: Lens' QiskitState (Set.Set Ident)
+_externDefNames focus (QiskitState s) = focus s <&> QiskitState
+
 -- | Build python code string.
 class ToQiskitPy a where
   type Ctx a
 
-  mkPy :: a -> Reader (Ctx a) (Py ann)
+  mkPy :: a -> RWS (Ctx a) () QiskitState (Py ann)
 
 -- | Convert a QPL program to a python code string.
 toPy :: QPL.Program SizeT -> String
 toPy prog =
-  let pyDoc = runReader (mkPy prog) ()
+  let (pyDoc, _, _) = runRWS (mkPy prog) () default_
    in show pyDoc
 
 -- ============================================================
@@ -46,17 +56,23 @@ toPy prog =
 instance (Show size, Integral size) => ToQiskitPy (QPL.Program size) where
   type Ctx (QPL.Program size) = ()
 
-  mkPy (QPL.Program ps) =
-    PP.vsep . intersperse PP.line <$> mapM mkPy ps
+  mkPy (QPL.Program ps) = do
+    code <- PP.vsep . intersperse PP.line <$> mapM mkPy ps
+    exts <- py_tupled . map (PP.dquotes . PP.pretty) . Set.toList <$> use _externDefNames
+    pure $
+      PP.vsep
+        [ code
+        , PP.pretty "EXTERN_DEFS" <+> PP.equals <+> exts
+        , PP.pretty "ENTRY_POINT" <+> PP.equals <+> (PP.dquotes . PP.pretty . QPL.proc_name $ last ps)
+        ]
 
 instance (Show size, Integral size) => ToQiskitPy (QPL.ProcDef size) where
   type Ctx (QPL.ProcDef size) = ()
 
-  mkPy QPL.ProcDef{info_comment, proc_name, proc_meta_params, proc_param_types, proc_body} =
+  mkPy QPL.ProcDef{proc_name, proc_meta_params, proc_param_types, proc_body} =
     PP.vsep
       <$> sequence
-        [ pure $ py_comment info_comment
-        , withEnv
+        [ withEnv
             (ProcBuildCtx{..})
             (mkPy proc_body)
         ]
@@ -86,6 +102,49 @@ blackbox name =
       [ PP.pretty "qiskit.circuit.Gate" <> PP.tupled [PP.dquotes (PP.pretty name), PP.pretty "qc.num_qubits", PP.pretty "[]"]
       , PP.pretty "qc.qubits"
       ]
+
+-- | Emit a custom named gate with a given qubit count.
+customGate :: (Show size) => String -> size -> Py ann
+customGate name n =
+  PP.pretty "qiskit.circuit.Gate"
+    <> PP.tupled [PP.dquotes (PP.pretty name), PP.pretty (show n), PP.pretty "[]"]
+
+-- | Emit a Qiskit library gate constructor.
+libGate :: String -> Py ann
+libGate name = PP.pretty $ "qiskit.circuit.library." <> name <> "()"
+
+-- | Emit a parameterized Qiskit library gate constructor.
+libGateParam :: String -> String -> Py ann
+libGateParam name param = PP.pretty $ "qiskit.circuit.library." <> name <> "(" <> param <> ")"
+
+{- | Generate qubit reference for a QPL argument with type-aware slicing.
+For whole registers: *reg
+For array elements: *reg[start:end] (slice for the element's qubit range)
+-}
+py_qarg :: (Show size, Integral size) => QPL.Arg size -> CPL.VarType size -> Py ann
+py_qarg (QPL.Arg x) _ = PP.pretty "*" <> py_sanitizeIdent x
+py_qarg (QPL.ArrElemArg (QPL.Arg x) (CPL.MetaSize i)) elemTy =
+  let s = CPL.bestBitsize elemTy
+      start = fromIntegral i * fromIntegral s :: Integer
+      end = (fromIntegral i + 1) * fromIntegral s :: Integer
+   in PP.pretty "*" <> py_sanitizeIdent x <> PP.brackets (PP.pretty (show start) <> PP.colon <> PP.pretty (show end))
+py_qarg (QPL.ArrElemArg (QPL.Arg x) (CPL.MetaName n)) elemTy =
+  let s = CPL.bestBitsize elemTy
+   in if s == 1
+        then PP.pretty "*" <> py_sanitizeIdent x <> PP.brackets (py_sanitizeIdent n <> PP.colon <> py_sanitizeIdent n <+> PP.pretty "+" <+> PP.pretty "1")
+        else
+          PP.pretty "*"
+            <> py_sanitizeIdent x
+            <> PP.brackets
+              ( py_sanitizeIdent n
+                  <+> PP.pretty "*"
+                  <+> PP.pretty (show s)
+                  <> PP.colon
+                  <> PP.parens (py_sanitizeIdent n <+> PP.pretty "+" <+> PP.pretty "1")
+                  <+> PP.pretty "*"
+                  <+> PP.pretty (show s)
+              )
+py_qarg arg _ = PP.pretty "*" <> py_arg arg
 
 -- ============================================================
 -- Unitary: Emit Qiskit unitary circuits
@@ -153,8 +212,11 @@ instance (Show size, Integral size) => ToQiskitPy (QPL.UProcBody size) where
           PP.vsep $
             param_defs
               ++ reg_defs
-              ++ [ qc_def
+              ++ [ mempty
+                 , qc_def
+                 , mempty
                  , stmt_body
+                 , mempty
                  , PP.pretty "return qc"
                  ]
     pure $ py_def proc_name [] body
@@ -167,18 +229,23 @@ instance (Show size, Integral size) => ToQiskitPy (QPL.UStmt size) where
   mkPy QPL.UnitaryS{qargs, unitary} = do
     tys <- fmap (either (error . show) id) . runExceptT $ do
       mapM QPL.getArgTy qargs
-    let n_qubits = sum $ map CPL.bestBitsize tys
-    let name = filter (\c -> c /= '"' && c /= '\\') $ show unitary
-    let gate = PP.pretty "qiskit.circuit.Gate" <> PP.tupled [PP.dquotes (PP.pretty name), PP.pretty (show n_qubits), PP.pretty "[]"]
-    let qubits = PP.hsep $ PP.punctuate PP.comma [PP.pretty "*" <> py_arg q | q <- qargs]
-    pure $ PP.pretty "qc.append" <> PP.tupled [gate, PP.brackets qubits]
+    gateExpr <- withEnv tys $ mkPy unitary
+    let qubits = PP.hsep $ PP.punctuate PP.comma $ zipWith py_qarg qargs tys
+    pure $ PP.pretty "qc.append" <> PP.tupled [gateExpr, PP.brackets qubits]
   mkPy QPL.UCallS{uproc_id, dagger, qargs} = do
     let gate = py_sanitizeIdent uproc_id <> PP.pretty "().to_gate()"
     let gateExpr = if dagger then gate <> PP.pretty ".inverse()" else gate
     let qubits = PP.hsep $ PP.punctuate PP.comma [PP.pretty "*" <> py_arg q | q <- qargs]
     pure $ PP.pretty "qc.append" <> PP.tupled [gateExpr, PP.brackets qubits]
   mkPy (QPL.USeqS ss) = PP.vsep <$> mapM mkPy ss
-  mkPy QPL.URepeatS{} = pure $ blackbox "URepeatS"
+  mkPy QPL.URepeatS{n_iter, uloop_body} = do
+    body <- mkPy uloop_body
+    let n = py_metaParam (Left n_iter)
+    pure $
+      PP.vsep
+        [ PP.pretty "with qc.for_loop" <> PP.parens (PP.pretty "range" <> PP.parens n) <> PP.colon
+        , py_indent body
+        ]
   mkPy QPL.UForInRangeS{} = pure $ blackbox "UForInRangeS"
   mkPy QPL.UForInDomainS{} = pure $ blackbox "UForInDomainS"
   mkPy QPL.UWithComputedS{} = pure $ blackbox "UWithComputedS"
@@ -187,23 +254,38 @@ instance (Show size, Integral size) => ToQiskitPy (QPL.Unitary Double size) wher
   type Ctx (QPL.Unitary Double size) = [CPL.VarType size]
 
   mkPy (QPL.BasicGateU g) = mkPy g
-  mkPy (QPL.DistrU d) = error "TODO DistrU"
-  mkPy (QPL.Controlled u) = error "TODO Controlled"
-  mkPy (QPL.Adjoint u) = error "TODO Adjoint"
-  mkPy (QPL.RevEmbedU xs e) = error "TODO RevEmbedU"
+  mkPy (QPL.DistrU d) = do
+    tys <- view id
+    let n = sum $ map CPL.bestBitsize tys
+    let name = filter (\c -> c /= '"' && c /= '\\') $ show d
+    pure $ customGate ("DistrU (" ++ name ++ ")") n
+  mkPy (QPL.Controlled u) = do
+    inner <- mkPy u
+    pure $ inner <> PP.pretty ".control(1)"
+  mkPy (QPL.Adjoint u) = do
+    inner <- mkPy u
+    pure $ inner <> PP.pretty ".inverse()"
+  mkPy (QPL.RevEmbedU xs e) = do
+    tys <- view id
+    let n = sum $ map CPL.bestBitsize tys
+    let name = filter (\c -> c /= '"' && c /= '\\') $ show (QPL.RevEmbedU xs e :: QPL.Unitary Double size)
+    pure $ customGate name n
 
 instance (Show size, Integral size) => ToQiskitPy (QPL.BasicGate size) where
   type Ctx (QPL.BasicGate size) = [CPL.VarType size]
 
-  mkPy QPL.Toffoli = error "TODO Toffoli"
-  mkPy QPL.CNOT = error "TODO CNOT"
-  mkPy QPL.XGate = error "TODO XGate"
-  mkPy QPL.HGate = error "TODO HGate"
-  mkPy QPL.ZGate = error "TODO ZGate"
-  mkPy (QPL.Rz theta) = error "TODO Rz"
-  mkPy QPL.COPY = error "TODO COPY"
-  mkPy QPL.SWAP = error "TODO SWAP"
-  mkPy (QPL.PhaseOnZero theta) = error "TODO PhaseOnZero"
+  mkPy QPL.XGate = pure $ libGate "XGate"
+  mkPy QPL.HGate = pure $ libGate "HGate"
+  mkPy QPL.ZGate = pure $ libGate "ZGate"
+  mkPy QPL.CNOT = pure $ libGate "CXGate"
+  mkPy QPL.Toffoli = pure $ libGate "CCXGate"
+  mkPy QPL.SWAP = pure $ libGate "SwapGate"
+  mkPy QPL.COPY = pure $ libGate "CXGate"
+  mkPy (QPL.Rz theta) = pure $ libGateParam "RZGate" (show theta)
+  mkPy (QPL.PhaseOnZero theta) = do
+    tys <- view id
+    let n = sum $ map CPL.bestBitsize tys
+    pure $ customGate ("PhaseOnZero(" ++ show theta ++ ")") n
 
 -- ============================================================
 -- Classical: Emit Qiskit circuits with control-flow

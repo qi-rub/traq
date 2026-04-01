@@ -85,11 +85,10 @@ instance (Show size, Integral size) => ToQualtranPy (QPL.Program size) where
 instance (Show size, Integral size) => ToQualtranPy (QPL.ProcDef size) where
   type Ctx (QPL.ProcDef size) = ()
 
-  mkPy QPL.ProcDef{info_comment, proc_name, proc_meta_params, proc_param_types, proc_body} =
+  mkPy QPL.ProcDef{proc_name, proc_meta_params, proc_param_types, proc_body} =
     PP.vsep
       <$> sequence
-        [ pure $ py_comment info_comment
-        , withEnv
+        [ withEnv
             (ProcBuildCtx{..})
             (mkPy proc_body)
         ]

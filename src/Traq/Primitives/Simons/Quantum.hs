@@ -162,8 +162,7 @@ simonsOneRound arg_tys = do
 
   return
     QPL.ProcDef
-      { QPL.info_comment = ""
-      , QPL.proc_name
+      { QPL.proc_name
       , QPL.proc_meta_params = []
       , QPL.proc_param_types = arg_tys ++ arg_tys ++ arg_tys ++ pred_aux_tys
       , QPL.proc_body =
@@ -217,12 +216,14 @@ instance
                   "simon's post-processing: unitarily solve linear system: (%s) . (%s) = 0"
                   (PP.commaList rets)
                   (PP.commaList $ take (length arg_tys) $ map fst xts)
+            , QPL.UnitaryS
+                (map QPL.Arg $ rets ++ take (length arg_tys) (map fst xts))
+                $ QPL.NamedGateU "SolveLinearSystem"
             ]
 
     return
       QPL.ProcDef
-        { QPL.info_comment = ""
-        , QPL.proc_name
+        { QPL.proc_name
         , QPL.proc_meta_params = []
         , QPL.proc_param_types = arg_tys ++ map snd xts
         , QPL.proc_body =
@@ -271,12 +272,12 @@ instance
                   "simon's post-processing: solve linear system: (%s) . (%s) = 0"
                   (PP.commaList rets)
                   (PP.commaList $ map fst xts)
+            , QPL.BlackBoxS (rets ++ map fst xts) "SolveLinearSystem"
             ]
 
     return
       QPL.ProcDef
-        { QPL.info_comment = ""
-        , QPL.proc_name
+        { QPL.proc_name
         , QPL.proc_meta_params = []
         , QPL.proc_param_types = arg_tys
         , QPL.proc_body =

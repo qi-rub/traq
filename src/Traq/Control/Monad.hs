@@ -6,6 +6,9 @@ module Traq.Control.Monad (
   mapAccumM,
   forAccumM,
 
+  -- * MonadReader
+  withEnv,
+
   -- * MonadState
   withSandboxOf,
   withSandbox,
@@ -42,8 +45,16 @@ import Data.Tuple (swap)
 
 import Lens.Micro.GHC
 import Lens.Micro.Mtl
+import Lens.Micro.Mtl.Internal (Magnified, Magnify)
 
 import Traq.Data.Errors
+
+-- ================================================================================
+-- Reader
+-- ================================================================================
+
+withEnv :: (Magnify m n r r', Functor (Magnified m a)) => r -> m a -> n a
+withEnv r = magnify (lens (const r) const)
 
 -- ================================================================================
 -- Writer

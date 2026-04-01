@@ -6,7 +6,8 @@ uproc UMax(ret : Fin<30>, ret_1 : Fin<20>, inp : AUX Arr<20, Fin<20>>, out : AUX
   for (#x_2 in Fin<20>) {
     call Oracle_U(inp[#x_2], out[#x_2]);
   }
-  // unitarily compute: ret := max(out); ret_1 := argmax(out);
+  out, ret *= NamedGate("max");
+  out, ret_1 *= NamedGate("argmax");
 }
 
 uproc main_U(y : OUT Fin<30>, x : AUX Fin<20>, y_1 : AUX Fin<30>, x_1 : AUX Fin<20>, aux_prim : AUX Arr<20, Fin<20>>, aux_prim_1 : AUX Arr<20, Fin<30>>) {

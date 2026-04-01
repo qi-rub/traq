@@ -27,16 +27,17 @@ module Traq.Compiler.Python (
   py_unOp,
   py_binOp,
   py_naryOp,
+  py_tupled,
   toPyType,
 ) where
 
-import Control.Monad.Reader (ReaderT (..))
 import Prettyprinter ((<+>))
 import qualified Prettyprinter as PP
 import Text.Printf (printf)
 
 import Lens.Micro.GHC
-import Lens.Micro.Mtl
+
+import Traq.Control.Monad
 
 import qualified Traq.CPL as CPL
 import Traq.Prelude
@@ -47,9 +48,6 @@ import qualified Traq.QPL as QPL
 -- ============================================================
 
 type Py ann = PP.Doc ann
-
-withEnv :: (Monad m) => r -> ReaderT r m a -> ReaderT r' m a
-withEnv r = magnify (lens (const r) const)
 
 py_indent :: Py ann -> Py ann
 py_indent = PP.indent tabwidth
@@ -78,6 +76,11 @@ py_comment c = PP.vsep $ lines c <&> \l -> PP.pretty $ "# " <> l
 
 py_pass :: Py ann
 py_pass = PP.pretty "pass"
+
+-- | Python tuple literal, handling the singleton case with a trailing comma.
+py_tupled :: [Py ann] -> Py ann
+py_tupled [x] = PP.parens (x <> PP.comma)
+py_tupled xs = PP.tupled xs
 
 py_ifte :: String -> Py ann -> Py ann -> Py ann
 py_ifte b s_t s_f =
