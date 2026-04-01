@@ -103,9 +103,9 @@ instance (CPL.EvalReqs size prec, Floating prec, Ord prec) => QuantumExpCostPrim
 -- ================================================================================
 
 instance UnitaryCompilePrim (CAmplify size prec) size prec where
-  compileUPrim (CAmplify Amplify{}) eps = do
+  compileUPrim (CAmplify Amplify{}) _ = do
     error "TODO: CompileU CAmplify"
 
 instance QuantumCompilePrim (CAmplify size prec) size prec where
-  compileQPrim (CAmplify Amplify{}) eps = do
+  compileQPrim (CAmplify Amplify{}) _ = do
     error "TODO: CompileQ CAmplify"

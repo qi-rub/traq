@@ -13,7 +13,6 @@ import Control.Monad (when)
 import Control.Monad.Except (throwError)
 import Control.Monad.Reader (ReaderT (..))
 import Control.Monad.Trans (lift)
-import Text.Parsec.Token (GenTokenParser (..))
 import Text.Printf (printf)
 
 import Lens.Micro.GHC

@@ -139,8 +139,7 @@ instance (Floating prec, RealFrac prec, Eq size) => UnitaryCompilePrim (QAmplify
   compileUPrim (QAmplify Amplify{p_min}) eps = do
     -- return vars and types
     ret_tys <- view $ to prim_ret_types
-    rets <- replicateM (length ret_tys) $ Compiler.newIdent "ret"
-    let b = head rets
+    rets@(b : _) <- replicateM (length ret_tys) $ Compiler.newIdent "ret"
 
     -- sampler
     (SamplerFn call_upred) <- view $ to mk_ucall
@@ -206,8 +205,7 @@ mkGroverK = do
   meta_k <- Compiler.newIdent "k"
 
   ret_tys <- view $ to prim_ret_types
-  rets <- replicateM (length ret_tys) $ Compiler.newIdent "ret"
-  let b = head rets
+  rets@(b : _) <- replicateM (length ret_tys) $ Compiler.newIdent "ret"
 
   Compiler.buildUProc "Grover" [meta_k] (zip rets ret_tys) $ do
     (SamplerFn mk_sampler_call) <- view $ to mk_ucall
@@ -269,8 +267,7 @@ buildQAmplify ::
   -- | p_min: min success probability of sampler
   prec ->
   m ()
-buildQAmplify n_samples rets _ret_tys eps p_min = do
-  let b = head rets
+buildQAmplify n_samples rets@(b : _) _ret_tys eps p_min = do
 
   -- flag
   not_done <- Compiler.allocLocalWithPrefix "not_done" CPL.tbool

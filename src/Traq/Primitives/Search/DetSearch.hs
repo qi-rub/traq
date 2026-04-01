@@ -103,9 +103,9 @@ instance
 -- ================================================================================
 
 instance UnitaryCompilePrim (DetSearch size prec) size prec where
-  compileUPrim (DetSearch PrimSearch{search_kind, search_ty}) eps = do
+  compileUPrim (DetSearch PrimSearch{}) _ = do
     error "TODO: CompileU DetSearch"
 
 instance QuantumCompilePrim (DetSearch size prec) size prec where
-  compileQPrim (DetSearch PrimSearch{search_kind, search_ty}) eps = do
+  compileQPrim (DetSearch PrimSearch{}) _ = do
     error "TODO: CompileQ DetSearch"

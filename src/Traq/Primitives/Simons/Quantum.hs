@@ -148,7 +148,7 @@ simonsOneRound arg_tys = do
   ys' <- lift $ mapM (Compiler.allocAncillaWithPref "yy") arg_tys
   aux <- lift $ mapM Compiler.allocAncilla pred_aux_tys
 
-  let had_xs = QPL.USeqS [QPL.UnitaryS [QPL.Arg x] (QPL.BasicGateU QPL.Unif) | (x, t) <- zip xs arg_tys]
+  let had_xs = QPL.USeqS [QPL.UnitaryS [QPL.Arg x] (QPL.BasicGateU QPL.Unif) | (x, _t) <- zip xs arg_tys]
   let call_g = call_upred (map QPL.Arg (xs ++ ys ++ aux))
   let copy_out = QPL.USeqS [QPL.UnitaryS [QPL.Arg y, QPL.Arg y'] (QPL.BasicGateU QPL.COPY) | (y, y') <- zip ys ys']
 

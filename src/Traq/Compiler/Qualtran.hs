@@ -209,7 +209,7 @@ instance (Show size, Integral size) => ToQualtranPy (QPL.UStmt size) where
         [ PP.pretty "for" <+> py_sanitizeIdent iter_meta_var <+> PP.pretty "in" <+> range_expr <> PP.colon
         , py_indent body
         ]
-  mkPy QPL.UForInDomainS{iter_meta_var, iter_ty, dagger, uloop_body} = pure $ py_notImplemented "TODO UForInDomainS"
+  mkPy QPL.UForInDomainS{} = pure $ py_notImplemented "TODO UForInDomainS"
   mkPy QPL.UWithComputedS{with_ustmt, body_ustmt} = do
     mkPy with_ustmt
     mkPy body_ustmt
@@ -237,13 +237,14 @@ instance (Show size, Integral size, RealFloat prec) => ToQualtranPy (QPL.Unitary
     tys <- view id
     let ctx = Ctx.fromList $ zip xs tys
     withEnv ctx $ exprToBloq e
+  mkPy (QPL.NamedGateU name) = pure $ PP.pretty name <> PP.pretty "()"
 
 namedBloq :: (Show size, Integral size) => Ident -> [CPL.VarType size] -> Py ann
 namedBloq b ts =
   PP.pretty "NamedBloq"
     <> PP.tupled
       [ PP.dquotes $ PP.pretty b
-      , PP.list [py_register ("x_" <> show i) t | (t, i) <- zip ts [0 ..]]
+      , PP.list [py_register ("x_" <> show i) t | (t, i) <- zip ts [0 :: Int ..]]
       ]
 
 exprToBloq :: (Show size, Integral size) => CPL.BasicExpr size -> Reader (CPL.TypingCtx size) (Py ann)
@@ -285,13 +286,11 @@ instance (Show size, Integral size) => ToQualtranPy (QPL.BasicGate size) where
   mkPy QPL.COPY = do
     tys <- view id
     let n = length tys
-    let half = n `div` 2
     let regs = zipWith py_register ["q_" <> show i | i <- [1 .. n]] tys
     pure $ PP.pretty "MultiCopy" <> PP.parens (PP.list regs)
   mkPy QPL.SWAP = do
     tys <- view id
     let n = length tys
-    let half = n `div` 2
     let regs = zipWith py_register ["q_" <> show i | i <- [1 .. n]] tys
     pure $ PP.pretty "MultiSwap" <> PP.parens (PP.list regs)
   mkPy (QPL.PhaseOnZero theta) = do
@@ -299,6 +298,7 @@ instance (Show size, Integral size) => ToQualtranPy (QPL.BasicGate size) where
     let n = length tys
     let regs = zipWith py_register ["q_" <> show i | i <- [1 .. n]] tys
     pure $ PP.pretty "PhaseOnZero" <> PP.tupled [PP.pretty theta, PP.list regs]
+  mkPy QPL.Unif = error "TODO Unif"
 
 -- ============================================================
 -- Classical: Emit native python
@@ -320,7 +320,7 @@ instance (Show size) => ToQualtranPy (QPL.CProcBody size) where
         py_notImplemented "external function - implement here"
 
   -- defined
-  mkPy QPL.CProcBody{cproc_param_names, cproc_local_vars, cproc_body_stmt} = do
+  mkPy QPL.CProcBody{cproc_param_names, cproc_body_stmt} = do
     ProcBuildCtx{..} <- view id
     let tys = map toPyType proc_param_types
 
@@ -342,7 +342,7 @@ instance (Show size) => ToQualtranPy (QPL.Stmt size) where
   mkPy QPL.AssignS{rets, expr} = do
     let lhs = PP.hsep $ PP.punctuate PP.comma (map py_sanitizeIdent rets)
     pure $ lhs <+> PP.equals <+> py_expr expr
-  mkPy QPL.RandomS{rets, distr_expr} = error "TODO RandomS"
+  mkPy QPL.RandomS{} = error "TODO RandomS"
   mkPy QPL.RandomDynS{ret, max_var} =
     pure $ PP.pretty ret <+> PP.equals <+> PP.pretty "random.randrange" <> PP.parens (PP.pretty max_var)
   mkPy QPL.CallS{fun = QPL.FunctionCall proc_id, meta_params, args} = do
@@ -369,9 +369,9 @@ instance (Show size) => ToQualtranPy (QPL.Stmt size) where
         [ PP.pretty "for _ in range" <> PP.parens n <> PP.colon
         , py_indent body
         ]
-  mkPy QPL.WhileK{n_iter, cond, loop_body} = error "TODO WhileK"
-  mkPy QPL.WhileKWithCondExpr{n_iter, cond, cond_expr, loop_body} = error "TODO WhileKWithCondExpr"
-  mkPy QPL.ForInArray{loop_index, loop_index_ty, loop_values, loop_body} = do
+  mkPy QPL.WhileK{} = error "TODO WhileK"
+  mkPy QPL.WhileKWithCondExpr{} = error "TODO WhileKWithCondExpr"
+  mkPy QPL.ForInArray{loop_index, loop_values, loop_body} = do
     body <- mkPy loop_body
     let vals = PP.list (map py_expr loop_values)
     pure $
@@ -379,4 +379,5 @@ instance (Show size) => ToQualtranPy (QPL.Stmt size) where
         [ PP.pretty "for" <+> PP.pretty loop_index <+> PP.pretty "in" <+> vals <> PP.colon
         , py_indent body
         ]
-  mkPy QPL.ForInRangeS{iter_meta_var, iter_lim, loop_body} = error "TODO ForInRangeS"
+  mkPy QPL.ForInRangeS{} = error "TODO ForInRangeS"
+  mkPy QPL.BlackBoxS{} = error "TODO BlackBoxS"

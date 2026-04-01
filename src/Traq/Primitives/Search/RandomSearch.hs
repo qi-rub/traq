@@ -124,9 +124,9 @@ instance
 -- ================================================================================
 
 instance UnitaryCompilePrim (RandomSearch size prec) size prec where
-  compileUPrim (RandomSearch PrimSearch{search_kind, search_ty}) eps = do
+  compileUPrim (RandomSearch PrimSearch{}) _ = do
     error "TODO: CompileU RandomSearch"
 
 instance QuantumCompilePrim (RandomSearch size prec) size prec where
-  compileQPrim (RandomSearch PrimSearch{search_kind, search_ty}) eps = do
+  compileQPrim (RandomSearch PrimSearch{}) _ = do
     error "TODO: CompileQ RandomSearch"
