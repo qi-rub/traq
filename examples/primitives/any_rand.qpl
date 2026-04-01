@@ -1,0 +1,34 @@
+ext uproc Oracle_U(Fin<20>, Fin<2>);
+
+ext proc Oracle(Fin<20>, Fin<2>);
+
+uproc UDetSearch(ok_2 : Fin<2>, x_1 : AUX Fin<20>, tmp_flag : AUX Arr<20, Fin<2>>, tmp_x : AUX Arr<20, Fin<20>>) {
+  for (#i in Fin<20>) {
+    tmp_x[#i] *= Embed[() => #i];
+    call Oracle_U(tmp_x[#i], tmp_flag[#i]);
+  }
+  tmp_flag, tmp_x, ok_2, x_1 *= NamedGate("SelectOnTrue");
+}
+
+uproc main_U(ok : OUT Fin<2>, ok_1 : AUX Fin<2>, aux_prim : AUX Fin<20>, aux_prim_1 : AUX Arr<20, Fin<2>>, aux_prim_2 : AUX Arr<20, Fin<20>>) {
+  call UDetSearch(ok_1, aux_prim, aux_prim_1, aux_prim_2);
+  ok, ok_1 *= SWAP;
+}
+
+proc RandSearch(ok_3 : Fin<2>) { locals : (x_3 : Fin<20>) } {
+  repeat (93) {
+    if (ok_3) {
+      skip;
+    } else {
+      x_3 :=$ uniform : Fin<20>;
+      call Oracle(ok_3, x_3);
+    }
+  }
+}
+
+proc main(ok : Fin<2>) { locals : () } {
+  call RandSearch(ok);
+}
+
+
+// qubits: 127

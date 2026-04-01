@@ -1,0 +1,6 @@
+ext fn Oracle(Fin<20>) -> Bool end
+
+fn main() -> Bool do
+	ok <- @any_rand<Fin<20>>[Oracle(_)];
+	return ok
+end

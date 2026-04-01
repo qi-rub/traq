@@ -7,18 +7,23 @@ module Traq.Primitives.Search.RandomSearch (
   RandomSearch (..),
 ) where
 
+import Control.Monad.Except (throwError)
 import GHC.Generics (Generic)
 
 import Lens.Micro.GHC
+import Lens.Micro.Mtl
 import qualified Numeric.Algebra as Alg
 
 import qualified Traq.Data.Probability as Prob
 
 import qualified Traq.Analysis as A
 import qualified Traq.CPL as CPL
+import qualified Traq.Compiler as Compiler
 import Traq.Prelude
 import Traq.Primitives.Class
+import Traq.Primitives.Search.DetSearch
 import Traq.Primitives.Search.Prelude
+import qualified Traq.QPL as QPL
 
 -- ================================================================================
 -- Cost Formulas
@@ -123,10 +128,41 @@ instance
 -- Compilation
 -- ================================================================================
 
-instance UnitaryCompilePrim (RandomSearch size prec) size prec where
-  compileUPrim (RandomSearch PrimSearch{}) _ = do
-    error "TODO: CompileU RandomSearch"
+instance (Integral size) => UnitaryCompilePrim (RandomSearch size prec) size prec where
+  compileUPrim (RandomSearch p) = compileUPrim (DetSearch p)
 
-instance QuantumCompilePrim (RandomSearch size prec) size prec where
-  compileQPrim (RandomSearch PrimSearch{}) _ = do
-    error "TODO: CompileQ RandomSearch"
+instance (Integral size, RealFrac prec, Floating prec) => QuantumCompilePrim (RandomSearch size prec) size prec where
+  compileQPrim (RandomSearch PrimSearch{search_ty, search_kind}) eps = do
+    ret_tys <- view $ to prim_ret_types
+    (flag_ty, sample_ty) <- case ret_tys of
+      [b, t] -> return (b, t)
+      [b] -> return (b, search_ty)
+      _ -> throwError "typecheck failed"
+
+    flag <- Compiler.newIdent "ok"
+    x_out <- Compiler.newIdent "x"
+
+    (BooleanPredicate call_pred) <- view $ to mk_call
+
+    let _N = CPL.domainSize search_ty
+    let qmax = _ERandomSearchWorst _N eps
+
+    let ret_params = case search_kind of
+          SearchK -> [(flag, flag_ty), (x_out, sample_ty)]
+          _ -> [(flag, flag_ty)]
+
+    Compiler.buildProc "RandSearch" [] ret_params $ do
+      sample <- case search_kind of
+        SearchK -> return x_out
+        _ -> Compiler.allocLocalWithPrefix "x" search_ty
+      Compiler.withStmt (QPL.RepeatS (QPL.MetaSize (ceiling qmax))) $ do
+        Compiler.addStmt $
+          QPL.IfThenElseS
+            { cond = flag
+            , s_true = QPL.SkipS
+            , s_false =
+                QPL.SeqS
+                  [ QPL.RandomS [sample] (CPL.UniformE sample_ty)
+                  , call_pred [QPL.Arg flag, QPL.Arg sample]
+                  ]
+            }
