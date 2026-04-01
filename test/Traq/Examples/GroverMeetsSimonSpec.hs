@@ -16,8 +16,8 @@ import qualified Traq.Analysis as A
 import Traq.Analysis.CostModel.QueryCost (SimpleQueryCost (getCost))
 import qualified Traq.CPL as CPL
 import qualified Traq.Compiler as Compiler
-import qualified Traq.Compiler.Qiskit as Qiskit
-import qualified Traq.Compiler.Qualtran as Qualtran
+import qualified Traq.Experimental.Compiler.Qiskit as Qiskit
+import qualified Traq.Experimental.Compiler.Qualtran as Qualtran
 import Traq.Prelude
 import Traq.Primitives
 import qualified Traq.QPL as QPL

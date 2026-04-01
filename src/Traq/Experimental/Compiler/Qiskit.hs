@@ -5,7 +5,7 @@
 
 {- HLINT ignore "Use camelCase" -}
 
-module Traq.Compiler.Qiskit (
+module Traq.Experimental.Compiler.Qiskit (
   toPy,
 ) where
 
@@ -23,7 +23,7 @@ import qualified Traq.Data.Context as Ctx
 import Traq.Data.Default
 
 import qualified Traq.CPL as CPL
-import Traq.Compiler.Python
+import Traq.Experimental.Compiler.Python
 import Traq.Prelude
 import qualified Traq.QPL as QPL
 

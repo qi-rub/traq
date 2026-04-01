@@ -4,7 +4,7 @@
 
 {- HLINT ignore "Use camelCase" -}
 
-module Traq.Compiler.Qualtran (
+module Traq.Experimental.Compiler.Qualtran (
   toPy,
 ) where
 
@@ -20,7 +20,7 @@ import Lens.Micro.Mtl
 import qualified Traq.Data.Context as Ctx
 
 import qualified Traq.CPL as CPL
-import Traq.Compiler.Python
+import Traq.Experimental.Compiler.Python
 import Traq.Prelude
 import qualified Traq.QPL as QPL
 

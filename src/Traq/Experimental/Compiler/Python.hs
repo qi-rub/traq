@@ -3,7 +3,7 @@
 
 {- HLINT ignore "Use camelCase" -}
 
-module Traq.Compiler.Python (
+module Traq.Experimental.Compiler.Python (
   Py,
   withEnv,
   py_indent,
