@@ -1,0 +1,32 @@
+ext uproc sampler_U(Fin<16>, Fin<2>, Fin<8>);
+
+ext proc sampler(Fin<16>, Fin<2>, Fin<8>);
+
+uproc UCAmplify(x : Fin<16>, ret : Fin<2>, ret_1 : Fin<8>, aux : AUX Arr<459, Fin<2>>, aux_1 : AUX Arr<459, Fin<8>>) {
+  for (#i in Fin<459>) {
+    call sampler_U(x, aux[#i], aux_1[#i]);
+  }
+  aux, aux_1, ret, ret_1 *= NamedGate("Select");
+}
+
+uproc main_U(x : IN Fin<16>, b : OUT Fin<2>, y : OUT Fin<8>, b_1 : AUX Fin<2>, y_1 : AUX Fin<8>, aux_prim : AUX Arr<459, Fin<2>>, aux_prim_1 : AUX Arr<459, Fin<8>>) {
+  call UCAmplify(x, b_1, y_1, aux_prim, aux_prim_1);
+  b, y, b_1, y_1 *= SWAP;
+}
+
+proc CAmplify(x : Fin<16>, b_2 : Fin<2>, y_2 : Fin<8>) { locals : () } {
+  repeat (459) {
+    if (b_2) {
+      skip;
+    } else {
+      call sampler(x, b_2, y_2);
+    }
+  }
+}
+
+proc main(x : Fin<16>, b : Fin<2>, y : Fin<8>) { locals : () } {
+  call CAmplify(x, b, y);
+}
+
+
+// qubits: 1848

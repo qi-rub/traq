@@ -1,6 +1,6 @@
 PROJ_DEPS=../../src ../../tools ../../traq.cabal
 
-all: any.qpl max.qpl
+all: any.qpl max.qpl amplify.qpl camplify.qpl
 
 full: all any-qiskit.py 
 
