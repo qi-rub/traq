@@ -19,8 +19,6 @@ import Traq.Primitives.Search.RandomSearch (RandomSearch (..))
 
 import Lens.Micro.GHC
 
-import qualified Traq.Data.Symbolic as Sym
-
 data Options = Options
   { optCompareCosts :: Bool
   , optDemo :: Bool

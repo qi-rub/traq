@@ -11,18 +11,19 @@ module Traq.Compiler.Quantum (
 
 import Control.Monad (forM_)
 import Control.Monad.Except (MonadError (..))
-import qualified Traq.Analysis.Annotate.Prelude as A
-import qualified Traq.CPL as CPL
-import Traq.Compiler.Prelude
-import Traq.Compiler.Unitary
-import Traq.Prelude
-import Traq.QPL.Syntax
 
 import Lens.Micro.GHC
 import Lens.Micro.Mtl
 
 import Traq.Control.Monad
 import qualified Traq.Data.Context as Ctx
+
+import qualified Traq.Analysis.Annotate.Prelude as A
+import qualified Traq.CPL as CPL
+import Traq.Compiler.Prelude
+import Traq.Compiler.Unitary
+import Traq.Prelude
+import Traq.QPL.Syntax
 
 -- ================================================================================
 -- Compiler

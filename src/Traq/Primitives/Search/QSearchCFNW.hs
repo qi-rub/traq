@@ -40,14 +40,6 @@ import Control.Monad.Writer (censor, listen)
 import Data.Maybe (fromJust)
 import Data.String (fromString)
 import GHC.Generics (Generic)
-import qualified Traq.Analysis as A
-import Traq.CPL (notE, (.&&.), (.+.), (.<=.))
-import qualified Traq.CPL as CPL
-import qualified Traq.Compiler as Compiler
-import Traq.Prelude
-import Traq.Primitives.Class
-import Traq.Primitives.Search.Prelude
-import qualified Traq.QPL as QPL
 
 import Lens.Micro.GHC
 import Lens.Micro.Mtl
@@ -57,6 +49,15 @@ import Traq.Control.Monad
 import qualified Traq.Data.Context as Ctx
 import qualified Traq.Data.Probability as Prob
 import Traq.Data.Subtyping
+
+import qualified Traq.Analysis as A
+import Traq.CPL (notE, (.&&.), (.+.), (.<=.))
+import qualified Traq.CPL as CPL
+import qualified Traq.Compiler as Compiler
+import Traq.Prelude
+import Traq.Primitives.Class
+import Traq.Primitives.Search.Prelude
+import qualified Traq.QPL as QPL
 
 -- ================================================================================
 -- Cost Formulas

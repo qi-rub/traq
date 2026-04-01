@@ -14,6 +14,7 @@ module Traq.Primitives.Amplify.QAmplify (
 
 import Control.Monad (replicateM, when)
 import Control.Monad.Trans (lift)
+import Data.List (uncons)
 import GHC.Generics (Generic)
 
 import Lens.Micro.GHC
@@ -139,7 +140,8 @@ instance (Floating prec, RealFrac prec, Eq size) => UnitaryCompilePrim (QAmplify
   compileUPrim (QAmplify Amplify{p_min}) eps = do
     -- return vars and types
     ret_tys <- view $ to prim_ret_types
-    rets@(b : _) <- replicateM (length ret_tys) $ Compiler.newIdent "ret"
+    rets <- replicateM (length ret_tys) $ Compiler.newIdent "ret"
+    (b, _) <- maybeWithError "no return variables" $ uncons rets
 
     -- sampler
     (SamplerFn call_upred) <- view $ to mk_ucall
@@ -205,7 +207,8 @@ mkGroverK = do
   meta_k <- Compiler.newIdent "k"
 
   ret_tys <- view $ to prim_ret_types
-  rets@(b : _) <- replicateM (length ret_tys) $ Compiler.newIdent "ret"
+  rets <- replicateM (length ret_tys) $ Compiler.newIdent "ret"
+  (b, _) <- maybeWithError "no return variables" $ uncons rets
 
   Compiler.buildUProc "Grover" [meta_k] (zip rets ret_tys) $ do
     (SamplerFn mk_sampler_call) <- view $ to mk_ucall
@@ -267,7 +270,8 @@ buildQAmplify ::
   -- | p_min: min success probability of sampler
   prec ->
   m ()
-buildQAmplify n_samples rets@(b : _) _ret_tys eps p_min = do
+buildQAmplify n_samples rets _ret_tys eps p_min = do
+  (b, _) <- maybeWithError "no return variables" $ uncons rets
 
   -- flag
   not_done <- Compiler.allocLocalWithPrefix "not_done" CPL.tbool
