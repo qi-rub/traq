@@ -1,6 +1,6 @@
 {-# LANGUAGE DuplicateRecordFields #-}
-{-# LANGUAGE GeneralizedNewtypeDeriving #-}
 {-# LANGUAGE FlexibleInstances #-}
+{-# LANGUAGE GeneralizedNewtypeDeriving #-}
 {-# LANGUAGE RecordWildCards #-}
 
 {- HLINT ignore "Use camelCase" -}
@@ -268,7 +268,7 @@ instance (Show size, Integral size) => ToQiskitPy (QPL.Unitary Double size) wher
   mkPy (QPL.RevEmbedU xs e) = do
     tys <- view id
     let n = sum $ map CPL.bestBitsize tys
-    let name = filter (\c -> c /= '"' && c /= '\\') $ show (QPL.RevEmbedU xs e :: QPL.Unitary size)
+    let name = filter (\c -> c /= '"' && c /= '\\') $ show (QPL.RevEmbedU xs e :: QPL.Unitary Double size)
     pure $ customGate name n
 
 instance (Show size, Integral size) => ToQiskitPy (QPL.BasicGate size) where

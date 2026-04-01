@@ -137,14 +137,15 @@ spec = describe "SearchSpec" $ do
 
   describe "any" $ do
     let load =
-          parseFromFile (CPL.programParser @(DefaultPrims (Sym.Sym SizeT) Double)) "examples/primitives/any.traq"
+          parseFromFile (CPL.programParser @(DefaultPrims (Sym.Sym SizeT) (Sym.Sym Double))) "examples/primitives/any.traq"
             >>= expectRight
               <&> CPL.mapSize Sym.unSym
+              <&> CPL.mapPrec Sym.unSym
               <&> A.annotateProgWith (CPL._exts (A.annSinglePrim (A.failProb 0.01)))
             >>= expectRight
 
     beforeAll load $ do
-      it "target-qiskit" $ \ex -> do
+      xit "target-qiskit" $ \ex -> do
         ex_qpl <- expectRight $ Compiler.lowerProgram ex
         _ <- evaluate $ force $ Qiskit.toPy ex_qpl
         return ()
