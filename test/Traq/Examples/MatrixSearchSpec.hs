@@ -12,9 +12,9 @@ import qualified Traq.Analysis as A
 import Traq.Analysis.CostModel.QueryCost (SimpleQueryCost (getCost))
 import qualified Traq.CPL as CPL
 import qualified Traq.Compiler as Compiler
+import Traq.Examples.MatrixSearch
 import qualified Traq.Experimental.Compiler.Qiskit as Qiskit
 import qualified Traq.Experimental.Compiler.Qualtran as Qualtran
-import Traq.Examples.MatrixSearch
 import Traq.Primitives (Primitive (..))
 import Traq.Primitives.Search.Prelude
 import Traq.Primitives.Search.QSearchCFNW (_EQSearchWorst, _QSearchZalka)
