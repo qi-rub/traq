@@ -1,0 +1,107 @@
+ext uproc sampler_U(Fin<16>, Fin<2>, Fin<8>);
+
+ext proc sampler(Fin<16>, Fin<2>, Fin<8>);
+
+uproc UAmplify(x : Fin<16>, ret : OUT Fin<2>, ret_1 : OUT Fin<8>) {
+  call sampler_U(x, ret, ret_1);
+  ret *= Rz(-0.45880404720437845);
+  call-adj sampler_U(x, ret, ret_1);
+  ret, ret_1 *= PhaseOnZero(0.23007762205118054);
+  call sampler_U(x, ret, ret_1);
+  ret *= Rz(-0.15107941343907155);
+  call-adj sampler_U(x, ret, ret_1);
+  ret, ret_1 *= PhaseOnZero(0.11055632715919277);
+  call sampler_U(x, ret, ret_1);
+  ret *= Rz(-0.08551175610269639);
+  call-adj sampler_U(x, ret, ret_1);
+  ret, ret_1 *= PhaseOnZero(0.06820693287363513);
+  call sampler_U(x, ret, ret_1);
+  ret *= Rz(-0.05530726879787692);
+  call-adj sampler_U(x, ret, ret_1);
+  ret, ret_1 *= PhaseOnZero(0.045136695082362434);
+  call sampler_U(x, ret, ret_1);
+  ret *= Rz(-0.03675728103029493);
+  call-adj sampler_U(x, ret, ret_1);
+  ret, ret_1 *= PhaseOnZero(0.02959972860863297);
+  call sampler_U(x, ret, ret_1);
+  ret *= Rz(-0.023294806002161352);
+  call-adj sampler_U(x, ret, ret_1);
+  ret, ret_1 *= PhaseOnZero(0.017588592502775145);
+  call sampler_U(x, ret, ret_1);
+  ret *= Rz(-0.012296334270558974);
+  call-adj sampler_U(x, ret, ret_1);
+  ret, ret_1 *= PhaseOnZero(0.007275450120649902);
+  call sampler_U(x, ret, ret_1);
+  ret *= Rz(-0.002408512345023363);
+  call-adj sampler_U(x, ret, ret_1);
+  ret, ret_1 *= PhaseOnZero(-0.002408512345023363);
+  call sampler_U(x, ret, ret_1);
+  ret *= Rz(0.007275450120649902);
+  call-adj sampler_U(x, ret, ret_1);
+  ret, ret_1 *= PhaseOnZero(-0.012296334270558974);
+  call sampler_U(x, ret, ret_1);
+  ret *= Rz(0.017588592502775145);
+  call-adj sampler_U(x, ret, ret_1);
+  ret, ret_1 *= PhaseOnZero(-0.023294806002161352);
+  call sampler_U(x, ret, ret_1);
+  ret *= Rz(0.02959972860863297);
+  call-adj sampler_U(x, ret, ret_1);
+  ret, ret_1 *= PhaseOnZero(-0.03675728103029493);
+  call sampler_U(x, ret, ret_1);
+  ret *= Rz(0.045136695082362434);
+  call-adj sampler_U(x, ret, ret_1);
+  ret, ret_1 *= PhaseOnZero(-0.05530726879787692);
+  call sampler_U(x, ret, ret_1);
+  ret *= Rz(0.06820693287363513);
+  call-adj sampler_U(x, ret, ret_1);
+  ret, ret_1 *= PhaseOnZero(-0.08551175610269639);
+  call sampler_U(x, ret, ret_1);
+  ret *= Rz(0.11055632715919277);
+  call-adj sampler_U(x, ret, ret_1);
+  ret, ret_1 *= PhaseOnZero(-0.15107941343907155);
+  call sampler_U(x, ret, ret_1);
+  ret *= Rz(0.23007762205118054);
+  call-adj sampler_U(x, ret, ret_1);
+  ret, ret_1 *= PhaseOnZero(-0.45880404720437845);
+  call sampler_U(x, ret, ret_1);
+}
+
+uproc main_U(x : IN Fin<16>, b : OUT Fin<2>, y : OUT Fin<8>, b_1 : AUX Fin<2>, y_1 : AUX Fin<8>) {
+  call UAmplify(x, b_1, y_1);
+  b, y, b_1, y_1 *= SWAP;
+}
+
+uproc Grover[k](x : Fin<16>, ret_4 : Fin<2>, ret_5 : Fin<8>) {
+  call sampler_U(x, ret_4, ret_5);
+  repeat (#k) {
+    ret_4 *= Z;
+    call-adj sampler_U(x, ret_4, ret_5);
+    ret_4, ret_5 *= PhaseOnZero(3.141592653589793);
+    call sampler_U(x, ret_4, ret_5);
+  }
+}
+
+proc QAmplify(x : Fin<16>, ret_2 : Fin<2>, ret_3 : Fin<8>) { locals : (not_done : Fin<2>, Q_sum : Fin<92>, j : Fin<92>, j_lim : Fin<92>) } {
+  not_done := const 0:Fin<2>;
+  repeat (5) {
+    Q_sum := const 0:Fin<92>;
+    for (j_lim in [const 1:Fin<92>, const 1:Fin<92>, const 1:Fin<92>, const 2:Fin<92>, const 2:Fin<92>, const 2:Fin<92>, const 3:Fin<92>, const 4:Fin<92>, const 5:Fin<92>, const 6:Fin<92>, const 7:Fin<92>, const 8:Fin<92>, const 10:Fin<92>, const 10:Fin<92>, const 10:Fin<92>, const 10:Fin<92>, const 10:Fin<92>]) {
+      j :=$ [1 .. j_lim];
+      Q_sum := (Q_sum + j);
+      not_done := (not_done && (Q_sum <= j_lim));
+      if (not_done) {
+        meas Grover[j](x, ret_2, ret_3);
+        not_done := (not_done && not ret_2);
+      } else {
+        skip;
+      }
+    }
+  }
+}
+
+proc main(x : Fin<16>, b : Fin<2>, y : Fin<8>) { locals : () } {
+  call QAmplify(x, b, y);
+}
+
+
+// qubits: 12

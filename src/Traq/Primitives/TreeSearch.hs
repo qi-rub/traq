@@ -17,6 +17,7 @@ import Lens.Micro.Mtl
 
 import Traq.Control.Monad
 import qualified Traq.Data.Context as Ctx
+import qualified Traq.Data.Probability as Prob
 
 import qualified Traq.CPL as CPL
 import Traq.Prelude
@@ -126,13 +127,16 @@ instance (CPL.EvalReqs SizeT prec) => CPL.Evaluatable (TreeSearch SizeT prec) Si
     let nxt u =
           ( do
               cs <- CPL.eval1 (CPL.NamedFunDef getChildren child_fun) (child_args ++ [u])
-              return (head cs, cs !! 1)
+              case cs of
+                [c0, c1] -> return (c0, c1)
+                _ -> Prob.zero
           )
     let chk u =
           ( do
-              vs <- CPL.eval1 (CPL.NamedFunDef checkNode check_fun) (check_args ++ [u])
-              let ok = head vs
-              return $ CPL.valueToBool ok
+              res <- CPL.eval1 (CPL.NamedFunDef checkNode check_fun) (check_args ++ [u])
+              case res of
+                [ok] -> return $ CPL.valueToBool ok
+                _ -> Prob.zero
           )
 
     let root = CPL.FinV 1

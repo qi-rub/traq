@@ -27,7 +27,7 @@ uproc UAny(ret : OUT Fin<2>, s_result : OUT Fin<20>, aux : AUX Fin<2>, ctrl : AU
     call-adj Oracle_U(s_arg[#run_ix], aux);
     ctrl[#run_ix] *= X;
   }
-  pred_out, ret *= Embed[(a) => multi_or a];
+  pred_out, ret *= NamedGate("any");
   s_arg, pred_out, s_result *= Embed[(a, f) => (a selectOn f)];
 }
 

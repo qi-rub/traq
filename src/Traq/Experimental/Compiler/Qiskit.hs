@@ -5,7 +5,7 @@
 
 {- HLINT ignore "Use camelCase" -}
 
-module Traq.Compiler.Qiskit (
+module Traq.Experimental.Compiler.Qiskit (
   toPy,
 ) where
 
@@ -23,7 +23,7 @@ import qualified Traq.Data.Context as Ctx
 import Traq.Data.Default
 
 import qualified Traq.CPL as CPL
-import Traq.Compiler.Python
+import Traq.Experimental.Compiler.Python
 import Traq.Prelude
 import qualified Traq.QPL as QPL
 
@@ -184,7 +184,7 @@ instance (Show size, Integral size) => ToQiskitPy (QPL.UProcBody size) where
                  , PP.pretty "return qc"
                  ]
     pure $ py_def proc_name [] body
-  mkPy QPL.UProcBody{uproc_param_names, uproc_param_tags, uproc_body_stmt} = do
+  mkPy QPL.UProcBody{uproc_param_names, uproc_body_stmt} = do
     ProcBuildCtx{..} <- view id
     let param_defs =
           [ py_sanitizeIdent p
@@ -270,6 +270,10 @@ instance (Show size, Integral size) => ToQiskitPy (QPL.Unitary Double size) wher
     let n = sum $ map CPL.bestBitsize tys
     let name = filter (\c -> c /= '"' && c /= '\\') $ show (QPL.RevEmbedU xs e :: QPL.Unitary Double size)
     pure $ customGate name n
+  mkPy (QPL.NamedGateU name) = do
+    tys <- view id
+    let n = sum $ map CPL.bestBitsize tys
+    pure $ customGate name n
 
 instance (Show size, Integral size) => ToQiskitPy (QPL.BasicGate size) where
   type Ctx (QPL.BasicGate size) = [CPL.VarType size]
@@ -286,6 +290,7 @@ instance (Show size, Integral size) => ToQiskitPy (QPL.BasicGate size) where
     tys <- view id
     let n = sum $ map CPL.bestBitsize tys
     pure $ customGate ("PhaseOnZero(" ++ show theta ++ ")") n
+  mkPy QPL.Unif = error "TODO Unif"
 
 -- ============================================================
 -- Classical: Emit Qiskit circuits with control-flow
@@ -373,11 +378,11 @@ instance (Show size) => ToQiskitPy (QPL.Stmt size) where
   mkPy QPL.RandomS{} = pure $ blackbox "RandomS"
   mkPy QPL.RandomDynS{ret, max_var} =
     pure $ PP.pretty ret <+> PP.equals <+> PP.pretty "random.randrange" <> PP.parens (PP.pretty max_var)
-  mkPy QPL.CallS{fun = QPL.FunctionCall proc_id, meta_params, args} = do
+  mkPy QPL.CallS{fun = QPL.FunctionCall proc_id, args} = do
     let instr = py_sanitizeIdent proc_id <> PP.pretty "().to_instruction()"
     let cbits = PP.hsep $ PP.punctuate PP.comma [PP.pretty "*" <> py_arg q | q <- args]
     pure $ PP.pretty "qc.append" <> PP.tupled [instr, PP.pretty "[]", PP.brackets cbits]
-  mkPy QPL.CallS{fun = QPL.UProcAndMeas{}, meta_params, args} = pure $ blackbox "UProcAndMeas"
+  mkPy QPL.CallS{fun = QPL.UProcAndMeas{}} = pure $ blackbox "UProcAndMeas"
   mkPy (QPL.SeqS ss) = PP.vsep <$> mapM mkPy ss
   mkPy QPL.IfThenElseS{cond, s_true, s_false} = py_ifte cond <$> mkPy s_true <*> mkPy s_false
   mkPy QPL.RepeatS{n_iter, loop_body} = do
@@ -390,7 +395,7 @@ instance (Show size) => ToQiskitPy (QPL.Stmt size) where
         ]
   mkPy QPL.WhileK{} = pure $ blackbox "WhileK"
   mkPy QPL.WhileKWithCondExpr{} = pure $ blackbox "WhileKWithCondExpr"
-  mkPy QPL.ForInArray{loop_index, loop_index_ty, loop_values, loop_body} = do
+  mkPy QPL.ForInArray{loop_index, loop_values, loop_body} = do
     body <- mkPy loop_body
     let vals = PP.list (map py_expr loop_values)
     pure $
@@ -399,3 +404,4 @@ instance (Show size) => ToQiskitPy (QPL.Stmt size) where
         , py_indent body
         ]
   mkPy QPL.ForInRangeS{} = pure $ blackbox "ForInRangeS"
+  mkPy QPL.BlackBoxS{} = pure $ blackbox "BlackBoxS"

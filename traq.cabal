@@ -38,9 +38,6 @@ library
       Traq.Analysis.Prelude
       Traq.Compiler
       Traq.Compiler.Prelude
-      Traq.Compiler.Python
-      Traq.Compiler.Qiskit
-      Traq.Compiler.Qualtran
       Traq.Compiler.Quantum
       Traq.Compiler.Unitary
       Traq.Control.Monad
@@ -66,6 +63,9 @@ library
       Traq.Examples.MatrixSearch
       Traq.Examples.Search
       Traq.Examples.TreeGenerator
+      Traq.Experimental.Compiler.Python
+      Traq.Experimental.Compiler.Qiskit
+      Traq.Experimental.Compiler.Qualtran
       Traq.Numeric.Floating
       Traq.Prelude
       Traq.Primitives

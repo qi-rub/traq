@@ -85,7 +85,8 @@ instance MatrixType (SizeT, SizeT, Value -> Value -> Bool) where
 
 instance MatrixType [[Value]] where
   nRows = length
-  nCols = length . head
+  nCols [] = 0
+  nCols (r : _) = length r
 
   toValueFun mat [CPL.FinV i, CPL.FinV j] = [mat !! fromIntegral i !! fromIntegral j]
   toValueFun _ _ = error "unsupported"

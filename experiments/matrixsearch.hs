@@ -32,7 +32,7 @@ symbolicEx = do
   let m = Sym.var "M" :: Sym.Sym SizeT
   let CPL.Program ex_fs = mkMatrixExample (\t f -> CPL.PrimCallE $ Primitive [f] $ QSearchSym $ PrimSearch AnyK t) n m
 
-  forM_ (tail $ inits ex_fs) $ \fs -> do
+  forM_ (drop 1 $ inits ex_fs) $ \fs -> do
     let eps = A.failProb (Sym.var "ε" :: Sym.Sym Double)
 
     putStrLn $ printf "Worst case cost of %s" (CPL.fun_name $ last fs)

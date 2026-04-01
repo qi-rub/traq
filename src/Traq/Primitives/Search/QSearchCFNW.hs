@@ -257,7 +257,7 @@ addGroverIteration ::
   QPL.Arg size ->
   UQSearchBuilder ext ()
 addGroverIteration c x b = do
-  x_ty <- view $ to search_arg_type
+  _x_ty <- view $ to search_arg_type
   let unifX = QPL.BasicGateU QPL.Unif
   addPredCall c x b
   writeElem $ QPL.UnitaryS [x] (QPL.Adjoint unifX)
@@ -280,8 +280,8 @@ algoQSearchZalkaRandomIterStep ::
   QPL.Arg size ->
   UQSearchBuilder ext ()
 algoQSearchZalkaRandomIterStep r r_reg ctrl_bit x_reg b_reg = do
-  let r_ty = CPL.Fin r
-  x_ty <- view $ to search_arg_type
+  let _r_ty = CPL.Fin r
+  _x_ty <- view $ to search_arg_type
 
   -- uniform r
   let prep_r = QPL.UnitaryS [r_reg] (QPL.BasicGateU QPL.Unif)
@@ -363,7 +363,7 @@ algoQSearchZalka eps out_bit out_val = do
   writeElem $
     QPL.UnitaryS
       { QPL.qargs = [QPL.Arg b_regs, QPL.Arg out_bit]
-      , QPL.unitary = QPL.RevEmbedU ["a"] $ CPL.UnOpE CPL.AnyOp "a"
+      , QPL.unitary = QPL.NamedGateU "any"
       }
 
   writeElem $
@@ -463,7 +463,7 @@ groverK ::
   -- | run the predicate
   (Ident -> Ident -> QPL.UStmt size) ->
   QPL.UStmt size
-groverK k (x, x_ty) b mk_pred =
+groverK k (x, _x_ty) b mk_pred =
   QPL.USeqS
     [ prepb
     , prepx
@@ -590,8 +590,8 @@ algoQSearch ty n_samples eps grover_k_caller pred_caller ok x = do
    where
     go :: SizeT -> [SizeT] -> [SizeT]
     go _ [] = []
-    go lim (x : _) | x > lim = []
-    go lim (x : xs) = x : go (lim - x) xs
+    go lim (j : _) | j > lim = []
+    go lim (j : js') = j : go (lim - j) js'
 
     js :: [SizeT]
     js = map floor js_f

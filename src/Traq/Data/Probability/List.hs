@@ -51,5 +51,8 @@ compress =
   runProbList
     >>> sortOn snd
     >>> groupOn snd
-    >>> map (\t -> (sum . map fst $ t, snd . head $ t))
+    >>> map (\t -> (sum . map fst $ t, snd . unsafeHead $ t))
     >>> ProbList
+ where
+  unsafeHead [] = error "unreachable"
+  unsafeHead (x : _) = x

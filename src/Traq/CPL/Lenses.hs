@@ -111,7 +111,7 @@ instance MapPrec (DistrExpr prec size) where
 instance (MapPrec ext) => MapPrec (Expr ext) where
   type MappedPrec (Expr ext) prec' = Expr (MappedPrec ext prec')
 
-  mapPrec f (BasicExprE e) = BasicExprE e
+  mapPrec _ (BasicExprE e) = BasicExprE e
   mapPrec f (RandomSampleE e) = RandomSampleE (mapPrec f e)
   mapPrec f (PrimCallE prim) = PrimCallE (mapPrec f prim)
   mapPrec _ FunCallE{..} = FunCallE{..}

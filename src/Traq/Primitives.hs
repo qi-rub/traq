@@ -83,10 +83,10 @@ instance QAmplify size prec :<: DefaultPrimCollection size prec where
 
 instance (Show size, Show prec, Fractional prec) => SerializePrim (DefaultPrimCollection size prec) where
   primNames =
-    [ "any"
-    , "search"
+    [ "search"
     , "any_rand"
     , "any_det"
+    , "any"
     , "amplify"
     , "camplify"
     , "max"
@@ -105,8 +105,8 @@ instance (Show size, Show prec, Fractional prec) => SerializePrim (DefaultPrimCo
 
   parsePrimParams tp s
     | s == "any" || s == "search" = QAny <$> parsePrimParams tp s
-    | s == "any_rand" = RAny <$> parsePrimParams tp s
-    | s == "any_det" = DAny <$> parsePrimParams tp s
+    | s == "any_rand" = RAny <$> parsePrimParams tp "any"
+    | s == "any_det" = DAny <$> parsePrimParams tp "any"
     | s == "amplify" = QAmp <$> parsePrimParams tp s
     | s == "camplify" = CAmp <$> parsePrimParams tp s
     | s == "max" = QMax' <$> parsePrimParams tp s

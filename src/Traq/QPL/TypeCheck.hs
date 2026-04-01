@@ -21,7 +21,7 @@ import Control.Monad (forM, unless, when)
 import Control.Monad.Except (MonadError (throwError))
 import Control.Monad.Reader (MonadReader, ReaderT, local, runReaderT)
 import Control.Monad.State (evalStateT, execStateT)
-import Data.List (intersect)
+import Data.List (intersect, isPrefixOf)
 import GHC.Generics (Generic)
 import Text.Printf (printf)
 
@@ -155,16 +155,18 @@ typeCheckUnitary (RevEmbedU xs e) tys = do
   gamma' <- execStateT ?? gamma $ do
     all_gamma <- view $ CPL._typingCtx . to Ctx.toList
     forM all_gamma $ \(x, ty) ->
-      when (head x == '#') $
+      when ("#" `isPrefixOf` x) $
         Ctx.ins x .= ty
   let res = evalStateT (CPL.typeCheckBasicExpr e) gamma'
   case res of
     Left err -> Err.throwErrorMessage err
     Right ret_ty -> verifyArgTys (drop (length xs) tys) [ret_ty]
 -- composite gates
-typeCheckUnitary (Controlled u) tys = do
-  verifyArgTys [head tys] [CPL.tbool]
-  typeCheckUnitary u (tail tys)
+typeCheckUnitary (Controlled u) (t : tys) = do
+  verifyArgTys [t] [CPL.tbool]
+  typeCheckUnitary u tys
+typeCheckUnitary (Controlled _) [] =
+  Err.throwErrorMessage "Controlled gate requires at least one argument"
 typeCheckUnitary (Adjoint u) tys = typeCheckUnitary u tys
 
 typeCheckUStmt :: forall size. (CPL.TypingReqs size) => UStmt size -> TypeChecker size ()

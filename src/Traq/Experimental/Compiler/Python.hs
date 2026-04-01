@@ -3,7 +3,7 @@
 
 {- HLINT ignore "Use camelCase" -}
 
-module Traq.Compiler.Python (
+module Traq.Experimental.Compiler.Python (
   Py,
   withEnv,
   py_indent,
@@ -145,7 +145,7 @@ py_expr CPL.TernaryE{branch, lhs, rhs} = PP.parens $ py_expr lhs <+> PP.pretty "
 py_expr CPL.NAryE{op, operands} = py_naryOp op <> PP.tupled (map py_expr operands)
 py_expr CPL.IndexE{arr_expr, ix_val} = py_expr arr_expr <> PP.brackets (PP.pretty (show ix_val))
 py_expr CPL.DynIndexE{arr_expr, ix_expr} = py_expr arr_expr <> PP.brackets (py_expr ix_expr)
-py_expr CPL.UpdateArrE{arr_expr, ix_expr, rhs} = error "TODO UpdateArrE"
+py_expr CPL.UpdateArrE{} = error "TODO UpdateArrE"
 py_expr CPL.ProjectE{tup_expr, tup_ix_val} = py_expr tup_expr <> PP.brackets (PP.pretty (show tup_ix_val))
 
 py_val :: (Show size) => CPL.Value size -> Py ann
@@ -161,9 +161,6 @@ py_defaultVal (CPL.Tup ts) = PP.tupled (map py_defaultVal ts)
 
 py_unOp :: CPL.UnOp -> Py ann
 py_unOp CPL.NotOp = PP.pretty "not "
-py_unOp CPL.AnyOp = PP.pretty "any"
-py_unOp CPL.AllOp = PP.pretty "all"
-py_unOp CPL.MajOp = error "TODO MajOp"
 
 py_binOp :: CPL.BinOp -> Py ann
 py_binOp CPL.AddOp = PP.pretty "+"

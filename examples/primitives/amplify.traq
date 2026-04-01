@@ -1,0 +1,6 @@
+ext fn sampler(Fin<16>) -> (Bool, Fin<8>) end
+
+fn main(x: Fin<16>) -> (Bool, Fin<8>) do
+	b, y <- @amplify<0.01>[sampler(x)];
+	return b, y
+end

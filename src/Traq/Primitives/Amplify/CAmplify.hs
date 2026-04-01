@@ -1,4 +1,5 @@
 {-# LANGUAGE DeriveGeneric #-}
+{-# LANGUAGE DisambiguateRecordFields #-}
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE MultiParamTypeClasses #-}
 
@@ -11,8 +12,12 @@ module Traq.Primitives.Amplify.CAmplify (
 )
 where
 
+import Control.Monad (replicateM)
+import Control.Monad.Except (throwError)
 import GHC.Generics (Generic)
 
+import Lens.Micro.GHC
+import Lens.Micro.Mtl
 import qualified Numeric.Algebra as Alg
 
 import qualified Traq.Data.Probability as Prob
@@ -20,9 +25,11 @@ import Traq.Data.Subtyping
 
 import qualified Traq.Analysis as A
 import qualified Traq.CPL as CPL
+import qualified Traq.Compiler as Compiler
 import Traq.Prelude
 import Traq.Primitives.Amplify.Prelude
 import Traq.Primitives.Class
+import qualified Traq.QPL as QPL
 
 -- | Classical (probabilistic) bounded repetition.
 newtype CAmplify size prec = CAmplify (Amplify size prec)
@@ -102,10 +109,48 @@ instance (CPL.EvalReqs size prec, Floating prec, Ord prec) => QuantumExpCostPrim
 -- Compilation
 -- ================================================================================
 
-instance UnitaryCompilePrim (CAmplify size prec) size prec where
-  compileUPrim (CAmplify Amplify{}) eps = do
-    error "TODO: CompileU CAmplify"
+instance (Floating prec, RealFrac prec, Integral size) => UnitaryCompilePrim (CAmplify size prec) size prec where
+  compileUPrim (CAmplify Amplify{p_min}) eps = do
+    ret_tys <- view $ to prim_ret_types
 
-instance QuantumCompilePrim (CAmplify size prec) size prec where
-  compileQPrim (CAmplify Amplify{}) eps = do
-    error "TODO: CompileQ CAmplify"
+    (SamplerFn call_upred) <- view $ to mk_ucall
+    (SamplerFn pred_aux_tys) <- view $ to uproc_aux_types
+
+    let q_max = ceiling (_QMax eps p_min)
+
+    rets <- replicateM (length ret_tys) $ Compiler.newIdent "ret"
+
+    Compiler.buildUProc "UCAmplify" [] (zip rets ret_tys) $ do
+      tmp <- mapM (Compiler.allocLocal . CPL.Arr q_max) ret_tys
+      aux <- mapM (Compiler.allocLocal . CPL.Arr q_max) pred_aux_tys
+
+      i <- Compiler.newIdent "i"
+      Compiler.withUStmt (QPL.UForInDomainS i (CPL.Fin q_max) False) $ do
+        let tmp_ix = map ((`QPL.ArrElemArg` CPL.MetaName i) . QPL.Arg) tmp
+        let aux_ix = map ((`QPL.ArrElemArg` CPL.MetaName i) . QPL.Arg) aux
+        Compiler.addUStmt $ call_upred (tmp_ix ++ aux_ix)
+
+      Compiler.addUStmt $ QPL.UnitaryS (map QPL.Arg (tmp ++ rets)) (QPL.NamedGateU "Select")
+
+instance (Floating prec, RealFrac prec, Integral size) => QuantumCompilePrim (CAmplify size prec) size prec where
+  compileQPrim (CAmplify Amplify{p_min}) eps = do
+    ret_tys <- view $ to prim_ret_types
+    (flag_ty, sample_ty) <- case ret_tys of
+      [b, t] -> return (b, t)
+      _ -> throwError "typecheck failed"
+
+    flag <- Compiler.newIdent "b"
+    sample <- Compiler.newIdent "y"
+
+    (SamplerFn call_pred) <- view $ to mk_call
+
+    let q_max = ceiling (_QMax eps p_min)
+
+    Compiler.buildProc "CAmplify" [] [(flag, flag_ty), (sample, sample_ty)] $ do
+      Compiler.withStmt (QPL.RepeatS (QPL.MetaSize q_max)) $ do
+        Compiler.addStmt $
+          QPL.IfThenElseS
+            { cond = flag
+            , s_true = QPL.SkipS
+            , s_false = call_pred [QPL.Arg flag, QPL.Arg sample]
+            }
