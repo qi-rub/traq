@@ -23,3 +23,20 @@ Contributing
 ------------
 
 Please see [Contributing.md](Contributing.md).
+
+Paper
+-----
+
+The tool is based on the following paper:
+
+```bibtex
+@misc{peduri2026traqestimatingquantumcost,
+      title={Traq: Estimating the Quantum Cost of Classical Programs}, 
+      author={Anurudh Peduri and Jam Kabeer Ali Khan and Gilles Barthe and Michael Walter},
+      year={2026},
+      eprint={2509.01508},
+      archivePrefix={arXiv},
+      primaryClass={quant-ph},
+      url={https://arxiv.org/abs/2509.01508}, 
+}
+```
