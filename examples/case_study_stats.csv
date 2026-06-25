@@ -1,0 +1,10 @@
+program,domain,traq_loc,primitives,qpl_loc,qubits,eps_budget,error_concrete,cost_concrete,error_symbolic,cost_symbolic
+Triangle Finding,Search,43,search,198,2574,1.0e-3,1.00e-3,1488549.72,eps_1+188.0*(1.0+logBase 3.0 (1.0/eps_1))*sqrt (2.0*eps_0),188.0*(1.0+logBase 3.0 (1.0/eps_1))*(1.0+16.0*(1.0+logBase 0.6086 eps_0))
+Farthest Points,Search,40,search,149,5608,1.0e-3,1.00e-3,19299.83,4.0*eps_0,4.0*(3.0+564.0*(1.0+logBase 3.0 (1.0/eps_0)))
+Matrix Search,Search,18,"search, all",159,2224,1.0e-3,1.00e-3,324117.64,eps_1+86.28730157199226*(1.0+logBase 3.0 (1.0/eps_1))*sqrt (2.0*eps_0),690.2984125759381*(1.0+logBase 3.0 (1.0/eps_1))*(1.0+logBase 0.6086 eps_0)
+Depth-3 NAND,Search,28,all,232,11668,1.0e-3,1.00e-3,389304852.19,eps_2+86.28730157199226*(1.0+logBase 3.0 (1.0/eps_2))*sqrt (2.0*(eps_1+8.0*(1.0+logBase 0.6086 eps_1)*sqrt (2.0*eps_0))),5522.387300607505*(1.0+logBase 3.0 (1.0/eps_2))*(1.0+logBase 0.6086 eps_1)*(1.0+logBase 0.6086 eps_0)
+Max-k-SAT (simple),Optimization,34,search,125,1702,1.0e-3,1.00e-3,4290.74,eps_0+eps_0+eps_0,172.57460314398452*(1.0+logBase 3.0 (1.0/eps_0))+172.57460314398452*(1.0+logBase 3.0 (1.0/eps_0))+172.57460314398452*(1.0+logBase 3.0 (1.0/eps_0))
+Max-k-SAT (steep),Optimization,32,argmax,112,5682,1.0e-3,1.00e-3,8998.69,eps_0+eps_0+eps_0,374.64719258669794*log (1.0/eps_0)+374.64719258669794*log (1.0/eps_0)+374.64719258669794*log (1.0/eps_0)
+0/1 Knapsack,Optimization,80,amplify,1068,4319,1.0e-3,1.00e-3,90525.36,3.0*eps_0,3.0*(4.0+165.6*logBase 3.0 (1.0/eps_0)/sqrt (p**4.0))
+3-Round Feistel,Cryptanalysis,67,simon,120,39302,1.0e-3,1.00e-3,259.33,eps_0,8.0*(1.0+(21.0+logBase 2.0 (1.0/eps_0))/0.98564470702293)
+Even-Mansour,Cryptanalysis,25,simon,76,10280,1.0e-3,1.00e-3,127.61,eps_0,2.0+4.0*(1.0+(20.0+logBase 2.0 (1.0/eps_0))/0.98564470702293)

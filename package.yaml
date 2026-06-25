@@ -99,6 +99,10 @@ executables:
     main: demo.hs
     <<: *expt_opts
     source-dirs: examples/matrix_search
+  matrixsearchdemosymbolic:
+    main: demo_symbolic.hs
+    <<: *expt_opts
+    source-dirs: examples/matrix_search
   knapsackdemo:
     main: demo.hs
     <<: *expt_opts
@@ -108,6 +112,9 @@ executables:
     <<: *expt_opts
   compile_loc:
     main: compile_loc.hs
+    <<: *expt_opts
+  casestudystats:
+    main: casestudy_stats.hs
     <<: *expt_opts
 
 

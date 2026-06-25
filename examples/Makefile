@@ -12,4 +12,9 @@ endef
 
 $(foreach dir,$(SUBDIRS),$(eval $(call SUBDIR_RULE,$(dir))))
 
-.PHONY: all $(SUBDIRS)
+# Generate the augmented Table 2 statistics (QPL size, error/cost bounds) for all
+# case studies: prints a Markdown table and writes case_study_stats.csv.
+stats:
+	cd .. && cabal run -v0 casestudystats
+
+.PHONY: all stats $(SUBDIRS)
