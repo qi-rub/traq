@@ -4,8 +4,6 @@
 
 module Traq.Examples.DepthThreeNandFormulaSpec where
 
-import Control.DeepSeq (force)
-import Control.Exception (evaluate)
 import Text.Parsec.String
 
 import Lens.Micro.GHC
@@ -16,8 +14,6 @@ import qualified Traq.Analysis as A
 import Traq.Analysis.CostModel.QueryCost (SimpleQueryCost (getCost))
 import qualified Traq.CPL as CPL
 import qualified Traq.Compiler as Compiler
-import qualified Traq.Experimental.Compiler.Qiskit as Qiskit
-import qualified Traq.Experimental.Compiler.Qualtran as Qualtran
 import Traq.Prelude
 import Traq.Primitives (DefaultPrims)
 import qualified Traq.QPL as QPL
@@ -67,13 +63,3 @@ spec = describe "Depth 3 NAND Formula" $ do
         let cost = fst (QPL.programCost ex_cqpl) :: SimpleQueryCost Double
         let cost_from_analysis = getCost $ A.costQProg ex
         getCost cost `shouldBeLE` cost_from_analysis
-
-      xit "target-py-qualtran" $ \ex -> do
-        ex_cqpl <- expectRight $ Compiler.lowerProgram ex
-        _ <- evaluate $ force $ Qualtran.toPy ex_cqpl
-        return ()
-
-      xit "target-py-qiskit" $ \ex -> do
-        ex_cqpl <- expectRight $ Compiler.lowerProgram ex
-        _ <- evaluate $ force $ Qiskit.toPy ex_cqpl
-        return ()

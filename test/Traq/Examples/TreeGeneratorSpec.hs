@@ -2,8 +2,6 @@
 
 module Traq.Examples.TreeGeneratorSpec where
 
-import Control.DeepSeq (force)
-import Control.Exception (evaluate)
 import qualified Data.Map as Map
 import Text.Parsec.String
 
@@ -16,8 +14,6 @@ import Traq.Analysis.CostModel.QueryCost (SimpleQueryCost (getCost))
 import Traq.CPL
 import qualified Traq.Compiler as Compiler
 import Traq.Examples.TreeGenerator
-import qualified Traq.Experimental.Compiler.Qiskit as Qiskit
-import qualified Traq.Experimental.Compiler.Qualtran as Qualtran
 import Traq.Prelude
 import Traq.Primitives
 import qualified Traq.QPL as QPL
@@ -110,13 +106,3 @@ spec = do
           let cost = fst (QPL.programCost ex_cqpl) :: SimpleQueryCost Double
           let cost_from_analysis = getCost $ A.costQProg ex
           getCost cost `shouldBeLE` cost_from_analysis
-
-        xit "target-py-qualtran" $ \ex -> do
-          ex_cqpl <- expectRight $ Compiler.lowerProgram ex
-          _ <- evaluate $ force $ Qualtran.toPy ex_cqpl
-          return ()
-
-        xit "target-py-qiskit" $ \ex -> do
-          ex_cqpl <- expectRight $ Compiler.lowerProgram ex
-          _ <- evaluate $ force $ Qiskit.toPy ex_cqpl
-          return ()
