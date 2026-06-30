@@ -3,8 +3,6 @@
 
 module Traq.Examples.SearchSpec (spec) where
 
-import Control.DeepSeq (force)
-import Control.Exception (evaluate)
 import qualified Data.Map as Map
 import Text.Parsec.String (parseFromFile)
 
@@ -17,8 +15,6 @@ import Traq.Analysis.CostModel.QueryCost (SimpleQueryCost (..))
 import qualified Traq.CPL as CPL
 import qualified Traq.Compiler as Compiler
 import Traq.Examples.Search
-import qualified Traq.Experimental.Compiler.Qiskit as Qiskit
-import qualified Traq.Experimental.Compiler.Qualtran as Qualtran
 import Traq.Prelude
 import Traq.Primitives
 import Traq.Primitives.Search.QSearchCFNW (_EQSearch, _QSearchZalka)
@@ -108,16 +104,6 @@ spec = describe "SearchSpec" $ do
           let cost_from_analysis = getCost $ A.costQProg ex'
           getCost cost `shouldBeLE` cost_from_analysis
 
-        xit "target-py-qualtran" $ \ex' -> do
-          ex_cqpl <- expectRight $ Compiler.lowerProgram ex'
-          _ <- evaluate $ force $ Qualtran.toPy ex_cqpl
-          return ()
-
-        xit "target-py-qiskit" $ \ex' -> do
-          ex_cqpl <- expectRight $ Compiler.lowerProgram ex'
-          _ <- evaluate $ force $ Qiskit.toPy ex_cqpl
-          return ()
-
   describe "arraySearch (returning solution)" $ do
     let n = 10
     let ex = arraySearchIx n
@@ -134,18 +120,3 @@ spec = describe "SearchSpec" $ do
       let res = CPL.runProgram @_ @Double ex interpCtx []
 
       res `shouldBeDistribution` [([CPL.FinV 1, CPL.FinV i], 1 / 3) | i <- planted_sols]
-
-  describe "any" $ do
-    let load =
-          parseFromFile (CPL.programParser @(DefaultPrims (Sym.Sym SizeT) (Sym.Sym Double))) "examples/primitives/any.traq"
-            >>= expectRight
-              <&> CPL.mapSize Sym.unSym
-              <&> CPL.mapPrec Sym.unSym
-              <&> A.annotateProgWith (CPL._exts (A.annSinglePrim (A.failProb 0.01)))
-            >>= expectRight
-
-    beforeAll load $ do
-      xit "target-qiskit" $ \ex -> do
-        ex_qpl <- expectRight $ Compiler.lowerProgram ex
-        _ <- evaluate $ force $ Qiskit.toPy ex_qpl
-        return ()

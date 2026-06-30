@@ -63,9 +63,6 @@ library
       Traq.Examples.MatrixSearch
       Traq.Examples.Search
       Traq.Examples.TreeGenerator
-      Traq.Experimental.Compiler.Python
-      Traq.Experimental.Compiler.Qiskit
-      Traq.Experimental.Compiler.Qualtran
       Traq.Numeric.Floating
       Traq.Prelude
       Traq.Primitives

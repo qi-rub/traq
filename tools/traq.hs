@@ -2,10 +2,8 @@
 
 module Main (main) where
 
-import Control.Monad (unless)
 import Control.Monad.Reader (ReaderT, runReaderT)
 import Control.Monad.Trans (lift)
-import Data.List (isPrefixOf)
 import Options.Applicative
 import System.FilePath (takeExtension)
 import Text.Printf (printf)
@@ -20,8 +18,6 @@ import qualified Traq.Data.Symbolic as Sym
 import qualified Traq.Analysis as Analysis
 import qualified Traq.CPL as CPL
 import qualified Traq.Compiler as Compiler
-import qualified Traq.Experimental.Compiler.Qiskit as Qiskit
-import qualified Traq.Experimental.Compiler.Qualtran as Qualtran
 import Traq.Prelude
 import qualified Traq.Primitives as P
 import qualified Traq.QPL as QPL
@@ -31,17 +27,12 @@ import qualified Traq.Utils.Printing as PP
 -- CLI
 -- ============================================================
 
-data Backend = QPL | Qualtran | Qiskit
-  deriving (Read, Show, Eq)
-
 data Options = Options
-  { target :: Backend
-  , in_file :: FilePath
+  { in_file :: FilePath
   , out_file :: Maybe FilePath
   , eps :: Maybe Double
   , params :: [(Ident, SizeT)]
   , paramsf :: [(Ident, Double)]
-  , experimental :: Bool
   }
   deriving (Show)
 
@@ -93,21 +84,6 @@ emitQPL qpl_prog = do
   let nqubits = QPL.numQubits qpl_prog
   pure $ unlines [PP.toCodeString qpl_prog, printf "// qubits: %d" nqubits]
 
--- | Insert generated code at the ===CODE-HERE=== marker in a template file.
-emitWithTemplate :: FilePath -> String -> IO String
-emitWithTemplate templatePath code = do
-  template <- readFile templatePath
-  let marker = "# ===CODE-HERE==="
-  pure $ case break (marker `isPrefixOf`) (lines template) of
-    (before, _ : after) -> unlines $ before ++ [code] ++ after
-    _ -> unlines [template, code]
-
-emitQualtran :: QPL.Program SizeT -> IO String
-emitQualtran = emitWithTemplate "tools/qualtran_prelude.py" . Qualtran.toPy
-
-emitQiskit :: QPL.Program SizeT -> IO String
-emitQiskit = emitWithTemplate "tools/qiskit_prelude.py" . Qiskit.toPy
-
 -- ============================================================
 -- CLI parser
 -- ============================================================
@@ -124,18 +100,9 @@ opts :: ParserInfo Options
 opts =
   info
     (options <**> helper)
-    (fullDesc <> header "Traq: Compile CPL programs to QPL, Qualtran, or Qiskit.")
+    (fullDesc <> header "Traq: Compile CPL programs to QPL.")
  where
   options = do
-    target <-
-      option auto $
-        long "target"
-          <> short 't'
-          <> metavar "TARGET"
-          <> help "Output target: QPL | Qualtran (experimental) | Qiskit (experimental)"
-          <> value QPL
-          <> showDefault
-
     in_file <-
       strOption $
         long "input"
@@ -173,21 +140,11 @@ opts =
             <> help "float parameters..."
             <> metavar "NAME=VALUE"
 
-    experimental <-
-      switch $
-        long "experimental"
-          <> help "Enable experimental features"
-
     pure Options{..}
 
 main :: IO ()
 main = do
   options@Options{..} <- execParser opts
-
-  let guardExperimental feat =
-        unless experimental $
-          fail $
-            "feature " <> feat <> " is experimental; pass --experimental to run it anyway"
 
   qpl_prog <- (runReaderT ?? options) $ do
     case takeExtension in_file of
@@ -199,8 +156,5 @@ main = do
       ".qpl" -> loadQPLProgram
       ext -> fail $ "Unsupported file extension: " ++ ext
 
-  out_str <- case target of
-    QPL -> emitQPL qpl_prog
-    Qualtran -> guardExperimental "backend:Qualtran" >> emitQualtran qpl_prog
-    Qiskit -> guardExperimental "backend:Qiskit" >> emitQiskit qpl_prog
+  out_str <- emitQPL qpl_prog
   maybe putStr writeFile out_file out_str
